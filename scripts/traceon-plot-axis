@@ -1,0 +1,55 @@
+#! /bin/env python3
+
+import argparse
+
+import matplotlib.pyplot as plt
+import numpy as np
+from math import *
+
+import traceon.geometry as G
+import traceon.solver as solver
+
+parser = argparse.ArgumentParser(prog='plot-axis', description='Plot potential and electric field along optical axis')
+parser.add_argument('--geometry', required=True, help='Geometry file')
+parser.add_argument('-V', '--voltages', metavar=('ELECTRODE', 'VOLTAGE...'), type=str, default=None, nargs=2, help='Voltages to apply on electrodes')
+args = parser.parse_args()
+
+geom = G.Geometry.read(args.geometry)
+mesh = geom.mesh
+
+assert args.voltages is None or len(args.voltages) % 2 == 0
+
+electrodes = args.voltages[0::2]
+voltages = [float(v) for v in args.voltages[1::2]]
+
+lines, charges, field = solver.field_function_superposition_mesh(geom, *electrodes)
+
+zmin, zmax = np.min(mesh.points[:, 1]), np.max(mesh.points[:, 1])
+
+z = np.linspace(zmin-1, zmax+1, 500)
+
+field = np.array([field(0.0, z_, *voltages) for z_ in z])
+
+z_pot = np.linspace(zmin-5, zmax+5, 400)
+potential = np.zeros_like(z_pot)
+
+for i, v in enumerate(voltages):
+    potential += np.array([v*solver.potential_at_point(np.array([0.0, z_]), lines[i], charges[i]) for z_ in z_pot])
+
+plt.figure()
+plt.title('Potential (V)')
+plt.ylabel('Potential (V)')
+plt.xlabel('z (mm)')
+plt.plot(z_pot, potential)
+
+plt.figure()
+plt.title('Electric field (V/mm)')
+plt.ylabel('Electric field (V/mm)')
+plt.xlabel('z (mm)')
+plt.plot(z, field[:, 0], label='Er')
+plt.plot(z, field[:, 1], label='Ez')
+plt.legend()
+plt.show()
+
+
+

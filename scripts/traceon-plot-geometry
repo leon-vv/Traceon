@@ -1,0 +1,19 @@
+#! /bin/env python3
+
+import sys
+
+import traceon.plotting as P
+import traceon.geometry as G
+
+keys = [k[2:] for k in sys.argv[2::2]]
+colors = sys.argv[3::2]
+
+assert len(keys) == len(colors)
+
+color_dict = dict(zip(keys, colors))
+print(color_dict)
+
+g = G.Geometry.read(sys.argv[1])
+P.show_line_mesh(g.mesh, **color_dict)
+P.show()
+
