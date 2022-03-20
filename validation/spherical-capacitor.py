@@ -15,7 +15,7 @@ assert -12.5 <= correct <= 7.5 # Between spheres
 
 print(f'Correct: {correct:.5f}')
 
-Ns = [100, 200, 400, 800, 1600]
+Ns = [100, 200, 400, 800, 1200]
 
 line_elements = []
 errors = []
@@ -29,14 +29,12 @@ for N in Ns:
 
     field = S.field_function_bem(lines, charges)
     pos = T.trace_particle(position, vel, field, 12.5, -12.5, 12.5, rmin=-0.1)
-
-    print(S.benchmark_field_function(field, r=10.0, z=0.0, N=5000))
     
     r_final = T.axis_intersection(pos)
      
     line_elements.append(lines.shape[0])
     errors.append(r_final/correct - 1)
-    print(r_final, errors[-1])
+    print(f'Intersection: {r_final:.5f}, Accuracy: {errors[-1]:.1e}')
 
 plt.plot(line_elements, np.abs(errors))
 plt.scatter(line_elements, np.abs(errors))
