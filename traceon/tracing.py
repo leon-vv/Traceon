@@ -146,28 +146,6 @@ def trace_particle_rk4(position, velocity, field, rmax, zmin, zmax, rmin=None, a
      
     return positions[:N]
 
-def _trace_particle_precise(position, velocity, f_, rmax, zmin, zmax, args=(), mm_per_step=0.05):
-    V = np.linalg.norm(velocity)
-    max_step = mm_per_step/V
-     
-    def f(_, y):
-        Er, Ez = f_(y[0], y[1], *args)
-        return np.array([y[2], y[3], EM*Er, EM*Ez])
-      
-    i = DOP853(f, 0.0, np.array([position[0], position[1], velocity[0], velocity[1]]), 1e9, rtol=1e-6, atol=1e-6, max_step=max_step)
-     
-    def f(_, y):
-        Er, Ez = f_(y[0], y[1], *args)
-        return np.array([y[2], y[3], EM*Er, EM*Ez])
-     
-    positions = [np.copy(position)]
-    
-    while -rmax <= i.y[0] <= rmax and zmin <= i.y[1] <= zmax:
-        i.step()
-        positions.append([i.y[0], i.y[1]])
-    
-    return np.array(positions)
-
 def _z_to_bounds(z1, z2):
     assert (z1 < 0 and z2 < 0) or (z1 > 0 and z2 > 0)
     if z1 < 0 :
