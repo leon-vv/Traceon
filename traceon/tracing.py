@@ -110,13 +110,13 @@ def trace_particle(position, velocity, field, rmax, zmin, zmax, rmin=None, args=
     return positions[:N]
 
 @nb.njit(cache=True)
-def trace_particle_rk4(position, velocity, field, rmax, zmin, zmax, args=(), mm_per_step=0.015):
+def trace_particle_rk4(position, velocity, field, rmax, zmin, zmax, rmin=None, args=(), mm_per_step=0.015):
     """Trace a particle using the standard Runge Kutta fourth order method. See 'trace_particle'
     for an explanation of the arguments. This method uses a fixed step size.
     
     Args:
         mm_per_step: the fixed time step is chosen such that the particle make a step of 'mm_per_step'
-            when travelling with its initial speed (h = mm_per_step/np.linalg.norm(velocity))
+            when travelling with its initial speed (Δt = mm_per_step/np.linalg.norm(velocity))
     """
     
     Nmax = 20000
@@ -131,8 +131,10 @@ def trace_particle_rk4(position, velocity, field, rmax, zmin, zmax, args=(), mm_
         Er, Ez = field(y[0], y[1], *args)
         return np.array([y[2], y[3], EM*Er, EM*Ez])
      
+    rmin = -rmax if rmin is None else rmin
+    
     # 4th order runge kutta
-    while -rmax <= y[0] <= rmax and zmin <= y[1] <= zmax:
+    while rmin <= y[0] <= rmax and zmin <= y[1] <= zmax:
         k1 = h * f(0.0, y, *args)
         k2 = h * f(0.0, y + 0.5 * k1, *args)
         k3 = h * f(0.0, y + 0.5 * k2, *args)
