@@ -25,10 +25,7 @@ class Geometry:
             filename: name of the file
         """
         with open(filename, 'wb') as f:
-            pickle.dump({
-                'mesh': self.mesh,
-                'metadata': self.metadata,
-                'N': self.N}, f)
+            pickle.dump(self, f)
     
     def get_electrodes(self):
         """Get the names of all the electrodes in the geometry.
@@ -44,9 +41,13 @@ class Geometry:
             filename: the name of the file.
         """
         with open(filename, 'rb') as f:
-            dict_ = pickle.load(f)
+            object_ = pickle.load(f)
         
-        return Geometry(dict_['mesh'], dict_['N'], dict_['metadata'])
+        if isinstance(object_, dict): 
+            # Backwards compatibility
+            return Geometry(object_['mesh'], object_['N'], object_['metadata'])
+        else:
+            return object_
     
     def __str__(self):
         return str(self.mesh) + ' (metadata: ' + str(self.metadata) + ')'
