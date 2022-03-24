@@ -324,7 +324,7 @@ def create_two_cylinder_lens(S=0.2, R=1, N=200, wall_thickness=1, boundary_lengt
             lines = [poly.curves[idx] for idx in indices]
             geom.add_physical(lines, key)
          
-        return geom.generate_mesh()
+        return geom.generate_mesh(dim=1)
 
 
 def create_dohi_mirror(N=1500):
