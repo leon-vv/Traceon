@@ -26,7 +26,7 @@ WIDTHS_FAR_AWAY = 20
 N_FACTOR = 12
 
 def traceon_jit(*args, **kwargs):
-    return nb.njit(*args, nogil=True, fastmath=True, **kwargs)
+    return nb.njit(*args, cache=True, nogil=True, fastmath=True, **kwargs)
 
 # Simpson integration rule
 @traceon_jit
@@ -44,7 +44,7 @@ def _simps(y, dx):
     
     return sum_
 
-@traceon_jit(cache=True)
+@traceon_jit
 def _norm(x, y):
     return m.sqrt(x**2 + y**2)
 
@@ -54,15 +54,69 @@ ellipk_fn = ctypes.CFUNCTYPE(ctypes.c_double, ctypes.c_double)(addr)
 addr = get_cython_function_address("scipy.special.cython_special", "ellipe")
 ellipe_fn = ctypes.CFUNCTYPE(ctypes.c_double, ctypes.c_double)(addr)
 
+# Chebyshev Approximations for the Complete Elliptic Integrals K and E.
+# W. J. Cody. 1965.
+
+@traceon_jit
+def cody_ellipk(k):
+    eta = 1 - k
+    A = (m.log(4),
+        9.65736020516771e-2,
+        3.08909633861795e-2,
+        1.52618320622534e-2,
+        1.25565693543211e-2,
+        1.68695685967517e-2,
+        1.09423810688623e-2,
+        1.40704915496101e-3)
+    B = (1/2,
+        1.24999998585309e-1,
+        7.03114105853296e-2,
+        4.87379510945218e-2,
+        3.57218443007327e-2,
+        2.09857677336790e-2,
+        5.81807961871996e-3,
+        3.42805719229748e-4)
+    
+    return A[0] + A[1]*eta + A[2]*eta**2 +A[3]*eta**3 + A[4]*eta**4 + A[5]*eta**5 + A[6]*eta**6 + A[7]*eta**7 + \
+            + m.log(1/eta)*(B[0] + B[1]*eta + B[2]*eta**2 +B[3]*eta**3 + B[4]*eta**4 + B[5]*eta**5 + B[6]*eta**6 + B[7]*eta**7)
+
+   
+@traceon_jit
+def cody_ellipe(k):
+    eta = 1 - k
+    A = (1,
+        4.43147193467733e-1,
+        5.68115681053803e-2,
+        2.21862206993846e-2,
+        1.56847700239786e-2,
+        1.92284389022977e-2,
+        1.21819481486695e-2,
+        1.55618744745296e-3)
+
+    B = (0,
+        2.49999998448655e-1,
+        9.37488062098189e-2,
+        5.84950297066166e-2,
+        4.09074821593164e-2,
+        2.35091602564984e-2,
+        6.45682247315060e-3,
+        3.78886487349367e-4)
+    
+    return A[0] + A[1]*eta + A[2]*eta**2 +A[3]*eta**3 + A[4]*eta**4 + A[5]*eta**5 + A[6]*eta**6 + A[7]*eta**7 + \
+            + m.log(1/eta)*(B[0] + B[1]*eta + B[2]*eta**2 +B[3]*eta**3 + B[4]*eta**4 + B[5]*eta**5 + B[6]*eta**6 + B[7]*eta**7)
+
+
+
+
 #@nb.njit(nogil=True)
 @nb.vectorize('float64(float64)')
 def nb_ellipk(x):
-    return ellipk_fn(x)
+    return cody_ellipk(x)
 
 #@nb.njit(nogil=True)
 @nb.vectorize('float64(float64)')
 def nb_ellipe(x):
-    return ellipe_fn(x)
+    return cody_ellipe(x)
 
 @traceon_jit
 def _build_bem_matrix(matrix, points, lines_range, lines):
@@ -169,7 +223,7 @@ def _first_deriv_z(r_0, z_0, r, z):
     t = 4*r*r_0 / rz2
     return r*(z-z_0)*nb_ellipe(t) / ( ((z-z_0)**2 + (r-r_0)**2)*np.sqrt(rz2) )
 
-@traceon_jit(cache=True)
+@traceon_jit
 def _second_deriv_z_inner(A, B, r_0, z_0, r, z):
     #return -(r*((-3*B*z_0**4)+A*z_0**4+12*B*z*z_0**3-4*A*z*z_0**3-18*B*z**2*z_0**2+6*A*z**2*z_0**2-2*B*r_0**2*z_0**2+A*r_0**2*z_0**2-2*A*r*r_0*z_0**2-2*B*r**2*z_0**2+A*r**2*z_0**2+12*B*z**3*z_0-4*A*z**3*z_0+4*B*r_0**2*z*z_0-2*A*r_0**2*z*z_0+4*A*r*r_0*z*z_0+4*B*r**2*z*z_0-2*A*r**2*z*z_0-3*B*z**4+A*z**4-2*B*r_0**2*z**2+A*r_0**2*z**2-2*A*r*r_0*z**2-2*B*r**2*z**2+A*r**2*z**2+B*r_0**4-2*B*r**2*r_0**2+B*r**4))/((z_0**2-2*z*z_0+z**2+r_0**2-2*r*r_0+r**2)**2*(z_0**2-2*z*z_0+z**2+r_0**2+2*r*r_0+r**2)**(3/2))
     s = np.sqrt((z-z_0)**2 + (r + r_0)**2) 
@@ -190,7 +244,7 @@ def _second_deriv_z(r_0, z_0, r, z):
     return _second_deriv_z_inner(A, B, r_0, z_0, r, z)
 
 
-@traceon_jit(cache=True)
+@traceon_jit
 def _third_deriv_z_inner(A, B, r_0, z_0, r, z):
     s = np.sqrt((z-z_0)**2 + (r + r_0)**2) 
     s1 = (z_0-z)/s
@@ -210,7 +264,7 @@ def _third_deriv_z(r_0, z_0, r, z):
      
     return _third_deriv_z_inner(A, B, r_0, z_0, r, z)
 
-@traceon_jit(cache=True)
+@traceon_jit
 def _fourth_deriv_z_inner(A, B, r_0, z_0, r, z):
     s = np.sqrt((z-z_0)**2 + (r + r_0)**2) 
     s1 = (z_0-z)/s
