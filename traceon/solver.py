@@ -4,6 +4,8 @@ import ctypes
 import hashlib
 import os
 import os.path as path
+from threading import Thread
+import threading
 
 import numpy as np
 import numba as nb
@@ -23,8 +25,11 @@ os.makedirs(CACHE_DIR, exist_ok=True)
 WIDTHS_FAR_AWAY = 20
 N_FACTOR = 12
 
+def traceon_jit(*args, **kwargs):
+    return nb.njit(*args, nogil=True, fastmath=True, **kwargs)
+
 # Simpson integration rule
-@nb.njit(fastmath=True, cache=True)
+@traceon_jit
 def _simps(y, dx):
     i = 0
     sum_ = 0.0
@@ -39,7 +44,7 @@ def _simps(y, dx):
     
     return sum_
 
-@nb.njit(inline='always', fastmath=True, cache=True)
+@traceon_jit(cache=True)
 def _norm(x, y):
     return m.sqrt(x**2 + y**2)
 
@@ -49,38 +54,41 @@ ellipk_fn = ctypes.CFUNCTYPE(ctypes.c_double, ctypes.c_double)(addr)
 addr = get_cython_function_address("scipy.special.cython_special", "ellipe")
 ellipe_fn = ctypes.CFUNCTYPE(ctypes.c_double, ctypes.c_double)(addr)
 
+#@nb.njit(nogil=True)
 @nb.vectorize('float64(float64)')
 def nb_ellipk(x):
     return ellipk_fn(x)
 
+#@nb.njit(nogil=True)
 @nb.vectorize('float64(float64)')
 def nb_ellipe(x):
     return ellipe_fn(x)
 
-@nb.njit(fastmath=True)
-def _build_bem_matrix(N, points, lines, map_index, inactive):
-    assert points.shape[1] == 3
+@traceon_jit
+def _build_bem_matrix(matrix, points, lines_range, lines):
+    assert points.shape == (len(lines), 2, 3)
+    assert matrix.shape == (len(lines), len(lines))
     
-    matrix = np.zeros( (N, N) )
-    num_lines = len(lines) 
-
-    for i in range(num_lines):
-        if inactive[i]:
-            continue
-         
-        for j in range(num_lines):
-            if inactive[j]:
-                continue
+    for i in lines_range:
+        p1, p2 = points[i]
+        r0, z0, _ = (p1+p2)/2
+        
+        for j in range(len(lines)):
+            v1, v2 = points[j]
+             
+            r, z, _ = (v1+v2)/2
+            length = _norm(v1[0]-v2[0], v1[1]-v2[1])
+            distance = _norm(r-r0, z-z0)
             
-            p1, p2 = points[lines[i]]
-            at = (p1+p2)/2
-            
-            v1, v2 = points[lines[j]]
-                  
-            matrix[map_index[i], map_index[j]] = _deriv_z(at, v1, v2, 0)
-    
-    return matrix
-
+            if distance > WIDTHS_FAR_AWAY*length:
+                matrix[i, j] = _zeroth_deriv_z(r0, z0, r, z)*length
+            else:
+                N = N_FACTOR*WIDTHS_FAR_AWAY
+                r = np.linspace(v1[0], v2[0], N)
+                z = np.linspace(v1[1], v2[1], N)
+                ds = _norm(r[1]-r[0], z[1]-z[0])
+                to_integrate_ = _zeroth_deriv_z(r0, z0, r, z)
+                matrix[i, j] = _simps(to_integrate_, ds)
 
 def solve_bem(mesh, **voltages):
     """Solve for the charges on every line element given a mesh and the voltages applied on the electrodes.
@@ -100,24 +108,34 @@ def solve_bem(mesh, **voltages):
     """ 
     
     lines = mesh.cells_dict['line']
-    num_lines = len(lines)
-    inactive = np.full(num_lines, True)
+    inactive = np.full(len(lines), True)
     
     for v in voltages.keys():
         inactive[ mesh.cell_sets_dict[v]['line'] ] = False
      
-    map_index = np.arange(num_lines) - np.cumsum(inactive)
-    N = num_lines - np.sum(inactive)
+    active_lines = lines[~inactive]
+    N = len(active_lines)
     print('Total number of line elements: ', N)
+     
+    THREADS = 2
+    split = np.array_split(np.arange(N), THREADS)
+    matrices = [np.zeros((N, N)) for _ in range(THREADS)]
+    points = mesh.points[active_lines]
+    threads = [Thread(target=_build_bem_matrix, args=(m, points, line_indices, active_lines)) for line_indices, m in zip(split, matrices)]
     
     st = time.time()
-    matrix = _build_bem_matrix(N, mesh.points, lines, map_index, inactive) 
-    #print('Number of lines: ', N)
+    for t in threads:
+        t.start()
+    for t in threads:
+        t.join()
+     
     print(f'Time for building matrix: {(time.time()-st)*1000:.3f} ms')
+    matrix = np.sum(matrices, axis=0)
      
     F = np.zeros(N)
     
     for name, voltage in voltages.items():
+        map_index = np.arange(len(lines)) - np.cumsum(inactive)
         F[ map_index[ mesh.cell_sets_dict[name]['line'] ] ] = voltage
     
     assert np.all(np.isfinite(matrix))
@@ -128,30 +146,30 @@ def solve_bem(mesh, **voltages):
     
     assert np.all(np.isfinite(charges))
      
-    return mesh.points[lines[np.logical_not(inactive)]], charges
+    return points, charges
     
 
 
 # --------------- High order derivatives
-@nb.njit
+@traceon_jit
 def _first_deriv_r(r_0, z_0, r, z):
     rz2 = (r + r_0)**2 + (z - z_0)**2
     t = 4*r*r_0 / rz2
     return -r/(2*r_0*np.sqrt(rz2)) * (nb_ellipk(t) - ((z-z_0)**2 - r_0**2 + r**2) / ((z-z_0)**2 + (r-r_0)**2) * nb_ellipe(t))
 
-@nb.njit
+@traceon_jit
 def _zeroth_deriv_z(r_0, z_0, r, z):
     rz2 = (r + r_0)**2 + (z - z_0)**2
     t = 4*r*r_0 / rz2
     return nb_ellipk(t) * r / np.sqrt(rz2)
 
-@nb.njit
+@traceon_jit
 def _first_deriv_z(r_0, z_0, r, z):
     rz2 = (r + r_0)**2 + (z - z_0)**2
     t = 4*r*r_0 / rz2
     return r*(z-z_0)*nb_ellipe(t) / ( ((z-z_0)**2 + (r-r_0)**2)*np.sqrt(rz2) )
 
-@nb.njit(cache=True, fastmath=True)
+@traceon_jit(cache=True)
 def _second_deriv_z_inner(A, B, r_0, z_0, r, z):
     #return -(r*((-3*B*z_0**4)+A*z_0**4+12*B*z*z_0**3-4*A*z*z_0**3-18*B*z**2*z_0**2+6*A*z**2*z_0**2-2*B*r_0**2*z_0**2+A*r_0**2*z_0**2-2*A*r*r_0*z_0**2-2*B*r**2*z_0**2+A*r**2*z_0**2+12*B*z**3*z_0-4*A*z**3*z_0+4*B*r_0**2*z*z_0-2*A*r_0**2*z*z_0+4*A*r*r_0*z*z_0+4*B*r**2*z*z_0-2*A*r**2*z*z_0-3*B*z**4+A*z**4-2*B*r_0**2*z**2+A*r_0**2*z**2-2*A*r*r_0*z**2-2*B*r**2*z**2+A*r**2*z**2+B*r_0**4-2*B*r**2*r_0**2+B*r**4))/((z_0**2-2*z*z_0+z**2+r_0**2-2*r*r_0+r**2)**2*(z_0**2-2*z*z_0+z**2+r_0**2+2*r*r_0+r**2)**(3/2))
     s = np.sqrt((z-z_0)**2 + (r + r_0)**2) 
@@ -163,7 +181,7 @@ def _second_deriv_z_inner(A, B, r_0, z_0, r, z):
      
     return A*ellipe_term + B*ellipk_term
 
-@nb.njit
+@traceon_jit
 def _second_deriv_z(r_0, z_0, r, z):
     t2 = (4*r*r_0)/((z-z_0)**2 + (r+r_0)**2)
     A = nb_ellipe(t2)
@@ -172,7 +190,7 @@ def _second_deriv_z(r_0, z_0, r, z):
     return _second_deriv_z_inner(A, B, r_0, z_0, r, z)
 
 
-@nb.njit(cache=True, fastmath=True)
+@traceon_jit(cache=True)
 def _third_deriv_z_inner(A, B, r_0, z_0, r, z):
     s = np.sqrt((z-z_0)**2 + (r + r_0)**2) 
     s1 = (z_0-z)/s
@@ -184,7 +202,7 @@ def _third_deriv_z_inner(A, B, r_0, z_0, r, z):
     
     return A*ellipe_term + B*ellipk_term
     
-@nb.njit
+@traceon_jit
 def _third_deriv_z(r_0, z_0, r, z):
     t2 = (4*r*r_0)/((z-z_0)**2 + (r+r_0)**2)
     A = nb_ellipe(t2)
@@ -192,7 +210,7 @@ def _third_deriv_z(r_0, z_0, r, z):
      
     return _third_deriv_z_inner(A, B, r_0, z_0, r, z)
 
-@nb.njit(cache=True, fastmath=True)
+@traceon_jit(cache=True)
 def _fourth_deriv_z_inner(A, B, r_0, z_0, r, z):
     s = np.sqrt((z-z_0)**2 + (r + r_0)**2) 
     s1 = (z_0-z)/s
@@ -205,7 +223,7 @@ def _fourth_deriv_z_inner(A, B, r_0, z_0, r, z):
     
     return A*ellipe_term + B*ellipk_term
 
-@nb.njit
+@traceon_jit
 def _fourth_deriv_z(r_0, z_0, r, z):
     t2 = (4*r*r_0)/((z-z_0)**2 + (r+r_0)**2)
     A = nb_ellipe(t2)
@@ -214,7 +232,7 @@ def _fourth_deriv_z(r_0, z_0, r, z):
     return _fourth_deriv_z_inner(A, B, r_0, z_0, r, z)
 
 
-@nb.njit
+@traceon_jit
 def _deriv_z_far_away(v0, v1, v2, N):
     mid = (v1+v2)/2
     r, z = mid[0], mid[1]
@@ -235,7 +253,7 @@ def _deriv_z_far_away(v0, v1, v2, N):
     elif N == 4:
         return _fourth_deriv_z(r0, z0, r, z)*length
 
-@nb.njit
+@traceon_jit
 def _deriv_z_close(v0, v1, v2, Nd):
     N = N_FACTOR*WIDTHS_FAR_AWAY
     r0, z0 = v0[0], v0[1]
@@ -243,7 +261,6 @@ def _deriv_z_close(v0, v1, v2, Nd):
     z = np.linspace(v1[1], v2[1], N)
      
     ds = _norm(r[1]-r[0], z[1]-z[0])
-    r0, z0 = v0[0], v0[1]
      
     if Nd == -1:
         points = _first_deriv_r(r0, z0, r, z)
@@ -260,7 +277,7 @@ def _deriv_z_close(v0, v1, v2, Nd):
     
     return _simps(points, ds)
  
-@nb.njit
+@traceon_jit
 def _deriv_z(v0, v1, v2, N):
     mid = (v1+v2)/2
     width = _norm(v1[0]-v2[0], v1[1]-v2[1])
@@ -271,7 +288,7 @@ def _deriv_z(v0, v1, v2, N):
     else:
         return _deriv_z_close(v0, v1, v2, N)
 
-@nb.njit
+@traceon_jit
 def deriv_z_at_point(point, lines, charges, N):
     """Compute the derivative of the electrostatic potential (with respect to z0) at the given point.
     
@@ -291,7 +308,7 @@ def deriv_z_at_point(point, lines, charges, N):
     
     return d
 
-@nb.njit
+@traceon_jit
 def potential_at_point(point, lines, charges):
     """Compute the potential at a certain point given line elements and the
     corresponding line charges.
@@ -305,7 +322,7 @@ def potential_at_point(point, lines, charges):
     """
     return deriv_z_at_point(point, lines, charges, 0)
 
-@nb.njit(fastmath=True)
+@traceon_jit
 def field_at_point(point, lines, charges, zmin=None, zmax=None):
     """Compute the electric field at a certain point given line elements and the
     corresponding line charges.
