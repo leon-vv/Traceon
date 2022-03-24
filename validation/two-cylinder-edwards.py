@@ -12,7 +12,8 @@ times = []
 accuracies = []
 
 # Compile
-solver.solve_bem(G.create_two_cylinder_lens(N=5), v1=0, v2=10)
+lines, charges = solver.solve_bem(G.create_two_cylinder_lens(N=5), v1=0, v2=10)
+solver.potential_at_point(np.array([0.0, 0.0]), lines, charges)
 
 for n in np.linspace(1000, 4000, 10).astype(np.int32):
     st = time.time()
@@ -48,7 +49,6 @@ plt.xlabel('Compuation time (s)')
 plt.ylim(1e-6, 1e-2)
 plt.xlim(0, 10)
 (W, NF) = solver.WIDTHS_FAR_AWAY, solver.N_FACTOR
-plt.savefig(f'images/bem-error-{W}-{NF}.png')
 plt.show()
 
 
