@@ -2,3 +2,4 @@
 traceon.egg-info/*
 build/*
 traceon/__pycache__/*
+__pycache__
