@@ -1,10 +1,15 @@
 #! /bin/env python3
 import sys
+import argparse
 
 import traceon.geometry as G
 import traceon.solver as solver
 
-for filename in sys.argv[1:]:
+parser = argparse.ArgumentParser(prog='traceon-solve-geometry', description='Solve for the electrostatic potential of the given geometries and save the solutions in cache')
+parser.add_argument('geometry', nargs='+', help='Geometry file')
+args = parser.parse_args()
+
+for filename in args.geometry:
     geom = G.Geometry.read(filename)
     mesh = geom.mesh
     

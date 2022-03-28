@@ -11,11 +11,11 @@ import traceon.geometry as G
 import traceon.solver as solver
 import traceon.tracing as T
 
-parser = argparse.ArgumentParser(prog='lens-focal-length', description='Determine focal length of lens system')
+parser = argparse.ArgumentParser(prog='traceon-lens-strength', description='Determine focal length of lens system')
 parser.add_argument('--geometry', required=True, help='Geometry file')
 parser.add_argument('--output', '-o', type=str, default=None, help='Output file to write focus positions to. Should be .npy format')
 parser.add_argument('--scan-electrode', type=str, default='lens', help='Electrode on which the applied voltage is scanned over a certain range')
-parser.add_argument('-V', metavar=('ELECTRODE', 'VOLTAGE...'), type=str, default=None, nargs=2, help='Extra voltages to apply on auxillary electrodes')
+parser.add_argument('-V', metavar=('ELECTRODE VOLTAGE'), type=str, default=None, nargs=2, help='Extra voltages to apply on auxillary electrodes')
 parser.add_argument('--voltage-range', metavar=('LOW', 'HIGH'), type=float, nargs=2, default=(-1.0, 1.5), help='Range of electrode voltages scanned')
 parser.add_argument('--angle', type=float, default=0.1, help='Angle of incoming electron (mrad)')
 parser.add_argument('--zmax', type=float, default=250, help='Maximum focal length to consider (mm)')

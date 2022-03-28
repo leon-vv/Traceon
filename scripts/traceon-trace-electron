@@ -10,7 +10,7 @@ import traceon.geometry as G
 import traceon.tracing as T
 import traceon.solver as solver
 
-parser = argparse.ArgumentParser(prog='trace-electron', description='Trace a single electron in the prescribed geometry')
+parser = argparse.ArgumentParser(prog='traceon-trace-electron', description='Trace a single electron in the prescribed geometry')
 parser.add_argument('--geometry', required=True, help='Geometry file')
 parser.add_argument('--voltages', type=str, nargs='+', required=True, help='Voltages on electrodes')
 parser.add_argument('--start', type=float, required=True, help='Start position of electron')
