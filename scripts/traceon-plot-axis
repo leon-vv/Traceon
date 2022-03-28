@@ -12,6 +12,7 @@ import traceon.solver as solver
 parser = argparse.ArgumentParser(prog='traceon-plot-axis', description='Plot potential and electric field along optical axis')
 parser.add_argument('--geometry', required=True, help='Geometry file')
 parser.add_argument('-V', '--voltages', metavar=('ELECTRODE VOLTAGE'), type=str, default=None, nargs='+', help='Voltages to apply on electrodes')
+parser.add_argument('--show-derivatives', action='store_true', help='Show derivatives used in radial series expansion')
 args = parser.parse_args()
 
 geom = G.Geometry.read(args.geometry)
@@ -36,20 +37,48 @@ potential = np.zeros_like(z_pot)
 for i, v in enumerate(voltages):
     potential += np.array([v*solver.potential_at_point(np.array([0.0, z_]), lines[i], charges[i]) for z_ in z_pot])
 
-plt.figure()
-plt.title('Potential (V)')
-plt.ylabel('Potential (V)')
-plt.xlabel('z (mm)')
-plt.plot(z_pot, potential)
+if not args.show_derivatives:
+    plt.figure()
+    plt.title('Potential (V)')
+    plt.ylabel('Potential (V)')
+    plt.xlabel('z (mm)')
+    plt.plot(z_pot, potential)
 
-plt.figure()
-plt.title('Electric field (V/mm)')
-plt.ylabel('Electric field (V/mm)')
-plt.xlabel('z (mm)')
-plt.plot(z, field[:, 0], label='Er')
-plt.plot(z, field[:, 1], label='Ez')
-plt.legend()
+    plt.figure()
+    plt.title('Electric field (V/mm)')
+    plt.ylabel('Electric field (V/mm)')
+    plt.xlabel('z (mm)')
+    plt.plot(z, field[:, 0], label='Er')
+    plt.plot(z, field[:, 1], label='Ez')
+    plt.legend()
+elif args.show_derivatives:
+    derivs = []
+    
+    for i in range(len(lines)):
+        z, deriv = solver.get_axial_derivatives(lines[i], charges[i])
+        derivs.append(voltages[i]*np.array(deriv))
+    
+    derivs = np.sum(derivs, axis=0)
+    fig, axs = plt.subplots(3, 3)
+    plt.tight_layout()
+    
+    for i in range(len(derivs)):
+        plt.subplot(3, 3, i+1)
+        plt.plot(z, derivs[i])
+        unit = r'$\frac{V}{mm^'+str(i)+'}$' if i != 0 else 'V'
+         
+        if i == 0:
+            plt.title('Potential (V)')
+            name = 'V'
+        elif i == 1:
+            plt.title('Derivative 1')
+            name = r'$\frac{dV}{dz}$'
+        else:
+            plt.title(f'Derivative {i}')
+            name = r'$\frac{dV}{dz^'+str(i)+'}$'
+        plt.xlabel('z (mm)')
+        plt.ylabel(f'{name} ({unit})')
+
 plt.show()
-
 
 

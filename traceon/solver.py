@@ -443,7 +443,7 @@ def _interpolate_numba(z, derivs):
      
     return compute
 
-def _get_axial_derivatives(lines, charges):
+def get_axial_derivatives(lines, charges):
     zmin = np.min(lines[:, :, 1])+0.01#+0.05
     zmax = np.max(lines[:, :, 1])-0.01#-0.25
 
@@ -517,18 +517,19 @@ def _hash_solution(mesh, voltage_dict):
     m.update(mesh.cells_dict['line'].view(np.uint8))
     m.update(bytes(str(voltage_dict), 'utf8'))
     return m.hexdigest()
- 
-def solution_exists_in_cache(mesh, **voltages):
-    """Check whether the potential corresponding to the mesh and voltages has already been computed
-    and is available in the cache (usually ~/.traceon/cache/)."""
+
+def _cache_filename(mesh, **voltages):
     for k in voltages.keys():
         voltages[k] = float(voltages[k])
      
     hash_ = _hash_solution(mesh, voltages)
-    fn = path.join(CACHE_DIR, hash_ + '.npz')
-    
-    return path.isfile(fn)   
-     
+    return path.join(CACHE_DIR, hash_ + '.npz')
+ 
+def solution_exists_in_cache(mesh, **voltages):
+    """Check whether the potential corresponding to the mesh and voltages has already been computed
+    and is available in the cache (usually ~/.traceon/cache/)."""
+    return path.isfile(_cache_filename(mesh, **voltages))
+
 def field_function_derivs(mesh, recompute=False, **voltages):
     """Create a field function for the given mesh while the given voltages are applied. The field
     function will use a series expansion in terms of the derivatives of the potential at the optical axis.
@@ -540,11 +541,7 @@ def field_function_derivs(mesh, recompute=False, **voltages):
             be saved to the cache afterwards.
         **voltages: the voltages applied on the electrodes.
     """
-    for k in voltages.keys():
-        voltages[k] = float(voltages[k])
-    
-    hash_ = _hash_solution(mesh, voltages)
-    fn = path.join(CACHE_DIR, hash_ + '.npz')
+    fn = _cache_filename(mesh, **voltages)
      
     if not recompute and path.isfile(fn):
         cached = np.load(fn)
@@ -552,7 +549,7 @@ def field_function_derivs(mesh, recompute=False, **voltages):
     else:
         print('Computing BEM solution and saving for voltages: ', voltages)
         lines, charges = solve_bem(mesh, **voltages)
-        z, derivs = _get_axial_derivatives(lines, charges)
+        z, derivs = get_axial_derivatives(lines, charges)
         np.savez(fn, lines=lines, charges=charges, z=z, derivs=derivs)
      
     return lines, charges, _field_from_derivatives(z, derivs)
