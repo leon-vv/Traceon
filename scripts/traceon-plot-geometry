@@ -1,19 +1,40 @@
 #! /bin/env python3
-
+import argparse
 import sys
 
+import numpy as np
+
 import traceon.plotting as P
+import traceon.solver as S
 import traceon.geometry as G
 
-keys = [k[2:] for k in sys.argv[2::2]]
-colors = sys.argv[3::2]
+parser = argparse.ArgumentParser(prog='traceon-plot-geometry', description='Plot geometry or the charge density')
+parser.add_argument('--colors', metavar='ELECTRODE COLOR', type=str, default=None, nargs='+', help='Colors to use for every electrode when showing outline')
+parser.add_argument('--show-charge-density', action='store_true', help='Show charge density instead of outline')
+parser.add_argument('-V', '--voltages', metavar='ELECTRODE VOLTAGE', type=str, default=None, nargs='+', help='Voltages to apply on electrodes when showing charge density')
+parser.add_argument('geometry', nargs=1, metavar='GEOMETRY', help='Geometry file')
+args = parser.parse_args()
 
-assert len(keys) == len(colors)
+assert not args.show_charge_density or args.voltages is not None, "When charge density is requested please supply voltages"
 
-color_dict = dict(zip(keys, colors))
-print(color_dict)
+g = G.Geometry.read(args.geometry[0])
 
-g = G.Geometry.read(sys.argv[1])
-P.show_line_mesh(g.mesh, **color_dict)
-P.show()
+if not args.show_charge_density:
+    electrodes = args.colors[0::2]
+    colors = args.colors[1::2]
+    
+    assert len(electrodes) == len(colors)
+
+    color_dict = dict(zip(electrodes, colors))
+    print(color_dict)
+    
+    P.show_line_mesh(g.mesh, **color_dict)
+    P.show()
+else:
+    electrodes = args.voltages[0::2]
+    voltages = np.array([float(v) for v in args.voltages[1::2]])
+     
+    lines, charges, _ = S.field_function_superposition_mesh(g, *electrodes)
+    P.show_charge_density(lines[0], np.sum([v*c for v,c in zip(voltages, charges)], axis=0))
+    P.show()
 

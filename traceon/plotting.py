@@ -1,5 +1,6 @@
 import matplotlib.tri as mtri
 import matplotlib.pyplot as plt
+from matplotlib.collections import LineCollection
 from scipy.interpolate import *
 import numpy as np
 
@@ -57,6 +58,27 @@ def show_line_mesh(mesh, trajectory=None, **colors):
 
     if trajectory is not None:
         plt.plot(trajectory[:, 0], trajectory[:, 1])
+
+def show_charge_density(lines, charges):
+    # See https://matplotlib.org/stable/gallery/lines_bars_and_markers/multicolored_line.html
+    assert len(lines) == len(charges)
+
+    plt.figure()
+    segments = lines[:, :, :2] # Remove z value
+    
+    amplitude = np.mean(np.abs(charges))
+    norm = plt.Normalize(-3*amplitude, 3*amplitude)
+    
+    lc = LineCollection(segments, cmap='coolwarm', norm=norm)
+    lc.set_array(charges)
+    lc.set_linewidth(4)
+    line = plt.gca().add_collection(lc)
+    plt.xlim(np.min(lines[:, :, 0])-0.2, np.max(lines[:, :, 0])+0.2)
+    plt.ylim(np.min(lines[:, :, 1])-0.2, np.max(lines[:, :, 1])+0.2)
+    plt.xlabel('r (mm)')
+    plt.ylabel('z (mm)')
+    plt.show()
+    
 
 def show(legend=False):
     if legend:
