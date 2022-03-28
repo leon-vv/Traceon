@@ -11,7 +11,7 @@ import traceon.solver as solver
 
 parser = argparse.ArgumentParser(prog='plot-axis', description='Plot potential and electric field along optical axis')
 parser.add_argument('--geometry', required=True, help='Geometry file')
-parser.add_argument('-V', '--voltages', metavar=('ELECTRODE', 'VOLTAGE...'), type=str, default=None, nargs=2, help='Voltages to apply on electrodes')
+parser.add_argument('-V', '--voltages', metavar=('ELECTRODE', 'VOLTAGE...'), type=str, default=None, nargs='+', help='Voltages to apply on electrodes')
 args = parser.parse_args()
 
 geom = G.Geometry.read(args.geometry)
