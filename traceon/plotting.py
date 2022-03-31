@@ -21,7 +21,7 @@ def _create_point_to_physical_dict(mesh):
      
     return d
 
-def show_line_mesh(mesh, trajectory=None, **colors):
+def show_line_mesh(mesh, trajectory=None, show_legend=True, **colors):
     plt.figure(figsize=(10, 13))
     plt.gca().set_aspect('equal')
      
@@ -51,6 +51,11 @@ def show_line_mesh(mesh, trajectory=None, **colors):
         mask = colors_ == c
         plt.plot(np.array(to_plot_x)[mask].T, np.array(to_plot_y)[mask].T, color=c, linewidth=3)
         plt.scatter(np.array(to_plot_x)[mask].T, np.array(to_plot_y)[mask].T, color=c, s=11)
+
+    if show_legend:
+        for l, c in colors.items():
+            plt.plot([], [], label=l, color=c)
+        plt.legend()
      
     plt.xlabel('r (mm)')
     plt.ylabel('z (mm)')
