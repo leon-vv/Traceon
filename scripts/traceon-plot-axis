@@ -13,6 +13,7 @@ parser = argparse.ArgumentParser(prog='traceon-plot-axis', description='Plot pot
 parser.add_argument('--geometry', required=True, help='Geometry file')
 parser.add_argument('-V', '--voltages', metavar=('ELECTRODE VOLTAGE'), type=str, default=None, nargs='+', help='Voltages to apply on electrodes')
 parser.add_argument('--show-derivatives', action='store_true', help='Show derivatives used in radial series expansion')
+parser.add_argument('-Z', default=None, nargs=2, type=float, metavar=('Z_LOW', 'Z_HIGH'), help='Horizontal limits of plot')
 args = parser.parse_args()
 
 geom = G.Geometry.read(args.geometry)
@@ -25,9 +26,12 @@ voltages = [float(v) for v in args.voltages[1::2]]
 
 lines, charges, field = solver.field_function_superposition_mesh(geom, *electrodes)
 
-zmin, zmax = np.min(mesh.points[:, 1]), np.max(mesh.points[:, 1])
+if args.Z is None:
+    zmin, zmax = np.min(mesh.points[:, 1]), np.max(mesh.points[:, 1])
+else:
+    zmin, zmax = args.Z
 
-z = np.linspace(zmin-1, zmax+1, 500)
+z = np.linspace(zmin-2, zmax+2, 500)
 
 field = np.array([field(0.0, z_, *voltages) for z_ in z])
 
