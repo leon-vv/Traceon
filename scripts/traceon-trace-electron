@@ -41,18 +41,18 @@ plt.figure()
 for a in angles:
     vel = T.velocity_vec(energy, a, direction=args.start<0)
     pos = T.trace_particle(np.array([0.0, args.start]), vel, field, 10, -zmax, zmax, args=voltages)
-    plt.plot(pos[:, 1], pos[:, 0])
+    plt.plot(pos[:, 1], 1000*pos[:, 0])
     delta_r.append(T.plane_intersection(pos, args.end)[0])
 
 
 plt.title('Electron traces')
-plt.ylabel('r (mm)')
+plt.ylabel('r (μm)')
 plt.xlabel('z (mm)')
 
 plt.figure()
-plt.plot(1000*angles, delta_r)
+plt.plot(1000*angles, 1000*np.array(delta_r))
 plt.xlabel('Angles (mrad)')
-plt.ylabel('Δr (mm)')
+plt.ylabel('Δr (μm)')
 plt.show()
 
 
