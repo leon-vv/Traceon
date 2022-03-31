@@ -9,7 +9,6 @@ import threading
 
 import numpy as np
 import numba as nb
-from numba.extending import get_cython_function_address
 
 from scipy.interpolate import CubicSpline
 
@@ -48,17 +47,11 @@ def _simps(y, dx):
 def _norm(x, y):
     return m.sqrt(x**2 + y**2)
 
-addr = get_cython_function_address("scipy.special.cython_special", "ellipk")
-ellipk_fn = ctypes.CFUNCTYPE(ctypes.c_double, ctypes.c_double)(addr)
-
-addr = get_cython_function_address("scipy.special.cython_special", "ellipe")
-ellipe_fn = ctypes.CFUNCTYPE(ctypes.c_double, ctypes.c_double)(addr)
-
 # Chebyshev Approximations for the Complete Elliptic Integrals K and E.
 # W. J. Cody. 1965.
 
 @traceon_jit
-def cody_ellipk(k):
+def nb_ellipk(k):
     eta = 1 - k
     A = (m.log(4),
         9.65736020516771e-2,
@@ -78,11 +71,11 @@ def cody_ellipk(k):
         3.42805719229748e-4)
     
     return A[0] + A[1]*eta + A[2]*eta**2 +A[3]*eta**3 + A[4]*eta**4 + A[5]*eta**5 + A[6]*eta**6 + A[7]*eta**7 + \
-            + m.log(1/eta)*(B[0] + B[1]*eta + B[2]*eta**2 +B[3]*eta**3 + B[4]*eta**4 + B[5]*eta**5 + B[6]*eta**6 + B[7]*eta**7)
+            + np.log(1/eta)*(B[0] + B[1]*eta + B[2]*eta**2 +B[3]*eta**3 + B[4]*eta**4 + B[5]*eta**5 + B[6]*eta**6 + B[7]*eta**7)
 
    
 @traceon_jit
-def cody_ellipe(k):
+def nb_ellipe(k):
     eta = 1 - k
     A = (1,
         4.43147193467733e-1,
@@ -103,20 +96,8 @@ def cody_ellipe(k):
         3.78886487349367e-4)
     
     return A[0] + A[1]*eta + A[2]*eta**2 +A[3]*eta**3 + A[4]*eta**4 + A[5]*eta**5 + A[6]*eta**6 + A[7]*eta**7 + \
-            + m.log(1/eta)*(B[0] + B[1]*eta + B[2]*eta**2 +B[3]*eta**3 + B[4]*eta**4 + B[5]*eta**5 + B[6]*eta**6 + B[7]*eta**7)
+            + np.log(1/eta)*(B[0] + B[1]*eta + B[2]*eta**2 +B[3]*eta**3 + B[4]*eta**4 + B[5]*eta**5 + B[6]*eta**6 + B[7]*eta**7)
 
-
-
-
-#@nb.njit(nogil=True)
-@nb.vectorize('float64(float64)')
-def nb_ellipk(x):
-    return cody_ellipk(x)
-
-#@nb.njit(nogil=True)
-@nb.vectorize('float64(float64)')
-def nb_ellipe(x):
-    return cody_ellipe(x)
 
 @traceon_jit
 def _build_bem_matrix(matrix, points, lines_range, lines):
