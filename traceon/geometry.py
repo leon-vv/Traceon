@@ -130,59 +130,43 @@ class MEMSStack:
         assert len(self.stack_elements) > 0, "Cannot build mesh for empty MEMSStack"
          
         # Build point list and physicals
-        points = [] 
-        physical_to_line_indices = {}
-        z = -self._get_distance_to_name(z_zero_name)
+        bottom = -self._get_distance_to_name(z_zero_name)
+        top = sum(e[2] if e[0] != 'spacer' else e[1] for e in self.stack_elements)
 
-        def add_physical(num_lines, name):
-            line_indices = [len(points) - 2 - i for i in range(num_lines)]
-            
-            if name in physical_to_line_indices:
-                physical_to_line_indices[name].extend(line_indices)
-            else:
-                physical_to_line_indices[name] = line_indices
-            
-        for element in self.stack_elements:
-            if element[0] == 'electrode':
-                _, radius, thickness, name = element
-                
-                points.extend([(electrode_width, z),
-                    (radius, z),
-                    (radius, z+thickness),
-                    (electrode_width, z+thickness)])
-                
-                add_physical(3, name) 
-            elif element[0] == 'custom':
-                _, fun, thickness, name = element
-                
-                generated_points = fun(electrode_width, z)
-                #z_values = [p[1] for p in generated_points]
-                #thickness = max(z_values) - min(z_values)
-                points.extend(generated_points)
-                 
-                add_physical(len(generated_points) - 1, name)
-            else:
-                _, thickness = element
-            
-            z += thickness
-          
-        # Finish with ground boundary on the right
-        points.append( (electrode_width + margin_right, z) )
-        points.append( (electrode_width + margin_right, points[0][1]) )
-
-        if enclose_right:
-            add_physical(2, name)
-            physical_to_line_indices[name].append(-1) 
-         
-        # Build actual mesh
+        lcar = (top-bottom)/N
+        z = bottom
+        
+        to_physical = {e[-1]:[] for e in self.stack_elements if e[0] != 'spacer'}
+        
         with occ.Geometry() as geom:
-            all_z = [p[1] for p in points]
-            lcar = (np.max(all_z) - np.min(all_z)) / N
-            poly = geom.add_polygon(points, lcar)
+            for element in self.stack_elements:
+                if element[0] == 'electrode':
+                    _, radius, thickness, name = element
+                    x0 = [radius, z]
+                    points = [x0, [x0[0], x0[1]+thickness], [electrode_width, x0[1]+thickness], [electrode_width, x0[1]]]
+                    poly = geom.add_polygon(points, lcar, make_surface=False)
+                    if np.isclose(radius, 0.0):
+                        to_physical[name].extend(poly.lines[1:]) # Don't add lines on the optical axis, leads to singular matrices
+                    else:
+                        to_physical[name].extend(poly.lines)
+                elif element[0] == 'custom':
+                    raise NotImplementedError
+                    #_, fun, thickness, name = element
+                    #generated_points = fun(electrode_width, z)
+                else:
+                    _, thickness = element
+                
+                z += thickness
+             
+            if enclose_right:
+                p1 = geom.add_point([electrode_width+margin_right, z], lcar)
+                p2 = geom.add_point([electrode_width+margin_right, bottom], lcar)
+                line = geom.add_line(p1, p2)
+                to_physical[name].append(line)
             
-            for name, indices in physical_to_line_indices.items():
-                geom.add_physical([poly.curves[i] for i in indices], name)
-
+            for k, v in to_physical.items():
+                geom.add_physical(v, k)
+             
             return Geometry(geom.generate_mesh(dim=1), N)
 
 if __name__ == '__main__':
