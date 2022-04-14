@@ -14,7 +14,8 @@ parser = argparse.ArgumentParser(prog='traceon-trace-electron', description='Tra
 parser.add_argument('--geometry', required=True, help='Geometry file')
 parser.add_argument('--voltages', type=str, nargs='+', required=True, help='Voltages on electrodes')
 parser.add_argument('--start', type=float, required=True, help='Start position of electron')
-parser.add_argument('--angles', type=float, required=True, nargs='+', help='Starting angle of electrons')
+parser.add_argument('--max-angle', type=float, required=True, help='Maximum starting angle of electron')
+parser.add_argument('-N', type=int, default=10, help='Number of electrons to trace')
 parser.add_argument('--end', type=float, required=True, help='End position of electron')
 args = parser.parse_args()
 
@@ -29,7 +30,7 @@ lines, charges, field = solver.field_function_superposition_mesh(geom, *electrod
 energy = 1000
 voltages = tuple(energy*float(v) for v in args.voltages[1::2])
 
-angles = np.array(args.angles)
+angles = np.linspace(0.0, args.max_angle, args.N)
 tracer = T.PlaneTracer(field, args.start, args.end)
 
 zmax = max(abs(args.start), abs(args.end))
