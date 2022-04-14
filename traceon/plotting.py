@@ -55,11 +55,12 @@ def show_line_mesh(mesh, trajectory=None, show_legend=True, **colors):
     if show_legend:
         for l, c in colors.items():
             plt.plot([], [], label=l, color=c)
-        plt.legend()
+        plt.legend(loc='upper left')
      
     plt.xlabel('r (mm)')
     plt.ylabel('z (mm)')
     plt.axvline(0, color='black', linestyle='dashed')
+    plt.xlim(-0.25, None)
 
     if trajectory is not None:
         plt.plot(trajectory[:, 0], trajectory[:, 1])
