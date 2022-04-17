@@ -32,7 +32,7 @@ extra_electrode = args.V is not None
 extra_electrode_args = (args.V[0],) if extra_electrode else ()
 extra_voltage_args = (float(args.V[1])*energy,) if extra_electrode else ()
 
-lines, charges, field = solver.field_function_superposition_mesh(geom, args.scan_electrode, *extra_electrode_args)
+_, field = solver.field_function_superposition_mesh(geom, args.scan_electrode, *extra_electrode_args)
 
 # u is defined as 2f, so z value (r=0)
 # at which the electrons are reflected back

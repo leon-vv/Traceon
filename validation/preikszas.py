@@ -23,13 +23,13 @@ for i, j, c in correct:
     print(f'C{i}{j} = {c:+.4e}')
 
 for n in [250, 500, 1000, 3000, 5000]:
-    mesh = G.create_preikszas_mirror(n)
+    geom = G.create_preikszas_mirror(n)
     print('Computing trajectories...')
 
-    lines, charges, f = solver.field_function_derivs(mesh, mirror=-250, corrector=1000, recompute=True)
-
+    solution, f = solver.field_function_derivs(geom, mirror=-250, corrector=1000, recompute=True)
+    
     z = np.linspace(-0.1, -15)
-    pot = [solver.potential_at_point(np.array([0.0, z_]), lines, charges) for z_ in z]
+    pot = [solver.potential_at_point(np.array([0.0, z_]), solution) for z_ in z]
     
     #solver.benchmark_field_function(f)
     

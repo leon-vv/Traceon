@@ -11,11 +11,12 @@ class Geometry:
         metadata: dictionary containing arbitrary metadata
     """
     
-    def __init__(self, mesh, N, metadata={}):
+    def __init__(self, mesh, N, metadata={}, symmetry='radial'):
         """ Args: """
         self.mesh = mesh
         self.metadata = metadata
         self.N = N
+        self._symmetry = symmetry
     
     def write(self, filename):
         """Write a mesh to a file. The pickle module will be used
@@ -27,6 +28,13 @@ class Geometry:
         with open(filename, 'wb') as f:
             pickle.dump(self, f)
     
+    @property
+    def symmetry(self):
+        if hasattr(self, '_symmetry'):
+            return self._symmetry
+        else:
+            return 'radial'
+
     def get_electrodes(self):
         """Get the names of all the electrodes in the geometry.
 
@@ -258,7 +266,7 @@ def create_preikszas_mirror(N=100): # Radius is 5
 
         cl = geom.add_curve_loop([l1, l2, l3, l4, l5, l6, l7, l8, l9, l10, l11])
         
-        return geom.generate_mesh(dim=1)
+        return Geometry(geom.generate_mesh(dim=1), N)
 
 
 def create_two_cylinder_lens(S=0.2, R=1, N=200, wall_thickness=1, boundary_length=20):
@@ -308,7 +316,7 @@ def create_two_cylinder_lens(S=0.2, R=1, N=200, wall_thickness=1, boundary_lengt
             lines = [poly.curves[idx] for idx in indices]
             geom.add_physical(lines, key)
          
-        return geom.generate_mesh(dim=1)
+        return Geometry(geom.generate_mesh(dim=1), N)
 
 
 def create_dohi_mirror(N=1500):

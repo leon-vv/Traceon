@@ -25,7 +25,7 @@ mesh = geom.mesh
 assert args.voltages is None or len(args.voltages) % 2 == 0
 
 electrodes = args.voltages[0::2]
-lines, charges, field = solver.field_function_superposition_mesh(geom, *electrodes)
+_, field = solver.field_function_superposition_mesh(geom, *electrodes)
 
 energy = 1000
 voltages = tuple(energy*float(v) for v in args.voltages[1::2])
@@ -44,7 +44,6 @@ for a in angles:
     pos = T.trace_particle(np.array([0.0, args.start]), vel, field, 10, -zmax, zmax, args=voltages)
     plt.plot(pos[:, 1], 1000*pos[:, 0])
     delta_r.append(T.plane_intersection(pos, args.end)[0])
-
 
 plt.title('Electron traces')
 plt.ylabel('r (μm)')

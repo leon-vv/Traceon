@@ -58,7 +58,7 @@ for geom in args.geometries:
         print('Skipping computation since target file already exists. Remove file to recompute or use --overwrite')
         continue
     
-    lines, charges, fun = solver.field_function_superposition_mesh(mesh, args.focus_electrode, args.scan_electrode, *extra_electrode_args)
+    _, fun = solver.field_function_superposition_mesh(mesh, args.focus_electrode, args.scan_electrode, *extra_electrode_args)
      
     if not double:
         tracer = T.PlaneTracer(fun, args.z[0], args.z[1])

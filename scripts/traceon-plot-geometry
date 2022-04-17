@@ -9,7 +9,7 @@ import traceon.solver as S
 import traceon.geometry as G
 
 parser = argparse.ArgumentParser(prog='traceon-plot-geometry', description='Plot geometry or the charge density')
-parser.add_argument('--colors', metavar='ELECTRODE COLOR', type=str, default=None, nargs='+', help='Colors to use for every electrode when showing outline')
+parser.add_argument('--colors', metavar='ELECTRODE COLOR', type=str, default=[], nargs='+', help='Colors to use for every electrode when showing outline')
 parser.add_argument('--show-charge-density', action='store_true', help='Show charge density instead of outline')
 parser.add_argument('-V', '--voltages', metavar='ELECTRODE VOLTAGE', type=str, default=None, nargs='+', help='Voltages to apply on electrodes when showing charge density')
 parser.add_argument('geometry', nargs=1, metavar='GEOMETRY', help='Geometry file')

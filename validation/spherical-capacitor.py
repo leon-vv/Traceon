@@ -22,17 +22,17 @@ errors = []
 
 for N in Ns:
     sc = G.create_spherical_capacitor(N)
-    lines, charges = S.solve_bem(sc.mesh, inner=5/3, outer=3/5)
+    solution = S.solve_bem(sc, inner=5/3, outer=3/5)
     
     position = np.array([0.0, 10.0])
     vel = np.array([np.cos(angle)*0.5930969604919433, -np.sin(angle)])
 
-    field = S.field_function_bem(lines, charges)
+    field = S.field_function_bem(solution)
     pos = T.trace_particle(position, vel, field, 12.5, -12.5, 12.5, rmin=-0.1)
     
     r_final = T.axis_intersection(pos)
      
-    line_elements.append(lines.shape[0])
+    line_elements.append(solution[1].shape[0])
     errors.append(r_final/correct - 1)
     print(f'Intersection: {r_final:.5f}, Accuracy: {errors[-1]:.1e}')
 

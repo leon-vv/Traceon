@@ -14,9 +14,9 @@ errors = []
 
 for N in Ns:
     edwards = G.create_edwards2007(N)
-    lines, charges = S.solve_bem(edwards.mesh, boundary=0, inner=10)
-    pot = S.potential_at_point(np.array([12, 4]), lines, charges)
-    line_elements.append(lines.shape[0])
+    solution = S.solve_bem(edwards, boundary=0, inner=10)
+    pot = S.potential_at_point(np.array([12, 4]), solution)
+    line_elements.append(solution[1].shape[0])
     errors.append(pot/correct - 1)
     print(f'Potential: {pot:.5f}, Accuracy: {errors[-1]:.1e}')
 

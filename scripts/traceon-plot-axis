@@ -24,7 +24,7 @@ assert args.voltages is None or len(args.voltages) % 2 == 0
 electrodes = args.voltages[0::2]
 voltages = [float(v) for v in args.voltages[1::2]]
 
-lines, charges, field = solver.field_function_superposition_mesh(geom, *electrodes)
+solutions, field = solver.field_function_superposition_mesh(geom, *electrodes)
 
 if args.Z is None:
     zmin, zmax = np.min(mesh.points[:, 1]), np.max(mesh.points[:, 1])
@@ -39,7 +39,7 @@ z_pot = np.linspace(zmin-5, zmax+5, 400)
 potential = np.zeros_like(z_pot)
 
 for i, v in enumerate(voltages):
-    potential += np.array([v*solver.potential_at_point(np.array([0.0, z_]), lines[i], charges[i]) for z_ in z_pot])
+    potential += np.array([v*solver.potential_at_point(np.array([0.0, z_]), solutions[i]) for z_ in z_pot])
 
 if not args.show_derivatives:
     plt.figure()
@@ -58,8 +58,8 @@ if not args.show_derivatives:
 elif args.show_derivatives:
     derivs = []
     
-    for i in range(len(lines)):
-        z, deriv = solver.get_axial_derivatives(lines[i], charges[i])
+    for i in range(len(solutions)):
+        z, deriv = solver.get_axial_derivatives(solutions[i])
         derivs.append(voltages[i]*np.array(deriv))
     
     derivs = np.sum(derivs, axis=0)
