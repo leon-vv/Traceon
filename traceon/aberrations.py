@@ -16,7 +16,7 @@ with zeros to allow straightforward indexing. For example, the spherical aberrat
 can be indexed as C[3, 0].
 """
 
-import time
+import time, pickle
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -162,6 +162,34 @@ class AberrationCoefficients:
     def __str__(self):
         return self.to_string()
         
+class AberrationCurve:
+    
+    def __init__(self, geometry,
+                aberrations,
+                scan_electrode, focus_electrode,
+                scan_voltages, focus_voltages,
+                aux_electrodes=None,
+                aux_voltages=None):
+        
+        self.geometry = geometry
+        self.scan_voltages = np.array(scan_voltages)
+        self.focus_voltages = np.array(focus_voltages)
+        self.aberrations = np.array(aberrations)
+        self.scan_electrode = scan_electrode
+        self.focus_electrode = focus_electrode
+        assert isinstance(self.scan_electrode, str) and isinstance(self.focus_electrode, str)
+        self.aux_electrodes = list(aux_electrodes)
+        self.aux_voltages = list(aux_voltages)
+        
+        assert aux_electrodes is None or (len(aux_electrodes) == len(aux_voltages))
+    
+    def write(self, filename):
+        with open(filename, 'wb') as f:
+            pickle.dump(self, f)
+    
+    def read(filename):
+        with open(filename, 'rb') as f:
+            return pickle.load(f)
 
 def spherical(tracer, energy, dr=0.006, N=7):
     """Compute spherical aberration coefficients.

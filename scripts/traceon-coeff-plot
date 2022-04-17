@@ -1,0 +1,116 @@
+import sys, re, time, pickle
+import argparse
+
+import matplotlib.pyplot as plt
+import numpy as np
+from scipy.interpolate import CubicSpline
+from scipy.optimize import minimize
+
+import traceon.aberrations as A
+
+parser = argparse.ArgumentParser(prog='traceon-coeff-plot', description='Plot aberration coefficient curves (produced by traceon-aberration-scan)')
+parser.add_argument('--higher-order', action='store_true', help='Also plot higher order coefficients')
+parser.add_argument('--labels', type=str, nargs='*', default=None, help='Labels to use in the legend')
+parser.add_argument('--scan-electrode', type=str, default=None, help='Use this electrode name on x-axis instead')
+parser.add_argument('--focus-electrode', type=str, default=None, help='Use this electrode name on y-axis instead')
+parser.add_argument('-o', type=str, default=None, metavar='FILENAME', help='Write plot to this file, do not show plot')
+parser.add_argument('coeffs', type=str, nargs='*', metavar='Coefficients', help='Files containing the aberrations coefficients to plot (produced by traceon-aberration-scan)')
+args = parser.parse_args()
+
+assert args.labels is None or len(args.labels) == len(args.coeffs), "Please supply as many labels as coefficient files"
+
+all_scan_voltages = []
+all_focus_voltages = []
+all_coeffs = []
+scan_electrode = 'Lens'
+focus_electrode = 'Mirror'
+
+for i, fn in enumerate(args.coeffs):
+    
+    if fn.endswith('.npy'):
+        with open(fn, 'rb') as f:
+            # Backwards compatibility, do not rely on
+            zeros = np.load(f)
+            all_focus_voltages.append(zeros[:, 0])
+            all_scan_voltages.append(zeros[:, 1])
+            all_coeffs.append(np.load(f))
+    elif fn.endswith('.aberrations'):
+        curve = A.AberrationCurve.read(fn)
+        scan_electrode = curve.scan_electrode
+        focus_electrode = curve.focus_electrode
+        all_scan_voltages.append(curve.scan_voltages)
+        all_focus_voltages.append(curve.focus_voltages)
+        all_coeffs.append(curve.aberrations)
+        #sph_root = CubicSpline(all_zeros[-1][:, 1], all_coeffs[-1][:, 3, 0]).roots(extrapolate=False)
+        #if len(sph_root):
+        #    print('Spherical lens voltage: ', sph_root[0])
+        #    print('Chromatic at spherical root: ', CubicSpline(all_zeros[-1][:, 1], all_coeffs[-1][:, 1, 1])(sph_root))
+
+if args.labels is None:
+    labels = [''] * len(args.coeffs)
+else:
+    labels = args.labels
+
+if args.scan_electrode is not None:
+    scan_electrode = args.scan_electrode
+
+if args.focus_electrode is not None:
+    focus_electrode = args.focus_electrode
+
+plot_vertical_zero = any(np.min(sv) <= 0.0 <= np.max(sv) for sv in all_scan_voltages)
+
+def plot_all(ys, i, j):
+    plot_horizontal_zero = any(np.min(y) <= 0.0 <= np.max(y) for y in ys)
+    if plot_horizontal_zero:
+        plt.axhline(0, color='black')
+    if plot_vertical_zero:
+        plt.axvline(0, color='black')
+    
+    for num, (l, sv, y) in enumerate(zip(labels, all_scan_voltages, ys)):
+        plt.plot(sv, y/ (1 if (i,j)!=(3,0) else 1e7), label=l)
+    plt.ylabel(r'$C_{' + str(i) + str(j) + r'}$ (' + ('' if (i,j)!=(3,0) else r'$10^7$') + ' mm)')
+    plt.grid()
+    
+plt.figure(figsize=(9, 12))
+
+ax1 = plt.subplot(611 if args.higher_order else 311)
+
+for l, sv, fv in zip(labels, all_scan_voltages, all_focus_voltages):
+    plt.plot(sv, fv, label=l)
+plt.grid(zorder=-1)
+plt.xlabel(f'{scan_electrode.capitalize()} voltage (V/E)')
+
+if plot_vertical_zero:
+    plt.axvline(0, color='black')
+plt.ylabel(f'{focus_electrode.capitalize()} voltage (V/E)')
+
+if args.labels is not None:
+    plt.legend()
+
+ax1 = plt.subplot(612 if args.higher_order else 312, sharex=ax1)
+plot_all([c[:, 1, 1] for c in all_coeffs], 1, 1)
+plt.xlabel(f'{scan_electrode.capitalize()} voltage (V/E)')
+
+plt.subplot(613 if args.higher_order else 313, sharex=ax1)
+plot_all([c[:, 3, 0] for c in all_coeffs], 3, 0)
+
+if args.higher_order:
+    plt.subplot(614, sharex=ax1)
+    plot_all([c[:, 1, 2] for c in all_coeffs], 1, 2)
+
+    plt.subplot(615, sharex=ax1)
+    plot_all([c[:, 3, 1] for c in all_coeffs], 3, 1)
+
+    plt.subplot(616, sharex=ax1)
+    plot_all([c[:, 5, 0] for c in all_coeffs], 5, 0)
+
+    
+plt.xlabel(f'{scan_electrode.capitalize()} voltage (V/E)')
+#plt.subplots_adjust(left=0.12, right=0.97, top=0.96, bottom=0.04)
+#plt.savefig('foci-coeff.png')
+if args.o is not None:
+    plt.savefig(args.o)
+else:
+    plt.show()
+
+
