@@ -19,12 +19,12 @@ import traceon.aberrations as A
 import traceon.solver as solver
 
 parser = argparse.ArgumentParser(prog='traceon-aberration-scan', description='Find the aberrations of a geometry while scanning the voltage of one electrode and keeping the focus point the same using a focus electrode')
-parser.add_argument('--geometries', required=True, nargs='*', help='Geometry files to find the aberrations curves for, for every geometry one output file will be produced')
+parser.add_argument('--geometry', required=True, nargs='*', help='Geometry files to find the aberrations curves for, for every geometry one output file will be produced')
 parser.add_argument('--voltage-range', type=float, nargs=2, default=(-0.1, 2.25), help='Range of voltages applied on the scan electrode')
 parser.add_argument('-N', default=50, type=int, help='Number of samples of the scan electrode voltage')
 parser.add_argument('-o', '--output', default=None, help='Output file or directory to write focus positions to. The Pickle module is used to store a Python object.')
 parser.add_argument('-z', type=float, nargs=2, required=True, help='Positions of crossovers with respect to the geometry.')
-parser.add_argument('--focus-voltages', type=float, nargs='+', default=[-1.01, -1.2, -1.75, -2.5], help='Initial focus electrode voltages to try at begin of focus optimization')
+parser.add_argument('--focus-voltages', type=float, nargs='+', default=[-1.2, -1.75, -2.5], help='Initial focus electrode voltages to try at begin of focus optimization')
 
 parser.add_argument('--scan-electrode', type=str, default='lens', help='Electrode on which the applied voltage is scanned over a certain range')
 parser.add_argument('--focus-electrode', type=str, default='mirror', help='Electrode on which the applied voltage should be optimized to achieve focussing')
@@ -32,8 +32,7 @@ parser.add_argument('--overwrite', action='store_true', help='Overwrite file if 
 parser.add_argument('-V', type=str, default=None, nargs=2, required=False, help='Extra voltages to apply on auxillary electrodes')
 args = parser.parse_args()
 
-
-for geom in args.geometries:
+for geom in args.geometry:
     print('Computing for: ', geom)
     double = len(args.z) == 4
 
