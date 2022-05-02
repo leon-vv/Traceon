@@ -193,7 +193,7 @@ class PlaneTracer:
         """
         self.args = pots
 
-    def trace(self, angles, energies, r=None):
+    def trace(self, angles, energies, r=None, full=False):
         """Compute a number of intersections with the target plane.
 
         Args:
@@ -212,6 +212,7 @@ class PlaneTracer:
         mask = np.full(angles.size, False)
         assert angles.size == energies.size
         r = np.zeros_like(angles) if r is None else r
+        positions = []
          
         for i, (a, e) in enumerate(zip(angles, energies)):
             position = np.array([r[i], self.z0]) 
@@ -219,12 +220,16 @@ class PlaneTracer:
             p = self.trace_fun(position, velocity, self.field, self.rmax, zmin, zmax, args=self.args, **self.kwargs)
 
             intersection = plane_intersection(p, self.zfinal)
+            positions.append(p)
             
             if intersection is not None:
                 intersections[i] = intersection
                 mask[i] = True
          
-        return intersections, mask
+        if not full:
+            return intersections, mask
+        else:
+            return intersections, mask, positions
 
     def trace_single(self, r, angle, energy):
         """Trace a single particle.
@@ -240,7 +245,7 @@ class PlaneTracer:
         zmin, zmax = _z_to_bounds(self.z0, self.zfinal)
         position = np.array([r, self.z0])
         velocity = velocity_vec(energy, angle, direction=self.z0<0)
-              
+         
         return self.trace_fun(position, velocity, self.field, self.rmax, zmin, zmax, args=self.args, **self.kwargs)
     
     def _compute_resulting_angle(self, r, energy):
