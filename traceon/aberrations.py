@@ -168,6 +168,7 @@ class AberrationCurve:
                 aberrations,
                 scan_electrode, focus_electrode,
                 scan_voltages, focus_voltages,
+                z_coords,
                 aux_electrodes=None,
                 aux_voltages=None):
         
@@ -180,6 +181,7 @@ class AberrationCurve:
         assert isinstance(self.scan_electrode, str) and isinstance(self.focus_electrode, str)
         self.aux_electrodes = list(aux_electrodes)
         self.aux_voltages = list(aux_voltages)
+        self.z_coords = z_coords
         
         assert aux_electrodes is None or (len(aux_electrodes) == len(aux_voltages))
     

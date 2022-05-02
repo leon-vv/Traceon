@@ -135,7 +135,7 @@ for geom in args.geometry:
         focus_voltages = [z[0] for z in zeros]
         scan_voltages = [z[1]  for z in zeros]
         curve = A.AberrationCurve(geom, coefficients, args.scan_electrode, args.focus_electrode, scan_voltages, focus_voltages,
-            aux_electrodes=extra_electrode_args, aux_voltages=extra_voltage_args)
+            args.z, aux_electrodes=extra_electrode_args, aux_voltages=extra_voltage_args)
         curve.write(out)
     else:
         print('Not saving since no voltages with C10 = 0 where found')
