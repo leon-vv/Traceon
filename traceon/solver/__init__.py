@@ -14,6 +14,7 @@ import findiff
 
 from .util import *
 from . import radial_symmetry
+from . import planar_odd_symmetry
 
 # Create cache directory
 home = path.expanduser('~')
@@ -24,6 +25,11 @@ os.makedirs(CACHE_DIR, exist_ok=True)
 # in the boundary element method in order to use an approximation.
 WIDTHS_FAR_AWAY = 20
 N_FACTOR = 12
+
+symmetry_to_potential_fun = {
+    'radial': radial_symmetry._zeroth_deriv_z,
+    'planar-odd': planar_odd_symmetry._zeroth_deriv_z
+}
 
 @traceon_jit
 def _build_bem_matrix(potential_fun, matrix, points, lines_range, lines):
@@ -83,7 +89,8 @@ def solve_bem(geometry, **voltages):
     split = np.array_split(np.arange(N), THREADS)
     matrices = [np.zeros((N, N)) for _ in range(THREADS)]
     points = mesh.points[active_lines]
-    potential_fun = radial_symmetry._zeroth_deriv_z
+
+    potential_fun = symmetry_to_potential_fun[geometry.symmetry]
     threads = [Thread(target=_build_bem_matrix, args=(potential_fun, m, points, line_indices, active_lines)) for line_indices, m in zip(split, matrices)]
     
     st = time.time()
@@ -133,6 +140,9 @@ def deriv_z_at_point(point, solution, N):
     if symmetry == 'radial':
         for c, l in zip(charges, lines):
             d += c * radial_symmetry._deriv_z(point, l[0], l[1], N)
+    elif symmetry == 'planar-odd':
+        for c, l in zip(charges, lines):
+            d += c * planar_odd_symmetry._deriv_z(point, l[0], l[1], N)
      
     return d
 
@@ -173,9 +183,11 @@ def field_at_point(point, solution, zmin=None, zmax=None):
         return E
     
     Ez = -deriv_z_at_point(point, solution, 1)
+
+    symmetry = solution[0] 
     
-    if abs(point[0]) < 1e-7: # Too close to singularity
-        return np.array([0.0, Ez])
+    #if symmetry == 'radial' and abs(point[0]) < 1e-7: # Too close to singularity
+    #    return np.array([0.0, Ez])
      
     return np.array([-deriv_z_at_point(point, solution, -1), Ez])
 
@@ -198,10 +210,9 @@ def _interpolate_numba(z, derivs):
      
     @nb.njit(fastmath=True)
     def compute(zp):
-        i = np.int32(np.floor( (zp-z0) / dz))
-        assert 0 <= i < c.shape[2]
+        i = min(np.int32( (zp-z0) / dz ), c.shape[2]-1)
         diffz = zp - z[i]
-
+        
         d1, d2 = diffz, diffz**2
         d3 = d2*diffz
         
@@ -241,16 +252,16 @@ def get_axial_derivatives(solution):
 def _field_from_derivatives(z, derivs):
     # derivs[0] is potentail
     # derivs[1] is first derivative, etc.
-
+    
     assert derivs.shape[0] == 9
      
     st = time.time()
     z0, zlast = z[0], z[-1]
     inter = _interpolate_numba(z, derivs)
-      
+     
     @nb.njit
     def field(r, z):
-        if not (z0 <= z < zlast):
+        if not (z0 < z < zlast):
             return np.array([0.0, 0.0])
          
         i1, i2, i3, i4, i5, i6, i7, i8 = inter(z)
@@ -278,7 +289,7 @@ def field_function_bem(solution):
         Field function (callsign f(r, z) -> [Er, Ez])
     """
     field_zmin = np.min(solution[1][:, :, 1])
-    field_zmax = np.max(solution[1][:, :, 1])-0.25
+    field_zmax = np.max(solution[1][:, :, 1])+0.25
      
     @nb.njit
     def f_bem(r, z):
@@ -392,6 +403,8 @@ def field_function_superposition_mesh(geom, *non_zero):
         field function: the superposition of the field functions. For example, if two electrode names are
         supplied the returned field functional will have callsign f(r, z, v1, v2)
     """
+     
+    assert geom.symmetry == 'radial'
      
     N_superposition = len(non_zero)
      

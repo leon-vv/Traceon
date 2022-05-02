@@ -147,11 +147,12 @@ def trace_particle_rk4(position, velocity, field, rmax, zmin, zmax, rmin=None, a
     return positions[:N]
 
 def _z_to_bounds(z1, z2):
-    assert (z1 < 0 and z2 < 0) or (z1 > 0 and z2 > 0)
-    if z1 < 0 :
-        return (min(z1, z2)-1, 0.0)
+    if z1 < 0 and z2 < 0:
+        return (min(z1, z2)-1, 1.0)
+    elif z1 > 0 and z2 > 0:
+        return (-1.0, max(z1, z2)+1)
     else:
-        return (0.0, max(z1, z2)+1)
+        return (min(z1, z2)-1, max(z1, z2)+1)
 
 class PlaneTracer:
     """A PlaneTracer traces a particle starting from the optical axis to a plane (perpendicular

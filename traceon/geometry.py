@@ -103,7 +103,7 @@ class MEMSStack:
 
         self.stack_elements.append( ('custom', fun, thickness, name) )
 
-    def _get_distance_to_name(self, z_zero_name):
+    def _get_distance_to_name(self, z_zero_name, center_zero):
         # Distance to z_zero
         distance_until_zero = 0.0
 
@@ -114,13 +114,17 @@ class MEMSStack:
                 distance_until_zero += thickness
                 
                 if name == z_zero_name:
+
+                    if center_zero:
+                        distance_until_zero -= thickness/2
+                    
                     break
             else:
                 distance_until_zero += element[1]
 
         return distance_until_zero
      
-    def build_geometry(self, z_zero_name, N, enclose_right=True, electrode_width=2, margin_right=0.5):
+    def build_geometry(self, z_zero_name, N, enclose_right=True, electrode_width=2, margin_right=0.5, zero_in_center=False, **kwargs):
         """Generate a mesh from the current MEMSStack.The mesh will be returned as an instance of the Geometry
         class. 
         
@@ -138,7 +142,7 @@ class MEMSStack:
         assert len(self.stack_elements) > 0, "Cannot build mesh for empty MEMSStack"
          
         # Build point list and physicals
-        bottom = -self._get_distance_to_name(z_zero_name)
+        bottom = -self._get_distance_to_name(z_zero_name, zero_in_center)
         top = sum(e[2] if e[0] != 'spacer' else e[1] for e in self.stack_elements)
 
         lcar = (top-bottom)/N
@@ -175,7 +179,7 @@ class MEMSStack:
             for k, v in to_physical.items():
                 geom.add_physical(v, k)
              
-            return Geometry(geom.generate_mesh(dim=1), N)
+            return Geometry(geom.generate_mesh(dim=1), N, **kwargs)
 
 if __name__ == '__main__':
     # Some tests/examples with MEMSstack.
