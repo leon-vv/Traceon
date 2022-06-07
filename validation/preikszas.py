@@ -11,7 +11,7 @@ import traceon.solver as solver
 # Correct values according to
 # D. Preikszas and H Ros.e Correction properties of electron mirrors. 1997.
 C30 = -0.61629*5 # Radius used is 5
-C50 = -169.63*5 * 1e-10 # Error in paper?
+C50 = -169.63*5  # Error in paper?
 C11 = 0.187461*5
 C31 = 8.669*5
 C12 = -0.0777*5
@@ -23,10 +23,11 @@ for i, j, c in correct:
     print(f'C{i}{j} = {c:+.4e}')
 
 for n in [250, 500, 1000, 3000, 5000]:
+    
     geom = G.create_preikszas_mirror(n)
     print('Computing trajectories...')
 
-    solution, f = solver.field_function_derivs(geom, mirror=-250, corrector=1000, recompute=True)
+    solution, f = solver.field_function_derivs(geom, mirror=-250, corrector=1000, recompute=False)
     
     z = np.linspace(-0.1, -15)
     pot = [solver.potential_at_point(np.array([0.0, z_]), solution) for z_ in z]
@@ -37,7 +38,7 @@ for n in [250, 500, 1000, 3000, 5000]:
 
     #tracer._benchmark()
 
-    C, dE, angles, intersections = A.compute_coefficients(tracer, 1000, N=8)
+    C, dE, angles, intersections = A.compute_coefficients(tracer, 1000, dr=0.25)
     print(C)
 
     print('Relative accuracy: ')

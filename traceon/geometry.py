@@ -263,8 +263,7 @@ def create_preikszas_mirror(N=100): # Radius is 5
         l9 = geom.add_line(points[8], points[9])
         l10 = geom.add_line(points[9], points[10])
         l11 = geom.add_line(points[10], points[0])
-
-        geom.add_physical([l11], 'axis')
+         
         geom.add_physical([l1, l2, l3, l4, l5], 'mirror')
         geom.add_physical([l7, l8, l9, l10], 'corrector')
 
