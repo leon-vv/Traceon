@@ -23,6 +23,7 @@ def _create_point_to_physical_dict(mesh):
 
 def show_line_mesh(mesh, trajectory=None, show_legend=True, **colors):
     plt.figure(figsize=(10, 13))
+    plt.rcParams.update({'font.size': 17})
     plt.gca().set_aspect('equal')
      
     dict_ = _create_point_to_physical_dict(mesh)
@@ -49,8 +50,8 @@ def show_line_mesh(mesh, trajectory=None, show_legend=True, **colors):
      
     for c in set(colors_):
         mask = colors_ == c
-        plt.plot(np.array(to_plot_x)[mask].T, np.array(to_plot_y)[mask].T, color=c, linewidth=3)
-        plt.scatter(np.array(to_plot_x)[mask].T, np.array(to_plot_y)[mask].T, color=c, s=11)
+        plt.plot(np.array(to_plot_x)[mask].T, np.array(to_plot_y)[mask].T, color=c, linewidth=2)
+        plt.scatter(np.array(to_plot_x)[mask].T, np.array(to_plot_y)[mask].T, color=c, s=15)
 
     if show_legend:
         for l, c in colors.items():
