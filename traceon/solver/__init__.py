@@ -116,7 +116,7 @@ def solve_bem(geometry, **voltages):
     
     assert np.all(np.isfinite(charges))
      
-    return (geometry.symmetry, points, charges)
+    return (geometry.symmetry, points, charges, geometry.get_z_bounds())
 
 
 @traceon_jit
@@ -133,7 +133,7 @@ def deriv_z_at_point(point, solution, N):
     
     assert -1 <= N <= 4
 
-    symmetry, lines, charges = solution
+    symmetry, lines, charges, _ = solution
      
     d = 0.0
 
@@ -185,9 +185,9 @@ def field_at_point(point, solution, zmin=None, zmax=None):
     Ez = -deriv_z_at_point(point, solution, 1)
 
     symmetry = solution[0] 
-    
-    #if symmetry == 'radial' and abs(point[0]) < 1e-7: # Too close to singularity
-    #    return np.array([0.0, Ez])
+     
+    if symmetry == 'radial' and abs(point[0]) < 1e-7: # Too close to singularity
+        return np.array([0.0, Ez])
      
     return np.array([-deriv_z_at_point(point, solution, -1), Ez])
 
@@ -229,9 +229,8 @@ def _interpolate_numba(z, derivs):
     return compute
 
 def get_axial_derivatives(solution):
-    zmin = np.min(solution[1][:, :, 1])+0.01#+0.05
-    zmax = np.max(solution[1][:, :, 1])-0.01#-0.25
-
+    _, _, _, (zmin, zmax) = solution
+    
     z = np.linspace(zmin, zmax, round( (zmax-zmin)*150)) # 150 points per mm
     dz = z[1] - z[0]
      
@@ -288,18 +287,23 @@ def field_function_bem(solution):
     Returns:
         Field function (callsign f(r, z) -> [Er, Ez])
     """
-    field_zmin = np.min(solution[1][:, :, 1])
-    field_zmax = np.max(solution[1][:, :, 1])+0.25
+    _, _, _, (zmin, zmax) = solution
      
     @nb.njit
     def f_bem(r, z):
-        return field_at_point(np.array([r, z]), solution, zmin=field_zmin, zmax=field_zmax)
+        return field_at_point(np.array([r, z]), solution, zmin=zmin, zmax=zmax)
      
     return f_bem
 
 def _hash_solution(mesh, voltage_dict):
     m = hashlib.sha1()
+    m.update(mesh.points)
     m.update(mesh.cells_dict['line'].view(np.uint8))
+    
+    for k, v in mesh.cell_sets_dict.items():
+        m.update(bytes(k, 'utf8'))
+        m.update(v['line'].view(np.uint8))
+    
     m.update(bytes(str(voltage_dict), 'utf8'))
     return m.hexdigest()
 
@@ -333,7 +337,7 @@ def field_function_derivs(geometry, recompute=False, **voltages):
     if not recompute and path.isfile(fn):
         cached = np.load(fn)
         lines, charges, z, derivs = cached['lines'], cached['charges'], cached['z'], cached['derivs']
-        solution = ('radial', lines, charges)
+        solution = ('radial', lines, charges, (z[0],z[-1]))
     else:
         print('Computing BEM solution and saving for voltages: ', voltages)
         solution = solve_bem(geometry, **voltages)

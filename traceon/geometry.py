@@ -11,13 +11,22 @@ class Geometry:
         metadata: dictionary containing arbitrary metadata
     """
     
-    def __init__(self, mesh, N, metadata={}, symmetry='radial'):
+    def __init__(self, mesh, N, zmin=None, zmax=None, metadata={}, symmetry='radial'):
         """ Args: """
         self.mesh = mesh
         self.metadata = metadata
         self.N = N
         self._symmetry = symmetry
+        
+        self.zmin = zmin if zmin != None else np.min(mesh.points[:, 1]) - 1
+        self.zmax = zmax if zmax != None else np.max(mesh.points[:, 1]) + 2
     
+    def get_z_bounds(self):
+        if hasattr(self, 'zmin'):
+            return self.zmin, self.zmax
+         
+        return np.min(self.mesh.points[:, 1]) - 1, np.max(self.mesh.points[:, 1]) + 2
+     
     def write(self, filename):
         """Write a mesh to a file. The pickle module will be used
         to save the Geometry object.
@@ -53,7 +62,7 @@ class Geometry:
         
         if isinstance(object_, dict): 
             # Backwards compatibility
-            return Geometry(object_['mesh'], object_['N'], object_['metadata'])
+            return Geometry(object_['mesh'], object_['N'], metadata=object_['metadata'])
         else:
             return object_
     
