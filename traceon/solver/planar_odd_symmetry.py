@@ -5,18 +5,15 @@ from .util import *
 
 @traceon_jit
 def _first_deriv_r(r_0, z_0, r, z):
-    #return (r_0+r)/((z-z_0)**2+(r_0+r)**2)**(3/2)+(r-r_0)/((z-z_0)**2+(r-r_0)**2)**(3/2)
     return (2*r*(z_0**2-2*z*z_0+z**2-r_0**2+r**2))/((z_0**2-2*z*z_0+z**2+r_0**2-2*r*r_0+r**2)*(z_0**2-2*z*z_0+z**2+r_0**2+2*r*r_0+r**2))
 
 @traceon_jit
 def _zeroth_deriv_z(r_0, z_0, r, z):
-    #return 1/np.sqrt((z-z_0)**2+(r-r_0)**2)-1/np.sqrt((z-z_0)**2+(r_0+r)**2)
     return np.log(((z-z_0)**2+(r_0+r)**2)/((z-z_0)**2+(r-r_0)**2))/2
 
 @traceon_jit
 def _first_deriv_z(r_0, z_0, r, z):
     return -(4*r*r_0*(z_0-z))/((z_0**2-2*z*z_0+z**2+r_0**2-2*r*r_0+r**2)*(z_0**2-2*z*z_0+z**2+r_0**2+2*r*r_0+r**2))
-    #return (z-z_0)/((z-z_0)**2+(r-r_0)**2)**(3/2)-(z-z_0)/((z-z_0)**2+(r_0+r)**2)**(3/2)
 
 @traceon_jit
 def _deriv_z_far_away(v0, v1, v2, N):
