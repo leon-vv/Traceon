@@ -1,4 +1,4 @@
-from math import sqrt, cos, sin
+from math import sqrt, cos, sin, atan2
 import time
 
 import matplotlib.pyplot as plt
@@ -66,13 +66,19 @@ def trace_particle(position, velocity, field, rmax, zmin, zmax, rmin=None, args=
     hmin = STEP_MIN/V
     
     def f(_, y):
-        Er, Ez = field(y[0], y[1], *args)
-        return np.array([y[2], y[3], EM*Er, EM*Ez])
+        if position.shape == (2,):
+            Er, Ez = field(y[0], y[1], *args)
+            return np.array([y[2], y[3], EM*Er, EM*Ez])
+        else:
+            Er, Ez = field(sqrt( y[0]**2 + y[1]**2 ) , y[2], *args)
+            angle = atan2(y[1], y[0])
+            return np.array([y[3], y[4], y[5], cos(angle)*EM*Er, sin(angle)*EM*Er, EM*Ez])
        
-    y = np.array([position[0], position[1], velocity[0], velocity[1]])
-    
+    y = np.array([*position, *velocity])
+     
     N = 1
-    positions = np.zeros( (Nmax, 4) )
+    positions = np.zeros( (Nmax, y.size) )
+    hs = np.zeros(Nmax)
     positions[0, :] = y
 
     A = (0.0, 0.0, 2/9, 1/3, 3/4, 1, 5/6) # https://en.wikipedia.org/wiki/Runge%E2%80%93Kutta%E2%80%93Fehlberg_method
@@ -86,7 +92,7 @@ def trace_particle(position, velocity, field, rmax, zmin, zmax, rmin=None, args=
 
     rmin = -rmax if rmin is None else rmin
      
-    while rmin <= y[0] <= rmax and zmin <= y[1] <= zmax:
+    while rmin <= y[0] <= rmax and (position.size==3 or zmin <= y[1] <= zmax) and (position.size==2 or zmin <= y[2] <= zmax):
         k1 = h * f(0.0, y)
         k2 = h * f(0.0, y + B2[1]*k1)
         k3 = h * f(0.0, y + B3[1]*k1 + B3[2]*k2)
@@ -100,11 +106,12 @@ def trace_particle(position, velocity, field, rmax, zmin, zmax, rmin=None, args=
             y = y + CH[1]*k1 + CH[2]*k2 + CH[3]*k3 + CH[4]*k4 + CH[5]*k5 + CH[6]*k6
             assert N < Nmax
             positions[N, :] = y
+            hs[N] = h
             N += 1
          
-        if TE > 1e-11: 
+        if TE > atol/10:
             h = max(min(0.9*h*(atol/TE)**(1/5), hmax), hmin)
-        elif TE < 1e-11:
+        elif TE < atol/100:
             h = hmax
      
     return positions[:N]
@@ -393,8 +400,8 @@ def plane_intersection(positions, z):
     assert len(positions) > 1, "Not enough positions supplied"
 
     for i in range(len(positions)-1, -1, -1):
-        z1 = positions[i-1, 1]
-        z2 = positions[i, 1]
+        z1 = positions[i-1, 1 if positions.shape[1] == 4 else 2]
+        z2 = positions[i, 1 if positions.shape[1] == 4 else 2]
         
         if min(z1, z2) <= z <= max(z1, z2):
             ratio = abs(z - z1) / abs(z1 - z2)
