@@ -25,6 +25,7 @@ parser.add_argument('-N', default=50, type=int, help='Number of samples of the s
 parser.add_argument('-o', '--output', default=None, help='Output file or directory to write focus positions to. The Pickle module is used to store a Python object.')
 parser.add_argument('-z', type=float, nargs=2, required=True, help='Positions of crossovers with respect to the geometry.')
 parser.add_argument('--focus-voltages', type=float, nargs='+', default=[-1.2, -1.75, -2.5], help='Initial focus electrode voltages to try at begin of focus optimization')
+parser.add_argument('--delta-r', type=float, default=20, help='Maximum angle is chosen to cover delta-r distance at z=0 (um)')
 
 parser.add_argument('--scan-electrode', type=str, default='lens', help='Electrode on which the applied voltage is scanned over a certain range')
 parser.add_argument('--focus-electrode', type=str, default='mirror', help='Electrode on which the applied voltage should be optimized to achieve focussing')
@@ -46,7 +47,7 @@ for geom in args.geometry:
     extra_voltage_args = (float(args.V[1])*energy,) if extra_electrode else ()
     
     z_name = 'z-' + '-'.join([f'{z:.2f}' for z in args.z])
-    extra_voltage_name = f'-{args.V[0]}={float(args.V[1]):.2f}' if extra_electrode else ''
+    extra_voltage_name = f'-{args.V[0]}={float(args.V[1]):.4f}' if extra_electrode else ''
 
     if args.output is None or os.path.isdir(args.output):
         dir_, basename = os.path.split(geom)
@@ -74,7 +75,7 @@ for geom in args.geometry:
         
         def optimize(vm, vl, tracer):
             tracer.set_field_potentials(vm*energy, vl*energy, *extra_voltage_args)
-            coeff, _, _ = A.spherical(tracer, energy, 0.02)
+            coeff, _, _ = A.spherical(tracer, energy, args.delta_r/1000)
             return coeff[1, 0]
         
         exact_zeros = []
@@ -122,7 +123,7 @@ for geom in args.geometry:
                 tracer.set_field1_potentials(focus_points[i, 0]*energy, focus_points[i, 1]*energy, *extra_voltage_args)
                 tracer.set_field2_potentials(focus_points[i, 2]*energy, focus_points[i, 3]*energy, *extra_voltage_args)
             
-            coeff, _, _, _ = A.compute_coefficients(tracer, energy, N=6, dr=0.02, dE=0.05e-2)
+            coeff, _, _, _ = A.compute_coefficients(tracer, energy, N=6, dr=args.delta_r/1000, dE=0.05e-2)
             print(coeff)
         except Exception as e:
             print('Failed computing coefficients: ', str(e))
