@@ -113,6 +113,8 @@ if args.higher_order:
 
     
 plt.xlabel(f'{scan_electrode.capitalize()} electrode voltage (V/E)')
+
+plt.tight_layout()
 #plt.subplots_adjust(left=0.12, right=0.97, top=0.96, bottom=0.04)
 #plt.savefig('foci-coeff.png')
 if args.o is not None:
