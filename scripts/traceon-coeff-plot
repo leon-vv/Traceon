@@ -83,11 +83,11 @@ ax1 = plt.subplot(611 if args.higher_order else 311)
 for l, sv, fv in zip(labels, all_scan_voltages, all_focus_voltages):
     plt.plot(sv, fv, label=l)
 plt.grid(zorder=-1)
-plt.xlabel(f'{scan_electrode.capitalize()} voltage (V/E)')
+plt.xlabel(f'{scan_electrode.capitalize()} electrode voltage (V/E)')
 
 if plot_vertical_zero:
     plt.axvline(0, color='black')
-plt.ylabel(f'{focus_electrode.capitalize()} voltage (V/E)')
+plt.ylabel(f'{focus_electrode.capitalize()} electrode voltage (V/E)')
 #plt.ylim(-2.5, -1)
 
 if args.labels is not None:
@@ -95,10 +95,11 @@ if args.labels is not None:
 
 ax1 = plt.subplot(612 if args.higher_order else 312, sharex=ax1)
 plot_all([c[:, 1, 1] for c in all_coeffs], 1, 1)
-plt.xlabel(f'{scan_electrode.capitalize()} voltage (V/E)')
+plt.xlabel(f'{scan_electrode.capitalize()} electrode voltage (V/E)')
 
 plt.subplot(613 if args.higher_order else 313, sharex=ax1)
 plot_all([c[:, 3, 0] for c in all_coeffs], 3, 0)
+plt.xlabel(f'{scan_electrode.capitalize()} electrode voltage (V/E)')
 
 if args.higher_order:
     plt.subplot(614, sharex=ax1)
@@ -111,7 +112,7 @@ if args.higher_order:
     plot_all([c[:, 5, 0] for c in all_coeffs], 5, 0)
 
     
-plt.xlabel(f'{scan_electrode.capitalize()} voltage (V/E)')
+plt.xlabel(f'{scan_electrode.capitalize()} electrode voltage (V/E)')
 #plt.subplots_adjust(left=0.12, right=0.97, top=0.96, bottom=0.04)
 #plt.savefig('foci-coeff.png')
 if args.o is not None:
