@@ -312,9 +312,9 @@ def create_two_cylinder_lens(S=0.2, R=1, N=200, wall_thickness=1, boundary_lengt
                 [0, boundary_length]
             ]
             if include_boundary:
-                physicals = [('v1', [0, 1, 2]), ('v2', [4, 5, 6])]
+                physicals = [('v1', [0, 1, 2]), ('v2', [4, 5, 6]), ('gap', [3])]
             else:
-                physicals = [('v1', [1, 2]), ('v2', [4, 5])]
+                physicals = [('v1', [1, 2]), ('v2', [4, 5]), ('gap', [3])]
         else:
             points = [ [0, 0],
                 [R, 0],
@@ -323,9 +323,9 @@ def create_two_cylinder_lens(S=0.2, R=1, N=200, wall_thickness=1, boundary_lengt
                 [R, boundary_length],
                 [0, boundary_length]]
             if include_boundary:
-                physicals = [('v1', [0, 1]), ('v2', [3, 4])]
+                physicals = [('v1', [0, 1]), ('v2', [3, 4]), ('gap', [2])]
             else:
-                physicals = [('v1', [1]), ('v2', [3])]
+                physicals = [('v1', [1]), ('v2', [3]), ('gap', [2])]
          
         lcar = boundary_length/N
         poly = geom.add_polygon(points, lcar)

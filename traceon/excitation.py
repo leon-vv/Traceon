@@ -5,6 +5,7 @@ import numpy as np
 
 class ExcitationType(Enum):
     VOLTAGE_FIXED = 1
+    VOLTAGE_FUN = 2
 
 class Excitation:
      
@@ -12,11 +13,17 @@ class Excitation:
         self.geometry = geom
         self.electrodes = geom.get_electrodes()
         self.excitation_types = {}
-        
+     
     def add_voltage_excitation(self, **kwargs):
         for name, voltage in kwargs.items():
             assert name in self.electrodes
-            self.excitation_types[name] = (ExcitationType.VOLTAGE_FIXED, voltage)
+            if isinstance(voltage, int):
+                self.excitation_types[name] = (ExcitationType.VOLTAGE_FIXED, voltage)
+            elif callable(voltage):
+                self.excitation_types[name] = (ExcitationType.VOLTAGE_FUN, voltage)
+            else:
+                raise NotImplementedError('Unrecognized voltage value')
+                
     
     def get_active_lines(self):
         

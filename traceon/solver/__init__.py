@@ -75,7 +75,10 @@ def _get_right_hand_side(line_points, names, exc):
          
         if type_ == excitation.ExcitationType.VOLTAGE_FIXED:
             F[indices] = value
-
+        elif type_ == excitation.ExcitationType.VOLTAGE_FUN:
+            for i in indices:
+                F[i] = value(*( (line_points[i][0] + line_points[i][1])/2 ))
+    
     return F
 
 def solve_bem(excitation):
