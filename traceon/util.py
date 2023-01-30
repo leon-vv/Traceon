@@ -30,6 +30,15 @@ def simps(y, dx):
 def norm(x, y):
     return m.sqrt(x**2 + y**2)
 
+@traceon_jit
+def get_normal(p1, p2):
+    x1, y1, x2, y2 = p1[0], p1[1], p2[0], p2[1]
+    
+    tangent = x2 - x1, y2 - y1
+    normal = tangent[1], -tangent[0]
+    return normal / numpy.linalg.norm(normal)
+
+
 # Chebyshev Approximations for the Complete Elliptic Integrals K and E.
 # W. J. Cody. 1965.
 

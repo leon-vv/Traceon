@@ -1,7 +1,7 @@
 import numba as nb
 import numpy as np
 
-from .util import *
+from ..util import *
 
 @traceon_jit
 def _first_deriv_r(r_0, z_0, r, z):

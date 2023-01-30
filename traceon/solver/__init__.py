@@ -12,7 +12,7 @@ import numba as nb
 from scipy.interpolate import CubicSpline
 import findiff
 
-from .util import *
+from ..util import *
 from . import radial_symmetry
 from . import planar_odd_symmetry
 from .. import excitation
