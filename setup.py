@@ -12,7 +12,9 @@ setup(
         'scripts/traceon-lens-strength',
         'scripts/traceon-plot-axis',
         'scripts/traceon-plot-geometry',
-        'scripts/traceon-solve-geometry'],
+        'scripts/traceon-solve-geometry',
+        'scripts/traceon-coeff-plot',
+        'scripts/traceon-aberration-scan'],
     install_requires = ['matplotlib', 'numpy', 'numba', 'pygmsh>=7.1.13', 'scipy', 'findiff']
 )
 
