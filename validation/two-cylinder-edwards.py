@@ -15,7 +15,7 @@ accuracies = []
 
 # Compile
 exc = E.Excitation(G.create_two_cylinder_lens(N=5))
-exc.add_voltage_excitation(v1=0, v2=10)
+exc.add_voltage(v1=0, v2=10)
 solution = solver.solve_bem(exc)
 solver.potential_at_point(np.array([0.0, 0.0]), solution)
 
@@ -28,7 +28,7 @@ for n in np.linspace(1000, 4000, 10).astype(np.int32):
     geom = G.create_two_cylinder_lens(N=n)
     
     exc = E.Excitation(geom)
-    exc.add_voltage_excitation(v1=0, v2=10)#, gap=gap_voltage)
+    exc.add_voltage(v1=0, v2=10)#, gap=gap_voltage)
      
     solution = solver.solve_bem(exc)
     times.append(time.time()-st)

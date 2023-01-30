@@ -17,7 +17,7 @@ for N in Ns:
     edwards = G.create_edwards2007(N)
     
     excitation = E.Excitation(edwards)
-    excitation.add_voltage_excitation(boundary=0, inner=10)
+    excitation.add_voltage(boundary=0, inner=10)
     
     solution = S.solve_bem(excitation)
     pot = S.potential_at_point(np.array([12, 4]), solution)

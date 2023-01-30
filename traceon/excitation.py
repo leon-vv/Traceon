@@ -14,7 +14,7 @@ class Excitation:
         self.electrodes = geom.get_electrodes()
         self.excitation_types = {}
      
-    def add_voltage_excitation(self, **kwargs):
+    def add_voltage(self, **kwargs):
         for name, voltage in kwargs.items():
             assert name in self.electrodes
             if isinstance(voltage, int):
