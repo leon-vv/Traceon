@@ -19,8 +19,8 @@ class Geometry:
         self._symmetry = symmetry
         
         self.zmin = zmin if zmin != None else np.min(mesh.points[:, 1]) - 1
-        self.zmax = zmax if zmax != None else np.max(mesh.points[:, 1]) + 2
-    
+        self.zmax = zmax if zmax != None else np.max(mesh.points[:, 1]) + 1
+     
     def get_z_bounds(self):
         if hasattr(self, 'zmin'):
             return self.zmin, self.zmax

@@ -2,6 +2,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 import traceon.geometry as G
+import traceon.excitation as E
 import traceon.plotting as P
 import traceon.solver as S
 
@@ -14,7 +15,11 @@ errors = []
 
 for N in Ns:
     edwards = G.create_edwards2007(N)
-    solution = S.solve_bem(edwards, boundary=0, inner=10)
+    
+    excitation = E.Excitation(edwards)
+    excitation.add_voltage_excitation(boundary=0, inner=10)
+    
+    solution = S.solve_bem(excitation)
     pot = S.potential_at_point(np.array([12, 4]), solution)
     line_elements.append(solution[1].shape[0])
     errors.append(pot/correct - 1)

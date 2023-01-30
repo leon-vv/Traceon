@@ -15,11 +15,21 @@ import findiff
 from .util import *
 from . import radial_symmetry
 from . import planar_odd_symmetry
+from .. import excitation
 
 # Create cache directory
 home = path.expanduser('~')
 CACHE_DIR = os.path.join(home, '.traceon', 'cache')
 os.makedirs(CACHE_DIR, exist_ok=True)
+
+class Solution:
+     
+    def __init__(self, excitation, line_points, line_names, charges):
+        self.geometry = excitation.geometry
+        self.excitation = excitation
+        self.line_points = line_points
+        self.line_names = line_names
+        self.charges = charges
 
 # Number of widths the field point has to be away
 # in the boundary element method in order to use an approximation.
@@ -32,16 +42,15 @@ symmetry_to_potential_fun = {
 }
 
 @traceon_jit
-def _build_bem_matrix(potential_fun, matrix, points, lines_range, lines):
-    assert points.shape == (len(lines), 2, 3)
-    assert matrix.shape == (len(lines), len(lines))
-    
+def _build_bem_matrix(potential_fun, matrix, line_points, lines_range):
+    assert matrix.shape == (len(line_points), len(line_points))
+     
     for i in lines_range:
-        p1, p2 = points[i]
+        p1, p2 = line_points[i]
         r0, z0, _ = (p1+p2)/2
         
-        for j in range(len(lines)):
-            v1, v2 = points[j]
+        for j in range(len(line_points)):
+            v1, v2 = line_points[j]
              
             r, z, _ = (v1+v2)/2
             length = norm(v1[0]-v2[0], v1[1]-v2[1])
@@ -57,7 +66,19 @@ def _build_bem_matrix(potential_fun, matrix, points, lines_range, lines):
                 to_integrate_ = potential_fun(r0, z0, r, z)
                 matrix[i, j] = simps(to_integrate_, ds)
 
-def solve_bem(geometry, **voltages):
+def _get_right_hand_side(line_points, names, exc):
+     
+    F = np.zeros(len(line_points))
+    
+    for name, indices in names.items():
+        type_, value  = exc.excitation_types[name]
+         
+        if type_ == excitation.ExcitationType.VOLTAGE_FIXED:
+            F[indices] = value
+
+    return F
+
+def solve_bem(excitation):
     """Solve for the charges on every line element given a mesh and the voltages applied on the electrodes.
     
     Args:
@@ -73,25 +94,18 @@ def solve_bem(geometry, **voltages):
             is non-standard. Don't use the charges array directly, instead pass it as an argument to the various
             functions in this solver module.
     """ 
-    
-    mesh = geometry.mesh 
-    lines = mesh.cells_dict['line']
-    inactive = np.full(len(lines), True)
-    
-    for v in voltages.keys():
-        inactive[ mesh.cell_sets_dict[v]['line'] ] = False
      
-    active_lines = lines[~inactive]
-    N = len(active_lines)
+    line_points, names = excitation.get_active_lines()
+    N = len(line_points)
+     
     print('Total number of line elements: ', N)
      
     THREADS = 2
     split = np.array_split(np.arange(N), THREADS)
     matrices = [np.zeros((N, N)) for _ in range(THREADS)]
-    points = mesh.points[active_lines]
-
-    potential_fun = symmetry_to_potential_fun[geometry.symmetry]
-    threads = [Thread(target=_build_bem_matrix, args=(potential_fun, m, points, line_indices, active_lines)) for line_indices, m in zip(split, matrices)]
+    
+    potential_fun = symmetry_to_potential_fun[excitation.geometry.symmetry]
+    threads = [Thread(target=_build_bem_matrix, args=(potential_fun, m, line_points, r)) for r, m in zip(split, matrices)]
     
     st = time.time()
     for t in threads:
@@ -99,24 +113,21 @@ def solve_bem(geometry, **voltages):
     for t in threads:
         t.join()
      
-    print(f'Time for building matrix: {(time.time()-st)*1000:.3f} ms')
     matrix = np.sum(matrices, axis=0)
+    print(f'Time for building matrix: {(time.time()-st)*1000:.3f} ms')
      
-    F = np.zeros(N)
-    
-    for name, voltage in voltages.items():
-        map_index = np.arange(len(lines)) - np.cumsum(inactive)
-        F[ map_index[ mesh.cell_sets_dict[name]['line'] ] ] = voltage
-    
+    F = _get_right_hand_side(line_points, names, excitation)
+     
     assert np.all(np.isfinite(matrix))
+    assert np.all(np.isfinite(F))
     
     st = time.time()
     charges = np.linalg.solve(matrix, F)
     print(f'Time for solving matrix: {(time.time()-st)*1000:.3f} ms')
     
     assert np.all(np.isfinite(charges))
-     
-    return (geometry.symmetry, points, charges, geometry.get_z_bounds())
+    
+    return (excitation.geometry.symmetry, line_points, charges, excitation.geometry.get_z_bounds())
 
 
 @traceon_jit
