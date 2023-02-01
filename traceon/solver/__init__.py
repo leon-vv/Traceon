@@ -36,35 +36,76 @@ class Solution:
 WIDTHS_FAR_AWAY = 20
 N_FACTOR = 12
 
-symmetry_to_potential_fun = {
-    'radial': radial_symmetry._zeroth_deriv_z,
-    'planar-odd': planar_odd_symmetry._zeroth_deriv_z
-}
+@traceon_jit
+def voltage_contrib(r0, z0, r, z, _):
+    return radial_symmetry._zeroth_deriv_z(r0, z0, r, z)
 
 @traceon_jit
-def _build_bem_matrix(potential_fun, matrix, line_points, lines_range):
-    assert matrix.shape == (len(line_points), len(line_points))
+def field_dot_normal(r0, z0, r, z, normal):
+     
+    Er = -radial_symmetry._first_deriv_r(r0, z0, r, z)
+    Ez = -radial_symmetry._first_deriv_z(r0, z0, r, z)
+    
+    return normal[0].item()*Er + normal[1].item()*Ez
+
+@traceon_jit
+def _build_bem_matrix(matrix,
+                    line_points,
+                    excitation_types,
+                    excitation_values,
+                    lines_range):
+    
+    N = len(line_points)
+    assert matrix.shape == (N, N)
+    assert len(excitation_types) == N
+    assert len(excitation_values) == N
      
     for i in lines_range:
         p1, p2 = line_points[i]
+        normal = np.array(get_normal(p1, p2))
+        type_ = excitation_types[i]
+        
+        if type_ == excitation.ExcitationType.VOLTAGE_FIXED or \
+                type_ == excitation.ExcitationType.VOLTAGE_FUN:
+            potential_fun = voltage_contrib
+            subtract = 0.0
+        elif type_ == excitation.ExcitationType.DIELECTRIC:
+            potential_fun = field_dot_normal
+            subtract = 1.0
+            K = excitation_values[i]
+            # This factor is hard to derive. It takes into account that the field
+            # calculated at the edge of the dielectric is basically the average of the
+            # field at either side of the surface of the dielecric (the field makes a jump).
+            normal *= (2*K - 2) / (m.pi*(1 + K)) # Huge hack, fix this. The constaint should somehow be in the function 'field_dot_normal'
+        else:
+            raise NotImplementedError('ExcitationType unknown')
+        
         r0, z0, _ = (p1+p2)/2
         
-        for j in range(len(line_points)):
+        for j in range(N):
             v1, v2 = line_points[j]
              
             r, z, _ = (v1+v2)/2
             length = norm(v1[0]-v2[0], v1[1]-v2[1])
             distance = norm(r-r0, z-z0)
             
-            if distance > WIDTHS_FAR_AWAY*length:
-                matrix[i, j] = potential_fun(r0, z0, r, z)*length
-            else:
-                N = N_FACTOR*WIDTHS_FAR_AWAY
-                r = np.linspace(v1[0], v2[0], N)
-                z = np.linspace(v1[1], v2[1], N)
-                ds = norm(r[1]-r[0], z[1]-z[0])
-                to_integrate_ = potential_fun(r0, z0, r, z)
-                matrix[i, j] = simps(to_integrate_, ds)
+            #if False and distance > WIDTHS_FAR_AWAY*length:
+            #    matrix[i, j] = potential_fun(r0, z0, r, z, normal)*length
+            #else:
+            
+            N_int = N_FACTOR*WIDTHS_FAR_AWAY
+            r = np.linspace(v1[0], v2[0], N_int)
+            z = np.linspace(v1[1], v2[1], N_int)
+            ds = norm(r[1]-r[0], z[1]-z[0])
+            to_integrate_ = potential_fun(r0, z0, r, z, normal)
+            matrix[i, j] = simps(to_integrate_, ds)
+
+            if i == j:
+                # When working with dielectrics, the constraint is that
+                # the electric field normal must sum to the surface charge.
+                # The constraint is satisfied by subtracting 1.0 from
+                # the diagonal of the matrix
+                matrix[i, j] -= subtract
 
 def _get_right_hand_side(line_points, names, exc):
      
@@ -78,6 +119,8 @@ def _get_right_hand_side(line_points, names, exc):
         elif type_ == excitation.ExcitationType.VOLTAGE_FUN:
             for i in indices:
                 F[i] = value(*( (line_points[i][0] + line_points[i][1])/2 ))
+        elif type_ == excitation.ExcitationType.DIELECTRIC:
+            F[indices] = 0
     
     return F
 
@@ -99,16 +142,24 @@ def solve_bem(excitation):
     """ 
      
     line_points, names = excitation.get_active_lines()
+    
     N = len(line_points)
+    excitation_types = np.zeros(N, dtype=np.uint8)
+    excitation_values = np.zeros(N)
+    
+    for n, indices in names.items():
+        excitation_types[indices] = int( excitation.excitation_types[n][0] )
+        excitation_values[indices] = excitation.excitation_types[n][1]
+    
+    assert np.all(excitation_types != 0)
      
     print('Total number of line elements: ', N)
      
     THREADS = 2
     split = np.array_split(np.arange(N), THREADS)
     matrices = [np.zeros((N, N)) for _ in range(THREADS)]
-    
-    potential_fun = symmetry_to_potential_fun[excitation.geometry.symmetry]
-    threads = [Thread(target=_build_bem_matrix, args=(potential_fun, m, line_points, r)) for r, m in zip(split, matrices)]
+     
+    threads = [Thread(target=_build_bem_matrix, args=(m, line_points, excitation_types, excitation_values, r)) for r, m in zip(split, matrices)]
     
     st = time.time()
     for t in threads:

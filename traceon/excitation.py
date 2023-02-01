@@ -1,11 +1,12 @@
 
-from enum import Enum
+from enum import IntEnum
 
 import numpy as np
 
-class ExcitationType(Enum):
+class ExcitationType(IntEnum):
     VOLTAGE_FIXED = 1
     VOLTAGE_FUN = 2
+    DIELECTRIC = 3
 
 class Excitation:
      
@@ -23,8 +24,12 @@ class Excitation:
                 self.excitation_types[name] = (ExcitationType.VOLTAGE_FUN, voltage)
             else:
                 raise NotImplementedError('Unrecognized voltage value')
-                
-    
+
+    def add_dielectric(self, **kwargs):
+        for name, permittivity in kwargs.items():
+            assert name in self.electrodes
+            self.excitation_types[name] = (ExcitationType.DIELECTRIC, permittivity)
+     
     def get_active_lines(self):
         
         mesh = self.geometry.mesh

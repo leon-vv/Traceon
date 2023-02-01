@@ -36,7 +36,9 @@ def get_normal(p1, p2):
     
     tangent = x2 - x1, y2 - y1
     normal = tangent[1], -tangent[0]
-    return normal / numpy.linalg.norm(normal)
+    length = norm(normal[0], normal[1])
+    
+    return normal[0]/length, normal[1]/length
 
 
 # Chebyshev Approximations for the Complete Elliptic Integrals K and E.
