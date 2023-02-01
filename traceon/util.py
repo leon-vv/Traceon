@@ -27,6 +27,35 @@ def simps(y, dx):
     return sum_
 
 @traceon_jit
+def line_integral(
+    target_x, target_y,
+    source_x1, source_y1,
+    source_x2, source_y2,
+    function,
+    *args):
+
+    middle_x = (source_x2 + source_x1)/2
+    middle_y = (source_y1 + source_y2)/2
+    length = norm(source_x2 - source_x1, source_y2 - source_y1)
+    distance = norm(middle_x - target_x, middle_y - target_y)
+     
+    if distance > WIDTHS_FAR_AWAY*length:
+        # Speedup, just consider middle point
+        return function(target_x, target_y, middle_x, middle_y, *args) * length
+    else:
+        N_int = N_FACTOR*WIDTHS_FAR_AWAY
+        x = np.linspace(source_x1, source_x2, N_int)
+        y = np.linspace(source_y1, source_y2, N_int)
+        ds = norm(x[1]-x[0], y[1]-y[0])
+         
+        to_integrate = np.empty(N_int, dtype=np.float64)
+        for i in range(N_int):
+            to_integrate[i] = function(target_x, target_y, x[i], y[i], *args)
+        
+        return simps(to_integrate, ds)
+
+
+@traceon_jit
 def norm(x, y):
     return m.sqrt(x**2 + y**2)
 

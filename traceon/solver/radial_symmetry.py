@@ -82,61 +82,20 @@ def _fourth_deriv_z(r_0, z_0, r, z):
     B = nb_ellipk(t2)
      
     return _fourth_deriv_z_inner(A, B, r_0, z_0, r, z)
-
-@traceon_jit
-def _deriv_z_far_away(v0, v1, v2, N):
-    mid = (v1+v2)/2
-    r, z = mid[0], mid[1]
-    r0, z0 = v0[0], v0[1]
-    
-    length = norm(v1[0]-v2[0], v1[1]-v2[1])
-    
-    if N == -1:
-        return _first_deriv_r(r0, z0, r, z)*length
-    elif N == 0:
-        return _zeroth_deriv_z(r0, z0, r, z)*length
-    elif N == 1:
-        return _first_deriv_z(r0, z0, r, z)*length
-    elif N == 2:
-        return _second_deriv_z(r0, z0, r, z)*length
-    elif N == 3:
-        return _third_deriv_z(r0, z0, r, z)*length
-    elif N == 4:
-        return _fourth_deriv_z(r0, z0, r, z)*length
-
-@traceon_jit
-def _deriv_z_close(v0, v1, v2, Nd):
-    N = N_FACTOR*WIDTHS_FAR_AWAY
-    r0, z0 = v0[0], v0[1]
-    r = np.linspace(v1[0], v2[0], N)
-    z = np.linspace(v1[1], v2[1], N)
-     
-    ds = norm(r[1]-r[0], z[1]-z[0])
-     
-    if Nd == -1:
-        points = _first_deriv_r(r0, z0, r, z)
-    if Nd == 0:
-        points = _zeroth_deriv_z(r0, z0, r, z)
-    if Nd == 1:
-        points = _first_deriv_z(r0, z0, r, z)
-    elif Nd == 2:
-        points = _second_deriv_z(r0, z0, r, z)
-    elif Nd == 3:
-        points = _third_deriv_z(r0, z0, r, z)
-    elif Nd == 4:
-        points = _fourth_deriv_z(r0, z0, r, z)
-    
-    return simps(points, ds)
  
+
 @traceon_jit
 def _deriv_z(v0, v1, v2, N):
-    mid = (v1+v2)/2
-    width = norm(v1[0]-v2[0], v1[1]-v2[1])
-    distance = norm(mid[0]-v0[0], mid[1]-v0[1])
+    if N == -1:
+        return line_integral(v0[0], v0[1], v1[0], v1[1], v2[0], v2[1], _first_deriv_r)
+    if N == 0:
+        return line_integral(v0[0], v0[1], v1[0], v1[1], v2[0], v2[1], _zeroth_deriv_z)
+    if N == 1:
+        return line_integral(v0[0], v0[1], v1[0], v1[1], v2[0], v2[1], _first_deriv_z)
+    if N == 2:
+        return line_integral(v0[0], v0[1], v1[0], v1[1], v2[0], v2[1], _second_deriv_z)
+    if N == 3:
+        return line_integral(v0[0], v0[1], v1[0], v1[1], v2[0], v2[1], _third_deriv_z)
+    if N == 4:
+        return line_integral(v0[0], v0[1], v1[0], v1[1], v2[0], v2[1], _fourth_deriv_z)
     
-    if distance > WIDTHS_FAR_AWAY*width:
-        return _deriv_z_far_away(v0, v1, v2, N)
-    else:
-        return _deriv_z_close(v0, v1, v2, N)
-
-

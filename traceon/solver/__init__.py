@@ -31,13 +31,8 @@ class Solution:
         self.line_names = line_names
         self.charges = charges
 
-# Number of widths the field point has to be away
-# in the boundary element method in order to use an approximation.
-WIDTHS_FAR_AWAY = 20
-N_FACTOR = 12
-
 @traceon_jit
-def voltage_contrib(r0, z0, r, z, _):
+def voltage_contrib(r0, z0, r, z):
     return radial_symmetry._zeroth_deriv_z(r0, z0, r, z)
 
 @traceon_jit
@@ -62,51 +57,39 @@ def _build_bem_matrix(matrix,
      
     for i in lines_range:
         p1, p2 = line_points[i]
-        normal = np.array(get_normal(p1, p2))
+        r0, z0, _ = (p1+p2)/2
         type_ = excitation_types[i]
         
         if type_ == excitation.ExcitationType.VOLTAGE_FIXED or \
                 type_ == excitation.ExcitationType.VOLTAGE_FUN:
-            potential_fun = voltage_contrib
-            subtract = 0.0
+            
+            for j in range(N):
+                v1, v2 = line_points[j]
+                matrix[i, j] = line_integral(r0, z0, v1[0], v1[1], v2[0], v2[1], voltage_contrib)
+
         elif type_ == excitation.ExcitationType.DIELECTRIC:
-            potential_fun = field_dot_normal
-            subtract = 1.0
+            normal = np.array(get_normal(p1, p2))
             K = excitation_values[i]
+            
             # This factor is hard to derive. It takes into account that the field
             # calculated at the edge of the dielectric is basically the average of the
             # field at either side of the surface of the dielecric (the field makes a jump).
             normal *= (2*K - 2) / (m.pi*(1 + K)) # Huge hack, fix this. The constaint should somehow be in the function 'field_dot_normal'
+            
+            for j in range(N):
+                v1, v2 = line_points[j]
+                matrix[i, j] = line_integral(r0, z0, v1[0], v1[1], v2[0], v2[1], field_dot_normal, normal)
+                
+                if i == j:
+                    # When working with dielectrics, the constraint is that
+                    # the electric field normal must sum to the surface charge.
+                    # The constraint is satisfied by subtracting 1.0 from
+                    # the diagonal of the matrix
+                    matrix[i, j] -= 1.0
+
         else:
             raise NotImplementedError('ExcitationType unknown')
         
-        r0, z0, _ = (p1+p2)/2
-        
-        for j in range(N):
-            v1, v2 = line_points[j]
-             
-            r, z, _ = (v1+v2)/2
-            length = norm(v1[0]-v2[0], v1[1]-v2[1])
-            distance = norm(r-r0, z-z0)
-            
-            #if False and distance > WIDTHS_FAR_AWAY*length:
-            #    matrix[i, j] = potential_fun(r0, z0, r, z, normal)*length
-            #else:
-            
-            N_int = N_FACTOR*WIDTHS_FAR_AWAY
-            r = np.linspace(v1[0], v2[0], N_int)
-            z = np.linspace(v1[1], v2[1], N_int)
-            ds = norm(r[1]-r[0], z[1]-z[0])
-            to_integrate_ = potential_fun(r0, z0, r, z, normal)
-            matrix[i, j] = simps(to_integrate_, ds)
-
-            if i == j:
-                # When working with dielectrics, the constraint is that
-                # the electric field normal must sum to the surface charge.
-                # The constraint is satisfied by subtracting 1.0 from
-                # the diagonal of the matrix
-                matrix[i, j] -= subtract
-
 def _get_right_hand_side(line_points, names, exc):
      
     F = np.zeros(len(line_points))
