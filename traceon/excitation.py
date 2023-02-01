@@ -7,6 +7,7 @@ class ExcitationType(IntEnum):
     VOLTAGE_FIXED = 1
     VOLTAGE_FUN = 2
     DIELECTRIC = 3
+    FLOATING_CONDUCTOR = 4
 
 class Excitation:
      
@@ -29,7 +30,12 @@ class Excitation:
         for name, permittivity in kwargs.items():
             assert name in self.electrodes
             self.excitation_types[name] = (ExcitationType.DIELECTRIC, permittivity)
-     
+
+    def add_floating_conductor(self, **kwargs):
+        for name, charge in kwargs.items():
+            assert name in self.electrodes
+            self.excitation_types[name] = (ExcitationType.FLOATING_CONDUCTOR, charge)
+    
     def get_active_lines(self):
         
         mesh = self.geometry.mesh

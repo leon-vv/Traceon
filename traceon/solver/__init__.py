@@ -15,7 +15,7 @@ import findiff
 from ..util import *
 from . import radial_symmetry
 from . import planar_odd_symmetry
-from .. import excitation
+from .. import excitation as E
 
 # Create cache directory
 home = path.expanduser('~')
@@ -44,30 +44,30 @@ def field_dot_normal(r0, z0, r, z, normal):
     return normal[0].item()*Er + normal[1].item()*Ez
 
 @traceon_jit
-def _build_bem_matrix(matrix,
+def _fill_bem_matrix(matrix,
                     line_points,
                     excitation_types,
                     excitation_values,
                     lines_range):
-    
-    N = len(line_points)
-    assert matrix.shape == (N, N)
-    assert len(excitation_types) == N
-    assert len(excitation_values) == N
+     
+    assert len(excitation_types) == len(excitation_values)
+    assert len(excitation_values) <= matrix.shape[0]
+    assert matrix.shape[0] == matrix.shape[1]
      
     for i in lines_range:
         p1, p2 = line_points[i]
         r0, z0, _ = (p1+p2)/2
         type_ = excitation_types[i]
         
-        if type_ == excitation.ExcitationType.VOLTAGE_FIXED or \
-                type_ == excitation.ExcitationType.VOLTAGE_FUN:
+        if type_ == E.ExcitationType.VOLTAGE_FIXED or \
+                type_ == E.ExcitationType.VOLTAGE_FUN or \
+                type_ == E.ExcitationType.FLOATING_CONDUCTOR:
             
-            for j in range(N):
+            for j in range(len(line_points)):
                 v1, v2 = line_points[j]
                 matrix[i, j] = line_integral(r0, z0, v1[0], v1[1], v2[0], v2[1], voltage_contrib)
 
-        elif type_ == excitation.ExcitationType.DIELECTRIC:
+        elif type_ == E.ExcitationType.DIELECTRIC:
             normal = np.array(get_normal(p1, p2))
             K = excitation_values[i]
             
@@ -76,7 +76,7 @@ def _build_bem_matrix(matrix,
             # field at either side of the surface of the dielecric (the field makes a jump).
             normal *= (2*K - 2) / (m.pi*(1 + K)) # Huge hack, fix this. The constaint should somehow be in the function 'field_dot_normal'
             
-            for j in range(N):
+            for j in range(len(line_points)):
                 v1, v2 = line_points[j]
                 matrix[i, j] = line_integral(r0, z0, v1[0], v1[1], v2[0], v2[1], field_dot_normal, normal)
                 
@@ -90,23 +90,44 @@ def _build_bem_matrix(matrix,
         else:
             raise NotImplementedError('ExcitationType unknown')
         
-def _get_right_hand_side(line_points, names, exc):
-     
-    F = np.zeros(len(line_points))
+def _fill_right_hand_side(F, line_points, names,  exc):
     
     for name, indices in names.items():
         type_, value  = exc.excitation_types[name]
          
-        if type_ == excitation.ExcitationType.VOLTAGE_FIXED:
+        if type_ == E.ExcitationType.VOLTAGE_FIXED:
             F[indices] = value
-        elif type_ == excitation.ExcitationType.VOLTAGE_FUN:
+        elif type_ == E.ExcitationType.VOLTAGE_FUN:
             for i in indices:
                 F[i] = value(*( (line_points[i][0] + line_points[i][1])/2 ))
-        elif type_ == excitation.ExcitationType.DIELECTRIC:
+        elif type_ == E.ExcitationType.DIELECTRIC or \
+                type_ == E.ExcitationType.FLOATING_CONDUCTOR:
             F[indices] = 0
-    
+     
     return F
 
+def _add_floating_conductor_constraints(matrix, F, active_lines, active_names, excitation):
+    
+    floating = [n for n in active_names.keys() if excitation.excitation_types[n][0] == E.ExcitationType.FLOATING_CONDUCTOR]
+    N_matrix = matrix.shape[0]
+    assert F.size == N_matrix
+
+    for i, f in enumerate(floating):
+        for index in active_names[f]:
+            # An extra unknown voltage is added to the matrix for every floating conductor.
+            # The column related to this unknown voltage is positioned at the rightmost edge of the matrix.
+            # If multiple floating conductors are present the column lives at -len(floating) + i
+            matrix[ index, -len(floating) + i] = -1
+            # The unknown voltage is determined by the constraint on the total charge of the conductor.
+            # This constraint lives at the bottom edge of the matrix.
+            # The surface area of the respective line element is multiplied by the surface charge (unknown)
+            # to arrive at the total specified charge (right hand side).
+            line = active_lines[index]
+            middle = (line[0] + line[1])/2
+            length = np.linalg.norm(line[1] - line[0])
+            matrix[ -len(floating) + i, index] = length*2*np.pi*middle[0]
+            F[-len(floating)+i] = excitation.excitation_types[f][1]
+    
 def solve_bem(excitation):
     """Solve for the charges on every line element given a mesh and the voltages applied on the electrodes.
     
@@ -125,10 +146,13 @@ def solve_bem(excitation):
     """ 
      
     line_points, names = excitation.get_active_lines()
+    N_floating = sum(1 for v in excitation.excitation_types.values() if v[0] == E.ExcitationType.FLOATING_CONDUCTOR)
+     
+    N_lines = len(line_points)
+    N_matrix = N_lines + N_floating # Every floating conductor adds one constraint
     
-    N = len(line_points)
-    excitation_types = np.zeros(N, dtype=np.uint8)
-    excitation_values = np.zeros(N)
+    excitation_types = np.zeros(N_lines, dtype=np.uint8)
+    excitation_values = np.zeros(N_lines)
     
     for n, indices in names.items():
         excitation_types[indices] = int( excitation.excitation_types[n][0] )
@@ -136,13 +160,13 @@ def solve_bem(excitation):
     
     assert np.all(excitation_types != 0)
      
-    print('Total number of line elements: ', N)
+    print('Total number of line elements: ', N_lines)
      
     THREADS = 2
-    split = np.array_split(np.arange(N), THREADS)
-    matrices = [np.zeros((N, N)) for _ in range(THREADS)]
+    split = np.array_split(np.arange(N_lines), THREADS)
+    matrices = [np.zeros((N_matrix, N_matrix)) for _ in range(THREADS)]
      
-    threads = [Thread(target=_build_bem_matrix, args=(m, line_points, excitation_types, excitation_values, r)) for r, m in zip(split, matrices)]
+    threads = [Thread(target=_fill_bem_matrix, args=(m, line_points, excitation_types, excitation_values, r)) for r, m in zip(split, matrices)]
     
     st = time.time()
     for t in threads:
@@ -151,19 +175,23 @@ def solve_bem(excitation):
         t.join()
      
     matrix = np.sum(matrices, axis=0)
+    F = np.zeros(N_matrix)
+    _fill_right_hand_side(F, line_points, names, excitation)
+    _add_floating_conductor_constraints(matrix, F, line_points, names, excitation)
+    
     print(f'Time for building matrix: {(time.time()-st)*1000:.3f} ms')
-     
-    F = _get_right_hand_side(line_points, names, excitation)
      
     assert np.all(np.isfinite(matrix))
     assert np.all(np.isfinite(F))
     
     st = time.time()
-    charges = np.linalg.solve(matrix, F)
+    # TODO: do not throw away the calculated floating conductor voltages
+    # but instead return them in a new fancy 'Solution' class
+    charges = np.linalg.solve(matrix, F)[:-N_floating]
     print(f'Time for solving matrix: {(time.time()-st)*1000:.3f} ms')
-    
+     
     assert np.all(np.isfinite(charges))
-    
+     
     return (excitation.geometry.symmetry, line_points, charges, excitation.geometry.get_z_bounds())
 
 
