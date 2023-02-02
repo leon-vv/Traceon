@@ -2,28 +2,24 @@ import math as m
 import numba as nb
 import numpy as np
 
-# Number of widths the field point has to be away
-# in the boundary element method in order to use an approximation.
-WIDTHS_FAR_AWAY = 20
-N_FACTOR = 12
-
 def traceon_jit(*args, **kwargs):
     return nb.njit(*args, cache=True, nogil=True, fastmath=True, **kwargs)
 
 # Simpson integration rule
 @traceon_jit
 def simps(y, dx):
+    assert (len(y)-1)%3 == 0
+    
     i = 0
     sum_ = 0.0
-    while i < len(y)-2:
-        sum_ += y[i] + 4*y[i+1] + y[i+2]
-        i += 2
-
-    sum_ *= dx/3
+    while i < len(y)-3:
+        sum_ += y[i] + 3*y[i+1] + 3*y[i+2] + y[i+3]
+        i += 3
     
-    if y.size % 2 == 0: # Even, trapezoid on last rule
-        sum_ += dx * 0.5 * (y[-1] + y[-2])
+    assert i == len(y)-1
     
+    sum_ *= dx*3/8
+     
     return sum_
 
 @traceon_jit
@@ -39,11 +35,11 @@ def line_integral(
     length = norm(source_x2 - source_x1, source_y2 - source_y1)
     distance = norm(middle_x - target_x, middle_y - target_y)
      
-    if distance > WIDTHS_FAR_AWAY*length:
+    if distance > 20*length:
         # Speedup, just consider middle point
         return function(target_x, target_y, middle_x, middle_y, *args) * length
     else:
-        N_int = N_FACTOR*WIDTHS_FAR_AWAY
+        N_int = 256
         x = np.linspace(source_x1, source_x2, N_int)
         y = np.linspace(source_y1, source_y2, N_int)
         ds = norm(x[1]-x[0], y[1]-y[0])
