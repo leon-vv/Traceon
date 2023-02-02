@@ -185,9 +185,14 @@ def solve_bem(excitation):
     assert np.all(np.isfinite(F))
     
     st = time.time()
-    # TODO: do not throw away the calculated floating conductor voltages
-    # but instead return them in a new fancy 'Solution' class
-    charges = np.linalg.solve(matrix, F)[:-N_floating]
+     
+    charges = np.linalg.solve(matrix, F)
+    
+    if N_floating > 0:
+        # TODO: do not throw away the calculated floating conductor voltages
+        # but instead return them in a new fancy 'Solution' class
+        charges = charges[:-N_floating]
+     
     print(f'Time for solving matrix: {(time.time()-st)*1000:.3f} ms')
      
     assert np.all(np.isfinite(charges))

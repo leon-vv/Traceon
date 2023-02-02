@@ -17,7 +17,7 @@ accuracies = []
 exc = E.Excitation(G.create_two_cylinder_lens(N=5))
 exc.add_voltage(v1=0, v2=10)
 solution = solver.solve_bem(exc)
-solver.potential_at_point(np.array([0.0, 0.0]), solution)
+solver.potential_at_point(np.array([0.0, 5.0]), solution)
 
 def gap_voltage(x, y, _):
     return (y-9.9)/0.2 * 10
