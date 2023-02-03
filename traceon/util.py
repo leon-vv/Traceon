@@ -12,8 +12,8 @@ def traceon_jit(*args, **kwargs):
     return nb.njit(*args, cache=True, nogil=True, fastmath=True, **kwargs)
 
 # Simpson integration rule
-@traceon_jit
-def simps(function, target_x, target_y, x, y, *args):
+@traceon_jit(inline='always')
+def simps(function, target_x, target_y, x, y, args=()):
     assert (len(x)-1)%3 == 0
     assert len(x) == len(y)
 
@@ -30,7 +30,7 @@ def simps(function, target_x, target_y, x, y, *args):
         i += 3
     
     assert i == len(y)
-    
+     
     # Last one is counted double in the previous iteration
     sum_ -= function(target_x, target_y, x[i-1], y[i-1], *args) 
      
@@ -38,13 +38,12 @@ def simps(function, target_x, target_y, x, y, *args):
       
     return sum_
 
-@traceon_jit
+@traceon_jit(inline='always')
 def line_integral(
     target_x, target_y,
     source_x1, source_y1,
     source_x2, source_y2,
-    function,
-    *args):
+    function, args=()):
 
     middle_x = (source_x2 + source_x1)/2
     middle_y = (source_y1 + source_y2)/2
@@ -58,7 +57,7 @@ def line_integral(
         N_int = 256
         x = np.linspace(source_x1, source_x2, N_int)
         y = np.linspace(source_y1, source_y2, N_int)
-        return simps(function, target_x, target_y, x, y, *args)
+        return simps(function, target_x, target_y, x, y, args=args)
 
 
 @traceon_jit

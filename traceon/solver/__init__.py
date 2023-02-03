@@ -71,15 +71,13 @@ def _fill_bem_matrix(matrix,
             normal = np.array(get_normal(p1, p2))
             K = excitation_values[i]
             
-            # This factor is hard to derive. It takes into account that the field
-            # calculated at the edge of the dielectric is basically the average of the
-            # field at either side of the surface of the dielecric (the field makes a jump).
-            normal *= (2*K - 2) / (m.pi*(1 + K)) # Huge hack, fix this. The constaint should somehow be in the function 'field_dot_normal'
-            
             for j in range(len(line_points)):
                 v1, v2 = line_points[j]
-                matrix[i, j] = line_integral(r0, z0, v1[0], v1[1], v2[0], v2[1], field_dot_normal, normal)
-                
+                # This factor is hard to derive. It takes into account that the field
+                # calculated at the edge of the dielectric is basically the average of the
+                # field at either side of the surface of the dielecric (the field makes a jump).
+                matrix[i, j] =  (2*K - 2) / (m.pi*(1 + K)) * line_integral(r0, z0, v1[0], v1[1], v2[0], v2[1], field_dot_normal, args=(normal,))
+                 
                 if i == j:
                     # When working with dielectrics, the constraint is that
                     # the electric field normal must sum to the surface charge.
@@ -210,36 +208,9 @@ def get_all_axial_derivatives_at_point(z, solution):
 
     for i, z_ in enumerate(z):
         for c, l in zip(charges, lines):
-            derivs[:, i] += c * radial_symmetry._get_axial_derivatives(np.array([0.0, z_]), l[0], l[1])
+            derivs[:, i] += c*radial_symmetry._get_axial_derivatives(np.array([0.0, z_]), l[0], l[1])
     
     return derivs
-
-@traceon_jit 
-def deriv_z_at_point(point, solution, N):
-    """Compute the derivative of the electrostatic potential (with respect to z0) at the given point.
-    
-    Args:
-        point: coordinates of the point at which the derivative should be samples
-        lines: as returned by solve_bem
-        charges: as returned by solve_bem
-        N: order of the derivative. 0 will simply give the potential. 1 will give the first derivative, etc.
-
-    """
-    
-    assert -1 <= N <= 4
-
-    symmetry, lines, charges, _ = solution
-     
-    d = 0.0
-
-    if symmetry == 'radial':
-        for c, l in zip(charges, lines):
-            d += c * radial_symmetry._deriv_z(point, l[0], l[1], N)
-    elif symmetry == 'planar-odd':
-        for c, l in zip(charges, lines):
-            d += c * planar_odd_symmetry._deriv_z(point, l[0], l[1], N)
-     
-    return d
 
 @traceon_jit
 def potential_at_point(point, solution):
@@ -253,7 +224,17 @@ def potential_at_point(point, solution):
     Returns:
         float: the value of the potential at the given point.
     """
-    return deriv_z_at_point(point, solution, 0)
+
+    symmetry, lines, charges, _ = solution
+
+    assert symmetry == 'radial'
+    
+    potential = 0.0
+     
+    for c, (v1, v2) in zip(charges, lines):
+        potential += c*line_integral(point[0], point[1], v1[0], v1[1], v2[0], v2[1], radial_symmetry._zeroth_deriv_z)
+
+    return potential
 
 @traceon_jit
 def field_at_point(point, solution, zmin=None, zmax=None):
@@ -277,14 +258,18 @@ def field_at_point(point, solution, zmin=None, zmax=None):
     if zmin != None and point[1] < zmin:
         return E
     
-    Ez = -deriv_z_at_point(point, solution, 1)
-
-    symmetry = solution[0] 
+    symmetry, lines, charges, _ = solution
      
+    for c, (v1, v2) in zip(charges, lines):
+        E[1] -= c*line_integral(point[0], point[1], v1[0], v1[1], v2[0], v2[1], radial_symmetry._first_deriv_z)
+    
     if symmetry == 'radial' and abs(point[0]) < 1e-7: # Too close to singularity
-        return np.array([0.0, Ez])
+        return E
      
-    return np.array([-deriv_z_at_point(point, solution, -1), Ez])
+    for c, (v1, v2) in zip(charges, lines):
+        E[0] -= c*line_integral(point[0], point[1], v1[0], v1[1], v2[0], v2[1], radial_symmetry._first_deriv_r)
+
+    return E
 
 
 def _interpolate_numba(z, derivs):
