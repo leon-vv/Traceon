@@ -33,7 +33,6 @@ def _angle(vr, vz):
 STEP_MAX = 0.085
 STEP_MIN = STEP_MAX/1e10
 
-@nb.njit
 def trace_particle(position, velocity, field, rmax, zmin, zmax, rmin=None, args=(), atol=1e-10):
     """Trace a particle. Using the Runge-Kutta-Fehlberg method RK45. See:
         
@@ -59,7 +58,16 @@ def trace_particle(position, velocity, field, rmax, zmin, zmax, rmin=None, args=
     Returns:
         np.narray of shape (N, 4) where N is the number of time steps taken. 
     """
-    Nmax = 50000
+    blocks = _trace_particle(position, velocity, field, rmax, zmin, zmax, rmin=rmin, args=args, atol=atol)
+
+    if len(blocks) == 1:
+        return blocks[0]
+    else:
+        return np.concatenate(blocks, axis=0)
+
+@nb.njit(nogil=True, fastmath=True)
+def _trace_particle(position, velocity, field, rmax, zmin, zmax, rmin=None, args=(), atol=1e-10):
+    Nblock = int(1e5)
     V = np.linalg.norm(velocity)
     h = STEP_MAX/V
     hmax = STEP_MAX/V
@@ -76,11 +84,11 @@ def trace_particle(position, velocity, field, rmax, zmin, zmax, rmin=None, args=
        
     y = np.array([*position, *velocity])
      
+    position_block = np.zeros( (Nblock, y.size) )
+    positions = [position_block]
+    position_block[0, :] = y
     N = 1
-    positions = np.zeros( (Nmax, y.size) )
-    hs = np.zeros(Nmax)
-    positions[0, :] = y
-
+    
     A = (0.0, 0.0, 2/9, 1/3, 3/4, 1, 5/6) # https://en.wikipedia.org/wiki/Runge%E2%80%93Kutta%E2%80%93Fehlberg_method
     B6 = (0.0, 65/432, -5/16, 13/16, 4/27, 5/144) # Left pad with 0.0 to keep indices the same
     B5 = (0.0, -17/12, 27/4, -27/5, 16/15)
@@ -104,9 +112,13 @@ def trace_particle(position, velocity, field, rmax, zmin, zmax, rmin=None, args=
          
         if TE <= atol or h == hmin:
             y = y + CH[1]*k1 + CH[2]*k2 + CH[3]*k3 + CH[4]*k4 + CH[5]*k5 + CH[6]*k6
-            assert N < Nmax
-            positions[N, :] = y
-            hs[N] = h
+
+            if N == Nblock:
+                position_block = np.zeros( (Nblock, y.size) )
+                positions.append(position_block)
+                N = 0
+             
+            position_block[N, :] = y
             N += 1
          
         if TE > atol/10:
@@ -114,7 +126,8 @@ def trace_particle(position, velocity, field, rmax, zmin, zmax, rmin=None, args=
         elif TE < atol/100:
             h = hmax
      
-    return positions[:N]
+    positions[-1] = positions[-1][:N]
+    return positions
 
 @nb.njit(cache=True)
 def trace_particle_rk4(position, velocity, field, rmax, zmin, zmax, rmin=None, args=(), mm_per_step=0.015):
