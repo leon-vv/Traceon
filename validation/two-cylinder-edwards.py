@@ -57,7 +57,6 @@ plt.ylabel('Mean relative error')
 plt.xlabel('Compuation time (s)')
 plt.ylim(1e-6, 1e-2)
 plt.xlim(0, 10)
-(W, NF) = solver.WIDTHS_FAR_AWAY, solver.N_FACTOR
 plt.show()
 
 

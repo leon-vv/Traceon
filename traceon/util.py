@@ -2,24 +2,40 @@ import math as m
 import numba as nb
 import numpy as np
 
+from numba.core.errors import NumbaExperimentalFeatureWarning
+
+import warnings
+
+warnings.simplefilter('ignore', NumbaExperimentalFeatureWarning)
+
 def traceon_jit(*args, **kwargs):
     return nb.njit(*args, cache=True, nogil=True, fastmath=True, **kwargs)
 
 # Simpson integration rule
 @traceon_jit
-def simps(y, dx):
-    assert (len(y)-1)%3 == 0
+def simps(function, target_x, target_y, x, y, *args):
+    assert (len(x)-1)%3 == 0
+    assert len(x) == len(y)
+
+    dx = norm(x[1]-x[0], y[1]-y[0])
     
-    i = 0
-    sum_ = 0.0
-    while i < len(y)-3:
-        sum_ += y[i] + 3*y[i+1] + 3*y[i+2] + y[i+3]
+    i = 1
+    sum_ = function(target_x, target_y, x[0], y[0], *args)
+    while i < len(y)-2:
+        yi = function(target_x, target_y, x[i], y[i], *args) 
+        yi1 = function(target_x, target_y, x[i+1], y[i+1], *args) 
+        yi2 = function(target_x, target_y, x[i+2], y[i+2], *args) 
+         
+        sum_ += 3*yi + 3*yi1 + 2*yi2
         i += 3
     
-    assert i == len(y)-1
+    assert i == len(y)
     
-    sum_ *= dx*3/8
+    # Last one is counted double in the previous iteration
+    sum_ -= function(target_x, target_y, x[i-1], y[i-1], *args) 
      
+    sum_ *= dx*3/8
+      
     return sum_
 
 @traceon_jit
@@ -42,13 +58,7 @@ def line_integral(
         N_int = 256
         x = np.linspace(source_x1, source_x2, N_int)
         y = np.linspace(source_y1, source_y2, N_int)
-        ds = norm(x[1]-x[0], y[1]-y[0])
-         
-        to_integrate = np.empty(N_int, dtype=np.float64)
-        for i in range(N_int):
-            to_integrate[i] = function(target_x, target_y, x[i], y[i], *args)
-        
-        return simps(to_integrate, ds)
+        return simps(function, target_x, target_y, x, y, *args)
 
 
 @traceon_jit

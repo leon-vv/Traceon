@@ -6,6 +6,7 @@ import numpy as np
 import traceon.geometry as G
 import traceon.tracing as T
 import traceon.aberrations as A
+import traceon.excitation as E
 import traceon.solver as solver
 
 # Correct values according to
@@ -25,9 +26,11 @@ for i, j, c in correct:
 for n in [250, 500, 1000, 3000, 5000]:
     
     geom = G.create_preikszas_mirror(n)
+    excitation = E.Excitation(geom)
+    excitation.add_voltage(mirror=-250, corrector=1000)
     print('Computing trajectories...')
-
-    solution, f = solver.field_function_derivs(geom, mirror=-250, corrector=1000, recompute=False)
+    
+    solution, f = solver.field_function_derivs(excitation, recompute=True)
     
     z = np.linspace(-0.1, -15)
     pot = [solver.potential_at_point(np.array([0.0, z_]), solution) for z_ in z]

@@ -199,8 +199,22 @@ def solve_bem(excitation):
      
     return (excitation.geometry.symmetry, line_points, charges, excitation.geometry.get_z_bounds())
 
+@traceon_jit 
+def get_all_axial_derivatives_at_point(z, solution):
+    
+    symmetry, lines, charges, _ = solution
 
-@traceon_jit
+    assert symmetry == 'radial'
+
+    derivs = np.zeros( (9, z.size), dtype=np.float64 )
+
+    for i, z_ in enumerate(z):
+        for c, l in zip(charges, lines):
+            derivs[:, i] += c * radial_symmetry._get_axial_derivatives(np.array([0.0, z_]), l[0], l[1])
+    
+    return derivs
+
+@traceon_jit 
 def deriv_z_at_point(point, solution, N):
     """Compute the derivative of the electrostatic potential (with respect to z0) at the given point.
     
@@ -316,12 +330,9 @@ def get_axial_derivatives(solution):
     dz = z[1] - z[0]
      
     st = time.time()
-    derivs = [ np.array([deriv_z_at_point(np.array([0.0, z]), solution, i) for z in z]) for i in range(5) ]
+    
+    derivs = get_all_axial_derivatives_at_point(z, solution)
      
-    derivs.append(findiff.FinDiff(0, dz, 1, acc=6)(derivs[4])) # 5th derivatve
-    derivs.append(findiff.FinDiff(0, dz, 2, acc=6)(derivs[4])) # 6th derivative
-    derivs.append(findiff.FinDiff(0, dz, 3, acc=6)(derivs[4])) # 7th derivative
-    derivs.append(findiff.FinDiff(0, dz, 4, acc=6)(derivs[4])) # 8th derivative
     print(f'Computing derivatives took {(time.time()-st):.2f} s')
      
     assert all(derivs[i].shape == derivs[0].shape for i in range(1, 9))
@@ -400,7 +411,7 @@ def solution_exists_in_cache(geom, **voltages):
     and is available in the cache (usually ~/.traceon/cache/)."""
     return path.isfile(_cache_filename(geom.mesh, **voltages))
 
-def field_function_derivs(geometry, recompute=False, **voltages):
+def field_function_derivs(excitation, recompute=False):
     """Create a field function for the given mesh while the given voltages are applied. The field
     function will use a series expansion in terms of the derivatives of the potential at the optical axis.
     The cache will be checked for the solution, and if not present the solve_bem function will be used.
@@ -411,6 +422,9 @@ def field_function_derivs(geometry, recompute=False, **voltages):
             be saved to the cache afterwards.
         **voltages: the voltages applied on the electrodes.
     """
+    geometry = excitation.geometry
+    # TODO: generalize cache functionality
+    voltages = dict((n, v[1]) for n, v in excitation.excitation_types.items() if v[0] == E.ExcitationType.VOLTAGE_FIXED)
     fn = _cache_filename(geometry.mesh, **voltages)
 
     assert geometry.symmetry == 'radial'
@@ -421,7 +435,7 @@ def field_function_derivs(geometry, recompute=False, **voltages):
         solution = ('radial', lines, charges, (z[0],z[-1]))
     else:
         print('Computing BEM solution and saving for voltages: ', voltages)
-        solution = solve_bem(geometry, **voltages)
+        solution = solve_bem(excitation)
         assert solution[0] == 'radial'
         z, derivs = get_axial_derivatives(solution)
         np.savez(fn, lines=solution[1], charges=solution[2], z=z, derivs=derivs)
