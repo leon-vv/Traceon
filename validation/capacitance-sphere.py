@@ -81,4 +81,5 @@ def compute_error(N):
     error = abs(capacitance/expected - 1)
     return len(lines), error
 
+util.parser.description = '''Compute the capacitance of two concentric spheres with a layer of dielectric material in between.'''
 util.parse_validation_args(create_geometry, compute_error, inner='blue', outer='darkblue', dielectric='green')

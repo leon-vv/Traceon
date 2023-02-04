@@ -9,7 +9,7 @@ import traceon.excitation as E
 import traceon.solver as S
 import traceon.plotting as P
 
-parser = argparse.ArgumentParser(prog='capacitance-sphere', description='Compute the capacitance of a spherical capacitance with a dieletric layer')
+parser = argparse.ArgumentParser(formatter_class=argparse.RawDescriptionHelpFormatter)
 parser.add_argument('-N', default=100, type=int, help='Mesh size will be taken as 1/N')
 parser.add_argument('--plot-accuracy', action='store_true', help='Plot the accuracy as a function of time and number of line elements')
 parser.add_argument('--plot-geometry', action='store_true', help='Plot the geometry')

@@ -21,10 +21,6 @@ C12 = -0.0777*5
 
 correct = [(3, 0, C30), (5, 0, C50), (1, 1, C11), (3, 1, C31), (1, 2, C12)]
 
-print('Correct values: ')
-for i, j, c in correct:
-    print(f'C{i}{j} = {c:+.4e}')
-
 def create_geometry(N):
     return G.create_preikszas_mirror(N)
 
@@ -43,10 +39,16 @@ def compute_error(N):
     
     print('-'*20 + ' Accuracy')
     for i, j, c in correct:
-        print(f'C{i}{j} ~ {abs(C[i,j])/abs(c*1000) - 1:+.3e}')
+        print(f'C{i}{j} = {C[i,j]:.4e} (correct: {1000*c:.4e}) \t~ {abs(C[i,j])/abs(c*1000) - 1:+.1e}')
     print('-'*20)
     
     return excitation.get_number_of_active_lines(), abs(C[3,0]/(C30*1000) - 1)
 
+util.parser.description = '''
+Calculate the aberration coefficients of a diode mirror. The accuracy plotted is determined from the 
+spherical aberration coefficient, but the accuracy is printed for all coefficients. See paper:
+
+Correction properties of electron mirrors. D. Preikszas and H. Rose. 1997.
+'''
 util.parse_validation_args(create_geometry, compute_error, mirror='blue', corrector='green')
 

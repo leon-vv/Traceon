@@ -38,6 +38,12 @@ def compute_error(N):
      
     return exc.get_number_of_active_lines(), abs(r_final/correct - 1)
 
+util.parser.description = '''Trace electrons through a spherical capacitor. After the electron traces an arc through the capacitor, its intersection
+with the axis is compared with the exact values given in following paper (first benchmark test):
+
+Comparison of FDM, FEM and BEM for electrostatic charged particle optics. D. Cubric , B. Lencova, F.H. Read, J. Zlamal. 1999.
+'''
+
 util.parse_validation_args(create_geometry, compute_error,
     N=[10, 50, 100, 200, 300, 400],
     inner='blue', outer='darkblue')

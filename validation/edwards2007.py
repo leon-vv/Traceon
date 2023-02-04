@@ -23,5 +23,10 @@ def compute_error(N):
     correct = 6.69099430708
     return Nlines, abs(pot/correct - 1)
 
+util.parser.description = '''Compute the potential at point (12, 4) inside two coaxial cylinders. See paper:
+
+High precision electrostatic potential calculations for cylindrically symmetric lenses. David Edwards. 2007.
+'''
+
 util.parse_validation_args(create_geometry, compute_error, boundary='blue', inner='green')
 

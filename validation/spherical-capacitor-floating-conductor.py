@@ -65,5 +65,8 @@ def compute_error(N):
     # Field should be zero
     return exc.get_number_of_active_lines(), abs(field[0])
      
+
+util.parser.description = '''Compute the field of two concentric spheres with a layer of floating (voltage not fixed) neutrally charged conductor in between.
+The accuracy of the solution is determined by considering whether Er=0, as the field inside the floating conductor should be zero.'''
 util.parse_validation_args(create_geometry, compute_error, inner='blue', outer='darkblue', floating='green')
 

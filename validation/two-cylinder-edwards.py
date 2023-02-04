@@ -34,6 +34,11 @@ def compute_error(N):
     accuracy = abs(pot/edwards[1] - 1)
     return exc.get_number_of_active_lines(), accuracy
 
+util.parser.description = '''
+Compute the potential inside a two cylinder lens.  The correct values for the potential are taken from the paper:\n
+Accurate Potential Calculations For The Two Tube Electrostatic Lens Using A Multiregion FDM Method.  David Edwards, Jr. 2007.
+'''
+
 util.parse_validation_args(create_geometry, compute_error, v1='blue', v2='green', gap='orange',
     N=[10, 100, 500, 1000, 2000, 3000, 4000])
 
