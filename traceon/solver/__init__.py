@@ -154,8 +154,10 @@ def solve_bem(excitation):
     
     for n, indices in names.items():
         excitation_types[indices] = int( excitation.excitation_types[n][0] )
-        excitation_values[indices] = excitation.excitation_types[n][1]
-    
+
+        if excitation.excitation_types[n][0] == E.ExcitationType.DIELECTRIC:
+            excitation_values[indices] = excitation.excitation_types[n][1]
+     
     assert np.all(excitation_types != 0)
      
     print('Total number of line elements: ', N_lines)

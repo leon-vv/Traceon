@@ -19,7 +19,7 @@ class Excitation:
     def add_voltage(self, **kwargs):
         for name, voltage in kwargs.items():
             assert name in self.electrodes
-            if isinstance(voltage, int):
+            if isinstance(voltage, int) or isinstance(voltage, float):
                 self.excitation_types[name] = (ExcitationType.VOLTAGE_FIXED, voltage)
             elif callable(voltage):
                 self.excitation_types[name] = (ExcitationType.VOLTAGE_FUN, voltage)
@@ -54,6 +54,10 @@ class Excitation:
         line_points = mesh.points[ lines[~inactive] ]
         
         return line_points, names
+    
+    def get_number_of_active_lines(self):
+        mesh = self.geometry.mesh
+        return sum(len(mesh.cell_sets_dict[n]['line']) for n in self.excitation_types.keys())
 
 
         
