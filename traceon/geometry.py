@@ -281,7 +281,7 @@ def create_preikszas_mirror(N=100): # Radius is 5
         return Geometry(geom.generate_mesh(dim=1), N)
 
 
-def create_two_cylinder_lens(S=0.2, R=1, N=200, wall_thickness=1, boundary_length=20, gap_at_zero=False, include_boundary=True, **kwargs):
+def create_two_cylinder_lens(N=200, S=0.2, R=1, wall_thickness=1, boundary_length=20, gap_at_zero=False, include_boundary=True, **kwargs):
     """Generate lens consisting of two concentric cylinders. For example studied in
     David Edwards, Jr. Accurate Potential Calculations For The Two Tube Electrostatic Lens Using FDM A Multiregion Method.  2007.
     
@@ -311,6 +311,7 @@ def create_two_cylinder_lens(S=0.2, R=1, N=200, wall_thickness=1, boundary_lengt
                 [R, boundary_length],
                 [0, boundary_length]
             ]
+            print(points)
             if include_boundary:
                 physicals = [('v1', [0, 1, 2]), ('v2', [4, 5, 6]), ('gap', [3])]
             else:
