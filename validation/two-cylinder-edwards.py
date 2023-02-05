@@ -12,6 +12,7 @@ import traceon.plotting as P
 
 import util
 
+
 def create_geometry(N):
     return G.create_two_cylinder_lens(N)
 
@@ -23,13 +24,13 @@ def compute_error(N):
     exc = E.Excitation(geom)
     exc.add_voltage(v1=0, v2=10, gap=gap_voltage)
      
-    solution = solver.solve_bem(exc)
+    field = solver.solve_bem(exc)
     
     edwards = np.array([5.0, 2.5966375108359858, 1.1195606398479115, .4448739946832647, .1720028130382, .065954697686])
     z = 2*np.array([0.0, 0.2, 0.4, 0.6, 0.8, 1.0])
     
     point = np.array([0.0, 10.0 - z[1]])
-    pot = solver.potential_at_point(point, solution)
+    pot = field.potential_at_point(point)
      
     accuracy = abs(pot/edwards[1] - 1)
     return exc.get_number_of_active_lines(), accuracy

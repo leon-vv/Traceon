@@ -41,8 +41,8 @@ def compute_error(N):
 
     Nlines = excitation.get_number_of_active_lines()
 
-    solution = S.solve_bem(excitation)
-    pot = S.potential_at_point(np.array([12, 4]), solution)
+    field = S.solve_bem(excitation)
+    pot = field.potential_at_point(np.array([12, 4]))
     correct = 6.69099430708
     return Nlines, abs(pot/correct - 1)
 

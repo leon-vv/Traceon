@@ -7,6 +7,8 @@ import numpy as np
 import scipy
 from scipy.integrate import *
 
+from .util import traceon_jit
+
 EM = -0.1758820022723908 # e/m units ns and mm
 
 def velocity_vec(eV, theta, direction=1):
@@ -65,7 +67,7 @@ def trace_particle(position, velocity, field, rmax, zmin, zmax, rmin=None, args=
     else:
         return np.concatenate(blocks, axis=0)
 
-@nb.njit(nogil=True, fastmath=True)
+@traceon_jit
 def _trace_particle(position, velocity, field, rmax, zmin, zmax, rmin=None, args=(), atol=1e-10):
     Nblock = int(1e5)
     V = np.linalg.norm(velocity)

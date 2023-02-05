@@ -37,6 +37,10 @@ class Geometry:
         with open(filename, 'wb') as f:
             pickle.dump(self, f)
     
+    def get_mesh_size(self):
+        line_points = self.mesh.points[ self.mesh.cells_dict['line'] ]
+        return np.mean(np.linalg.norm(line_points[:, 1] - line_points[:, 0], axis=1))
+    
     @property
     def symmetry(self):
         if hasattr(self, '_symmetry'):
@@ -50,7 +54,7 @@ class Geometry:
         Returns:
             List of electrode names"""
         return list(self.mesh.cell_sets_dict.keys())
-
+    
     def read(filename):
         """Read a geometry from disk (previously saved with the write method)
         
@@ -220,7 +224,6 @@ def create_two_cylinder_lens(N=200, S=0.2, R=1, wall_thickness=1, boundary_lengt
                 [R, boundary_length],
                 [0, boundary_length]
             ]
-            print(points)
             if include_boundary:
                 physicals = [('v1', [0, 1, 2]), ('v2', [4, 5, 6]), ('gap', [3])]
             else:

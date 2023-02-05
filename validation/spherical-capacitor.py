@@ -60,16 +60,14 @@ def compute_error(N):
     exc = E.Excitation(geom)
     exc.add_voltage(inner=5/3, outer=3/5)
     
-    solution = S.solve_bem(exc)
+    field = S.solve_bem(exc)
     correct = -10/(2/cos(angle)**2 - 1)
     assert -12.5 <= correct <= 7.5 # Between spheres
      
     position = np.array([0.0, 10.0])
     vel = np.array([np.cos(angle), -np.sin(angle)])*0.5930969604919433
-
-    field = S.field_function_bem(solution)
-    pos = T.trace_particle(position, vel, field, 12.5, -12.5, 12.5, rmin=-0.1)
-    
+    pos = T.trace_particle(position, vel, field.get_numba_field_fun(), 12.5, -12.5, 12.5, rmin=-0.1)
+     
     r_final = T.axis_intersection(pos)
      
     print(f'Correct intersection: {correct:.8f}')

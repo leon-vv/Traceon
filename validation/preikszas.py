@@ -74,13 +74,10 @@ def compute_error(N):
     excitation = E.Excitation(create_geometry(N))
     excitation.add_voltage(mirror=-250, corrector=1000)
       
-    solution, f = solver.field_function_derivs(excitation, recompute=True)
-    
-    z = np.linspace(-0.1, -15)
-    pot = [solver.potential_at_point(np.array([0.0, z_]), solution) for z_ in z]
-    
-    tracer = T.PlaneTracer(f, -38.688)
-    
+    field = solver.solve_bem(excitation)
+     
+    tracer = T.PlaneTracer(field.get_numba_field_fun_interpolated(), -38.688)
+     
     C, dE, angles, intersections = A.compute_coefficients(tracer, 1000, dr=0.25)
     
     print('-'*20 + ' Accuracy')

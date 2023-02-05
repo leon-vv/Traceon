@@ -6,6 +6,7 @@ import os
 import os.path as path
 from threading import Thread
 import threading
+import copy
 
 import numpy as np
 import numba as nb
@@ -21,15 +22,6 @@ from .. import excitation as E
 home = path.expanduser('~')
 CACHE_DIR = os.path.join(home, '.traceon', 'cache')
 os.makedirs(CACHE_DIR, exist_ok=True)
-
-class Solution:
-     
-    def __init__(self, excitation, line_points, line_names, charges):
-        self.geometry = excitation.geometry
-        self.excitation = excitation
-        self.line_points = line_points
-        self.line_names = line_names
-        self.charges = charges
 
 @traceon_jit
 def voltage_contrib(r0, z0, r, z):
@@ -196,26 +188,12 @@ def solve_bem(excitation):
     print(f'Time for solving matrix: {(time.time()-st)*1000:.3f} ms')
      
     assert np.all(np.isfinite(charges))
-     
-    return (excitation.geometry.symmetry, line_points, charges, excitation.geometry.get_z_bounds())
-
-@traceon_jit 
-def get_all_axial_derivatives_at_point(z, solution):
     
-    symmetry, lines, charges, _ = solution
+    return Field(excitation, line_points, names, charges)
 
-    assert symmetry == 'radial'
-
-    derivs = np.zeros( (9, z.size), dtype=np.float64 )
-
-    for i, z_ in enumerate(z):
-        for c, l in zip(charges, lines):
-            derivs[:, i] += c*radial_symmetry._get_axial_derivatives(np.array([0.0, z_]), l[0], l[1])
-    
-    return derivs
 
 @traceon_jit
-def potential_at_point(point, solution):
+def _potential_at_point(point, symmetry, lines, charges):
     """Compute the potential at a certain point given line elements and the
     corresponding line charges.
 
@@ -226,20 +204,17 @@ def potential_at_point(point, solution):
     Returns:
         float: the value of the potential at the given point.
     """
-
-    symmetry, lines, charges, _ = solution
-
     assert symmetry == 'radial'
     
     potential = 0.0
      
     for c, (v1, v2) in zip(charges, lines):
         potential += c*line_integral(point[0], point[1], v1[0], v1[1], v2[0], v2[1], radial_symmetry._zeroth_deriv_z)
-
+    
     return potential
 
 @traceon_jit
-def field_at_point(point, solution, zmin=None, zmax=None):
+def _field_at_point(point, symmetry, lines, charges, zmin=None, zmax=None):
     """Compute the electric field at a certain point given line elements and the
     corresponding line charges.
     
@@ -251,7 +226,7 @@ def field_at_point(point, solution, zmin=None, zmax=None):
         float: the value of the electric field in the r direction (Er)
         float: the value of the electric field in the z direction (Ez)
     """
-
+    
     E = np.array([0.0, 0.0])
      
     if zmax != None and point[1] > zmax:
@@ -259,8 +234,6 @@ def field_at_point(point, solution, zmin=None, zmax=None):
      
     if zmin != None and point[1] < zmin:
         return E
-    
-    symmetry, lines, charges, _ = solution
      
     for c, (v1, v2) in zip(charges, lines):
         E[1] -= c*line_integral(point[0], point[1], v1[0], v1[1], v2[0], v2[1], radial_symmetry._first_deriv_z)
@@ -310,21 +283,17 @@ def _interpolate_numba(z, derivs):
      
     return compute
 
-def get_axial_derivatives(solution):
-    _, _, _, (zmin, zmax) = solution
+@traceon_jit 
+def _get_all_axial_derivatives(symmetry, lines, charges, z):
+    assert symmetry == 'radial'
+     
+    derivs = np.zeros( (9, z.size), dtype=np.float64 )
     
-    z = np.linspace(zmin, zmax, round( (zmax-zmin)*150)) # 150 points per mm
-    dz = z[1] - z[0]
+    for i, z_ in enumerate(z):
+        for c, l in zip(charges, lines):
+            derivs[:, i] += c*radial_symmetry._get_axial_derivatives(np.array([0.0, z_]), l[0], l[1])
      
-    st = time.time()
-    
-    derivs = get_all_axial_derivatives_at_point(z, solution)
-     
-    print(f'Computing derivatives took {(time.time()-st):.2f} s')
-     
-    assert all(derivs[i].shape == derivs[0].shape for i in range(1, 9))
-     
-    return z, np.array(derivs)
+    return derivs
 
 
 def _field_from_derivatives(z, derivs):
@@ -348,32 +317,11 @@ def _field_from_derivatives(z, derivs):
             r/2*(i2 - r**2/8*i4 + r**4/192*i6 - r**6/9216*i8),
             -i1 + r**2/4*i3 - r**4/64*i5 + r**6/2304*i7])
      
-    field(0.01, 1.0)
+    field(0.01, 1.0) # Compilation
      
-    print(f'Computing derivatives and compilation took {(time.time()-st):.2f} s')
-   
     return field
 
-def field_function_bem(solution):
-    """Create a field function using the conventional BEM field evaluation.
-    Every field evaluation causes an iteration over all the line charges and is
-    therefore much slower than the field function returned by 'field_function_derivs'.
-    
-    Args:
-        lines: lines as returned by 'solve_bem'
-        charges: charges as returned by 'solve_bem'
-    
-    Returns:
-        Field function (callsign f(r, z) -> [Er, Ez])
-    """
-    _, _, _, (zmin, zmax) = solution
-     
-    @nb.njit
-    def f_bem(r, z):
-        return field_at_point(np.array([r, z]), solution, zmin=zmin, zmax=zmax)
-     
-    return f_bem
-
+'''
 def _hash_solution(mesh, voltage_dict):
     m = hashlib.sha1()
     m.update(mesh.points)
@@ -538,18 +486,143 @@ def benchmark_field_function(f, *args, r=0.05, z=1.5, N=1000):
     print(f'Field evaluation takes {(end-st)/N*1e6:.2f} us')
     return (end-st)/N
 
+'''
 
 
+class Field:
+     
+    def __init__(self, excitation, line_points, line_names, charges):
+        assert len(line_points) == len(charges)
+         
+        self.geometry = excitation.geometry
+        self.excitation = excitation
+        self.line_points = line_points
+        self.line_names = line_names
+        self.charges = charges
+
+        self._numba_field_fun = None
+        self._numba_field_fun_interpolated = None
+
+    def __call__(self, point):
+        return self.field_at_point(point)
+     
+    def __add__(self, other):
+        if isinstance(other, Field):
+            return FieldSuperposition(self, other)
+        if isinstance(other, FieldSuperposition):
+            return other.__add__(self)
+
+        raise NotImplementedError('Can only add Field or FieldSuperposition to Field (unrecognized type in +)')
+
+    def __mult__(self, other):
+        assert isinstance(other, int) or isinstance(other, float), 'Can only multiply Field by int or float (unrecognized type in *)'
+        return FieldSuperposition(self, scales=[float(other)])
+    
+    def field_at_point(self, point):
+        assert len(point) == 2
+        return _field_at_point(point, self.geometry.symmetry, self.line_points, self.charges)
+     
+    def potential_at_point(self, point):
+        assert len(point) == 2 
+        return _potential_at_point(point, self.geometry.symmetry, self.line_points, self.charges)
+
+    def get_axial_potential_derivatives(self, z=None):
+        
+        if z is None:
+            # Sample based on mesh size
+            mesh_size = self.geometry.get_mesh_size()
+            zmin, zmax = self.geometry.zmin, self.geometry.zmax
+            assert zmax > zmin
+            # TODO: determine good factor between mesh size and optical axis sampling
+            z = np.linspace(zmin, zmax, 4*int((zmax-zmin)/mesh_size))
+         
+        derivs = _get_all_axial_derivatives(self.geometry.symmetry, self.line_points, self.charges, z)
+         
+        return z, derivs
+
+    def _set_numba_field_fun(self):
+        zmin, zmax = self.geometry.zmin, self.geometry.zmax
+        symmetry = self.geometry.symmetry
+        lines, charges = self.line_points, self.charges
+         
+        @nb.njit(fastmath=True)
+        def f_bem(r, z):
+            return _field_at_point(np.array([r, z]), symmetry, lines, charges, zmin=zmin, zmax=zmax)
+                
+        self._numba_field_fun = f_bem
+    
+    def get_numba_field_fun(self):
+        if self._numba_field_fun is None:
+            self._set_numba_field_fun()
+        
+        return self._numba_field_fun
+
+    def _set_numba_field_fun_interpolated(self):
+        z, derivs = self.get_axial_potential_derivatives()
+        self._numba_field_fun_interpolated = _field_from_derivatives(z, derivs)
+     
+    def get_numba_field_fun_interpolated(self):
+        if self._numba_field_fun_interpolated is None:
+            self._set_numba_field_fun_interpolated()
+        
+        return self._numba_field_fun_interpolated
 
 
+class FieldSuperposition:
+    def __init__(self, *fields, scales=None):
+        self.fields = fields
+        
+        if scales is None:
+            self.scales = [1.0]*len(fields)
+        else:
+            self.scales = scales
 
+    def __call__( point ):
+        assert len(point) == 2
+        return np.sum([s*f(point) for s, f in zip(self.scales, self.fields)], axis=0)
+    
+    def __add__(self, other):
+        if isinstance(other, Field):
+            return FieldSuperposition(self.field+[other],self.scales+[1])
+        if isinstance(other, FieldSuperposition):
+            return FieldSuperposition(self.fields+other.fields,self.scales+other.scales)
+        
+        raise NotImplementedError('Can only add Field or FieldSuperposition to FieldSuperposition (unrecognized type in +)')
 
+    def __mult__(self, other):
+        assert isinstance(other, int) or isinstance(other, float), 'Can only multiply FieldSuperposition by int or float (unrecognized type in *)'
+        return FieldSuperposition(self.fields, [other*s for s in self.scales])
+    
+    def get_numba_field_fun(self):
+        field_funs = [f.get_numba_field_fun() for f in self.fields]
+        scales = self.scales
 
+        assert len(field_funs) == len(scales)
+        
+        @nb.njit(fastmath=True)
+        def superposition_field(r, z):
+            
+            field = np.array([0.0, 0.0])
 
-
-
-
-
-
+            for f, s in field_funs:
+                field += s*f(r, z)
+        
+        return superposition_field
+     
+    def get_numba_field_fun_interpolated(self):
+        field_funs = [f.get_numba_field_fun_interpolated() for f in self.fields]
+        scales = self.scales
+        
+        assert len(field_funs) == len(scales)
+         
+        @nb.njit(fastmath=True)
+        def superposition_field(r, z):
+            
+            field = np.array([0.0, 0.0])
+            
+            for f, s in field_funs:
+                field += s*f(r, z)
+         
+        return superposition_field
 
 

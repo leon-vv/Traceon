@@ -54,16 +54,13 @@ def compute_error(N):
     exc.add_voltage(outer=0)
     exc.add_floating_conductor(floating=0)
 
-    solution = S.solve_bem(exc)
-    _, line_points, charges, _ = solution
-    # Bit of hack, figure out a cleaner way to pass this around
-    lines, names = exc.get_active_lines()
-
-    field = S.field_at_point(np.array([(r3+r4)/2, 0.0]), solution)
-    print('Electric field inside conductor: Er=%.2e, Ez=%.2e' % (field[0], field[1]))
+    field = S.solve_bem(exc)
+    
+    field_val = field.field_at_point(np.array([(r3+r4)/2, 0.0]))
+    print('Electric field inside conductor: Er=%.2e, Ez=%.2e' % (field_val[0], field_val[1]))
      
     # Field should be zero
-    return exc.get_number_of_active_lines(), abs(field[0])
+    return exc.get_number_of_active_lines(), abs(field_val[0])
      
 
 util.parser.description = '''Compute the field of two concentric spheres with a layer of floating (voltage not fixed) neutrally charged conductor in between.
