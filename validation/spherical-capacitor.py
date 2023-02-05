@@ -2,6 +2,7 @@ from math import cos
 
 import matplotlib.pyplot as plt
 import numpy as np
+from pygmsh import *
 
 import traceon.geometry as G
 import traceon.excitation as E
@@ -14,7 +15,45 @@ import util
 angle = 0.05
 
 def create_geometry(N):
-    return G.create_spherical_capacitor(N)
+    """Create the spherical deflection analyzer from the following paper
+
+    D. Cubric, B. Lencova, F.H. Read, J. Zlamal
+    Comparison of FDM, FEM and BEM for electrostatic charged particle optics.
+    1999.
+    """
+    with occ.Geometry() as geom:
+        
+        r1 = 7.5
+        r2 = 12.5
+
+        points = [
+            [0, -r2],
+            [0, -r1],
+            [r1, 0],
+            [0, r1],
+            [0, r2],
+            [r2, 0]
+        ]
+        
+        lcar = r2/N
+        points = [geom.add_point(p, lcar) for p in points]
+        center = geom.add_point([0, 0], lcar)
+         
+        l1 = geom.add_line(points[0], points[1])
+        l2 = geom.add_circle_arc(points[1], center, points[2])
+        l3 = geom.add_circle_arc(points[2], center, points[3])
+        
+        l4 = geom.add_line(points[3], points[4])
+        l5 = geom.add_circle_arc(points[4], center, points[5])
+        l6 = geom.add_circle_arc(points[5], center, points[0])
+        
+        geom.add_physical([l2, l3], 'inner')
+        geom.add_physical([l5, l6], 'outer')
+        
+        cl = geom.add_curve_loop([l1, l2, l3, l4, l5, l6])
+
+        return G.Geometry(geom.generate_mesh(dim=1), N)
+
 
 def compute_error(N):
     geom = create_geometry(N)

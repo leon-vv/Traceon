@@ -1,5 +1,6 @@
 import matplotlib.pyplot as plt
 import numpy as np
+from pygmsh import *
 
 import traceon.geometry as G
 import traceon.excitation as E
@@ -9,7 +10,29 @@ import traceon.solver as S
 import util
 
 def create_geometry(N):
-    return G.create_edwards2007(N)
+    """Create the geometry g5 (figure 2) from the following paper:
+    D. Edwards. High precision electrostatic potential calculations for cylindrically
+    symmetric lenses. 2007.
+    """
+    with occ.Geometry() as geom:
+        points = [
+            [0, 0],
+            [0, 5],
+            [12, 5],
+            [12, 15],
+            [0, 15],
+            [0, 20],
+            [20, 20],
+            [20, 0]
+        ]
+        
+        lcar = 20/N
+        poly = geom.add_polygon(points, lcar)
+        
+        for key, indices in [('inner', [1, 2, 3]), ('boundary', [5,6,7])]:
+            geom.add_physical([poly.curves[i] for i in indices], key)
+        
+        return G.Geometry(geom.generate_mesh(dim=1), N)
 
 def compute_error(N):
      
