@@ -230,7 +230,7 @@ def _field_at_point(r, z, symmetry, lines, charges):
     for c, (v1, v2) in zip(charges, lines):
         E[1] -= c*line_integral(r, z, v1[0], v1[1], v2[0], v2[1], radial_symmetry._first_deriv_z)
     
-    if symmetry == 'radial' and abs(point[0]) < 1e-7: # Too close to singularity
+    if symmetry == 'radial' and abs(r) < 1e-7: # Too close to singularity
         return E
      
     for c, (v1, v2) in zip(charges, lines):
