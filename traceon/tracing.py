@@ -7,6 +7,7 @@ import numpy as np
 import scipy
 from scipy.integrate import *
 
+from . import solver as S
 from .util import traceon_jit
 
 EM = -0.1758820022723908 # e/m units ns and mm
@@ -67,23 +68,19 @@ def trace_particle(position, velocity, field, rmax, zmin, zmax, rmin=None, args=
     else:
         return np.concatenate(blocks, axis=0)
 
-@traceon_jit
+@traceon_jit(inline='always')
+def _field_to_acceleration(field, args, y):
+    Er, Ez = field(y[0], y[1], *args)
+    return np.array([y[2], y[3], EM*Er, EM*Ez])
+
+@nb.njit(fastmath=True)
 def _trace_particle(position, velocity, field, rmax, zmin, zmax, rmin=None, args=(), atol=1e-10):
     Nblock = int(1e5)
     V = np.linalg.norm(velocity)
     h = STEP_MAX/V
     hmax = STEP_MAX/V
     hmin = STEP_MIN/V
-    
-    def f(_, y):
-        if position.shape == (2,):
-            Er, Ez = field(y[0], y[1], *args)
-            return np.array([y[2], y[3], EM*Er, EM*Ez])
-        else:
-            Er, Ez = field(sqrt( y[0]**2 + y[1]**2 ) , y[2], *args)
-            angle = atan2(y[1], y[0])
-            return np.array([y[3], y[4], y[5], cos(angle)*EM*Er, sin(angle)*EM*Er, EM*Ez])
-       
+     
     y = np.array([*position, *velocity])
      
     position_block = np.zeros( (Nblock, y.size) )
@@ -103,12 +100,12 @@ def _trace_particle(position, velocity, field, rmax, zmin, zmax, rmin=None, args
     rmin = -rmax if rmin is None else rmin
      
     while rmin <= y[0] <= rmax and (position.size==3 or zmin <= y[1] <= zmax) and (position.size==2 or zmin <= y[2] <= zmax):
-        k1 = h * f(0.0, y)
-        k2 = h * f(0.0, y + B2[1]*k1)
-        k3 = h * f(0.0, y + B3[1]*k1 + B3[2]*k2)
-        k4 = h * f(0.0, y + B4[1]*k1 + B4[2]*k2 + B4[3]*k3)
-        k5 = h * f(0.0, y + B5[1]*k1 + B5[2]*k2 + B5[3]*k3 + B5[4]*k4)
-        k6 = h * f(0.0, y + B6[1]*k1 + B6[2]*k2 + B6[3]*k3 + B6[4]*k4 + B6[5]*k5)
+        k1 = h * _field_to_acceleration(field, args,y)
+        k2 = h * _field_to_acceleration(field, args,y + B2[1]*k1)
+        k3 = h * _field_to_acceleration(field, args,y + B3[1]*k1 + B3[2]*k2)
+        k4 = h * _field_to_acceleration(field, args,y + B4[1]*k1 + B4[2]*k2 + B4[3]*k3)
+        k5 = h * _field_to_acceleration(field, args,y + B5[1]*k1 + B5[2]*k2 + B5[3]*k3 + B5[4]*k4)
+        k6 = h * _field_to_acceleration(field, args,y + B6[1]*k1 + B6[2]*k2 + B6[3]*k3 + B6[4]*k4 + B6[5]*k5)
         
         TE = np.max(np.abs(CT[1]*k1 + CT[2]*k2 + CT[3]*k3 + CT[4]*k4 + CT[5]*k5 + CT[6]*k6))
          
@@ -176,13 +173,62 @@ def _z_to_bounds(z1, z2):
     else:
         return (min(z1, z2)-1, max(z1, z2)+1)
 
+
+class Tracer:
+
+    def __init__(self, field, rmax, zmin, zmax, interpolate=True):
+         
+        self.field = field
+        assert isinstance(field, S.Field) or isinstance(field, S.FieldSuperposition)
+        self.rmax = rmax
+        self.zmin = zmin
+        self.zmax = zmax
+        self.interpolate = interpolate
+    
+    def __call__(self, position, velocity):
+        if self.interpolate:
+            return self._trace_interpolated(position, velocity)
+        else:
+            return self._trace_naive(position, velocity)
+        
+
+    def _trace_naive(self, position, velocity):
+     
+        if isinstance(self.field, S.Field):
+
+            args = (self.field.geometry.symmetry, self.field.line_points, self.field.charges)
+            
+            return trace_particle(position, velocity,
+                S._field_at_point,
+                self.rmax, self.zmin, self.zmax, args=args)
+
+        elif isinstance(self.field, S.FieldSuperposition):
+
+            symmetries = [f.geometry.symmetry for f in self.field.fields]
+            lines = [f.line_points for f in self.field.fields]
+            charges = [f.charges for f in self.field.fields]
+
+            return trace_particle(position, velocity,
+                S._field_at_point_superposition,
+                self.rmax, self.zmin, self.zmax, args=(self.field.scaling, symmetries, lines, charges))
+      
+    
+    def _trace_interpolated(self, position, velocity):
+        z = self.field._get_optical_axis_sampling(self.zmin, self.zmax)
+        z, coeffs = self.field.get_derivative_interpolation_coeffs(z)
+        
+        return trace_particle(position, velocity,
+            S._field_from_interpolated_derivatives, 
+            self.rmax, self.zmin, self.zmax, args=(z, coeffs))
+        
+
 class PlaneTracer:
     """A PlaneTracer traces a particle starting from the optical axis to a plane (perpendicular
     to the optical axis) and computes the position and velocity at the intersection point. Useful
     to compute aberration coefficients.
     """
     
-    def __init__(self, field, z0, zfinal=None, trace_fun=trace_particle):
+    def __init__(self, field, z0, interpolate=True, rmax=100, zfinal=None):
         """
         Args:
             field: field function (see solver.py)
@@ -191,30 +237,19 @@ class PlaneTracer:
             trace_fun: tracing method to use (see tracing.trace_particle)
         """
         self.field = field
-        self.trace_fun = trace_fun
         self.kwargs = dict()
-        self.args = ()
-        self.rmax = 100
+        self.rmax = rmax
         self.z0 = z0
         self.zfinal = zfinal if zfinal is not None else z0
-
-    def get_z0(self):
-        """Get z0 value"""
-        return self.z0
+        self.interpolate=interpolate
     
     def set_tracer_kwargs(self, **kwargs):
         """Set keyword arguments passed to the tracing method."""
         self.kwargs = kwargs
-    
-    def set_field_potentials(self, *pots):
-        """Set the voltages on the electrodes when the field function is a superposition (see tracing.py).
-        The voltages are passed as extra arguments to the field function.
-        
-        Args:
-            *pots: potential to apply on the electrodes
-        """
-        self.args = pots
 
+    def get_z0(self):
+        return self.z0
+     
     def trace(self, angles, energies, r=None, full=False):
         """Compute a number of intersections with the target plane.
 
@@ -230,6 +265,8 @@ class PlaneTracer:
                 will give all valid intersections
         """
         zmin, zmax = _z_to_bounds(self.z0, self.zfinal)
+        tracer = Tracer(self.field, self.rmax, zmin, zmax, interpolate=self.interpolate)
+        
         intersections = np.zeros( (angles.size, 4) )
         mask = np.full(angles.size, False)
         assert angles.size == energies.size
@@ -239,8 +276,8 @@ class PlaneTracer:
         for i, (a, e) in enumerate(zip(angles, energies)):
             position = np.array([r[i], self.z0]) 
             velocity = velocity_vec(e, a, direction=self.z0<0)
-            p = self.trace_fun(position, velocity, self.field, self.rmax, zmin, zmax, args=self.args, **self.kwargs)
-
+            p = tracer(position, velocity)
+            
             intersection = plane_intersection(p, self.zfinal)
             positions.append(p)
             
@@ -284,19 +321,6 @@ class PlaneTracer:
             positions.append(p)
         
         return angles, positions
-
-    def _benchmark(self, energy=1000, N=100):
-        angles = np.full(N, 0.05)
-        energies = np.full(N, energy)
-         
-        # Compile
-        _, mask = self.trace(angles, energies)
-        start = time.time()
-        _, mask = self.trace(angles, energies)
-        end = time.time()
-        assert np.sum(mask) == N
-        print(f'Tracing electron took: {(end-start)/N*1e3:.3f} ms')
-        return (end-start)/N
 
 
 class DoubleTracer:

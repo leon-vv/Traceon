@@ -76,7 +76,7 @@ def compute_error(N):
       
     field = solver.solve_bem(excitation)
      
-    tracer = T.PlaneTracer(field.get_numba_field_fun_interpolated(), -38.688)
+    tracer = T.PlaneTracer(field, -38.688)
      
     C, dE, angles, intersections = A.compute_coefficients(tracer, 1000, dr=0.25)
     
@@ -93,5 +93,6 @@ spherical aberration coefficient, but the accuracy is printed for all coefficien
 
 Correction properties of electron mirrors. D. Preikszas and H. Rose. 1997.
 '''
-util.parse_validation_args(create_geometry, compute_error, mirror='blue', corrector='green')
+util.parse_validation_args(create_geometry, compute_error, mirror='blue', corrector='green',
+    N=[50, 100, 300, 500, 700, 1000])
 

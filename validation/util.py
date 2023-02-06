@@ -29,7 +29,6 @@ def parse_validation_args(create_geometry, compute_error, N=[10,50,100,300,500,7
         P.show_line_mesh(geom.mesh, **colors) 
         P.show()
     elif args.plot_accuracy:
-        compute_error(5) # Make sure all functions have been compiled
         num_lines = []
         times = []
         errors = []
@@ -67,7 +66,6 @@ def parse_validation_args(create_geometry, compute_error, N=[10,50,100,300,500,7
         plt.show()
 
     else:
-        compute_error(5) # Make sure all functions have been compiled
         st = time.time()
         N, err = compute_error(args.N)
         duration = (time.time() - st)*1000

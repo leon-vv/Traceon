@@ -4,10 +4,6 @@ import numpy as np
 
 from numba.core.errors import NumbaExperimentalFeatureWarning
 
-import warnings
-
-warnings.simplefilter('ignore', NumbaExperimentalFeatureWarning)
-
 def traceon_jit(*args, **kwargs):
     return nb.njit(*args, cache=True, nogil=True, fastmath=True, **kwargs)
 
