@@ -134,7 +134,9 @@ def solve_bem(excitation):
     """ 
      
     line_points, names = excitation.get_active_lines()
-    N_floating = sum(1 for v in excitation.excitation_types.values() if v[0] == E.ExcitationType.FLOATING_CONDUCTOR)
+
+    floating_names = [n for n in names.keys() if excitation.excitation_types[n][0] == E.ExcitationType.FLOATING_CONDUCTOR]
+    N_floating = len(floating_names)
      
     N_lines = len(line_points)
     N_matrix = N_lines + N_floating # Every floating conductor adds one constraint
@@ -178,16 +180,17 @@ def solve_bem(excitation):
      
     charges = np.linalg.solve(matrix, F)
     
+    floating_voltages = None
+    
     if N_floating > 0:
-        # TODO: do not throw away the calculated floating conductor voltages
-        # but instead return them in a new fancy 'Solution' class
+        floating_voltages = {n:charges[-N_floating+i] for i, n in enumerate(floating_names)}
         charges = charges[:-N_floating]
      
     print(f'Time for solving matrix: {(time.time()-st)*1000:.3f} ms')
      
     assert np.all(np.isfinite(charges))
     
-    return Field(excitation, line_points, names, charges)
+    return Field(excitation, line_points, names, charges, floating_voltages=floating_voltages)
 
 
 @traceon_jit
@@ -304,7 +307,7 @@ def _field_from_interpolated_derivatives(r, z, z_inter, coeff):
 
 class Field:
      
-    def __init__(self, excitation, line_points, line_names, charges):
+    def __init__(self, excitation, line_points, line_names, charges, floating_voltages=None):
         assert len(line_points) == len(charges)
          
         self.geometry = excitation.geometry
@@ -312,6 +315,7 @@ class Field:
         self.line_points = line_points
         self.line_names = line_names
         self.charges = charges
+        self.floating_voltages = floating_voltages
 
         self._derivs_cache = []
 

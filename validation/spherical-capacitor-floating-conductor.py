@@ -55,9 +55,12 @@ def compute_error(N):
     exc.add_floating_conductor(floating=0)
 
     field = S.solve_bem(exc)
+    print('Floating voltages: ', field.floating_voltages)
     
     field_val = field.field_at_point(np.array([(r3+r4)/2, 0.0]))
     print('Electric field inside conductor: Er=%.2e, Ez=%.2e' % (field_val[0], field_val[1]))
+
+    print('Potential inside conductor: ', field.potential_at_point(np.array([(r3+r4)/2, 0.0])))
      
     # Field should be zero
     return exc.get_number_of_active_lines(), abs(field_val[0])
