@@ -324,16 +324,19 @@ class Field:
      
     def __add__(self, other):
         if isinstance(other, Field):
-            return FieldSuperposition(self, other)
+            return FieldSuperposition([self, other])
         if isinstance(other, FieldSuperposition):
             return other.__add__(self)
 
         raise NotImplementedError('Can only add Field or FieldSuperposition to Field (unrecognized type in +)')
 
-    def __mult__(self, other):
+    def __mul__(self, other):
         assert isinstance(other, int) or isinstance(other, float), 'Can only multiply Field by int or float (unrecognized type in *)'
-        return FieldSuperposition(self, scales=[float(other)])
-    
+        return FieldSuperposition([self], scales=[float(other)])
+
+    def __rmul__(self, other):
+        return self.__mul__(other)
+     
     def field_at_point(self, point):
         assert len(point) == 2
         return _field_at_point(point[0], point[1], self.geometry.symmetry, self.line_points, self.charges)
@@ -383,7 +386,7 @@ class Field:
 
 
 class FieldSuperposition:
-    def __init__(self, *fields, scales=None):
+    def __init__(self, fields, scales=None):
         self.fields = fields
         
         if scales is None:
@@ -403,7 +406,7 @@ class FieldSuperposition:
         
         raise NotImplementedError('Can only add Field or FieldSuperposition to FieldSuperposition (unrecognized type in +)')
 
-    def __mult__(self, other):
+    def __mul__(self, other):
         assert isinstance(other, int) or isinstance(other, float), 'Can only multiply FieldSuperposition by int or float (unrecognized type in *)'
         return FieldSuperposition(self.fields, [other*s for s in self.scales])
     
@@ -416,7 +419,7 @@ class FieldSuperposition:
             assert zmax > zmin
             z = np.linspace(zmin, zmax, FACTOR_MESH_SIZE_DERIV_SAMPLING*int((zmax-zmin)/mesh_size))
         
-        coeffs = np.sum([s*f.get_derivative_interpolation_coeffs()[1] for s, f in zip(self.scaling, self.fields)], axis=0)
+        coeffs = np.sum([s*f.get_derivative_interpolation_coeffs()[1] for s, f in zip(self.scales, self.fields)], axis=0)
         return z, coeffs
 
 

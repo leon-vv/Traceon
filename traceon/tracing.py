@@ -210,13 +210,12 @@ class Tracer:
 
             return trace_particle(position, velocity,
                 S._field_at_point_superposition,
-                self.rmax, self.zmin, self.zmax, args=(self.field.scaling, symmetries, lines, charges))
+                self.rmax, self.zmin, self.zmax, args=(self.field.scales, symmetries, lines, charges))
       
     
     def _trace_interpolated(self, position, velocity):
-        z = self.field._get_optical_axis_sampling(self.zmin, self.zmax)
-        z, coeffs = self.field.get_derivative_interpolation_coeffs(z)
-        
+        z, coeffs = self.field.get_derivative_interpolation_coeffs()
+         
         return trace_particle(position, velocity,
             S._field_from_interpolated_derivatives, 
             self.rmax, self.zmin, self.zmax, args=(z, coeffs))
