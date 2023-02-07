@@ -139,7 +139,7 @@ def _z_to_bounds(z1, z2):
 
 class Tracer:
 
-    def __init__(self, field, rmax, zmin, zmax, interpolate=True):
+    def __init__(self, field, rmax, zmin, zmax, interpolate=True, atol=1e-10):
          
         self.field = field
         assert isinstance(field, S.Field) or isinstance(field, S.FieldSuperposition)
@@ -147,6 +147,7 @@ class Tracer:
         self.zmin = zmin
         self.zmax = zmax
         self.interpolate = interpolate
+        self.atol = atol
     
     def __call__(self, position, velocity):
         if self.interpolate:
@@ -163,7 +164,7 @@ class Tracer:
             
             return trace_particle(position, velocity,
                 S._field_at_point,
-                self.rmax, self.zmin, self.zmax, args=args)
+                self.rmax, self.zmin, self.zmax, args=args, atol=self.atol)
 
         elif isinstance(self.field, S.FieldSuperposition):
 
@@ -173,7 +174,8 @@ class Tracer:
 
             return trace_particle(position, velocity,
                 S._field_at_point_superposition,
-                self.rmax, self.zmin, self.zmax, args=(self.field.scales, symmetries, lines, charges))
+                self.rmax, self.zmin, self.zmax, args=(self.field.scales, symmetries, lines, charges),
+                atol=self.atol)
       
     
     def _trace_interpolated(self, position, velocity):
@@ -181,7 +183,8 @@ class Tracer:
          
         return trace_particle(position, velocity,
             S._field_from_interpolated_derivatives, 
-            self.rmax, self.zmin, self.zmax, args=(z, coeffs))
+            self.rmax, self.zmin, self.zmax, args=(z, coeffs),
+            atol=self.atol)
         
 
 class PlaneTracer:
@@ -312,6 +315,7 @@ def plane_intersection(positions, z):
             return positions[i-1] + ratio * (positions[i] - positions[i-1])
 
     return None
+
 
 def axis_intersection(positions):
     """Calculate the intersection with the optical axis using a linear interpolation.
