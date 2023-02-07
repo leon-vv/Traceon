@@ -18,9 +18,9 @@ def _first_deriv_z(r_0, z_0, r, z):
 @traceon_jit
 def _deriv_z(v0, v1, v2, N):
     if N == -1:
-        return line_integral(v0[0], v0[1], v1[0], v1[1], v2[0], v2[1], _first_deriv_r)
+        return line_integral(v0, v1, v2, _first_deriv_r)
     if N == 0:
-        return line_integral(v0[0], v0[1], v1[0], v1[1], v2[0], v2[1], _zeroth_deriv_z)
+        return line_integral(v0, v1, v2, _zeroth_deriv_z)
     if N == 1:
-        return line_integral(v0[0], v0[1], v1[0], v1[1], v2[0], v2[1], _first_deriv_z)
+        return line_integral(v0, v1, v2, _first_deriv_z)
 

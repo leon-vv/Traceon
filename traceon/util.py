@@ -5,7 +5,7 @@ import numpy as np
 from numba.core.errors import NumbaExperimentalFeatureWarning
 
 def traceon_jit(*args, **kwargs):
-    return nb.njit(*args, cache=True, nogil=True, fastmath=True, **kwargs)
+    return nb.njit(*args, boundscheck=True, cache=True, nogil=True, fastmath=True, **kwargs)
 
 # Simpson integration rule
 @traceon_jit(inline='always')
@@ -35,12 +35,12 @@ def simps(function, target_x, target_y, x, y, args=()):
     return sum_
 
 @traceon_jit(inline='always')
-def line_integral(
-    target_x, target_y,
-    source_x1, source_y1,
-    source_x2, source_y2,
-    function, args=()):
-
+def line_integral(target, v1, v2, function, args=()):
+    
+    target_x, target_y = target[0], target[1] 
+    source_x1, source_y1 = v1[0], v1[1]
+    source_x2, source_y2 = v2[0], v2[1]
+     
     middle_x = (source_x2 + source_x1)/2
     middle_y = (source_y1 + source_y2)/2
     length = norm(source_x2 - source_x1, source_y2 - source_y1)

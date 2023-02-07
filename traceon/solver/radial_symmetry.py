@@ -37,8 +37,3 @@ def _get_all_axial_derivatives(r0, z0, r, z):
 
     return np.pi*r/2 * D
 
-@traceon_jit
-def _get_axial_derivatives(v0, v1, v2):
-    assert v0[0] == 0.0
-    return line_integral(0.0, v0[1], v1[0], v1[1], v2[0], v2[1], _get_all_axial_derivatives)
-    

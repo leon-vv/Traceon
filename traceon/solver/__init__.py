@@ -55,7 +55,7 @@ def _fill_bem_matrix(matrix,
             
             for j in range(len(line_points)):
                 v1, v2 = line_points[j]
-                matrix[i, j] = line_integral(r0, z0, v1[0], v1[1], v2[0], v2[1], voltage_contrib)
+                matrix[i, j] = line_integral(np.array([r0, z0]), v1, v2, voltage_contrib)
 
         elif type_ == E.ExcitationType.DIELECTRIC:
             normal = np.array(get_normal(p1, p2))
@@ -66,7 +66,7 @@ def _fill_bem_matrix(matrix,
                 # This factor is hard to derive. It takes into account that the field
                 # calculated at the edge of the dielectric is basically the average of the
                 # field at either side of the surface of the dielecric (the field makes a jump).
-                matrix[i, j] =  (2*K - 2) / (m.pi*(1 + K)) * line_integral(r0, z0, v1[0], v1[1], v2[0], v2[1], field_dot_normal, args=(normal,))
+                matrix[i, j] =  (2*K - 2) / (m.pi*(1 + K)) * line_integral(np.array([r0, z0]), v1, v2, field_dot_normal, args=(normal,))
                  
                 if i == j:
                     # When working with dielectrics, the constraint is that
@@ -210,7 +210,7 @@ def _potential_at_point(r, z, symmetry, lines, charges):
     potential = 0.0
      
     for c, (v1, v2) in zip(charges, lines):
-        potential += c*line_integral(r, z, v1[0], v1[1], v2[0], v2[1], radial_symmetry._zeroth_deriv_z)
+        potential += c*line_integral(np.array([r, z]), v1, v2, radial_symmetry._zeroth_deriv_z)
     
     return potential
 
@@ -231,13 +231,13 @@ def _field_at_point(r, z, symmetry, lines, charges):
     E = np.array([0.0, 0.0])
      
     for c, (v1, v2) in zip(charges, lines):
-        E[1] -= c*line_integral(r, z, v1[0], v1[1], v2[0], v2[1], radial_symmetry._first_deriv_z)
+        E[1] -= c*line_integral(np.array([r, z]), v1, v2, radial_symmetry._first_deriv_z)
     
     if symmetry == 'radial' and abs(r) < 1e-7: # Too close to singularity
         return E
      
     for c, (v1, v2) in zip(charges, lines):
-        E[0] -= c*line_integral(r, z, v1[0], v1[1], v2[0], v2[1], radial_symmetry._first_deriv_r)
+        E[0] -= c*line_integral(np.array([r, z]), v1, v2, radial_symmetry._first_deriv_r)
 
     return E
 
@@ -277,7 +277,7 @@ def _get_all_axial_derivatives(symmetry, lines, charges, z):
     
     for i, z_ in enumerate(z):
         for c, l in zip(charges, lines):
-            derivs[:, i] += c*radial_symmetry._get_axial_derivatives(np.array([0.0, z_]), l[0], l[1])
+            derivs[:, i] += c*line_integral(np.array([0.0, z_]), l[0], l[1], radial_symmetry._get_all_axial_derivatives)
      
     return derivs
 
