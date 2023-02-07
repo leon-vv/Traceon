@@ -139,10 +139,11 @@ def _z_to_bounds(z1, z2):
 
 class Tracer:
 
-    def __init__(self, field, rmax, zmin, zmax, interpolate=True, atol=1e-10):
+    def __init__(self, field, rmax, zmin, zmax, rmin=None, interpolate=True, atol=1e-10):
          
         self.field = field
         assert isinstance(field, S.Field) or isinstance(field, S.FieldSuperposition)
+        self.rmin = rmin
         self.rmax = rmax
         self.zmin = zmin
         self.zmax = zmax
@@ -164,7 +165,7 @@ class Tracer:
             
             return trace_particle(position, velocity,
                 S._field_at_point,
-                self.rmax, self.zmin, self.zmax, args=args, atol=self.atol)
+                self.rmax, self.zmin, self.zmax, rmin=self.rmin, args=args, atol=self.atol)
 
         elif isinstance(self.field, S.FieldSuperposition):
 
@@ -175,7 +176,7 @@ class Tracer:
             return trace_particle(position, velocity,
                 S._field_at_point_superposition,
                 self.rmax, self.zmin, self.zmax, args=(self.field.scales, symmetries, lines, charges),
-                atol=self.atol)
+                atol=self.atol, rmin=self.rmin)
       
     
     def _trace_interpolated(self, position, velocity):
@@ -184,7 +185,7 @@ class Tracer:
         return trace_particle(position, velocity,
             S._field_from_interpolated_derivatives, 
             self.rmax, self.zmin, self.zmax, args=(z, coeffs),
-            atol=self.atol)
+            atol=self.atol, rmin=self.rmin)
         
 
 class PlaneTracer:

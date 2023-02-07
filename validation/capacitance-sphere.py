@@ -55,10 +55,10 @@ def compute_error(N):
     K=2
     exc.add_dielectric(dielectric=K)
 
-    solution = S.solve_bem(exc)
-    _, line_points, charges, _ = solution
-    # Bit of hack, figure out a cleaner way to pass this around
-    lines, names = exc.get_active_lines()
+    field = S.solve_bem(exc)
+    line_points = field.line_points
+    charges = field.charges
+    names = field.line_names
      
     # Find the charges
     Q = {}
@@ -79,7 +79,7 @@ def compute_error(N):
     print('Capacitance found: %.4f' % capacitance)
     print('Capacitance expected: %.4f' % expected)
     error = abs(capacitance/expected - 1)
-    return len(lines), error
+    return len(line_points), error
 
 util.parser.description = '''Compute the capacitance of two concentric spheres with a layer of dielectric material in between.'''
 util.parse_validation_args(create_geometry, compute_error, inner='blue', outer='darkblue', dielectric='green')

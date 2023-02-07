@@ -66,7 +66,9 @@ def compute_error(N):
      
     position = np.array([0.0, 10.0])
     vel = np.array([np.cos(angle), -np.sin(angle)])*0.5930969604919433
-    pos = T.trace_particle(position, vel, field.get_numba_field_fun(), 12.5, -12.5, 12.5, rmin=-0.1)
+
+    tracer = T.Tracer(field, 12.5, -12.5, 12.5, rmin=-0.1, interpolate=False)
+    pos = tracer(position, vel)
      
     r_final = T.axis_intersection(pos)
      
