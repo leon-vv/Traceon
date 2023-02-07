@@ -472,38 +472,5 @@ def axis_intersection(positions):
     ratio = np.abs(positions[idx-1, 0]) / np.abs(positions[idx, 0] - positions[idx-1,0])
     return positions[idx-1, 1] + ratio*(positions[idx, 1] - positions[idx-1, 1])
 
-# Some tests
-if __name__ == '__main__':
-    p = np.array([
-        [1.0, 0.0, 0.0, 0.0],
-        [1.0, 1.0, 0.0, 0.0]])
-    r = plane_intersection(p, 0.5)[0]
-    assert np.isclose(r, 1.0)
-    
-    p = np.array([
-        [1.0, 0.0, 0.0, 0.0],
-        [1.0, -1.0, 0.0, 0.0]])
-    r = plane_intersection(p, -0.5)[0]
-    assert np.isclose(r, 1.0)
-
-    p = np.array([
-        [0.0, 0.0, 0.0, 0.0],
-        [1.0, -1.0, 0.0, 0.0],
-        [2.0, -2.0, 0.0, 0.0]])
-    r = plane_intersection(p, -1.5)[0]
-    assert np.isclose(r, 1.5)
-    
-    p = np.array([
-        [0.0, 0.0, 0.0, 0.0],
-        [1.0, 1.0, 0.0, 0.0],
-        [4.0, 2.0, 0.0, 0.0]])
-    r = plane_intersection(p, 1.75)[0]
-    assert np.isclose(r, 3.25)
-
-
-
-
-
-
 
 
