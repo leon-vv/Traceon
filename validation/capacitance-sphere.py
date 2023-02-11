@@ -56,7 +56,7 @@ def compute_error(N):
     exc.add_dielectric(dielectric=K)
 
     field = S.solve_bem(exc)
-    line_points = field.line_points
+    line_points = field.vertices
     charges = field.charges
     names = field.line_names
      

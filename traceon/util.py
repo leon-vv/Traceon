@@ -34,6 +34,7 @@ def simps(function, target_x, target_y, x, y, args=()):
       
     return sum_
 
+
 @traceon_jit(inline='always')
 def line_integral(target, v1, v2, function, args=()):
     
@@ -55,13 +56,36 @@ def line_integral(target, v1, v2, function, args=()):
         y = np.linspace(source_y1, source_y2, N_int)
         return simps(function, target_x, target_y, x, y, args=args)
 
+@traceon_jit(inline='always')
+def triangle_integral(target, v1, v2, v3, function, args=()):
+    assert v1.shape == (3,)
+    assert v2.shape == (3,)
+    assert v3.shape == (3,)
+     
+    b1 = (0.33333333, 0.05961587, 0.47014206, 0.47014206, 0.79742699, 0.10128651, 0.10128651)
+    b2 = (0.33333333, 0.47014206, 0.05961587, 0.47014206, 0.10128651, 0.79742699, 0.10128651)
+    b3 = (0.33333333, 0.47014206, 0.47014206, 0.05961587, 0.10128651, 0.10128651, 0.79742699)
+    weights = (0.22500000, 0.13239415, 0.13239415, 0.13239415, 0.12593918, 0.12593918, 0.12593918)
+    A = 1/2*np.linalg.norm(np.cross(v2-v1, v3-v1))
+    
+    sum_ = 0.0
+    for b1_, b2_, b3_, w in zip(b1, b2, b3, weights):
+        r = b1_*v1 + b2_*v2 + b3_*v3
+        sum_ += w*function(target[0], target[1], target[2], r[0], r[1], r[2], *args)
+    
+    return A*sum_
+
 
 @traceon_jit
 def norm(x, y):
     return m.sqrt(x**2 + y**2)
 
 @traceon_jit
-def get_normal(p1, p2):
+def norm3d(x, y, z):
+    return m.sqrt(x**2 + y**2 + z**3)
+
+@traceon_jit
+def get_normal_2d(p1, p2):
     x1, y1, x2, y2 = p1[0], p1[1], p2[0], p2[1]
     
     tangent = x2 - x1, y2 - y1
@@ -70,6 +94,10 @@ def get_normal(p1, p2):
     
     return normal[0]/length, normal[1]/length
 
+@traceon_jit
+def get_normal_3d(p1, p2, p3):
+    normal = np.cross(p2-p1, p3-p1)
+    return normal/np.linalg.norm(normal)
 
 # Chebyshev Approximations for the Complete Elliptic Integrals K and E.
 # W. J. Cody. 1965.

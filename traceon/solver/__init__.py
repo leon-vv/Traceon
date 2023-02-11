@@ -15,6 +15,7 @@ import findiff
 
 from ..util import *
 from . import radial_symmetry
+from . import three_dimensional
 from . import planar_odd_symmetry
 from .. import excitation as E
 
@@ -22,11 +23,11 @@ from .. import excitation as E
 FACTOR_MESH_SIZE_DERIV_SAMPLING = 4
 
 @traceon_jit
-def voltage_contrib(r0, z0, r, z):
+def voltage_contrib_2d(r0, z0, r, z):
     return radial_symmetry._zeroth_deriv_z(r0, z0, r, z)
 
 @traceon_jit
-def field_dot_normal(r0, z0, r, z, normal):
+def field_dot_normal_2d(r0, z0, r, z, normal):
      
     Er = -radial_symmetry._first_deriv_r(r0, z0, r, z)
     Ez = -radial_symmetry._first_deriv_z(r0, z0, r, z)
@@ -34,7 +35,7 @@ def field_dot_normal(r0, z0, r, z, normal):
     return normal[0].item()*Er + normal[1].item()*Ez
 
 @traceon_jit
-def _fill_bem_matrix(matrix,
+def _fill_bem_matrix_2d(matrix,
                     line_points,
                     excitation_types,
                     excitation_values,
@@ -55,10 +56,10 @@ def _fill_bem_matrix(matrix,
             
             for j in range(len(line_points)):
                 v1, v2 = line_points[j]
-                matrix[i, j] = line_integral(np.array([r0, z0]), v1, v2, voltage_contrib)
+                matrix[i, j] = line_integral(np.array([r0, z0]), v1, v2, voltage_contrib_2d)
 
         elif type_ == E.ExcitationType.DIELECTRIC:
-            normal = np.array(get_normal(p1, p2))
+            normal = np.array(get_normal_2d(p1, p2))
             K = excitation_values[i]
             
             for j in range(len(line_points)):
@@ -66,7 +67,7 @@ def _fill_bem_matrix(matrix,
                 # This factor is hard to derive. It takes into account that the field
                 # calculated at the edge of the dielectric is basically the average of the
                 # field at either side of the surface of the dielecric (the field makes a jump).
-                matrix[i, j] =  (2*K - 2) / (m.pi*(1 + K)) * line_integral(np.array([r0, z0]), v1, v2, field_dot_normal, args=(normal,))
+                matrix[i, j] =  (2*K - 2) / (m.pi*(1 + K)) * line_integral(np.array([r0, z0]), v1, v2, field_dot_normal_2d, args=(normal,))
                  
                 if i == j:
                     # When working with dielectrics, the constraint is that
@@ -77,8 +78,68 @@ def _fill_bem_matrix(matrix,
 
         else:
             raise NotImplementedError('ExcitationType unknown')
+
+@traceon_jit
+def voltage_contrib_3d(x0, y0, z0, x, y, z):
+    return three_dimensional._zeroth_deriv(x0, y0, z0, x, y, z)
+
+@traceon_jit
+def field_dot_normal_3d(x0, y0, z0, x, y, z, normal):
+     
+    Ex = -three_dimensional._first_deriv_x(x0, y0, z0, x, y, z)
+    Ey = -three_dimensional._first_deriv_y(x0, y0, z0, x, y, z)
+    Ez = -three_dimensional._first_deriv_z(x0, y0, z0, x, y, z)
+     
+    return normal[0].item()*Ex + normal[1].item()*Ey + normal[2].item()*Ez
+
+
+@traceon_jit
+def _fill_bem_matrix_3d(matrix,
+                    triangle_points,
+                    excitation_types,
+                    excitation_values,
+                    lines_range):
+     
+    assert len(excitation_types) == len(excitation_values)
+    assert len(excitation_values) <= matrix.shape[0]
+    assert matrix.shape[0] == matrix.shape[1]
+     
+    for i in lines_range:
+        p1, p2, p3 = triangle_points[i]
+        v0 = (p1+p2+p3)/3
+        type_ = excitation_types[i]
         
-def _fill_right_hand_side(F, line_points, names,  exc):
+        if type_ == E.ExcitationType.VOLTAGE_FIXED or \
+                type_ == E.ExcitationType.VOLTAGE_FUN or \
+                type_ == E.ExcitationType.FLOATING_CONDUCTOR:
+            
+            for j in range(len(triangle_points)):
+                v1, v2, v3 = triangle_points[j]
+                matrix[i, j] = triangle_integral(v0, v1, v2, v3, voltage_contrib)
+        
+        elif type_ == E.ExcitationType.DIELECTRIC:
+            normal = get_normal_3d(v1, v2, v3)
+            K = excitation_values[i]
+            
+            for j in range(len(line_points)):
+                v1, v2, v3 = triangle_points[j]
+                # This factor is hard to derive. It takes into account that the field
+                # calculated at the edge of the dielectric is basically the average of the
+                # field at either side of the surface of the dielecric (the field makes a jump).
+                matrix[i, j] =  (2*K - 2) / (m.pi*(1 + K)) * triangle_integral(v0, v1, v2, v3, field_dot_normal_3d, args=(normal,))
+                 
+                if i == j:
+                    # When working with dielectrics, the constraint is that
+                    # the electric field normal must sum to the surface charge.
+                    # The constraint is satisfied by subtracting 1.0 from
+                    # the diagonal of the matrix
+                    matrix[i, j] -= 1.0
+
+        else:
+            raise NotImplementedError('ExcitationType unknown')
+ 
+        
+def _fill_right_hand_side(F, points, names,  exc):
     
     for name, indices in names.items():
         type_, value  = exc.excitation_types[name]
@@ -87,12 +148,24 @@ def _fill_right_hand_side(F, line_points, names,  exc):
             F[indices] = value
         elif type_ == E.ExcitationType.VOLTAGE_FUN:
             for i in indices:
-                F[i] = value(*( (line_points[i][0] + line_points[i][1])/2 ))
+                middle = np.average(points[i], axis=0)
+                F[i] = value(*middle)
         elif type_ == E.ExcitationType.DIELECTRIC or \
                 type_ == E.ExcitationType.FLOATING_CONDUCTOR:
             F[indices] = 0
-     
+    
     return F
+
+def area(symmetry, points):
+    
+    if symmetry == 'radial':
+        middle = np.average(points, axis=0)
+        length = np.linalg.norm(points[1] - points[0])
+        return length*2*np.pi*middle[0]
+    elif symmetry == '3d':
+        v1, v2, v3 = points 
+        return 1/2*np.linalg.norm(np.cross(v2-v1, v3-v1))
+
 
 def _add_floating_conductor_constraints(matrix, F, active_lines, active_names, excitation):
     
@@ -111,9 +184,7 @@ def _add_floating_conductor_constraints(matrix, F, active_lines, active_names, e
             # The surface area of the respective line element is multiplied by the surface charge (unknown)
             # to arrive at the total specified charge (right hand side).
             line = active_lines[index]
-            middle = (line[0] + line[1])/2
-            length = np.linalg.norm(line[1] - line[0])
-            matrix[ -len(floating) + i, index] = length*2*np.pi*middle[0]
+            matrix[ -len(floating) + i, index] = area('radial', line)
             F[-len(floating)+i] = excitation.excitation_types[f][1]
     
 def solve_bem(excitation):
@@ -133,12 +204,12 @@ def solve_bem(excitation):
             functions in this solver module.
     """ 
      
-    line_points, names = excitation.get_active_lines()
+    vertices, names = excitation.get_active_vertices()
 
     floating_names = [n for n in names.keys() if excitation.excitation_types[n][0] == E.ExcitationType.FLOATING_CONDUCTOR]
     N_floating = len(floating_names)
      
-    N_lines = len(line_points)
+    N_lines = len(vertices)
     N_matrix = N_lines + N_floating # Every floating conductor adds one constraint
     
     excitation_types = np.zeros(N_lines, dtype=np.uint8)
@@ -152,14 +223,15 @@ def solve_bem(excitation):
      
     assert np.all(excitation_types != 0)
      
-    print('Total number of line elements: ', N_lines)
+    print(f'Total number of elements: {N_lines}, symmetry: {excitation.geometry.symmetry}')
      
     THREADS = 2
     split = np.array_split(np.arange(N_lines), THREADS)
     matrices = [np.zeros((N_matrix, N_matrix)) for _ in range(THREADS)]
      
-    threads = [Thread(target=_fill_bem_matrix, args=(m, line_points, excitation_types, excitation_values, r)) for r, m in zip(split, matrices)]
-    
+    fill_fun = _fill_bem_matrix_2d if excitation.geometry.symmetry != '3d' else _fill_bem_matrix_3d
+    threads = [Thread(target=fill_fun, args=(m, vertices, excitation_types, excitation_values, r)) for r, m in zip(split, matrices)]
+     
     st = time.time()
     for t in threads:
         t.start()
@@ -168,8 +240,8 @@ def solve_bem(excitation):
      
     matrix = np.sum(matrices, axis=0)
     F = np.zeros(N_matrix)
-    _fill_right_hand_side(F, line_points, names, excitation)
-    _add_floating_conductor_constraints(matrix, F, line_points, names, excitation)
+    _fill_right_hand_side(F, vertices, names, excitation)
+    _add_floating_conductor_constraints(matrix, F, vertices, names, excitation)
     
     print(f'Time for building matrix: {(time.time()-st)*1000:.3f} ms')
      
@@ -190,11 +262,11 @@ def solve_bem(excitation):
      
     assert np.all(np.isfinite(charges))
     
-    return Field(excitation, line_points, names, charges, floating_voltages=floating_voltages)
+    return Field(excitation, vertices, names, charges, floating_voltages=floating_voltages)
 
 
 @traceon_jit
-def _potential_at_point(r, z, symmetry, lines, charges):
+def _potential_at_point(point, symmetry, vertices, charges):
     """Compute the potential at a certain point given line elements and the
     corresponding line charges.
 
@@ -205,17 +277,21 @@ def _potential_at_point(r, z, symmetry, lines, charges):
     Returns:
         float: the value of the potential at the given point.
     """
-    assert symmetry == 'radial'
-    
     potential = 0.0
      
-    for c, (v1, v2) in zip(charges, lines):
-        potential += c*line_integral(np.array([r, z]), v1, v2, radial_symmetry._zeroth_deriv_z)
-    
+    if symmetry == 'radial':
+        for c, (v1, v2) in zip(charges, vertices):
+            potential += c*line_integral(point, v1, v2, radial_symmetry._zeroth_deriv_z)
+    elif symmetry == '3d':
+        for c, (v1, v2, v3) in zip(charges, vertices):
+            potential += c*triangle_integral(point, v1, v2, v3, three_dimensional._zeroth_deriv)
+    else:
+        raise NotImplementedError('Symmetry not recognized')
+     
     return potential
 
 @traceon_jit
-def _field_at_point(r, z, symmetry, lines, charges):
+def _field_at_point(point, symmetry, vertices, charges):
     """Compute the electric field at a certain point given line elements and the
     corresponding line charges.
     
@@ -228,26 +304,38 @@ def _field_at_point(r, z, symmetry, lines, charges):
         float: the value of the electric field in the z direction (Ez)
     """
     
-    E = np.array([0.0, 0.0])
-     
-    for c, (v1, v2) in zip(charges, lines):
-        E[1] -= c*line_integral(np.array([r, z]), v1, v2, radial_symmetry._first_deriv_z)
-    
-    if symmetry == 'radial' and abs(r) < 1e-7: # Too close to singularity
+    if symmetry == 'radial':
+        E = np.array([0.0, 0.0])
+        
+        for c, (v1, v2) in zip(charges, vertices):
+            E[1] -= c*line_integral(point, v1, v2, radial_symmetry._first_deriv_z)
+        
+        if abs(point[0]) < 1e-7: # Too close to singularity
+            return E
+         
+        for c, (v1, v2) in zip(charges, vertices):
+            E[0] -= c*line_integral(point, v1, v2, radial_symmetry._first_deriv_r)
+        
         return E
-     
-    for c, (v1, v2) in zip(charges, lines):
-        E[0] -= c*line_integral(np.array([r, z]), v1, v2, radial_symmetry._first_deriv_r)
+    elif symmetry == '3d':
+        E = np.array([0.0, 0.0, 0.0])
+        
+        for c, (v1, v2, v3) in zip(charges, vertices):
+            E[0] += c*triangle_integral(point, v1, v2, v3, three_dimensional._first_deriv_x)
+            E[1] += c*triangle_integral(point, v1, v2, v3, three_dimensional._first_deriv_y)
+            E[2] += c*triangle_integral(point, v1, v2, v3, three_dimensional._first_deriv_z)
+         
+        return E
 
-    return E
+    raise NotImplementedError('Symmetry not recognized')
 
 @traceon_jit
-def _field_at_point_superposition(r, z, scaling, symmetries, lines, charges):
+def _field_at_point_superposition(point, scaling, symmetries, vertices, charges):
       
     E = np.array([0.0, 0.0])
      
-    for sc, symm, l, c in zip(scaling, symmetries, lines, charges):
-        E += sc * _field_at_point(r, z, symm, l, c)
+    for sc, symm, v, c in zip(scaling, symmetries, vertices, charges):
+        E += sc * _field_at_point(point, symmetry, v, c)
     
     return E
 
@@ -283,8 +371,10 @@ def _get_all_axial_derivatives(symmetry, lines, charges, z):
 
 
 @traceon_jit
-def _field_from_interpolated_derivatives(r, z, z_inter, coeff):
-    
+def _field_from_interpolated_derivatives(point, z_inter, coeff):
+
+    r, z = point[0], point[1]
+     
     assert coeff.shape == (z_inter.size-1, 9, 4)
     
     if not (z_inter[0] < z < z_inter[-1]):
@@ -307,12 +397,12 @@ def _field_from_interpolated_derivatives(r, z, z_inter, coeff):
 
 class Field:
      
-    def __init__(self, excitation, line_points, line_names, charges, floating_voltages=None):
-        assert len(line_points) == len(charges)
+    def __init__(self, excitation, vertices, line_names, charges, floating_voltages=None):
+        assert len(vertices) == len(charges)
          
         self.geometry = excitation.geometry
         self.excitation = excitation
-        self.line_points = line_points
+        self.vertices = vertices
         self.line_names = line_names
         self.charges = charges
         self.floating_voltages = floating_voltages
@@ -338,37 +428,39 @@ class Field:
         return self.__mul__(other)
      
     def field_at_point(self, point):
-        assert len(point) == 2
-        return _field_at_point(point[0], point[1], self.geometry.symmetry, self.line_points, self.charges)
+        return _field_at_point(point, self.geometry.symmetry, self.vertices, self.charges)
      
     def potential_at_point(self, point):
-        assert len(point) == 2 
-        return _potential_at_point(point[0], point[1], self.geometry.symmetry, self.line_points, self.charges)
+        return _potential_at_point(point, self.geometry.symmetry, self.vertices, self.charges)
 
     def _get_optical_axis_sampling(self, zmin=None, zmax=None):
+        assert self.geometry.symmetry == 'radial'
+        
         # Sample based on mesh size
         mesh_size = self.geometry.get_mesh_size()
-
+        
         if zmin is None:
             zmin = self.geometry.zmin
         if zmax is None:
             zmax = self.geometry.zmax
-         
+          
         assert zmax > zmin
         # TODO: determine good factor between mesh size and optical axis sampling
         return np.linspace(zmin, zmax, 4*int((zmax-zmin)/mesh_size))
     
     def get_axial_potential_derivatives(self, z=None):
-        
+        assert self.geometry.symmetry == 'radial'
+         
         if z is None:
             z = self._get_optical_axis_sampling()
          
-        derivs = _get_all_axial_derivatives(self.geometry.symmetry, self.line_points, self.charges, z)
+        derivs = _get_all_axial_derivatives(self.geometry.symmetry, self.vertices, self.charges, z)
          
         return z, derivs
-
+    
     def get_derivative_interpolation_coeffs(self, z=None):
-
+        assert self.geometry.symmetry == 'radial'
+        
         if z is None:
             z = self._get_optical_axis_sampling()
         

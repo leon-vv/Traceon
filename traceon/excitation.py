@@ -35,25 +35,28 @@ class Excitation:
         for name, charge in kwargs.items():
             assert name in self.electrodes
             self.excitation_types[name] = (ExcitationType.FLOATING_CONDUCTOR, charge)
-    
-    def get_active_lines(self):
+     
+    def get_active_vertices(self):
+
+        if self.geometry.symmetry == '3d':
+            type_ = 'triangle'
+        else:
+            type_ = 'line'
         
         mesh = self.geometry.mesh
-        lines = mesh.cells_dict['line']
-        inactive = np.full(len(lines), True)
+        vertices = mesh.cells_dict[type_] # Indices making up the lines and triangles
+        inactive = np.full(len(vertices), True)
         names = {}
         
         for name in self.excitation_types.keys():
-            inactive[ mesh.cell_sets_dict[name]['line'] ] = False
+            inactive[ mesh.cell_sets_dict[name][type_] ] = False
         
-        map_index = np.arange(len(lines)) - np.cumsum(inactive)
+        map_index = np.arange(len(vertices)) - np.cumsum(inactive)
         
         for name in self.excitation_types.keys():
-            names[name] = map_index[mesh.cell_sets_dict[name]['line']]
+            names[name] = map_index[mesh.cell_sets_dict[name][type_]]
               
-        line_points = mesh.points[ lines[~inactive] ]
-        
-        return line_points, names
+        return mesh.points[ vertices[~inactive] ], names
     
     def get_number_of_active_lines(self):
         mesh = self.geometry.mesh

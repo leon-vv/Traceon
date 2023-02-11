@@ -70,7 +70,7 @@ def trace_particle(position, velocity, field, rmax, zmin, zmax, rmin=None, args=
 
 @traceon_jit(inline='always')
 def _field_to_acceleration(field, args, y):
-    Er, Ez = field(y[0], y[1], *args)
+    Er, Ez = field(y, *args)
     return np.array([y[2], y[3], EM*Er, EM*Ez])
 
 @nb.njit(fastmath=True)
@@ -161,7 +161,7 @@ class Tracer:
      
         if isinstance(self.field, S.Field):
 
-            args = (self.field.geometry.symmetry, self.field.line_points, self.field.charges)
+            args = (self.field.geometry.symmetry, self.field.vertices, self.field.charges)
             
             return trace_particle(position, velocity,
                 S._field_at_point,
@@ -170,7 +170,7 @@ class Tracer:
         elif isinstance(self.field, S.FieldSuperposition):
 
             symmetries = [f.geometry.symmetry for f in self.field.fields]
-            lines = [f.line_points for f in self.field.fields]
+            lines = [f.vertices for f in self.field.fields]
             charges = [f.charges for f in self.field.fields]
 
             return trace_particle(position, velocity,
