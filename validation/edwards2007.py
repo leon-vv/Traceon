@@ -39,7 +39,7 @@ def compute_error(N):
     excitation = E.Excitation(create_geometry(N))
     excitation.add_voltage(boundary=0, inner=10)
 
-    Nlines = excitation.get_number_of_active_lines()
+    Nlines = excitation.get_number_of_active_vertices()
 
     field = S.solve_bem(excitation)
     pot = field.potential_at_point(np.array([12, 4]))

@@ -58,9 +58,11 @@ class Excitation:
               
         return mesh.points[ vertices[~inactive] ], names
     
-    def get_number_of_active_lines(self):
+    def get_number_of_active_vertices(self):
+        type_ = self._get_element_type()
         mesh = self.geometry.mesh
-        return sum(len(mesh.cell_sets_dict[n]['line']) for n in self.excitation_types.keys())
+        
+        return sum(len(mesh.cell_sets_dict[n][type_]) for n in self.excitation_types.keys())
 
 
         

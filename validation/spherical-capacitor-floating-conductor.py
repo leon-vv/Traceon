@@ -63,7 +63,7 @@ def compute_error(N):
     print('Potential inside conductor: ', field.potential_at_point(np.array([(r3+r4)/2, 0.0])))
      
     # Field should be zero
-    return exc.get_number_of_active_lines(), abs(field_val[0])
+    return exc.get_number_of_active_vertices(), abs(field_val[0])
      
 
 util.parser.description = '''Compute the field of two concentric spheres with a layer of floating (voltage not fixed) neutrally charged conductor in between.

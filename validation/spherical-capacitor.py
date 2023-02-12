@@ -75,7 +75,7 @@ def compute_error(N):
     print(f'Correct intersection: {correct:.8f}')
     print(f'Computed intersection: {r_final:.8f}')
      
-    return exc.get_number_of_active_lines(), abs(r_final/correct - 1)
+    return exc.get_number_of_active_vertices(), abs(r_final/correct - 1)
 
 util.parser.description = '''Trace electrons through a spherical capacitor. After the electron traces an arc through the capacitor, its intersection
 with the axis is compared with the exact values given in following paper (first benchmark test):
