@@ -76,5 +76,5 @@ util.parser.description = '''Compute the potential at point (12, 4) inside two c
 High precision electrostatic potential calculations for cylindrically symmetric lenses. David Edwards. 2007.
 '''
 
-util.parse_validation_args(create_geometry, compute_error, boundary='blue', inner='orange', N=[5, 10, 15, 20, 25])
+util.parse_validation_args(create_geometry, compute_error, boundary='blue', inner='orange', N=[10, 20, 30, 40, 50])
 
