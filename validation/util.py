@@ -11,6 +11,7 @@ import traceon.plotting as P
 
 parser = argparse.ArgumentParser(formatter_class=argparse.RawDescriptionHelpFormatter)
 parser.add_argument('-N', default=None, type=int, help='Mesh size will be taken as 1/N')
+parser.add_argument('--symmetry', choices=['3d', 'radial'], default='radial', help='Choose the symmetry to use for the geometry (3d or radially symmetric)')
 parser.add_argument('--plot-accuracy', action='store_true', help='Plot the accuracy as a function of time and number of line elements')
 parser.add_argument('--plot-geometry', action='store_true', help='Plot the geometry')
 
@@ -20,13 +21,13 @@ def print_info(Nlines, duration, accuracy):
     for N, d, a in zip(Nlines, duration, accuracy):
         print('%d\t\t\t%.1f\t\t\t\t%.1e' % (N, d, a))
 
-def parse_validation_args(create_geometry, compute_error, N=[10,50,100,300,500,700], **colors):
-    
+def parse_validation_args(create_geometry, compute_error, N={'radial': [10,50,100,300,500,700]}, **colors):
+     
     args = parser.parse_args()
-    Ndefault = args.N if args.N != None else N[1]
+    Ndefault = args.N if args.N != None else N[args.symmetry][1]
     
     if args.plot_geometry:
-        geom = create_geometry(Ndefault)
+        geom = create_geometry(Ndefault, args.symmetry, True)
         if geom.symmetry != '3d':
             P.show_line_mesh(geom.mesh, **colors) 
         else:
@@ -37,9 +38,10 @@ def parse_validation_args(create_geometry, compute_error, N=[10,50,100,300,500,7
         times = []
         errors = []
 
-        for n in N:
+        for n in N[args.symmetry]:
             st = time.time()
-            N, err = compute_error(n)
+            geom = create_geometry(n, args.symmetry, False)
+            N, err = compute_error(geom)
             num_lines.append(N)
             times.append( (time.time() - st)*1000)
             errors.append(err)
@@ -71,7 +73,8 @@ def parse_validation_args(create_geometry, compute_error, N=[10,50,100,300,500,7
 
     else:
         st = time.time()
-        N, err = compute_error(Ndefault)
+        geom = create_geometry(Ndefault, args.symmetry, False)
+        N, err = compute_error(geom)
         duration = (time.time() - st)*1000
         print_info([N], [duration], [err])
 
