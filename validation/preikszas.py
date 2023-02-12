@@ -20,14 +20,16 @@ C12 = -0.0777*5
 
 correct = [(3, 0, C30), (5, 0, C50), (1, 1, C11), (3, 1, C31), (1, 2, C12)]
 
-def create_geometry(N=100):
+def create_geometry(N, symmetry, for_plot):
     """Generate the mirror studied in the paper:
     D. Preikszas and H. Rose. Correction properties of electron mirrors. 1997.
     
     Args:
         N: number of mesh points. The size of the mesh elements will be chosen such that a line that is
             as long as the geometry is tall will have N points."""
-     
+    
+    assert symmetry == 'radial', 'Only radial symmetry supported'
+    
     with occ.Geometry() as geom:
         
         points = [
@@ -70,8 +72,8 @@ def create_geometry(N=100):
         return G.Geometry(geom.generate_mesh(dim=1), N)
 
 
-def compute_error(N):
-    excitation = E.Excitation(create_geometry(N))
+def compute_error(geom):
+    excitation = E.Excitation(geom)
     excitation.add_voltage(mirror=-250, corrector=1000)
       
     field = solver.solve_bem(excitation)
@@ -94,5 +96,5 @@ spherical aberration coefficient, but the accuracy is printed for all coefficien
 Correction properties of electron mirrors. D. Preikszas and H. Rose. 1997.
 '''
 util.parse_validation_args(create_geometry, compute_error, mirror='blue', corrector='green',
-    N=[50, 100, 300, 500, 700, 1000])
+    N={'radial': [50, 100, 300, 500, 700, 1000]})
 

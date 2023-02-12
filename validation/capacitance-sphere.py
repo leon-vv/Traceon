@@ -18,8 +18,10 @@ r2 = 1.0
 r3 = 0.6
 r4 = 0.9
 
-def create_geometry(N):
+def create_geometry(N, symmetry, for_plot):
     
+    assert symmetry == 'radial', 'Only radial symmetry supported'
+     
     with occ.Geometry() as geom:
         center = geom.add_point([0.0, 0.0], 1/N)
         def add_shell(r, reorient=False):
@@ -45,10 +47,7 @@ def create_geometry(N):
 
     return geom
 
-def compute_error(N):
-
-    geom = create_geometry(N)
-
+def compute_error(geom):
     exc = E.Excitation(geom)
     exc.add_voltage(inner=1)
     exc.add_voltage(outer=0)

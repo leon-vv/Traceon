@@ -13,14 +13,14 @@ import traceon.plotting as P
 import util
 
 
-def create_geometry(N):
+def create_geometry(N, symmetry, for_plot):
+    assert symmetry == 'radial', 'Only radial symmetry supported'
     return G.create_two_cylinder_lens(N)
 
 def gap_voltage(x, y, _):
     return (y-9.9)/0.2 * 10
 
-def compute_error(N):
-    geom = create_geometry(N)
+def compute_error(geom):
     exc = E.Excitation(geom)
     exc.add_voltage(v1=0, v2=10, gap=gap_voltage)
      
@@ -41,5 +41,5 @@ Accurate Potential Calculations For The Two Tube Electrostatic Lens Using A Mult
 '''
 
 util.parse_validation_args(create_geometry, compute_error, v1='blue', v2='green', gap='orange',
-    N=[10, 100, 500, 1000, 2000, 3000, 4000])
+    N={'radial': [10, 100, 500, 1000, 2000, 3000, 4000]})
 

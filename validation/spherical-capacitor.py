@@ -14,7 +14,7 @@ import util
 
 angle = 0.05
 
-def create_geometry(N):
+def create_geometry(N, symmetry, for_plot):
     """Create the spherical deflection analyzer from the following paper
 
     D. Cubric, B. Lencova, F.H. Read, J. Zlamal
@@ -55,8 +55,7 @@ def create_geometry(N):
         return G.Geometry(geom.generate_mesh(dim=1), N)
 
 
-def compute_error(N):
-    geom = create_geometry(N)
+def compute_error(geom):
     exc = E.Excitation(geom)
     exc.add_voltage(inner=5/3, outer=3/5)
     
@@ -84,5 +83,5 @@ Comparison of FDM, FEM and BEM for electrostatic charged particle optics. D. Cub
 '''
 
 util.parse_validation_args(create_geometry, compute_error,
-    N=[10, 50, 100, 200, 300, 400],
+    N={'radial': [10, 50, 100, 200, 300, 400]},
     inner='blue', outer='darkblue')
