@@ -10,7 +10,7 @@ import traceon.solver as S
 import traceon.plotting as P
 
 parser = argparse.ArgumentParser(formatter_class=argparse.RawDescriptionHelpFormatter)
-parser.add_argument('-N', default=100, type=int, help='Mesh size will be taken as 1/N')
+parser.add_argument('-N', default=None, type=int, help='Mesh size will be taken as 1/N')
 parser.add_argument('--plot-accuracy', action='store_true', help='Plot the accuracy as a function of time and number of line elements')
 parser.add_argument('--plot-geometry', action='store_true', help='Plot the geometry')
 
@@ -23,10 +23,14 @@ def print_info(Nlines, duration, accuracy):
 def parse_validation_args(create_geometry, compute_error, N=[10,50,100,300,500,700], **colors):
     
     args = parser.parse_args()
-
+    Ndefault = args.N if args.N != None else N[1]
+    
     if args.plot_geometry:
-        geom = create_geometry(args.N)
-        P.show_line_mesh(geom.mesh, **colors) 
+        geom = create_geometry(Ndefault)
+        if geom.symmetry != '3d':
+            P.show_line_mesh(geom.mesh, **colors) 
+        else:
+            P.show_triangle_mesh(geom.mesh, **colors)
         P.show()
     elif args.plot_accuracy:
         num_lines = []
@@ -67,7 +71,7 @@ def parse_validation_args(create_geometry, compute_error, N=[10,50,100,300,500,7
 
     else:
         st = time.time()
-        N, err = compute_error(args.N)
+        N, err = compute_error(Ndefault)
         duration = (time.time() - st)*1000
         print_info([N], [duration], [err])
 

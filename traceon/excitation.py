@@ -36,13 +36,15 @@ class Excitation:
             assert name in self.electrodes
             self.excitation_types[name] = (ExcitationType.FLOATING_CONDUCTOR, charge)
      
-    def get_active_vertices(self):
-
+    def _get_element_type(self):
         if self.geometry.symmetry == '3d':
-            type_ = 'triangle'
+            return 'triangle'
         else:
-            type_ = 'line'
+            return 'line'
         
+    def get_active_vertices(self):
+         
+        type_ = self._get_element_type()
         mesh = self.geometry.mesh
         vertices = mesh.cells_dict[type_] # Indices making up the lines and triangles
         inactive = np.full(len(vertices), True)

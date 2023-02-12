@@ -115,13 +115,13 @@ def _fill_bem_matrix_3d(matrix,
             
             for j in range(len(triangle_points)):
                 v1, v2, v3 = triangle_points[j]
-                matrix[i, j] = triangle_integral(v0, v1, v2, v3, voltage_contrib)
+                matrix[i, j] = triangle_integral(v0, v1, v2, v3, voltage_contrib_3d)
         
         elif type_ == E.ExcitationType.DIELECTRIC:
             normal = get_normal_3d(v1, v2, v3)
             K = excitation_values[i]
             
-            for j in range(len(line_points)):
+            for j in range(len(triangle_points)):
                 v1, v2, v3 = triangle_points[j]
                 # This factor is hard to derive. It takes into account that the field
                 # calculated at the edge of the dielectric is basically the average of the
@@ -170,6 +170,8 @@ def area(symmetry, points):
 def _add_floating_conductor_constraints(matrix, F, active_lines, active_names, excitation):
     
     floating = [n for n in active_names.keys() if excitation.excitation_types[n][0] == E.ExcitationType.FLOATING_CONDUCTOR]
+    assert excitation.geometry.symmetry != '3d' or floating == []
+    
     N_matrix = matrix.shape[0]
     assert F.size == N_matrix
 

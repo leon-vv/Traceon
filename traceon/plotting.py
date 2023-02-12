@@ -21,6 +21,46 @@ def _create_point_to_physical_dict(mesh):
      
     return d
 
+def show_triangle_mesh(mesh, show_legend=True, **colors):
+    plt.figure(figsize=(10, 13))
+    ax = plt.axes(projection='3d')
+    plt.plot([0, 0], [0, 0], [np.min(mesh.points[:, 2]), np.max(mesh.points[:, 2])], color='black', linestyle='dashed')
+     
+    plt.rcParams.update({'font.size': 17})
+    
+    dict_ = _create_point_to_physical_dict(mesh)
+    triangles = mesh.cells_dict['triangle']
+     
+    triangles_to_plot = []
+    colors_ = []
+    
+    for (A, B, C) in triangles:
+        color = '#CCC'
+        
+        if A in dict_ and B in dict_ and C in dict_:
+            phys1, phys2, phys3 = dict_[A], dict_[B], dict_[C]
+            if phys1 == phys2 and phys2 == phys3 and phys1 in colors:
+                color = colors[phys1]
+         
+        triangles_to_plot.append( [A, B, C] )
+        colors_.append(color)
+     
+    colors_, triangles_to_plot = np.array(colors_), np.array(triangles_to_plot)
+     
+    for c in set(colors_):
+        mask = colors_ == c
+        ax.plot_trisurf(mesh.points[:, 0], mesh.points[:, 1], mesh.points[:, 2], triangles=triangles_to_plot[mask], color=c)
+    
+    if show_legend:
+        for l, c in colors.items():
+            plt.plot([], [], label=l, color=c)
+        plt.legend(loc='upper left')
+     
+    plt.xlabel('x (mm)')
+    plt.ylabel('y (mm)')
+    ax.set_zlabel('z (mm)')
+
+
 def show_line_mesh(mesh, trajectory=None, show_legend=True, **colors):
     plt.figure(figsize=(10, 13))
     plt.rcParams.update({'font.size': 17})
