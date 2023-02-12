@@ -3,6 +3,20 @@ from pygmsh import *
 
 import pickle
 
+
+def revolve_around_optical_axis(geom, elements, factor=1.0):
+    revolved = []
+    
+    for e in elements:
+        
+        top = e
+        for i in range(4):
+            top, extruded, lateral = geom.revolve(top, [0.0, 0.0, 1.0], [0.0, 0.0, 0.0], factor*0.5*np.pi)
+            revolved.append(extruded)
+        
+    return revolved
+
+
 class Geometry:
     """Class containing a mesh and related metadata.
     

@@ -9,17 +9,6 @@ import traceon.solver as S
 
 import util
 
-def revolve_around_optical(geom, elements, factor=1.0):
-    revolved = []
-    
-    for e in elements:
-        
-        top = e
-        for i in range(4):
-            top, extruded, lateral = geom.revolve(top, [0.0, 0.0, 1.0], [0.0, 0.0, 0.0], factor*0.5*np.pi)
-            revolved.append(extruded)
-    
-    return revolved
 
 def create_geometry(N, symmetry, for_plot):
     """Create the geometry g5 (figure 2) from the following paper:
@@ -54,8 +43,8 @@ def create_geometry(N, symmetry, for_plot):
         l6 = geom.add_line(points[-2], points[-1])
         
         if symmetry == '3d':
-            inner = revolve_around_optical(geom, [l1, l2, l3])
-            boundary = revolve_around_optical(geom, [l4, l5, l6], factor=0.6 if for_plot else 1.0)
+            inner = G.revolve_around_optical_axis(geom, [l1, l2, l3])
+            boundary = G.revolve_around_optical_axis(geom, [l4, l5, l6], factor=0.6 if for_plot else 1.0)
             
             geom.add_physical(inner, 'inner')
             geom.add_physical(boundary, 'boundary')
