@@ -73,7 +73,7 @@ def compute_error(geom):
         vel = np.array([np.cos(angle), 0.0, -np.sin(angle)])*0.5930969604919433
      
     tracer = T.Tracer(field, 12.5, -12.5, 12.5, rmin=-0.1, interpolate=False)
-    pos = tracer(position, vel)
+    times, pos = tracer(position, vel)
      
     if geom.symmetry == '3d':
         pos = pos[:, [0, 2]] # Throw away y axis

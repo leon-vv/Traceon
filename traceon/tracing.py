@@ -61,12 +61,12 @@ def trace_particle(position, velocity, field, rmax, zmin, zmax, rmin=None, args=
     Returns:
         np.narray of shape (N, 4) where N is the number of time steps taken. 
     """
-    blocks = _trace_particle(position, velocity, field, rmax, zmin, zmax, rmin=rmin, args=args, atol=atol)
-
-    if len(blocks) == 1:
-        return blocks[0]
+    times, positions = _trace_particle(position, velocity, field, rmax, zmin, zmax, rmin=rmin, args=args, atol=atol)
+    
+    if len(times) == 1:
+        return times[0], positions[0]
     else:
-        return np.concatenate(blocks, axis=0)
+        return np.concatenate(times, axis=0), np.concatenate(positions, axis=0)
 
 @traceon_jit(inline='always')
 def _field_to_acceleration(field, args, y):
@@ -87,9 +87,15 @@ def _trace_particle(position, velocity, field, rmax, zmin, zmax, rmin=None, args
      
     y = np.array([*position, *velocity])
      
-    position_block = np.zeros( (Nblock, y.size) )
+    position_block = np.zeros( (Nblock, y.size) ) # Could be np.empty?
     positions = [position_block]
     position_block[0, :] = y
+     
+    time_block = np.zeros(Nblock)
+    times = [time_block]
+    time_block[0] = 0.0
+    last_time = 0.0
+    
     N = 1
     
     A = (0.0, 0.0, 2/9, 1/3, 3/4, 1, 5/6) # https://en.wikipedia.org/wiki/Runge%E2%80%93Kutta%E2%80%93Fehlberg_method
@@ -119,9 +125,13 @@ def _trace_particle(position, velocity, field, rmax, zmin, zmax, rmin=None, args
             if N == Nblock:
                 position_block = np.zeros( (Nblock, y.size) )
                 positions.append(position_block)
+                times_block = np.zeros(Nblock)
+                times.append(times_block)
                 N = 0
              
             position_block[N, :] = y
+            last_time += h
+            time_block[N] = last_time
             N += 1
          
         if TE > atol/10:
@@ -130,7 +140,8 @@ def _trace_particle(position, velocity, field, rmax, zmin, zmax, rmin=None, args
             h = hmax
      
     positions[-1] = positions[-1][:N]
-    return positions
+    times[-1] = times[-1][:N]
+    return times, positions
 
 def _z_to_bounds(z1, z2):
     if z1 < 0 and z2 < 0:
@@ -248,7 +259,7 @@ class PlaneTracer:
         for i, (a, e) in enumerate(zip(angles, energies)):
             position = np.array([r[i], self.z0]) 
             velocity = velocity_vec(e, a, direction=self.z0<0)
-            p = tracer(position, velocity)
+            _, p = tracer(position, velocity)
             
             intersection = plane_intersection(p, self.zfinal)
             positions.append(p)
