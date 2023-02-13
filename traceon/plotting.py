@@ -21,10 +21,32 @@ def _create_point_to_physical_dict(mesh):
      
     return d
 
+# Taken from
+# https://stackoverflow.com/questions/13685386/matplotlib-equal-unit-length-with-equal-aspect-ratio-z-axis-is-not-equal-to
+def _set_axes_equal(ax):
+    """Set 3D plot axes to equal scale.
+
+    Make axes of 3D plot have equal scale so that spheres appear as
+    spheres and cubes as cubes.  Required since `ax.axis('equal')`
+    and `ax.set_aspect('equal')` don't work on 3D.
+    """
+    limits = np.array([
+        ax.get_xlim3d(),
+        ax.get_ylim3d(),
+        ax.get_zlim3d(),
+    ])
+    x, y, z = np.mean(limits, axis=1)
+    radius = 0.5 * np.max(np.abs(limits[:, 1] - limits[:, 0]))
+    ax.set_xlim3d([x - radius, x + radius])
+    ax.set_ylim3d([y - radius, y + radius])
+    ax.set_zlim3d([z - radius, z + radius])
+
 def show_triangle_mesh(mesh, show_legend=True, **colors):
     plt.figure(figsize=(10, 13))
     ax = plt.axes(projection='3d')
     plt.plot([0, 0], [0, 0], [np.min(mesh.points[:, 2]), np.max(mesh.points[:, 2])], color='black', linestyle='dashed')
+    ax.set_box_aspect([1,1,1])
+    _set_axes_equal(ax)
      
     plt.rcParams.update({'font.size': 17})
     
