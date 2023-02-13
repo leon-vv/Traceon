@@ -118,7 +118,7 @@ def _fill_bem_matrix_3d(matrix,
                 matrix[i, j] = triangle_integral(v0, v1, v2, v3, voltage_contrib_3d)
         
         elif type_ == E.ExcitationType.DIELECTRIC:
-            normal = get_normal_3d(v1, v2, v3)
+            normal = get_normal_3d(p1, p2, p3)
             K = excitation_values[i]
             
             for j in range(len(triangle_points)):
@@ -398,14 +398,15 @@ def _field_from_interpolated_derivatives(point, z_inter, coeff):
 
 class Field:
      
-    def __init__(self, excitation, vertices, line_names, charges, floating_voltages=None):
+    def __init__(self, excitation, vertices, names, charges, floating_voltages=None):
         assert len(vertices) == len(charges)
          
         self.geometry = excitation.geometry
         self.excitation = excitation
         self.vertices = vertices
-        self.line_names = line_names
+        self.names = names
         self.charges = charges
+        assert len(self.charges) == len(self.vertices)
         self.floating_voltages = floating_voltages
 
         self._derivs_cache = []
