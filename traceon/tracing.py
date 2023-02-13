@@ -70,8 +70,12 @@ def trace_particle(position, velocity, field, rmax, zmin, zmax, rmin=None, args=
 
 @traceon_jit(inline='always')
 def _field_to_acceleration(field, args, y):
-    Er, Ez = field(y, *args)
-    return np.array([y[2], y[3], EM*Er, EM*Ez])
+    if y.shape == (4,):
+        Er, Ez = field(y, *args)
+        return np.array([y[2], y[3], EM*Er, EM*Ez])
+    elif y.shape == (6,):
+        Ex, Ey, Ez = field(y, *args)
+        return np.array([y[3], y[4], y[5], EM*Ex, EM*Ey, EM*Ez])
 
 @nb.njit(fastmath=True)
 def _trace_particle(position, velocity, field, rmax, zmin, zmax, rmin=None, args=(), atol=1e-10):
@@ -180,6 +184,8 @@ class Tracer:
       
     
     def _trace_interpolated(self, position, velocity):
+        assert self.field.geometry.symmetry == 'radial'
+        
         z, coeffs = self.field.get_derivative_interpolation_coeffs()
          
         return trace_particle(position, velocity,

@@ -244,7 +244,7 @@ def solve_bem(excitation):
     _fill_right_hand_side(F, vertices, names, excitation)
     _add_floating_conductor_constraints(matrix, F, vertices, names, excitation)
     
-    print(f'Time for building matrix: {(time.time()-st)*1000:.3f} ms')
+    print(f'Time for building matrix: {(time.time()-st)*1000:.0f} ms')
      
     assert np.all(np.isfinite(matrix))
     assert np.all(np.isfinite(F))
@@ -259,7 +259,7 @@ def solve_bem(excitation):
         floating_voltages = {n:charges[-N_floating+i] for i, n in enumerate(floating_names)}
         charges = charges[:-N_floating]
      
-    print(f'Time for solving matrix: {(time.time()-st)*1000:.3f} ms')
+    print(f'Time for solving matrix: {(time.time()-st)*1000:.0f} ms')
      
     assert np.all(np.isfinite(charges))
     
@@ -320,11 +320,11 @@ def _field_at_point(point, symmetry, vertices, charges):
         return E
     elif symmetry == '3d':
         E = np.array([0.0, 0.0, 0.0])
-        
+         
         for c, (v1, v2, v3) in zip(charges, vertices):
-            E[0] += c*triangle_integral(point, v1, v2, v3, three_dimensional._first_deriv_x)
-            E[1] += c*triangle_integral(point, v1, v2, v3, three_dimensional._first_deriv_y)
-            E[2] += c*triangle_integral(point, v1, v2, v3, three_dimensional._first_deriv_z)
+            E[0] -= c*triangle_integral(point, v1, v2, v3, three_dimensional._first_deriv_x)
+            E[1] -= c*triangle_integral(point, v1, v2, v3, three_dimensional._first_deriv_y)
+            E[2] -= c*triangle_integral(point, v1, v2, v3, three_dimensional._first_deriv_z)
          
         return E
 
