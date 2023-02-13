@@ -167,11 +167,10 @@ def area(symmetry, points):
         return 1/2*np.linalg.norm(np.cross(v2-v1, v3-v1))
 
 
-def _add_floating_conductor_constraints(matrix, F, active_lines, active_names, excitation):
+def _add_floating_conductor_constraints(matrix, F, active_vertices, active_names, excitation):
     
     floating = [n for n in active_names.keys() if excitation.excitation_types[n][0] == E.ExcitationType.FLOATING_CONDUCTOR]
-    assert excitation.geometry.symmetry != '3d' or floating == []
-    
+     
     N_matrix = matrix.shape[0]
     assert F.size == N_matrix
 
@@ -183,10 +182,10 @@ def _add_floating_conductor_constraints(matrix, F, active_lines, active_names, e
             matrix[ index, -len(floating) + i] = -1
             # The unknown voltage is determined by the constraint on the total charge of the conductor.
             # This constraint lives at the bottom edge of the matrix.
-            # The surface area of the respective line element is multiplied by the surface charge (unknown)
+            # The surface area of the respective line element (or triangle) is multiplied by the surface charge (unknown)
             # to arrive at the total specified charge (right hand side).
-            line = active_lines[index]
-            matrix[ -len(floating) + i, index] = area('radial', line)
+            element = active_vertices[index]
+            matrix[ -len(floating) + i, index] = area(excitation.geometry.symmetry, element)
             F[-len(floating)+i] = excitation.excitation_types[f][1]
     
 def solve_bem(excitation):

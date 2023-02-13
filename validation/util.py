@@ -12,14 +12,14 @@ import traceon.plotting as P
 parser = argparse.ArgumentParser(formatter_class=argparse.RawDescriptionHelpFormatter)
 parser.add_argument('-N', default=None, type=int, help='Mesh size will be taken as 1/N')
 parser.add_argument('--symmetry', choices=['3d', 'radial'], default='radial', help='Choose the symmetry to use for the geometry (3d or radially symmetric)')
-parser.add_argument('--plot-accuracy', action='store_true', help='Plot the accuracy as a function of time and number of line elements')
+parser.add_argument('--plot-accuracy', action='store_true', help='Plot the accuracy as a function of time and number of elements')
 parser.add_argument('--plot-geometry', action='store_true', help='Plot the geometry')
 
 def print_info(Nlines, duration, accuracy):
-    print('Number of lines\t\tComputation time (ms)\t\tAccuracy')
+    print('Number of elements\t\tComputation time (ms)\t\tAccuracy')
     
     for N, d, a in zip(Nlines, duration, accuracy):
-        print('%d\t\t\t%.1f\t\t\t\t%.1e' % (N, d, a))
+        print('%d\t\t\t\t%.1f\t\t\t\t%.1e' % (N, d, a))
 
 def parse_validation_args(create_geometry, compute_error, N={'radial': [10,50,100,300,500,700]}, **colors):
      
@@ -50,7 +50,7 @@ def parse_validation_args(create_geometry, compute_error, N={'radial': [10,50,10
 
         fig, (ax1, ax2, ax3) = plt.subplots(1, 3)
         plt.sca(ax1)
-        plt.xlabel('Number of line elements')
+        plt.xlabel('Number of elements')
         plt.ylabel('Accuracy (relative error)')
         plt.yscale('log')
         plt.xscale('log')
@@ -67,7 +67,7 @@ def parse_validation_args(create_geometry, compute_error, N={'radial': [10,50,10
         plt.sca(ax3)
         plt.plot(num_lines, times)
         plt.scatter(num_lines, times)
-        plt.xlabel('Number of line elements')
+        plt.xlabel('Number of elements')
         plt.ylabel('Computation time (ms)')
         plt.show()
 
