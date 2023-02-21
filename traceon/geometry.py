@@ -87,127 +87,60 @@ class Geometry:
     def __str__(self):
         return str(self.mesh) + ' (metadata: ' + str(self.metadata) + ')'
 
-class MEMSStack:
-    """Create a MEMS geometry. A MEMS geometry is a stack of rectangular
-    electrodes with spacer between them. The stack is built using the add_spacer,
-    add_electrode and add_custom methods. The stack is built from bottom to top."""
-
-    def __init__(self):
-        # Stack elements are either ('spacer', radius, thickess)
-        # or ('electrode', radius, thickness, name)
-        self.stack_elements = []
-
+class MEMSStack(occ.Geometry):
+    
+    def __init__(self, z0=0.0, mesh_size=1/10, rmax=2, enclose_right=True, margin_right=0.5):
+        super().__init__()
+        self.z0 = z0
+        self.mesh_size = mesh_size
+        self.rmax = rmax
+        self.margin_right = margin_right
+        self.enclose_right = enclose_right
+        
+        self._current_z = z0
+        self._last_name = None
+        self._physical_queue = dict()
+     
     def add_spacer(self, thickness):
-        """Add a spacer to the stack.
+        self._current_z += thickness
 
-        Args:
-            thickness: the thickness in millimeters.
-        """
-
-        self.stack_elements.append( ('spacer', thickness) )
-     
+    def _add_physical(self, name, entities):
+        if name in self._physical_queue:
+            self._physical_queue[name].extend(entities)
+        else:
+            self._physical_queue[name] = entities
+    
     def add_electrode(self, radius, thickness, name):
-        """Add an electorde to the stack.
-
-        Args:
-            radius: distance between the optical axis and the leftmost part
-                of the rectangle making up the electrode (in millimeters).
-            thickness: the thickness in millimeters.
-            name: the name that will be used to refer to this electrode.
-        """
-        self.stack_elements.append( ('electrode', radius, thickness, name) )
-
-    def add_custom(self, fun, thickness, name):
-        """Add an custom electrode to the stack. A custom electrode need not be rectangular.
-
-        Args:
-            fun: function which will be called as fun(r, z) where r and z are the (bottom right)
-                coordinates at which the electrode starts. The function should return a list of points
-                making up the electrode (starting from (r,z) ).
-            thickness: the thickness the electrode will be in millimeters.
-            name: the name that will be used to refer to this electrode.
-        """
-
-        self.stack_elements.append( ('custom', fun, thickness, name) )
-
-    def _get_distance_to_name(self, z_zero_name, center_zero):
-        # Distance to z_zero
-        distance_until_zero = 0.0
-
-        for element in self.stack_elements:
-            if element[0] in ['electrode', 'custom']:
-                _, _, thickness, name = element
-            
-                distance_until_zero += thickness
-                
-                if name == z_zero_name:
-
-                    if center_zero:
-                        distance_until_zero -= thickness/2
-                    
-                    break
-            else:
-                distance_until_zero += element[1]
-
-        return distance_until_zero
-     
-    def build_geometry(self, z_zero_name, N, enclose_right=True, electrode_width=2, margin_right=0.5, zero_in_center=False, **kwargs):
-        """Generate a mesh from the current MEMSStack.The mesh will be returned as an instance of the Geometry
-        class. 
-        
-        Args:
-            z_zero_name: name of the electrode that will have z=0 at the top of the electrode. 
-            N: the number of mesh points. A line with length equal to the height of the stack will have N
-                mesh points.
-            enclose_right: whether to connect the topmost and bottommost electrodes at the right side of the
-                stack. For example, when the top and bottom electrodes are grounded connecting them on the right
-                will make sure that V=0 at every point outside the geometry.
-            electrode_width: the width of the electrodes (in millimeters).
-            margin_right: distance between the enclosure on the right and the electrodes.
-        """
+        x0 = [radius, self._current_z]
          
-        assert len(self.stack_elements) > 0, "Cannot build mesh for empty MEMSStack"
+        points = [x0, [x0[0], x0[1]+thickness], [self.rmax, x0[1]+thickness], [self.rmax, x0[1]]]
+        points = [self.add_point(p, self.mesh_size) for p in points]
+        
+        lines = [self.add_line(points[i], points[j]) for i, j in zip([0, 1, 2, 3], [1, 2, 3, 0])]
+        cl = self.add_curve_loop(lines)
          
-        # Build point list and physicals
-        bottom = -self._get_distance_to_name(z_zero_name, zero_in_center)
-        top = sum(e[2] if e[0] != 'spacer' else e[1] for e in self.stack_elements)
+        self._add_physical(name, lines)
+        self._last_name = name
+         
+        self._current_z += thickness
 
-        lcar = (top-bottom)/N
-        z = bottom
-        
-        to_physical = {e[-1]:[] for e in self.stack_elements if e[0] != 'spacer'}
-        
-        with occ.Geometry() as geom:
-            for element in self.stack_elements:
-                if element[0] == 'electrode':
-                    _, radius, thickness, name = element
-                    x0 = [radius, z]
-                    points = [x0, [x0[0], x0[1]+thickness], [electrode_width, x0[1]+thickness], [electrode_width, x0[1]]]
-                    poly = geom.add_polygon(points, lcar, make_surface=False)
-                    if np.isclose(radius, 0.0):
-                        to_physical[name].extend(poly.lines[1:]) # Don't add lines on the optical axis, leads to singular matrices
-                    else:
-                        to_physical[name].extend(poly.lines)
-                elif element[0] == 'custom':
-                    raise NotImplementedError
-                    #_, fun, thickness, name = element
-                    #generated_points = fun(electrode_width, z)
-                else:
-                    _, thickness = element
-                
-                z += thickness
-             
-            if enclose_right:
-                p1 = geom.add_point([electrode_width+margin_right, z], lcar)
-                p2 = geom.add_point([electrode_width+margin_right, bottom], lcar)
-                line = geom.add_line(p1, p2)
-                to_physical[name].append(line)
-            
-            for k, v in to_physical.items():
-                geom.add_physical(v, k)
-             
-            return Geometry(geom.generate_mesh(dim=1), N, **kwargs)
+        return cl
+    
+    def generate_mesh(self, *args, **kwargs):
+        # Enclose on right
 
+        points = [[self.rmax + self.margin_right, self.z0], [self.rmax + self.margin_right, self._current_z]]
+        line = self.add_line(self.add_point(points[0], self.mesh_size), self.add_point(points[1], self.mesh_size))
+         
+        self._add_physical(self._last_name, [line])
+
+        for label, entities in self._physical_queue.items():
+            print(label, entities)
+            self.add_physical(entities, label)
+        
+        return super().generate_mesh(*args, **kwargs)
+
+        
 def create_two_cylinder_lens(N=200, S=0.2, R=1, wall_thickness=1, boundary_length=20, gap_at_zero=False, include_boundary=True, **kwargs):
     """Generate lens consisting of two concentric cylinders. For example studied in
     David Edwards, Jr. Accurate Potential Calculations For The Two Tube Electrostatic Lens Using FDM A Multiregion Method.  2007.
