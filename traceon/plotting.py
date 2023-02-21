@@ -4,6 +4,8 @@ from matplotlib.collections import LineCollection
 from scipy.interpolate import *
 import numpy as np
 
+from .util import get_normal_3d
+
 def _create_point_to_physical_dict(mesh):
     d = {}
     
@@ -41,7 +43,7 @@ def _set_axes_equal(ax):
     ax.set_ylim3d([y - radius, y + radius])
     ax.set_zlim3d([z - radius, z + radius])
 
-def show_triangle_mesh(mesh, show_legend=True, **colors):
+def show_triangle_mesh(mesh, show_legend=True, show_normals=False, **colors):
     plt.figure(figsize=(10, 13))
     ax = plt.axes(projection='3d')
     plt.plot([0, 0], [0, 0], [np.min(mesh.points[:, 2]), np.max(mesh.points[:, 2])], color='black', linestyle='dashed')
@@ -72,7 +74,17 @@ def show_triangle_mesh(mesh, show_legend=True, **colors):
     for c in set(colors_):
         mask = colors_ == c
         ax.plot_trisurf(mesh.points[:, 0], mesh.points[:, 1], mesh.points[:, 2], triangles=triangles_to_plot[mask], color=c)
-    
+
+    if show_normals:
+        normals = np.zeros( (len(triangles_to_plot), 6) )
+        for i, t in enumerate(triangles_to_plot):
+            v1, v2, v3 = mesh.points[t]
+            middle = (v1 + v2 + v3)/3
+            normal = 0.1*get_normal_3d(v1, v2, v3)
+            normals[i] = [*middle, *normal]
+         
+        ax.quiver(*normals.T)
+     
     if show_legend:
         for l, c in colors.items():
             plt.plot([], [], label=l, color=c)
