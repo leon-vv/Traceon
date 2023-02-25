@@ -43,7 +43,7 @@ UNITY_COEFFS = np.array([
      [  0. ,   0. ,   0. ,   0.5,  -1. ,   0.5]]])
 
 @traceon_jit
-def _get_square_coeffs_2d(dx, dy, V, dVdx, dVdy, dVdx2, dVdy2):
+def _get_square_coeffs_2d(dx, dy, V, dVdx, dVdy, dVdx2, dVdxy, dVdy2):
     #assert all(arr.shape == (2, 2) for arr in [V, dVdx, dVdy, dVdx2, dVdy2])
      
     coeffs = np.zeros( (6, 6) )
@@ -59,13 +59,14 @@ def _get_square_coeffs_2d(dx, dy, V, dVdx, dVdy, dVdx2, dVdy2):
                         V[i, j] * x_coeffs_d0[k] * y_coeffs_d0[l] + \
                         dy* dVdy[i,j] * x_coeffs_d0[k] * y_coeffs_d1[l] + \
                         dy**2* dVdy2[i,j] * x_coeffs_d0[k] * y_coeffs_d2[l] + \
+                        dx*dy* dVdxy[i,j] * x_coeffs_d1[k] * y_coeffs_d1[l] + \
                         dx* dVdx[i, j] * x_coeffs_d1[k] * y_coeffs_d0[l] + \
                         dx**2 * dVdx2[i, j] * x_coeffs_d2[k] * y_coeffs_d0[l]
              
     return coeffs
 
 @traceon_jit
-def get_hermite_coeffs_2d(x, y, V, dVdx, dVdy, dVdx2, dVdy2):
+def get_hermite_coeffs_2d(x, y, V, dVdx, dVdy, dVdx2, dVdxy, dVdy2):
     #assert all(arr.shape == (x.size, y.size) for arr in [V, dVdx, dVdy, dVdx2, dVdy2])
      
     coeffs = np.zeros( (x.size-1, y.size-1, 6, 6) )
@@ -78,6 +79,7 @@ def get_hermite_coeffs_2d(x, y, V, dVdx, dVdy, dVdx2, dVdy2):
                                              dVdx[i:i+2, j:j+2], \
                                              dVdy[i:i+2, j:j+2], \
                                              dVdx2[i:i+2, j:j+2], \
+                                             dVdxy[i:i+2, j:j+2], \
                                              dVdy2[i:i+2, j:j+2])
     
     return coeffs
@@ -353,9 +355,10 @@ if __name__ == '__main__':
     dVdx = np.cos(xx)*np.cos(yy)
     dVdy = -np.sin(xx)*np.sin(yy)
     dVdx2 = -V
+    dVdxy = -np.cos(xx)*np.sin(yy)
     dVdy2 = -V
-
-    coeffs = get_hermite_coeffs_2d(x, y, V, dVdx, dVdy, dVdx2, dVdy2)
+    
+    coeffs = get_hermite_coeffs_2d(x, y, V, dVdx, dVdy, dVdx2, dVdxy, dVdy2)
 
     for i, x_ in enumerate(x[:-1]):
         for j, y_ in enumerate(y[:-1]):
