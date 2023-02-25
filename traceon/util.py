@@ -105,9 +105,19 @@ def get_normal_3d(p1, p2, p3):
 
 # Chebyshev Approximations for the Complete Elliptic Integrals K and E.
 # W. J. Cody. 1965.
+#
+# Augmented with the tricks shown on the Scipy documentation for ellipe and ellipk.
 
 @traceon_jit
 def nb_ellipk(k):
+    if k > -1:
+        return nb_ellipk_singularity(k)
+    
+    return nb_ellipk_singularity(1 - 1/(1-k))/m.sqrt(1-k)
+
+
+@traceon_jit
+def nb_ellipk_singularity(k):
     eta = 1 - k
     A = (m.log(4),
         9.65736020516771e-2,
@@ -132,6 +142,13 @@ def nb_ellipk(k):
    
 @traceon_jit
 def nb_ellipe(k):
+    if 0 <= k <= 1:
+        return nb_ellipe_01(k)
+    else:
+        return nb_ellipe_01(k/(k-1))*m.sqrt(1-k)
+
+@traceon_jit
+def nb_ellipe_01(k):
     eta = 1 - k
     A = (1,
         4.43147193467733e-1,
