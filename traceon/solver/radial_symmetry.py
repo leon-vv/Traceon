@@ -5,11 +5,32 @@ import numpy as np
 
 from ..util import *
 
+# The derivatives in the r direction cause numerical problems around r_0 = 0.0.
+# The derivatives should be 0.0 but divide by zero errors occur.
+# For any derivative in the r direction closer than MIN_DISTANCE_AXIS to the
+# optical axis we always return 0.0.
+MIN_DISTANCE_AXIS = 1e-12
+
 @traceon_jit
 def _first_deriv_r(r_0, z_0, r, z):
-    rz2 = (r + r_0)**2 + (z - z_0)**2
-    t = 4*r*r_0 / rz2
-    return -r/(2*r_0*np.sqrt(rz2)) * (nb_ellipk(t) - ((z-z_0)**2 - r_0**2 + r**2) / ((z-z_0)**2 + (r-r_0)**2) * nb_ellipe(t))
+    
+    if abs(r_0) < MIN_DISTANCE_AXIS:
+        return 0.0 # Prevent stepping into singularity
+    
+    s = np.sqrt((z-z_0)**2 + (r + r_0)**2) 
+    s1 = (r_0+r)/s
+    s2 = 1/s-(r_0+r)**2/s**3
+    
+    t = (4*r*r_0)/s**2
+      
+    A = nb_ellipe(t)
+    B = nb_ellipk(t)
+     
+    ellipe_term = -(2*r*r_0*s1-r*s)/(2*r_0*s**2-8*r*r_0**2)
+    ellipk_term = -r/(2*r_0*s)
+
+    return A*ellipe_term + B*ellipk_term
+
 
 @traceon_jit
 def _zeroth_deriv_z(r_0, z_0, r, z):
