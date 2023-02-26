@@ -25,22 +25,23 @@ class Geometry:
         metadata: dictionary containing arbitrary metadata
     """
     
-    def __init__(self, mesh, N, zmin=None, zmax=None, metadata={}, symmetry='radial'):
+    def __init__(self, mesh, N, bounds, metadata={}, symmetry='radial'):
         """ Args: """
         self.mesh = mesh
         self.metadata = metadata
         self.N = N
         self._symmetry = symmetry
-        
-        self.zmin = zmin if zmin != None else np.min(mesh.points[:, 1]) - 1
-        self.zmax = zmax if zmax != None else np.max(mesh.points[:, 1]) + 1
+
+        assert (symmetry == '3d' and len(bounds) == 3) or len(bounds) == 2
+         
+        self.bounds = bounds
      
     def get_z_bounds(self):
-        if hasattr(self, 'zmin'):
-            return self.zmin, self.zmax
-         
-        return np.min(self.mesh.points[:, 1]) - 1, np.max(self.mesh.points[:, 1]) + 2
-     
+        if self.symmetry == '3d':
+            return self.bounds[2]
+        else:
+            return self.bounds[1]
+          
     def write(self, filename):
         """Write a mesh to a file. The pickle module will be used
         to save the Geometry object.
@@ -135,7 +136,6 @@ class MEMSStack(occ.Geometry):
         self._add_physical(self._last_name, [line])
 
         for label, entities in self._physical_queue.items():
-            print(label, entities)
             self.add_physical(entities, label)
         
         return super().generate_mesh(*args, **kwargs)

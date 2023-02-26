@@ -1,5 +1,6 @@
 from math import sqrt, cos, sin, atan2
 import time
+from enum import Enum
 
 import matplotlib.pyplot as plt
 import numba as nb
@@ -36,7 +37,7 @@ def _angle(vr, vz):
 STEP_MAX = 0.085
 STEP_MIN = STEP_MAX/1e10
 
-def trace_particle(position, velocity, field, rmax, zmin, zmax, rmin=None, args=(), atol=1e-10):
+def trace_particle(position, velocity, field, bounds, rmin=None, args=(), atol=1e-10):
     """Trace a particle. Using the Runge-Kutta-Fehlberg method RK45. See:
         
         https://en.wikipedia.org/wiki/Runge%E2%80%93Kutta%E2%80%93Fehlberg_method
@@ -61,7 +62,7 @@ def trace_particle(position, velocity, field, rmax, zmin, zmax, rmin=None, args=
     Returns:
         np.narray of shape (N, 4) where N is the number of time steps taken. 
     """
-    times, positions = _trace_particle(position, velocity, field, rmax, zmin, zmax, rmin=rmin, args=args, atol=atol)
+    times, positions = _trace_particle(position, velocity, field, bounds, args=args, atol=atol)
     
     if len(times) == 1:
         return times[0], positions[0]
@@ -78,7 +79,10 @@ def _field_to_acceleration(field, args, y):
         return np.array([y[3], y[4], y[5], EM*Ex, EM*Ey, EM*Ez])
 
 @nb.njit(fastmath=True)
-def _trace_particle(position, velocity, field, rmax, zmin, zmax, rmin=None, args=(), atol=1e-10):
+def _trace_particle(position, velocity, field, bounds, args=(), atol=1e-10):
+    
+    assert len(bounds) == 2 or len(bounds) == 3
+    
     Nblock = int(1e5)
     V = np.linalg.norm(velocity)
     h = STEP_MAX/V
@@ -90,7 +94,7 @@ def _trace_particle(position, velocity, field, rmax, zmin, zmax, rmin=None, args
     position_block = np.zeros( (Nblock, y.size) ) # Could be np.empty?
     positions = [position_block]
     position_block[0, :] = y
-     
+         
     time_block = np.zeros(Nblock)
     times = [time_block]
     time_block[0] = 0.0
@@ -106,10 +110,11 @@ def _trace_particle(position, velocity, field, rmax, zmin, zmax, rmin=None, args
     B2 = (0.0, 2/9)
     CH = (0.0, 47/450, 0, 12/25, 32/225, 1/30, 6/25)
     CT = (0.0, -1/150, 0, 3/100, -16/75, -1/20, 6/25)
-
-    rmin = -rmax if rmin is None else rmin
-     
-    while rmin <= y[0] <= rmax and (position.size==3 or zmin <= y[1] <= zmax) and (position.size==2 or zmin <= y[2] <= zmax):
+    
+    xmin, xmax = bounds[0]
+    ymin, ymax = bounds[1]
+      
+    while xmin <= y[0] <= xmax and ymin <= y[1] <= ymax and (len(bounds) == 2 or bounds[2][0] <= y[2] <= bounds[2][1]):
         k1 = h * _field_to_acceleration(field, args,y)
         k2 = h * _field_to_acceleration(field, args,y + B2[1]*k1)
         k3 = h * _field_to_acceleration(field, args,y + B3[1]*k1 + B3[2]*k2)
@@ -151,26 +156,36 @@ def _z_to_bounds(z1, z2):
     else:
         return (min(z1, z2)-1, max(z1, z2)+1)
 
+class Interpolation(Enum):
+    NONE = 0,
+    HERMITE = 1,
+    AXIAL_DERIVS = 2
 
 class Tracer:
 
-    def __init__(self, field, rmax, zmin, zmax, rmin=None, interpolate=True, atol=1e-10):
+    def __init__(self, field, bounds, interpolate=Interpolation.NONE, atol=1e-10):
          
+        self.geometry = field.geometry
         self.field = field
         assert isinstance(field, S.Field) or isinstance(field, S.FieldSuperposition)
-        self.rmin = rmin
-        self.rmax = rmax
-        self.zmin = zmin
-        self.zmax = zmax
+        
+        symmetry = self.geometry.symmetry
+        assert (symmetry == '3d' and len(bounds) == 3) or len(bounds) == 2
+        self.bounds = bounds
+         
         self.interpolate = interpolate
         self.atol = atol
+
+        if self.interpolate == Interpolation.HERMITE:
+            self.x, self.y, self.coeffs_Ex, self.coeffs_Ey = self.field.get_hermite_interpolation_coeffs()
     
     def __call__(self, position, velocity):
-        if self.interpolate:
-            return self._trace_interpolated(position, velocity)
-        else:
+        if self.interpolate == Interpolation.NONE:
             return self._trace_naive(position, velocity)
-        
+        elif self.interpolate == Interpolation.HERMITE:
+            return self._trace_hermite(position, velocity)
+        elif self.interpolate == Interpolation.AXIAL_DERIVS:
+            return self._trace_axial_derivs(position, velocity)
 
     def _trace_naive(self, position, velocity):
      
@@ -179,30 +194,35 @@ class Tracer:
             args = (self.field.geometry.symmetry, self.field.vertices, self.field.charges)
             
             return trace_particle(position, velocity,
-                S._field_at_point,
-                self.rmax, self.zmin, self.zmax, rmin=self.rmin, args=args, atol=self.atol)
+                S._field_at_point, self.bounds, args=args, atol=self.atol)
 
         elif isinstance(self.field, S.FieldSuperposition):
-
+            
             symmetries = [f.geometry.symmetry for f in self.field.fields]
             lines = [f.vertices for f in self.field.fields]
             charges = [f.charges for f in self.field.fields]
-
+            
             return trace_particle(position, velocity,
                 S._field_at_point_superposition,
-                self.rmax, self.zmin, self.zmax, args=(self.field.scales, symmetries, lines, charges),
-                atol=self.atol, rmin=self.rmin)
-      
+                self.bounds,
+                args=(self.field.scales, symmetries, lines, charges),
+                atol=self.atol)
     
-    def _trace_interpolated(self, position, velocity):
+    def _trace_hermite(self, position, velocity):
+        return trace_particle(position, velocity,
+            S._field_from_hermite_coeffs,
+            self.bounds,
+            args=(self.x, self.y, self.coeffs_Ex, self.coeffs_Ey),
+            atol=self.atol)
+    
+    def _trace_axial_derivs(self, position, velocity):
         assert self.field.geometry.symmetry == 'radial'
         
         z, coeffs = self.field.get_derivative_interpolation_coeffs()
          
         return trace_particle(position, velocity,
             S._field_from_interpolated_derivatives, 
-            self.rmax, self.zmin, self.zmax, args=(z, coeffs),
-            atol=self.atol, rmin=self.rmin)
+            self.bounds, args=(z, coeffs), atol=self.atol)
         
 
 class PlaneTracer:

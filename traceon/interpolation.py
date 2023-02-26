@@ -4,6 +4,7 @@ import numba as nb
 
 import numpy as np
 import matplotlib.pyplot as plt
+import findiff
 
 from .util import traceon_jit
 
@@ -66,13 +67,26 @@ def _get_square_coeffs_2d(dx, dy, V, dVdx, dVdy, dVdx2, dVdxy, dVdy2):
     return coeffs
 
 @traceon_jit
-def get_hermite_coeffs_2d(x, y, V, dVdx, dVdy, dVdx2, dVdxy, dVdy2):
+def get_hermite_coeffs_2d(x, y, derivatives):
     #assert all(arr.shape == (x.size, y.size) for arr in [V, dVdx, dVdy, dVdx2, dVdy2])
-     
-    coeffs = np.zeros( (x.size-1, y.size-1, 6, 6) )
+    
+    assert derivatives.shape == (x.size, y.size, 6)        
+    
+    # Values in derivatives:
+    # 0 is V
+    # 1 is dVdx
+    # 2 is dVdy
+    # 3 is dVdx2
+    # 4 is dVdxy
+    # 5 is dVdy2
+    d = derivatives
+    V, dVdx, dVdy, dVdx2, dVdxy, dVdy2 = d[:, :, 0], d[:, :, 1], d[:, :, 2], d[:, :, 3], d[:, :, 4], d[:, :, 5]
+    
     dx = x[1]-x[0]
     dy = y[1]-y[0]
-     
+    
+    coeffs = np.zeros( (x.size-1, y.size-1, 6, 6) )
+         
     for i in range(x.size-1):
         for j in range(y.size-1):
             coeffs[i, j] = _get_square_coeffs_2d(dx, dy, V[i:i+2, j:j+2], \
@@ -84,98 +98,31 @@ def get_hermite_coeffs_2d(x, y, V, dVdx, dVdy, dVdx2, dVdxy, dVdy2):
     
     return coeffs
 
-def compute_hermite_interp_2d(x, y, coeffs, x_, y_, deriv_num=0):
-    # 0 is potential
-    # 1 is dV/dx
-    # 2 is dV/dy
-    # 3 is d2V/dx2
-    # 4 is d2V/dy2
-    assert coeffs.shape == (x.size-1, y.size-1, 6, 6)
-    assert 0 <= deriv_num <= 4
-    
-    dx = x[1] - x[0]
-    dy = y[1] - y[0]
-        
-    i, j = int( (x_-x[0])/dx ), int( (y_-y[0])/dy )
-
-    if not (0 <= i < x.size-1 and 0 <= j < y.size-1):
-        return None
-     
-    u = (x_-x[i])/dx
-    v = (y_-y[j])/dy
-     
-    C = coeffs[i, j]
-    
-    assert C.shape == (6, 6)
-     
-    sum_ = np.zeros(5)
-     
-    for i in range(6):
-        for j in range(6):
-            sum_[0] += C[i, j] * u**i * v**j
-            
-            if i > 0:
-                sum_[1] += 1/dx * C[i, j] * i*u**(i-1) * v**j
-            
-            if j > 0:
-                sum_[2] += 1/dy * C[i, j] * u**i * j*v**(j-1)
-
-            if i > 1:
-                sum_[3] += 1/dx**2 * C[i, j] * i*(i-1)*u**(i-2) * v**j
-
-            if j > 1:
-                sum_[4] += 1/dy**2 * C[i, j] * u**i * j*(j-1)*v**(j-2)
-      
-    return sum_[deriv_num]
-
-
 @traceon_jit
-def compute_hermite_potential_2d(x, y, coeffs, x_, y_):
+def compute_hermite_field_2d(x, y, coeffs_x, coeffs_y, x_, y_):
     dx = x[1] - x[0]
     dy = y[1] - y[0]
         
     i, j = int( (x_-x[0])/dx ), int( (y_-y[0])/dy )
-
-    if not (0 <= i < x.size-1 and 0 <= j < y.size-1):
-        return 0.0
-     
-    u = (x_-x[i])/dx
-    v = (y_-y[j])/dy
-     
-    C = coeffs[i, j]
-    sum_ = 0.0
-     
-    for i in range(6):
-        for j in range(6):
-            sum_ += C[i, j] * u**i * v**j
-      
-    return sum_
-
-@traceon_jit
-def compute_hermite_field_2d(x, y, coeffs, x_, y_):
-    dx = x[1] - x[0]
-    dy = y[1] - y[0]
-        
-    i, j = int( (x_-x[0])/dx ), int( (y_-y[0])/dy )
-
+    
     if not (0 <= i < x.size-1 and 0 <= j < y.size-1):
         return np.array([0.0, 0.0])
      
     u = (x_-x[i])/dx
     v = (y_-y[j])/dy
      
-    C = coeffs[i, j]
-    Ex = 0.0
-    Ey = 0.0
+    Cx = coeffs_x[i, j]
+    Cy = coeffs_y[i, j]
     
+    sum_x = 0.0
+    sum_y = 0.0
+     
     for i in range(6):
         for j in range(6):
-            if i > 0:
-                Ex -= 1/dx * C[i, j] * i*u**(i-1) * v**j
-            if j > 0:
-                Ey -= 1/dy * C[i, j] * u**i * j*v**(j-1)
-    
-    return np.array([Ex, Ey])
+            sum_x += Cx[i, j] * u**i * v**j
+            sum_y += Cy[i, j] * u**i * v**j
+      
+    return np.array([sum_x, sum_y])
 
 
 def _get_cube_coeffs_3d(dx, dy, dz, V, dVdx, dVdy, dVdz, dVdx2, dVdy2, dVdz2):

@@ -1,12 +1,6 @@
 import math as m
 import time
-import ctypes
-import hashlib
-import os
-import os.path as path
 from threading import Thread
-import threading
-import copy
 
 import numpy as np
 import numba as nb
@@ -18,9 +12,12 @@ from . import radial_symmetry
 from . import three_dimensional
 from . import planar_odd_symmetry
 from .. import excitation as E
+from .. import interpolation
 
-# TODO: determine optimal factor
+# TODO: determine optimal factors
 FACTOR_MESH_SIZE_DERIV_SAMPLING = 4
+FACTOR_HERMITE_SAMPLING = 1.5
+DERIV_ACCURACY = 6
 
 @traceon_jit
 def voltage_contrib_2d(r0, z0, r, z):
@@ -357,6 +354,22 @@ def _cubic_spline_coefficients(z, derivs):
     
     return z, c
 
+@traceon_jit 
+def _get_hermite_field_2d(symmetry, lines, charges, x, y):
+    assert symmetry == 'radial'
+     
+    Ex = np.zeros( (x.size, y.size ) )
+    Ey = np.zeros( (x.size, y.size) )
+    
+    for i, x_ in enumerate(x):
+        for j, y_ in enumerate(y):
+            field = _field_at_point(np.array([x_, y_]), symmetry, lines, charges)
+
+            Ex[i, j] = field[0]
+            Ey[i, j] = field[1]
+     
+    return Ex, Ey
+
 
 @traceon_jit 
 def _get_all_axial_derivatives(symmetry, lines, charges, z):
@@ -370,6 +383,9 @@ def _get_all_axial_derivatives(symmetry, lines, charges, z):
      
     return derivs
 
+@traceon_jit
+def _field_from_hermite_coeffs(point, x, y, coeffs_x, coeffs_y):
+    return interpolation.compute_hermite_field_2d(x, y, coeffs_x, coeffs_y, point[0], point[1])
 
 @traceon_jit
 def _field_from_interpolated_derivatives(point, z_inter, coeff):
@@ -442,13 +458,13 @@ class Field:
         mesh_size = self.geometry.get_mesh_size()
         
         if zmin is None:
-            zmin = self.geometry.zmin
+            zmin = self.geometry.bounds[1][0]
         if zmax is None:
-            zmax = self.geometry.zmax
+            zmax = self.geometry.bounds[1][1]
           
         assert zmax > zmin
         # TODO: determine good factor between mesh size and optical axis sampling
-        return np.linspace(zmin, zmax, 4*int((zmax-zmin)/mesh_size))
+        return np.linspace(zmin, zmax, FACTOR_MESH_SIZE_DERIV_SAMPLING*int((zmax-zmin)/mesh_size))
     
     def get_axial_potential_derivatives(self, z=None):
         assert self.geometry.symmetry == 'radial'
@@ -477,6 +493,58 @@ class Field:
         
         self._derivs_cache.append( (z, coeffs) )
         return z, coeffs
+     
+    def get_hermite_interpolation_coeffs(self, x=None, y=None, z=None, sampling_factor=FACTOR_HERMITE_SAMPLING):
+        assert self.geometry.symmetry == 'radial'
+
+        st = time.time()
+         
+        N = round(sampling_factor*m.sqrt(self.excitation.get_number_of_active_vertices()))
+        
+        if x is None:
+            xmin, xmax = self.geometry.bounds[0]
+            x = np.linspace(xmin, xmax, N)
+        
+        if y is None:
+            ymin, ymax = self.geometry.bounds[1]
+            y = np.linspace(ymin, ymax, N)
+         
+        Ex, Ey = _get_hermite_field_2d('radial', self.vertices, self.charges, x, y)
+        assert Ex.shape == Ey.shape
+         
+        dx, dy = x[1]-x[0], y[1]-y[0]
+        
+        DX =  findiff.FinDiff(0, dx, 1, acc=DERIV_ACCURACY)
+        DY =  findiff.FinDiff(1, dy, 1, acc=DERIV_ACCURACY)
+        DXX = findiff.FinDiff(0, dx, 2, acc=DERIV_ACCURACY)
+        DXY = findiff.FinDiff((0, dx, 1), (1, dy, 1), acc=DERIV_ACCURACY)
+        DYY = findiff.FinDiff(1, dy, 2, acc=DERIV_ACCURACY)
+
+        derivs_x = np.zeros( (*Ex.shape, 6) )
+        derivs_x[:, :, 0] = Ex
+        derivs_x[:, :, 1] = DX(Ex)
+        derivs_x[:, :, 2] = DY(Ex)
+        derivs_x[:, :, 3] = DXX(Ex)
+        derivs_x[:, :, 4] = DXY(Ex)
+        derivs_x[:, :, 5] = DYY(Ex)
+        
+        derivs_y = np.zeros( (*Ey.shape, 6) )
+        derivs_y[:, :, 0] = Ey
+        derivs_y[:, :, 1] = DX(Ey)
+        derivs_y[:, :, 2] = DY(Ey)
+        derivs_y[:, :, 3] = DXX(Ey)
+        derivs_y[:, :, 4] = DXY(Ey)
+        derivs_y[:, :, 5] = DYY(Ey)
+
+        coeffs_x = interpolation.get_hermite_coeffs_2d(x, y, derivs_x)
+        coeffs_y = interpolation.get_hermite_coeffs_2d(x, y, derivs_y)
+
+        print(f'Computing hermite interpolation coefficients took {(time.time()-st)*1000:.0f} ms')
+
+        return x, y, coeffs_x, coeffs_y
+
+    def compute_hermite_interpolated_field(self, x, y, coeffs_x, coeffs_y, x_, y_):
+        return interpolation.compute_hermite_field_2d(x, y, coeffs_x, coeffs_y, x_, y_)
 
 
 class FieldSuperposition:
