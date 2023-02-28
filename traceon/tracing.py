@@ -10,17 +10,18 @@ from scipy.integrate import *
 
 from . import solver as S
 from .util import traceon_jit
+from . import interpolation
 
 EM = -0.1758820022723908 # e/m units ns and mm
 
-def velocity_vec(eV, theta, direction=1):
+def velocity_vec(eV, theta, direction=1, three_dimensional=False):
     """Compute a velocity vector (np.array of shape (2,)).
     
     Args:
         eV: the energy of the electron
         theta: angle with respect to the optical axis (r=0)
         direction: whether the vector points in the positive z direction
-            (direction > 0) or in the negative z direction (direction < 0)
+            (direction=1) or in the negative z direction (direction=-1)
     
     Returns:
         Velocity vector (np.array of shape (2,))
@@ -28,8 +29,12 @@ def velocity_vec(eV, theta, direction=1):
 
     # From electronvolt to mm/ns
     V = 0.5930969604919433*sqrt(eV)
-    factor = 1.0 if direction > 0 else -1.0
-    return np.array([V*sin(theta), factor*V*cos(theta)])
+    assert direction == -1.0 or direction == 1.0
+     
+    if not three_dimensional:
+        return np.array([V*sin(theta), direction*V*cos(theta)])
+    else:
+        return np.array([V*sin(theta), 0.0, direction*V*cos(theta)])
 
 def _angle(vr, vz):
     return np.sign(vr) * np.arctan(np.abs(vr/vz))
@@ -82,6 +87,7 @@ def _field_to_acceleration(field, args, y):
 def _trace_particle(position, velocity, field, bounds, args=(), atol=1e-10):
     
     assert len(bounds) == 2 or len(bounds) == 3
+    assert len(position) == len(velocity) and len(velocity) == len(bounds)
     
     Nblock = int(1e5)
     V = np.linalg.norm(velocity)
