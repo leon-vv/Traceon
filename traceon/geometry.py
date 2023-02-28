@@ -1,4 +1,5 @@
 import numpy as np
+from math import sqrt
 from pygmsh import *
 
 import pickle
@@ -7,13 +8,13 @@ import pickle
 def revolve_around_optical_axis(geom, elements, factor=1.0):
     revolved = []
     
-    for e in elements:
+    for e in (elements if isinstance(elements, list) else [elements]):
         
         top = e
         for i in range(4):
             top, extruded, lateral = geom.revolve(top, [0.0, 0.0, 1.0], [0.0, 0.0, 0.0], factor*0.5*np.pi)
             revolved.append(extruded)
-        
+     
     return revolved
 
 
@@ -90,9 +91,13 @@ class Geometry:
 
 class MEMSStack(occ.Geometry):
     
-    def __init__(self, z0=0.0, mesh_size=1/10, rmax=2, enclose_right=True, margin_right=0.5):
+    def __init__(self, bounds, z0=0.0, revolve_factor=0.0, mesh_size=1/10, rmax=2, enclose_right=True, margin_right=0.5):
         super().__init__()
+        self.bounds = bounds
         self.z0 = z0
+        self.revolve_factor = revolve_factor
+        self._3d = self.revolve_factor != 0.0
+        assert (self._3d and len(self.bounds)==3) or (not self._3d and len(self.bounds)==2)
         self.mesh_size = mesh_size
         self.rmax = rmax
         self.margin_right = margin_right
@@ -101,43 +106,79 @@ class MEMSStack(occ.Geometry):
         self._current_z = z0
         self._last_name = None
         self._physical_queue = dict()
+        
      
     def add_spacer(self, thickness):
         self._current_z += thickness
 
     def _add_physical(self, name, entities):
+        assert isinstance(entities, list)
+        
         if name in self._physical_queue:
             self._physical_queue[name].extend(entities)
         else:
             self._physical_queue[name] = entities
-    
+
+    def mesh_size_callback(self, dim, tag, x, y, z):
+        # Scale mesh size with distance to optical axis, but only the part of the optical
+        # axis that lies in the bounds.
+        
+        z_optical = z if self._3d else y
+        z_bounds = self.bounds[2] if self._3d else self.bounds[1]
+        
+        z_optical = min(max(z_optical, z_bounds[0]), z_bounds[1])
+        
+        if self._3d:
+            res = sqrt( x**2 + y**2 + (z-z_optical)**2 )
+        else:
+            res = sqrt( x**2 + (y-z_optical)**2 )
+        
+        return self.mesh_size*res
+     
     def add_electrode(self, radius, thickness, name):
         x0 = [radius, self._current_z]
-         
+          
         points = [x0, [x0[0], x0[1]+thickness], [self.rmax, x0[1]+thickness], [self.rmax, x0[1]]]
-        points = [self.add_point(p, self.mesh_size) for p in points]
+        
+        if self._3d:
+            points = [self.add_point([p[0], 0.0, p[1]]) for p in points]
+        else:
+            points = [self.add_point(p) for p in points]
         
         lines = [self.add_line(points[i], points[j]) for i, j in zip([0, 1, 2, 3], [1, 2, 3, 0])]
         cl = self.add_curve_loop(lines)
-         
-        self._add_physical(name, lines)
+        
+        if self._3d:
+            revolved = revolve_around_optical_axis(self, lines, self.revolve_factor)
+            self._add_physical(name, revolved)
+        else:
+            self._add_physical(name, lines)
+        
         self._last_name = name
          
         self._current_z += thickness
-
+        
         return cl
     
     def generate_mesh(self, *args, **kwargs):
         # Enclose on right
-
-        points = [[self.rmax + self.margin_right, self.z0], [self.rmax + self.margin_right, self._current_z]]
-        line = self.add_line(self.add_point(points[0], self.mesh_size), self.add_point(points[1], self.mesh_size))
-         
-        self._add_physical(self._last_name, [line])
-
+        
+        if self.enclose_right:
+            points = [[self.rmax + self.margin_right, self.z0], [self.rmax + self.margin_right, self._current_z]]
+            
+            if self._3d:
+                points = [[p[0], 0.0, p[1]] for p in points]
+                line = self.add_line(self.add_point(points[0]), self.add_point(points[1]))
+                revolved = revolve_around_optical_axis(self, line, self.revolve_factor)
+                self._add_physical(self._last_name, revolved)
+            else:
+                line = self.add_line(self.add_point(points[0]), self.add_point(points[1]))
+                self._add_physical(self._last_name, [line])
+        
         for label, entities in self._physical_queue.items():
             self.add_physical(entities, label)
-        
+         
+        self.set_mesh_size_callback(self.mesh_size_callback)
         return super().generate_mesh(*args, **kwargs)
 
         

@@ -96,6 +96,8 @@ def _trace_particle(position, velocity, field, bounds, args=(), atol=1e-10):
     hmin = STEP_MIN/V
      
     y = np.array([*position, *velocity])
+
+    assert len(y) == 2*len(bounds)
      
     position_block = np.zeros( (Nblock, y.size) ) # Could be np.empty?
     positions = [position_block]
@@ -172,6 +174,7 @@ class Tracer:
     def __init__(self, field, bounds, interpolate=Interpolation.NONE, atol=1e-10):
          
         self.geometry = field.geometry
+        assert len(bounds) == len(self.geometry.bounds)
         self.field = field
         assert isinstance(field, S.Field) or isinstance(field, S.FieldSuperposition)
         
