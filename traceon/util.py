@@ -4,8 +4,14 @@ import numpy as np
 
 from numba.core.errors import NumbaExperimentalFeatureWarning
 
+DEBUG = False
+
 def traceon_jit(*args, **kwargs):
-    return nb.njit(*args, boundscheck=True, cache=True, nogil=True, fastmath=True, **kwargs)
+    if not DEBUG:
+        return nb.njit(*args, boundscheck=False, cache=True, nogil=True, fastmath=True, error_model='numpy', **kwargs)
+    else:
+        return nb.njit(*args, boundscheck=True, cache=True, nogil=False, fastmath=False, error_model='python', **kwargs)
+
 
 # Simpson integration rule
 @traceon_jit(inline='always')
