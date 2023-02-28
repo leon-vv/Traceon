@@ -28,10 +28,11 @@ def parse_validation_args(create_geometry, compute_error, N={'radial': [10,50,10
     
     if args.plot_geometry:
         geom = create_geometry(Ndefault, args.symmetry, True)
+        assert geom.symmetry == args.symmetry
         if geom.symmetry != '3d':
             P.show_line_mesh(geom.mesh, **colors) 
         else:
-            P.show_triangle_mesh(geom.mesh, show_normals=True, **colors)
+            P.show_triangle_mesh(geom.mesh, **colors)
         P.show()
     elif args.plot_accuracy:
         num_lines = []
