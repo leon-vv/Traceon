@@ -16,7 +16,8 @@ from .. import interpolation
 
 # TODO: determine optimal factors
 FACTOR_MESH_SIZE_DERIV_SAMPLING = 4
-FACTOR_HERMITE_SAMPLING = 1.5
+FACTOR_HERMITE_SAMPLING_2D = 1.5
+FACTOR_HERMITE_SAMPLING_3D = 2.0
 DERIV_ACCURACY = 6
 
 @traceon_jit
@@ -303,27 +304,22 @@ def _field_at_point(point, symmetry, vertices, charges):
     """
     
     if symmetry == 'radial':
-        E = np.array([0.0, 0.0])
+        Ex, Ey = 0.0, 0.0
         
         for c, (v1, v2) in zip(charges, vertices):
-            E[1] -= c*line_integral(point, v1, v2, radial_symmetry._first_deriv_z)
+            Ex -= c*line_integral(point, v1, v2, radial_symmetry._first_deriv_r)
+            Ey -= c*line_integral(point, v1, v2, radial_symmetry._first_deriv_z)
         
-        if abs(point[0]) < 1e-7: # Too close to singularity
-            return E
-         
-        for c, (v1, v2) in zip(charges, vertices):
-            E[0] -= c*line_integral(point, v1, v2, radial_symmetry._first_deriv_r)
-        
-        return E
+        return np.array([Ex, Ey])
     elif symmetry == '3d':
-        E = np.array([0.0, 0.0, 0.0])
+        Ex, Ey, Ez = 0.0, 0.0, 0.0
          
         for c, (v1, v2, v3) in zip(charges, vertices):
-            E[0] -= c*triangle_integral(point, v1, v2, v3, three_dimensional._first_deriv_x)
-            E[1] -= c*triangle_integral(point, v1, v2, v3, three_dimensional._first_deriv_y)
-            E[2] -= c*triangle_integral(point, v1, v2, v3, three_dimensional._first_deriv_z)
+            Ex -= c*triangle_integral(point, v1, v2, v3, three_dimensional._first_deriv_x)
+            Ey -= c*triangle_integral(point, v1, v2, v3, three_dimensional._first_deriv_y)
+            Ez -= c*triangle_integral(point, v1, v2, v3, three_dimensional._first_deriv_z)
          
-        return E
+        return np.array([Ex, Ey, Ez])
 
     raise NotImplementedError('Symmetry not recognized')
 
@@ -370,6 +366,26 @@ def _get_hermite_field_2d(symmetry, lines, charges, x, y):
      
     return Ex, Ey
 
+@traceon_jit 
+def _get_hermite_field_3d(symmetry, vertices, charges, x, y, z):
+    assert symmetry == '3d'
+    
+    Ex = np.zeros( (x.size, y.size, z.size) )
+    Ey = np.zeros( (x.size, y.size, z.size) )
+    Ez = np.zeros( (x.size, y.size, z.size) )
+    
+    for i, x_ in enumerate(x):
+        for j, y_ in enumerate(y):
+            for k, z_ in enumerate(z):
+                field = _field_at_point(np.array([x_, y_, z_]), symmetry, vertices, charges)
+                
+                Ex[i, j, k] = field[0]
+                Ey[i, j, k] = field[1]
+                Ez[i, j, k] = field[2]
+     
+    return Ex, Ey, Ez
+
+
 
 @traceon_jit 
 def _get_all_axial_derivatives(symmetry, lines, charges, z):
@@ -382,10 +398,6 @@ def _get_all_axial_derivatives(symmetry, lines, charges, z):
             derivs[:, i] += c*line_integral(np.array([0.0, z_]), l[0], l[1], radial_symmetry._get_all_axial_derivatives)
      
     return derivs
-
-@traceon_jit
-def _field_from_hermite_coeffs(point, x, y, coeffs_x, coeffs_y):
-    return interpolation.compute_hermite_field_2d(x, y, coeffs_x, coeffs_y, point[0], point[1])
 
 @traceon_jit
 def _field_from_interpolated_derivatives(point, z_inter, coeff):
@@ -493,10 +505,73 @@ class Field:
         
         self._derivs_cache.append( (z, coeffs) )
         return z, coeffs
-     
-    def get_hermite_interpolation_coeffs(self, x=None, y=None, z=None, sampling_factor=FACTOR_HERMITE_SAMPLING):
-        assert self.geometry.symmetry == 'radial'
+    
+    def get_hermite_interpolation_coeffs(self, *args, **kwargs):
+        if self.geometry.symmetry == '3d':
+            return self.get_hermite_interpolation_coeffs_3d(*args, **kwargs)
+        else:
+            return self.get_hermite_interpolation_coeffs_2d(*args, **kwargs)
+        
+    def get_hermite_interpolation_coeffs_3d(self, x=None, y=None, z=None, sampling_factor=FACTOR_HERMITE_SAMPLING_3D):
+        st = time.time()
+         
+        N = round(sampling_factor* (self.excitation.get_number_of_active_vertices())**(1/3))
+        print(f'Computing hermite with {N}^3 number of points')
+        
+        if x is None:
+            xmin, xmax = self.geometry.bounds[0]
+            x = np.linspace(xmin, xmax, N)
+        
+        if y is None:
+            ymin, ymax = self.geometry.bounds[1]
+            y = np.linspace(ymin, ymax, N)
 
+        if z is None:
+            zmin, zmax = self.geometry.bounds[2]
+            z = np.linspace(zmin, zmax, N)
+         
+        Ex, Ey, Ez = _get_hermite_field_3d(self.geometry.symmetry, self.vertices, self.charges, x, y, z)
+        assert all(arr.shape == (x.size, y.size, z.size) for arr in [Ex, Ey, Ez])
+         
+        dx, dy, dz = x[1]-x[0], y[1]-y[0], z[1]-z[0]
+        
+        DX =  findiff.FinDiff(0, dx, 1, acc=DERIV_ACCURACY)
+        DY =  findiff.FinDiff(1, dy, 1, acc=DERIV_ACCURACY)
+        DZ =  findiff.FinDiff(2, dz, 1, acc=DERIV_ACCURACY)
+        
+        DXX = findiff.FinDiff(0, dx, 2, acc=DERIV_ACCURACY)
+        DXY = findiff.FinDiff((0, dx, 1), (1, dy, 1), acc=DERIV_ACCURACY)
+        DXZ = findiff.FinDiff((0, dx, 1), (2, dz, 1), acc=DERIV_ACCURACY)
+        DYY = findiff.FinDiff(1, dy, 2, acc=DERIV_ACCURACY)
+        DYZ = findiff.FinDiff((1, dy, 1), (2, dz, 1), acc=DERIV_ACCURACY)
+        DZZ = findiff.FinDiff(2, dz, 2, acc=DERIV_ACCURACY)
+        
+        derivs = np.zeros( (3, x.size, y.size, z.size, 10) )
+        
+        for i in range(3):
+            field = [Ex, Ey, Ez][i]
+            derivs[i, :, :, :, 0] = field
+            derivs[i, :, :, :, 1] = DX(field)
+            derivs[i, :, :, :, 2] = DY(field)
+            derivs[i, :, :, :, 3] = DZ(field)
+            derivs[i, :, :, :, 4] = DXX(field)
+            derivs[i, :, :, :, 5] = DXY(field)
+            derivs[i, :, :, :, 6] = DXZ(field)
+            derivs[i, :, :, :, 7] = DYY(field)
+            derivs[i, :, :, :, 8] = DYZ(field)
+            derivs[i, :, :, :, 9] = DZZ(field)
+        
+        coeffs_x = interpolation.get_hermite_coeffs_3d(x, y, z, derivs[0])
+        coeffs_y = interpolation.get_hermite_coeffs_3d(x, y, z, derivs[1])
+        coeffs_z = interpolation.get_hermite_coeffs_3d(x, y, z, derivs[2])
+
+        print(f'Computing hermite interpolation coefficients took {(time.time()-st)*1000:.0f} ms')
+
+        return x, y, z, coeffs_x, coeffs_y, coeffs_z
+
+        
+        
+    def get_hermite_interpolation_coeffs_2d(self, x=None, y=None, z=None, sampling_factor=FACTOR_HERMITE_SAMPLING_2D):
         st = time.time()
          
         N = round(sampling_factor*m.sqrt(self.excitation.get_number_of_active_vertices()))
@@ -509,7 +584,7 @@ class Field:
             ymin, ymax = self.geometry.bounds[1]
             y = np.linspace(ymin, ymax, N)
          
-        Ex, Ey = _get_hermite_field_2d('radial', self.vertices, self.charges, x, y)
+        Ex, Ey = _get_hermite_field_2d(self.geometry.symmetry, self.vertices, self.charges, x, y)
         assert Ex.shape == Ey.shape
          
         dx, dy = x[1]-x[0], y[1]-y[0]

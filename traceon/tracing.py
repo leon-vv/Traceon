@@ -183,7 +183,7 @@ class Tracer:
         self.atol = atol
 
         if self.interpolate == Interpolation.HERMITE:
-            self.x, self.y, self.coeffs_Ex, self.coeffs_Ey = self.field.get_hermite_interpolation_coeffs()
+            self.hermite_coeffs = self.field.get_hermite_interpolation_coeffs()
     
     def __call__(self, position, velocity):
         if self.interpolate == Interpolation.NONE:
@@ -215,11 +215,20 @@ class Tracer:
                 atol=self.atol)
     
     def _trace_hermite(self, position, velocity):
-        return trace_particle(position, velocity,
-            S._field_from_hermite_coeffs,
-            self.bounds,
-            args=(self.x, self.y, self.coeffs_Ex, self.coeffs_Ey),
-            atol=self.atol)
+        if self.geometry.symmetry == '3d':
+            assert len(self.hermite_coeffs) == 6
+             
+            return trace_particle(position, velocity,
+                interpolation.compute_hermite_field_3d,
+                self.bounds,
+                args=self.hermite_coeffs, atol=self.atol)
+        else:
+            assert len(self.hermite_coeffs) == 4
+            
+            return trace_particle(position, velocity,
+                interpolation.compute_hermite_field_2d,
+                self.bounds,
+                args=self.hermite_coeffs, atol=self.atol)
     
     def _trace_axial_derivs(self, position, velocity):
         assert self.field.geometry.symmetry == 'radial'

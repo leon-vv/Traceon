@@ -99,7 +99,9 @@ def get_hermite_coeffs_2d(x, y, derivatives):
     return coeffs
 
 @traceon_jit
-def compute_hermite_field_2d(x, y, coeffs_x, coeffs_y, x_, y_):
+def compute_hermite_field_2d(point, x, y, coeffs_x, coeffs_y):
+    x_, y_ = point[0], point[1]
+    
     dx = x[1] - x[0]
     dy = y[1] - y[0]
         
@@ -125,8 +127,9 @@ def compute_hermite_field_2d(x, y, coeffs_x, coeffs_y, x_, y_):
     return np.array([sum_x, sum_y])
 
 
-def _get_cube_coeffs_3d(dx, dy, dz, V, dVdx, dVdy, dVdz, dVdx2, dVdy2, dVdz2):
-    assert all(arr.shape == (2, 2, 2) for arr in [V, dVdx, dVdy, dVdz, dVdx2, dVdy2, dVdz2])
+@traceon_jit
+def _get_cube_coeffs_3d(dx, dy, dz, derivs):
+    assert derivs.shape == (2, 2, 2, 10)
      
     coeffs = np.zeros( (6, 6, 6) )
      
@@ -141,21 +144,24 @@ def _get_cube_coeffs_3d(dx, dy, dz, V, dVdx, dVdy, dVdz, dVdx2, dVdy2, dVdz2):
                     for l in range(6):
                         for m in range(6):
                             coeffs[k, l, m] += \
-                                        V[i,j,p]        * x_coeffs_d0[k] * y_coeffs_d0[l] * z_coeffs_d0[m] + \
-                                dy*     dVdy[i,j,p]     * x_coeffs_d0[k] * y_coeffs_d1[l] * z_coeffs_d0[m] + \
-                                dy**2 * dVdy2[i,j,p]    * x_coeffs_d0[k] * y_coeffs_d2[l] * z_coeffs_d0[m] + \
-                                dx*     dVdx[i,j,p]     * x_coeffs_d1[k] * y_coeffs_d0[l] * z_coeffs_d0[m] + \
-                                dx**2 * dVdx2[i,j,p]    * x_coeffs_d2[k] * y_coeffs_d0[l] * z_coeffs_d0[m] + \
-                                dz*     dVdz[i,j,p]     * x_coeffs_d0[k] * y_coeffs_d0[l] * z_coeffs_d1[m] + \
-                                dz**2 * dVdz2[i,j,p]    * x_coeffs_d0[k] * y_coeffs_d0[l] * z_coeffs_d2[m]
+                                        derivs[i,j,p, 0] * x_coeffs_d0[k] * y_coeffs_d0[l] * z_coeffs_d0[m] + \
+                                dx*     derivs[i,j,p, 1] * x_coeffs_d1[k] * y_coeffs_d0[l] * z_coeffs_d0[m] + \
+                                dy*     derivs[i,j,p, 2] * x_coeffs_d0[k] * y_coeffs_d1[l] * z_coeffs_d0[m] + \
+                                dz*     derivs[i,j,p, 3] * x_coeffs_d0[k] * y_coeffs_d0[l] * z_coeffs_d1[m] + \
+                                dx*dx*  derivs[i,j,p, 4] * x_coeffs_d2[k] * y_coeffs_d0[l] * z_coeffs_d0[m] + \
+                                dx*dy*  derivs[i,j,p, 5] * x_coeffs_d1[k] * y_coeffs_d1[l] * z_coeffs_d0[m] + \
+                                dx*dz*  derivs[i,j,p, 6] * x_coeffs_d1[k] * y_coeffs_d0[l] * z_coeffs_d1[m] + \
+                                dy*dy*  derivs[i,j,p, 7] * x_coeffs_d0[k] * y_coeffs_d2[l] * z_coeffs_d0[m] + \
+                                dy*dz*  derivs[i,j,p, 8] * x_coeffs_d0[k] * y_coeffs_d1[l] * z_coeffs_d1[m] + \
+                                dz*dz*  derivs[i,j,p, 9] * x_coeffs_d0[k] * y_coeffs_d0[l] * z_coeffs_d2[m]
 
       
     return coeffs
 
 
-def get_hermite_coeffs_3d(x, y, z, V, dVdx, dVdy, dVdz, dVdx2, dVdy2, dVdz2):
-    
-    assert all(arr.shape == (x.size, y.size, z.size) for arr in [V, dVdx, dVdy, dVdz, dVdx2, dVdy2, dVdz2])
+@traceon_jit
+def get_hermite_coeffs_3d(x, y, z, derivs):
+    assert derivs.shape == (x.size, y.size, z.size, 10)
      
     coeffs = np.zeros( (x.size-1, y.size-1, z.size-1, 6, 6, 6) )
     dx = x[1]-x[0]
@@ -165,96 +171,14 @@ def get_hermite_coeffs_3d(x, y, z, V, dVdx, dVdy, dVdz, dVdx2, dVdy2, dVdz2):
     for i in range(x.size-1):
         for j in range(y.size-1):
             for k in range(z.size-1):
-                coeffs[i, j, k] = _get_cube_coeffs_3d(dx, dy, dz,
-                                                V[i:i+2, j:j+2, k:k+2],
-                                                dVdx[i:i+2, j:j+2, k:k+2],
-                                                dVdy[i:i+2, j:j+2, k:k+2],
-                                                dVdz[i:i+2, j:j+2, k:k+2],
-                                                dVdx2[i:i+2, j:j+2, k:k+2],
-                                                dVdy2[i:i+2, j:j+2, k:k+2],
-                                                dVdz2[i:i+2, j:j+2, k:k+2])
+                coeffs[i, j, k] = _get_cube_coeffs_3d(dx, dy, dz, derivs[i:i+2, j:j+2, k:k+2])
     
     return coeffs
 
-
-def compute_hermite_interp_3d(x, y, z, coeffs, x_, y_, z_, deriv_num=0):
-    # 0 is potential
-    # 1 is dV/dx
-    # 2 is dV/dy
-    # 3 is dV/dz
-    # 4 is d2V/dx2
-    # 5 is d2V/dy2
-    # 6 is d2V/dz2
-    assert coeffs.shape == (x.size-1, y.size-1, z.size-1, 6, 6, 6)
-    assert 0 <= deriv_num <= 6
-    
-    dx = x[1] - x[0]
-    dy = y[1] - y[0]
-    dz = z[1] - z[0]
-        
-    i, j, k = int( (x_-x[0])/dx ), int( (y_-y[0])/dy ), int( (z_-z[0])/dz )
-    
-    if not (0 <= i < x.size-1 and 0 <= j < y.size-1 and 0 <= k < z.size-1):
-        return None
-     
-    u = (x_-x[i])/dx
-    v = (y_-y[j])/dy
-    w = (z_-z[k])/dz
-    
-    C = coeffs[i, j, k]
-     
-    assert C.shape == (6, 6, 6)
-     
-    sum_ = np.zeros(7)
-     
-    for i in range(6):
-        for j in range(6):
-            for k in range(6):
-                sum_[0] += C[i, j, k] * u**i * v**j * w**k
-                
-                if i > 0:
-                    sum_[1] += 1/dx * C[i, j, k] * i*u**(i-1)  * v**j       * w**k
-                if j > 0:
-                    sum_[2] += 1/dy * C[i, j, k] * u**i        * j*v**(j-1) * w**k
-                if k > 0:
-                    sum_[3] += 1/dz * C[i, j, k] * u**i        * v**j       * k*w**(k-1)
-                
-                if i > 1:
-                    sum_[4] += 1/dx**2 * C[i, j, k] * i*(i-1)*u**(i-2) * v**j              * w**k
-                if j > 1:
-                    sum_[5] += 1/dy**2 * C[i, j, k] * u**i             * j*(j-1)*v**(j-2)  * w**k
-                if k > 1:
-                    sum_[6] += 1/dz**2 * C[i, j, k] * u**i             * v**j              * k*(k-1)*w**(k-2)
-      
-    return sum_[deriv_num]
-
 @traceon_jit
-def compute_hermite_potential_3d(x, y, z, coeffs, x_, y_, z_):
-    dx = x[1] - x[0]
-    dy = y[1] - y[0]
-    dz = z[1] - z[0]
-        
-    i, j, k = int( (x_-x[0])/dx ), int( (y_-y[0])/dy ), int( (z_-z[0])/dz )
+def compute_hermite_field_3d(point, x, y, z, coeffs_x, coeffs_y, coeffs_z):
+    x_, y_, z_ = point[0], point[1], point[2]
     
-    if not (0 <= i < x.size-1 and 0 <= j < y.size-1 and 0 <= k < z.size-1):
-        return 0.0
-     
-    u = (x_-x[i])/dx
-    v = (y_-y[j])/dy
-    w = (z_-z[k])/dz
-    
-    C = coeffs[i, j, k]
-    sum_ = 0.0
-    
-    for i in range(6):
-        for j in range(6):
-            for k in range(6):
-                sum_ += C[i, j, k] * u**i * v**j * w**k
-    
-    return sum_ 
-
-@traceon_jit
-def compute_hermite_field_3d(x, y, z, coeffs, x_, y_, z_):
     dx = x[1] - x[0]
     dy = y[1] - y[0]
     dz = z[1] - z[0]
@@ -268,22 +192,20 @@ def compute_hermite_field_3d(x, y, z, coeffs, x_, y_, z_):
     v = (y_-y[j])/dy
     w = (z_-z[k])/dz
     
-    C = coeffs[i, j, k]
-    Ex = 0.0
-    Ey = 0.0
-    Ez = 0.0
+    Cx = coeffs_x[i, j, k]
+    Cy = coeffs_y[i, j, k]
+    Cz = coeffs_z[i, j, k]
+    
+    sum_x, sum_y, sum_z = 0.0, 0.0, 0.0
      
     for i in range(6):
         for j in range(6):
             for k in range(6):
-                if i > 0:
-                    Ex -= 1/dx * C[i, j, k] * i*u**(i-1)  * v**j       * w**k
-                if j > 0:
-                    Ey -= 1/dy * C[i, j, k] * u**i        * j*v**(j-1) * w**k
-                if k > 0:
-                    Ez -= 1/dz * C[i, j, k] * u**i        * v**j       * k*w**(k-1)
+                sum_x += Cx[i, j, k] * u**i * v**j * w**k
+                sum_y += Cy[i, j, k] * u**i * v**j * w**k
+                sum_z += Cz[i, j, k] * u**i * v**j * w**k
      
-    return np.array([Ex, Ey, Ez]) 
+    return np.array([sum_x, sum_y, sum_z])
 
 
 if __name__ == '__main__':
