@@ -494,10 +494,10 @@ class Field:
           
         if z is None:
             z = self._get_optical_axis_sampling()
-          
+         
         print(f'Number of points on z-axis: {len(z)}')
         st = time.time()
-        coeffs = radial_3d.radial_series_coefficients_3d(self.vertices, self.charges, z)
+        coeffs = radial_3d.radial_series_coefficients_3d(self.vertices, self.charges, z, radial_3d.thetas, radial_3d.thetas_interpolation_coefficients)
         interpolated = CubicSpline(z, coeffs)
         print(f'Time for calculating radial series expansion coefficients: {(time.time()-st)*1000:.0f} ms')
         
