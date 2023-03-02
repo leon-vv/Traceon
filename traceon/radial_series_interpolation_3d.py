@@ -13,11 +13,23 @@ thetas_file = path.join(data, 'radial-series-3D-thetas.npy')
 coefficients_file = path.join(data, 'radial-series-3D-theta-dependent-coefficients.npy')
 
 thetas = np.load(thetas_file)
+theta0 = thetas[0]
+assert np.isclose(theta0, -1/2*np.pi)
+dtheta = thetas[1]-thetas[0]
+
 radial_coefficients = np.load(coefficients_file)
 
 thetas_to_radial_coefficients_3d = CubicSpline(thetas, radial_coefficients)
 
-thetas_interpolation_coefficients = thetas_to_radial_coefficients_3d.c
+t = thetas_to_radial_coefficients_3d.c
+s = t.shape
+
+thetas_interpolation_coefficients = np.zeros( (s[1], s[0], *s[2:]) )
+
+for i in range(s[0]):
+    for j in range(s[1]):
+        thetas_interpolation_coefficients[j, i] = t[i, j]
+
 
 # Maximal directional derivative being considered in 3D.
 # Directly related to the shapes in 'theta_interpolation'.
@@ -43,44 +55,48 @@ assert SERIES_FACTORS.shape == (13,13)
 nu_map, m_map = np.meshgrid( np.arange(DERIV_3D_MAX//2), np.arange(DERIV_3D_MAX), indexing='ij')
 
 @traceon_jit
-def radial_series_coefficients_3d(v1, v2, v3, z0):
-    v1x, v1y, v1z = v1
-    v2x, v2y, v2z = v2
-    v3x, v3y, v3z = v3
+def radial_series_coefficients_3d(vertices, charges, zs):
+    
+    coeffs = np.zeros( (zs.size, 2, DERIV_3D_MAX//2, DERIV_3D_MAX) )
+    
+    for (v1, v2, v3), c in zip(vertices, charges):
+    
+        v1x, v1y, v1z = v1
+        v2x, v2y, v2z = v2
+        v3x, v3y, v3z = v3
+         
+        area = 1/2*sqrt(((v2y-v1y)*(v3z-v1z)-(v2z-v1z)*(v3y-v1y))**2+((v2z-v1z)*(v3x-v1x)-(v2x-v1x)*(v3z-v1z))**2+((v2x-v1x)*(v3y-v1y)-(v2y-v1y)*(v3x-v1x))**2)
+        
+        for i, z0 in enumerate(zs):
+             
+            for b1_, b2_, w in zip(QUAD_B1, QUAD_B2, QUAD_WEIGHTS):
+                # Consider every quadrature point on the triangle effectively as a point charge.
+                x = v1x + b1_*(v2x-v1x) + b2_*(v3x-v1x)
+                y = v1y + b1_*(v2y-v1y) + b2_*(v3y-v1y)
+                z = v1z + b1_*(v2z-v1z) + b2_*(v3z-v1z)
+                 
+                r = sqrt(x**2 + y**2 + (z-z0)**2) 
+                theta = atan2((z-z0), sqrt(x**2 + y**2))
+                mu = atan2(y, x)
+                 
+                # TODO: will this work for points exactly on the z-axis?
+                index = int( (theta-theta0)/dtheta )
+                #assert 0 <= index < len(thetas)
+                
+                t = theta-thetas[index]
+                C = thetas_interpolation_coefficients[index]
+                
+                for nu in range(DERIV_3D_MAX//2):
+                    for m in range(DERIV_3D_MAX):
+                        base = t**3*C[0, nu, m] + t**2*C[1, nu, m] + t*C[2, nu, m] + C[3, nu, m]
+                        r_dependence = r**(-2*nu - m - 1)
+                        
+                        coeffs[i, 0, nu, m] += c*area*w*base*cos(m*mu)*r_dependence
+                        coeffs[i, 1, nu, m] += c*area*w*base*sin(m*mu)*r_dependence
      
-    A_sum = np.zeros( (DERIV_3D_MAX//2, DERIV_3D_MAX) )
-    B_sum = np.zeros( (DERIV_3D_MAX//2, DERIV_3D_MAX) )
-    
-    dtheta = thetas[1]-thetas[0]
-    
-    for b1_, b2_, w in zip(QUAD_B1, QUAD_B2, QUAD_WEIGHTS):
-        # Consider every quadrature point on the triangle effectively as a point charge.
-        x = v1x + b1_*(v2x-v1x) + b2_*(v3x-v1x)
-        y = v1y + b1_*(v2y-v1y) + b2_*(v3y-v1y)
-        z = v1z + b1_*(v2z-v1z) + b2_*(v3z-v1z)
-        
-        r = sqrt(x**2 + y**2 + (z-z0)**2) 
-        theta = atan2((z-z0), sqrt(x**2 + y**2))
-        mu = atan2(y, x)
-         
-        # TODO: will this work for points exactly on the z-axis?
-        index = int( (theta-thetas[0])/dtheta )
-        assert 0 <= index < len(thetas)
-        
-        t = theta-thetas[index]
-         
-        C = thetas_interpolation_coefficients
-        A_coeff_base = t**3*C[0,index] + t**2*C[1,index] + t*C[2,index] + C[3,index]
-         
-        r_dependence = r**(-2*nu_map - m_map - 1)
-        
-        A_sum += w*A_coeff_base*np.cos(m_map*mu)*r_dependence
-        B_sum += w*A_coeff_base*np.sin(m_map*mu)*r_dependence
-    
-    #A = 1/2*np.linalg.norm(np.cross(v2-v1, v3-v1))
-    area = 1/2*sqrt(((v2y-v1y)*(v3z-v1z)-(v2z-v1z)*(v3y-v1y))**2+((v2z-v1z)*(v3x-v1x)-(v2x-v1x)*(v3z-v1z))**2+((v2x-v1x)*(v3y-v1y)-(v2y-v1y)*(v3x-v1x))**2)
-    
-    return area*A_sum, area*B_sum
+    return coeffs
+
+
 
 @traceon_jit
 def compute_interpolated_potential(point, zs, coeffs):

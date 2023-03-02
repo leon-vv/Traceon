@@ -45,7 +45,7 @@ def parse_validation_args(create_geometry, compute_error, N={'radial': [10,50,10
             N, err = compute_error(geom)
             num_lines.append(N)
             times.append( (time.time() - st)*1000)
-            errors.append(err)
+            errors.append(abs(err))
         
         print_info(num_lines, times, errors)
 

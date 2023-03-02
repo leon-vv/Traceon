@@ -401,21 +401,6 @@ def _get_all_axial_derivatives(symmetry, lines, charges, z):
      
     return derivs
 
-@traceon_jit 
-def _get_radial_series_coeffs_3d(vertices, charges, z):
-
-    coeffs = np.zeros( (z.size, 2, radial_3d.DERIV_3D_MAX//2, radial_3d.DERIV_3D_MAX) )
-    
-    for i, z_ in enumerate(z):
-        for (v1, v2, v3), c in zip(vertices, charges):
-            A, B = radial_3d.radial_series_coefficients_3d(v1, v2, v3, z_)
-            
-            coeffs[i, 0] += c*A
-            coeffs[i, 1] += c*B
-    
-    return coeffs
-
-
 
 @traceon_jit
 def _field_from_interpolated_derivatives(point, z_inter, coeff):
@@ -512,7 +497,7 @@ class Field:
           
         print(f'Number of points on z-axis: {len(z)}')
         st = time.time()
-        coeffs = _get_radial_series_coeffs_3d(self.vertices, self.charges, z)
+        coeffs = radial_3d.radial_series_coefficients_3d(self.vertices, self.charges, z)
         interpolated = CubicSpline(z, coeffs)
         print(f'Time for calculating radial series expansion coefficients: {(time.time()-st)*1000:.0f} ms')
         
