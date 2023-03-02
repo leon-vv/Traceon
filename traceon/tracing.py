@@ -11,6 +11,7 @@ from scipy.integrate import *
 from . import solver as S
 from .util import traceon_jit
 from . import interpolation
+from . import radial_series_interpolation_3d as radial_3d
 
 EM = -0.1758820022723908 # e/m units ns and mm
 
@@ -184,10 +185,15 @@ class Tracer:
          
         self.interpolate = interpolate
         self.atol = atol
-
+        
         if self.interpolate == Interpolation.HERMITE:
             self.hermite_coeffs = self.field.get_hermite_interpolation_coeffs()
-    
+        elif self.interpolate == Interpolation.AXIAL_DERIVS:
+            if symmetry == '3d':
+                self.z_radial, self.z_coeff_interpolation = self.field.get_radial_series_coeffs_3d()
+            elif symmetry == 'radial':
+                self.z_radial, self.z_coeff_interpolation = self.field.get_derivative_interpolation_coeffs()
+     
     def __call__(self, position, velocity):
         if self.interpolate == Interpolation.NONE:
             return self._trace_naive(position, velocity)
@@ -234,13 +240,13 @@ class Tracer:
                 args=self.hermite_coeffs, atol=self.atol)
     
     def _trace_axial_derivs(self, position, velocity):
-        assert self.field.geometry.symmetry == 'radial'
-        
-        z, coeffs = self.field.get_derivative_interpolation_coeffs()
+        if self.geometry.symmetry == '3d':
+            F = radial_3d.compute_interpolated_field
+        elif self.geometry.symmetry == 'radial':
+            F = S._field_from_interpolated_derivatives
          
-        return trace_particle(position, velocity,
-            S._field_from_interpolated_derivatives, 
-            self.bounds, args=(z, coeffs), atol=self.atol)
+        return trace_particle(position, velocity, F,
+            self.bounds, args=(self.z_radial, self.z_coeff_interpolation), atol=self.atol)
         
 
 class PlaneTracer:

@@ -13,11 +13,14 @@ from . import three_dimensional
 from . import planar_odd_symmetry
 from .. import excitation as E
 from .. import interpolation
+from .. import radial_series_interpolation_3d as radial_3d
 
-# TODO: determine optimal factors
-FACTOR_MESH_SIZE_DERIV_SAMPLING = 4
+FACTOR_AXIAL_DERIV_SAMPLING_2D = 0.2
+FACTOR_AXIAL_DERIV_SAMPLING_3D = 0.035
+
 FACTOR_HERMITE_SAMPLING_2D = 1.5
 FACTOR_HERMITE_SAMPLING_3D = 2.0
+
 DERIV_ACCURACY = 6
 
 @traceon_jit
@@ -386,7 +389,6 @@ def _get_hermite_field_3d(symmetry, vertices, charges, x, y, z):
     return Ex, Ey, Ez
 
 
-
 @traceon_jit 
 def _get_all_axial_derivatives(symmetry, lines, charges, z):
     assert symmetry == 'radial'
@@ -398,6 +400,22 @@ def _get_all_axial_derivatives(symmetry, lines, charges, z):
             derivs[:, i] += c*line_integral(np.array([0.0, z_]), l[0], l[1], radial_symmetry._get_all_axial_derivatives)
      
     return derivs
+
+@traceon_jit 
+def _get_radial_series_coeffs_3d(vertices, charges, z):
+
+    coeffs = np.zeros( (z.size, 2, radial_3d.DERIV_3D_MAX//2, radial_3d.DERIV_3D_MAX) )
+    
+    for i, z_ in enumerate(z):
+        for (v1, v2, v3), c in zip(vertices, charges):
+            A, B = radial_3d.radial_series_coefficients_3d(v1, v2, v3, z_)
+            
+            coeffs[i, 0] += c*A
+            coeffs[i, 1] += c*B
+    
+    return coeffs
+
+
 
 @traceon_jit
 def _field_from_interpolated_derivatives(point, z_inter, coeff):
@@ -464,20 +482,18 @@ class Field:
         return _potential_at_point(point, self.geometry.symmetry, self.vertices, self.charges)
 
     def _get_optical_axis_sampling(self, zmin=None, zmax=None):
-        assert self.geometry.symmetry == 'radial'
-        
-        # Sample based on mesh size
-        mesh_size = self.geometry.get_mesh_size()
+        idx = 1 if self.geometry.symmetry != '3d' else 2
         
         if zmin is None:
-            zmin = self.geometry.bounds[1][0]
+            zmin = self.geometry.bounds[idx][0]
         if zmax is None:
-            zmax = self.geometry.bounds[1][1]
+            zmax = self.geometry.bounds[idx][1]
           
         assert zmax > zmin
         # TODO: determine good factor between mesh size and optical axis sampling
-        return np.linspace(zmin, zmax, FACTOR_MESH_SIZE_DERIV_SAMPLING*int((zmax-zmin)/mesh_size))
-    
+        F = FACTOR_AXIAL_DERIV_SAMPLING_3D if self.geometry.symmetry == '3d' else FACTOR_AXIAL_DERIV_SAMPLING_2D
+        return np.linspace(zmin, zmax, int(F*self.excitation.get_number_of_active_vertices()))
+     
     def get_axial_potential_derivatives(self, z=None):
         assert self.geometry.symmetry == 'radial'
          
@@ -487,6 +503,21 @@ class Field:
         derivs = _get_all_axial_derivatives(self.geometry.symmetry, self.vertices, self.charges, z)
          
         return z, derivs
+    
+    def get_radial_series_coeffs_3d(self, z=None):
+        assert self.geometry.symmetry == '3d'
+          
+        if z is None:
+            z = self._get_optical_axis_sampling()
+          
+        print(f'Number of points on z-axis: {len(z)}')
+        st = time.time()
+        coeffs = _get_radial_series_coeffs_3d(self.vertices, self.charges, z)
+        interpolated = CubicSpline(z, coeffs)
+        print(f'Time for calculating radial series expansion coefficients: {(time.time()-st)*1000:.0f} ms')
+        
+        return z, interpolated.c
+
     
     def get_derivative_interpolation_coeffs(self, z=None):
         assert self.geometry.symmetry == 'radial'

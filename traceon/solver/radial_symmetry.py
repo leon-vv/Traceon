@@ -9,7 +9,7 @@ from ..util import *
 # The derivatives should be 0.0 but divide by zero errors occur.
 # For any derivative in the r direction closer than MIN_DISTANCE_AXIS to the
 # optical axis we always return 0.0.
-MIN_DISTANCE_AXIS = 1e-12
+MIN_DISTANCE_AXIS = 1e-10
 
 @traceon_jit
 def _first_deriv_r(r_0, z_0, r, z):
