@@ -57,11 +57,11 @@ def _get_square_coeffs_2d(dx, dy, V, dVdx, dVdy, dVdx2, dVdxy, dVdy2):
             for k in range(6):
                 for l in range(6):
                     coeffs[k, l] += \
-                        V[i, j] * x_coeffs_d0[k] * y_coeffs_d0[l] + \
-                        dy* dVdy[i,j] * x_coeffs_d0[k] * y_coeffs_d1[l] + \
-                        dy**2* dVdy2[i,j] * x_coeffs_d0[k] * y_coeffs_d2[l] + \
-                        dx*dy* dVdxy[i,j] * x_coeffs_d1[k] * y_coeffs_d1[l] + \
-                        dx* dVdx[i, j] * x_coeffs_d1[k] * y_coeffs_d0[l] + \
+                                V[i, j]     * x_coeffs_d0[k] * y_coeffs_d0[l] + \
+                        dy*     dVdy[i,j]   * x_coeffs_d0[k] * y_coeffs_d1[l] + \
+                        dy**2*  dVdy2[i,j]  * x_coeffs_d0[k] * y_coeffs_d2[l] + \
+                        dx*dy*  dVdxy[i,j]  * x_coeffs_d1[k] * y_coeffs_d1[l] + \
+                        dx*     dVdx[i, j]  * x_coeffs_d1[k] * y_coeffs_d0[l] + \
                         dx**2 * dVdx2[i, j] * x_coeffs_d2[k] * y_coeffs_d0[l]
              
     return coeffs
