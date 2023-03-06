@@ -14,6 +14,7 @@ from . import planar_odd_symmetry
 from .. import excitation as E
 from .. import interpolation
 from .. import radial_series_interpolation_3d as radial_3d
+from ..backend import fill_matrix_radial, fill_matrix_3d
 
 FACTOR_AXIAL_DERIV_SAMPLING_2D = 0.2
 FACTOR_AXIAL_DERIV_SAMPLING_3D = 0.035
@@ -213,13 +214,13 @@ def solve_bem(excitation):
      
     N_lines = len(vertices)
     N_matrix = N_lines + N_floating # Every floating conductor adds one constraint
-    
+     
     excitation_types = np.zeros(N_lines, dtype=np.uint8)
     excitation_values = np.zeros(N_lines)
     
     for n, indices in names.items():
         excitation_types[indices] = int( excitation.excitation_types[n][0] )
-
+        
         if excitation.excitation_types[n][0] == E.ExcitationType.DIELECTRIC:
             excitation_values[indices] = excitation.excitation_types[n][1]
      
@@ -227,20 +228,20 @@ def solve_bem(excitation):
      
     print(f'Total number of elements: {N_lines}, symmetry: {excitation.geometry.symmetry}')
      
-    THREADS = 2
-    split = np.array_split(np.arange(N_lines), THREADS)
-    matrices = [np.zeros((N_matrix, N_matrix)) for _ in range(THREADS)]
-     
-    fill_fun = _fill_bem_matrix_2d if excitation.geometry.symmetry != '3d' else _fill_bem_matrix_3d
-    threads = [Thread(target=fill_fun, args=(m, vertices, excitation_types, excitation_values, r)) for r, m in zip(split, matrices)]
-     
     st = time.time()
+    THREADS = 2
+    
+    matrix = np.zeros( (N_matrix, N_matrix) )
+    split = np.array_split(np.arange(N_lines), THREADS)
+     
+    fill_fun = fill_matrix_radial if excitation.geometry.symmetry != '3d' else fill_matrix_3d
+    threads = [Thread(target=fill_fun, args=(matrix, vertices, excitation_types, excitation_values, r[0], r[-1])) for r in split]
+     
     for t in threads:
         t.start()
     for t in threads:
         t.join()
      
-    matrix = np.sum(matrices, axis=0)
     F = np.zeros(N_matrix)
     _fill_right_hand_side(F, vertices, names, excitation)
     _add_floating_conductor_constraints(matrix, F, vertices, names, excitation)

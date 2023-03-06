@@ -49,12 +49,12 @@ def create_geometry(N, symmetry, for_plot):
             geom.add_physical(inner, 'inner')
             geom.add_physical(boundary, 'boundary')
             
-            return G.Geometry(geom.generate_mesh(dim=2), N, symmetry='3d')
+            return G.Geometry(geom.generate_mesh(dim=2), N, ((0,20),(0,20),(0,20)), symmetry='3d')
         elif symmetry == 'radial':
             geom.add_physical([l1, l2, l3], 'inner')
             geom.add_physical([l4, l5, l6], 'boundary')
             
-            return G.Geometry(geom.generate_mesh(dim=1), N, symmetry='radial')
+            return G.Geometry(geom.generate_mesh(dim=1), N, ((0,20), (0,20)), symmetry='radial')
 
 def compute_error(geometry):
      

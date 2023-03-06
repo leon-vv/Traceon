@@ -67,8 +67,8 @@ backend_functions = {
     'trace_particle_3d': (sz, times_block, tracing_block, bounds, dbl, vertices, charges, sz),
     'field_3d_derivs': (None, v3, v3, z_values, arr(ndim=5), sz),
     'trace_particle_3d_derivs': (sz, times_block, tracing_block, bounds, dbl, z_values, arr(ndim=5), sz),
-    'fill_matrix_radial': (None, arr(ndim=2), lines, arr(dtype=int, ndim=1), arr(ndim=1), sz, C.c_int, C.c_int),
-    'fill_matrix_3d': (None, arr(ndim=2), vertices, arr(dtype=int, ndim=1), arr(ndim=1), sz, C.c_int, C.c_int)
+    'fill_matrix_radial': (None, arr(ndim=2), lines, arr(dtype=C.c_uint8, ndim=1), arr(ndim=1), sz, C.c_int, C.c_int),
+    'fill_matrix_3d': (None, arr(ndim=2), vertices, arr(dtype=C.c_uint8, ndim=1), arr(ndim=1), sz, C.c_int, C.c_int)
 }
 
 
@@ -252,18 +252,19 @@ def fill_matrix_radial(matrix, lines, excitation_types, excitation_values, start
     assert excitation_types.shape == (N,)
     assert excitation_values.shape == (N,)
     assert 0 <= start_index < N and 0 <= end_index < N and start_index < end_index
-    
-    backend_lib.fill_matrix(matrix, lines, excitation_types, excitation_values, N, start_index, end_index)
+     
+    backend_lib.fill_matrix_radial(matrix, lines, excitation_types, excitation_values, N, start_index, end_index)
 
 def fill_matrix_3d(matrix, vertices, excitation_types, excitation_values, start_index, end_index):
     N = len(vertices)
-    assert matrix.shape == (N, N)
+    # Due to floating conductor constraints the matrix might actually be bigger than NxN
+    assert matrix.shape[0] <= N and matrix.shape[1] <= N and matrix.shape[0] == matrix.shape[1]
     assert vertices.shape == (N, 3, 3)
     assert excitation_types.shape == (N,)
     assert excitation_values.shape == (N,)
     assert 0 <= start_index < N and 0 <= end_index < N and start_index < end_index
     
-    backend_lib.fill_matrix(matrix, vertices, excitation_types, excitation_values, N, start_index, end_index)
+    backend_lib.fill_matrix_3d(matrix, vertices, excitation_types, excitation_values, N, start_index, end_index)
 
 
 

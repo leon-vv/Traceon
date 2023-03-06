@@ -2,11 +2,7 @@
 #include <assert.h>
 #include <math.h>
 #include <stdlib.h>
-
-// https://stackoverflow.com/questions/752309/ensuring-c-doubles-are-64-bits
-#ifndef __STDC_IEC_559__
-#error "Requires IEEE 754 floating point!"
-#endif
+#include <stdint.h>
 
 // Symbols that are accessed by Python cannot be put in a macro.
 extern const int DERIV_2D_MAX = 9;
@@ -797,10 +793,10 @@ enum ExcitationType{
     DIELECTRIC = 3,
     FLOATING_CONDUCTOR = 4};
 
-void fill_matrix_radial(double* matrix_p, 
-                        double* line_points_p, 
-                        int* excitation_types, 
-                        double* excitation_values, 
+void fill_matrix_radial(double *matrix_p, 
+                        double *line_points_p, 
+                        uint8_t *excitation_types, 
+                        double *excitation_values, 
 						size_t N_lines,
                         int lines_range_start, 
                         int lines_range_end) {
@@ -852,10 +848,10 @@ void fill_matrix_radial(double* matrix_p,
     }
 }
 
-void fill_matrix_3d(double* matrix_p, 
-                    double* triangle_points_p, 
-                    int* excitation_types, 
-                    double* excitation_values, 
+void fill_matrix_3d(double *matrix_p, 
+                    double *triangle_points_p, 
+                    uint8_t *excitation_types, 
+                    double *excitation_values, 
 					size_t N_lines,
                     int lines_range_start, 
                     int lines_range_end) {
