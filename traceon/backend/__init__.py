@@ -17,7 +17,7 @@ M_MAX = DERIV_3D_MAX
 
 # Pass numpy array to C
 def arr(*args, dtype=np.float64, **kwargs):
-    return ndpointer(*args, dtype=dtype, flags='C_CONTIGUOUS', **kwargs);
+    return ndpointer(*args, dtype=dtype, flags=('C_CONTIGUOUS', 'ALIGNED'), **kwargs);
 
 # Pass one dimensional Numpy array to C
 v2 = arr(shape=(2,))
