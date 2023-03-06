@@ -57,14 +57,14 @@ double ellipk_singularity(double k) {
 			3.42805719229748e-4};
 		
 	return A[0] + A[1]*eta + A[2]*pow(eta,2) + A[3]*pow(eta,3) + A[4]*pow(eta,4) + A[5]*pow(eta,5) + A[6]*pow(eta,6) + A[7]*pow(eta,7) 
-                + log(1/eta)*(B[0] + B[1]*eta + B[2]*pow(eta,2) + B[3]*pow(eta,3) + B[4]*pow(eta,4) + B[5]*pow(eta,5) + B[6]*pow(eta,6) + B[7]*pow(eta,7));
+                + log(1./eta)*(B[0] + B[1]*eta + B[2]*pow(eta,2) + B[3]*pow(eta,3) + B[4]*pow(eta,4) + B[5]*pow(eta,5) + B[6]*pow(eta,6) + B[7]*pow(eta,7));
 
 }
 
 double ellipk(double k) {
 	if(k > -1) return ellipk_singularity(k);
 	
-	return ellipk_singularity(1 - 1/(1-k))/sqrt(1-k);
+	return ellipk_singularity(1 - 1./(1-k))/sqrt(1-k);
 }
 
 double ellipe_01(double k) {
@@ -89,13 +89,13 @@ double ellipe_01(double k) {
         3.78886487349367e-4};
 	
 	return A[0] + A[1]*eta + A[2]*pow(eta,2) + A[3]*pow(eta,3) + A[4]*pow(eta,4) + A[5]*pow(eta,5) + A[6]*pow(eta,6) + A[7]*pow(eta,7) 
-                + log(1/eta)*(B[0] + B[1]*eta + B[2]*pow(eta,2) + B[3]*pow(eta,3) + B[4]*pow(eta,4) + B[5]*pow(eta,5) + B[6]*pow(eta,6) + B[7]*pow(eta,7));
+                + log(1./eta)*(B[0] + B[1]*eta + B[2]*pow(eta,2) + B[3]*pow(eta,3) + B[4]*pow(eta,4) + B[5]*pow(eta,5) + B[6]*pow(eta,6) + B[7]*pow(eta,7));
 }
 
 double ellipe(double k) {
 	if (0 <= k && k <= 1) return ellipe_01(k);
 
-	return ellipe_01(k/(k-1))*sqrt(1-k);
+	return ellipe_01(k/(k-1.))*sqrt(1-k);
 
 }
 
@@ -130,8 +130,8 @@ line_integral(double target[2], double v1[2], double v2[2], integration_cb_2d fu
     double source_x1 = v1[0], source_y1 = v1[1];
     double source_x2 = v2[0], source_y2 = v2[1];
      
-    double middle_x = (source_x2 + source_x1)/2;
-    double middle_y = (source_y1 + source_y2)/2;
+    double middle_x = (source_x2 + source_x1)/2.;
+    double middle_y = (source_y1 + source_y2)/2.;
     double length = norm_2d(source_x2 - source_x1, source_y2 - source_y1);
     double distance = norm_2d(middle_x - target_x, middle_y - target_y);
      
@@ -233,24 +233,23 @@ triangle_integral(double target[3], double v1[3], double v2[3], double v3[3], in
 //////////////////////////////// PARTICLE TRACING
 
 
-double EM = -0.1758820022723908; // e/m units ns and mm
+const double EM = -0.1758820022723908; // e/m units ns and mm
 
-double A[]  = {0.0, 2/9, 1/3, 3/4, 1, 5/6};		// https://en.wikipedia.org/wiki/Runge%E2%80%93Kutta%E2%80%93Fehlberg_method
-double B6[] = {65/432, -5/16, 13/16, 4/27, 5/144};
-double B5[] = {-17/12, 27/4, -27/5, 16/15};
-double B4[] = {69/128, -243/128, 135/64};
-double B3[] = {1/12, 1/4};
-double B2[] = {2/9};
-double CH[] = {47/450, 0, 12/25, 32/225, 1/30, 6/25};
-double CT[] = {-1/150, 0, 3/100, -16/75, -1/20, 6/25};
-
+const double A[]  = {0.0, 2./9., 1./3., 3./4., 1., 5./6.};	// https://en.wikipedia.org/wiki/Runge%E2%80%93Kutta%E2%80%93Fehlberg_method
+const double B6[] = {65./432., -5./16., 13./16., 4./27., 5./144.};
+const double B5[] = {-17./12., 27./4., -27./5., 16./15.};
+const double B4[] = {69./128., -243./128., 135./64.};
+const double B3[] = {1./12., 1./4.};
+const double B2[] = {2./9.};
+const double CH[] = {47./450., 0., 12./25., 32./225., 1./30., 6./25.};
+const double CT[] = {-1./150., 0., 3./100., -16./75., -1./20., 6./25.};
 
 typedef void (*field_fun)(double pos[6], double field[3], void* args);
 
 void
 produce_new_y(double y[6], double ys[6][6], double ks[6][6], size_t index) {
 	
-	double* coefficients[] = {NULL, B2, B3, B4, B5, B6};
+	const double* coefficients[] = {NULL, B2, B3, B4, B5, B6};
 	
 	for(int i = 0; i < 6; i++) {
 		
@@ -264,12 +263,12 @@ produce_new_y(double y[6], double ys[6][6], double ks[6][6], size_t index) {
 void
 produce_new_k(double ys[6][6], double ks[6][6], size_t index, double h, field_fun ff, void *args) {
 	
-	double field[3];
+	double field[3] = { 0. };
 	ff(ys[index], field, args);
-
-	ks[index][0] = h*ks[index-1][3];
-	ks[index][1] = h*ks[index-1][4];
-	ks[index][2] = h*ks[index-1][5];
+	
+	ks[index][0] = h*ys[index][3];
+	ks[index][1] = h*ys[index][4];
+	ks[index][2] = h*ys[index][5];
 	ks[index][3] = h*EM*field[0];
 	ks[index][4] = h*EM*field[1];
 	ks[index][5] = h*EM*field[2];
@@ -277,13 +276,13 @@ produce_new_k(double ys[6][6], double ks[6][6], size_t index, double h, field_fu
 
 
 size_t
-trace_particle(double *pos_array, field_fun field, double bounds[3][2], double atol, void *args) {
+trace_particle(double *times_array, double *pos_array, field_fun field, double bounds[3][2], double atol, void *args) {
 	
 	double (*positions)[6] = (double (*)[6]) pos_array;
 	
 	double y[6];
 	for(int i = 0; i < 6; i++) y[i] = positions[0][i];
-		
+
     double V = norm_3d(y[3], y[4], y[5]);
     double h = TRACING_STEP_MAX/V;
     double hmax = TRACING_STEP_MAX/V;
@@ -305,7 +304,7 @@ trace_particle(double *pos_array, field_fun field, double bounds[3][2], double a
 		
 		for(int index = 0; index < 6; index++) {
 			produce_new_y(y, ys, k, index);
-			produce_new_k(ys, k, h, index, field, args);
+			produce_new_k(ys, k, index, h, field, args);
 		}
 		
 		double TE = 0.0; // Error 
@@ -320,6 +319,7 @@ trace_particle(double *pos_array, field_fun field, double bounds[3][2], double a
 			for(int i = 0; i < 6; i++) {
 				y[i] += CH[0]*k[0][i] + CH[1]*k[1][i] + CH[2]*k[2][i] + CH[3]*k[3][i] + CH[4]*k[4][i] + CH[5]*k[5][i];
 				positions[N][i] = y[i];
+				times_array[N] = times_array[N-1] + h;
 			}
 				
 			N += 1;
@@ -377,7 +377,7 @@ double
 dz_axial_potential_radial_ring(double r0, double z0, double r, double z, void* _) {
 	double R = norm_2d(z0-z, r);
 	double D1 = -(z0-z)/pow(R,3);
-	return M_PI*r/2 * D1;
+	return M_PI*r/2. * D1;
 }
 
 double
@@ -389,8 +389,8 @@ dnext_axial_potential_radial_ring(double r0, double z0, double r, double z, void
 		
 	double R = norm_2d(z0-z, r);
 		
-	double Dnext = -1/pow(R,2) * ((2*n + 1)*(z0 - z)*derivs[1] + pow(n,2)*derivs[0]);
-    return M_PI*r/2 * Dnext;
+	double Dnext = -1./pow(R,2) * ((2*n + 1)*(z0 - z)*derivs[1] + pow(n,2)*derivs[0]);
+    return M_PI*r/2. * Dnext;
 }
 
 
@@ -483,12 +483,12 @@ field_radial_traceable(double point[3], double result[3], void *args_p) {
 }
 
 size_t
-trace_particle_radial(double *pos_array, double bounds[3][2], double atol,
+trace_particle_radial(double *times_array, double *pos_array, double bounds[3][2], double atol,
 	double *vertices, double *charges, size_t N_vertices) {
 
 	struct field_evaluation_args args = { vertices, charges, N_vertices };
 				
-	return trace_particle( pos_array, field_radial_traceable, bounds, atol, (void*) &args);
+	return trace_particle(times_array, pos_array, field_radial_traceable, bounds, atol, (void*) &args);
 }
 
 void
@@ -532,12 +532,12 @@ field_radial_derivs_traceable(double point[3], double field[3], void *args_p) {
 }
 
 size_t
-trace_particle_radial_derivs(double *pos_array, double bounds[3][2], double atol,
+trace_particle_radial_derivs(double *times_array, double *pos_array, double bounds[3][2], double atol,
 	double *z_interpolation, double *axial_coefficients, size_t N_z) {
 
 	struct field_derivs_args args = { z_interpolation, axial_coefficients, N_z };
 		
-	return trace_particle( pos_array, field_radial_derivs_traceable, bounds, atol, (void*) &args);
+	return trace_particle(times_array, pos_array, field_radial_derivs_traceable, bounds, atol, (void*) &args);
 }
 
 
@@ -711,12 +711,12 @@ field_3d_traceable(double point[3], double result[3], void *args_p) {
 }
 
 size_t
-trace_particle_3d(double *pos_array, double bounds[3][2], double atol,
+trace_particle_3d(double *times_array, double *pos_array, double bounds[3][2], double atol,
 	double *vertices, double *charges, size_t N_vertices) {
 
 	struct field_evaluation_args args = { vertices, charges, N_vertices };
 				
-	return trace_particle( pos_array, field_3d_traceable, bounds, atol, (void*) &args);
+	return trace_particle(times_array, pos_array, field_3d_traceable, bounds, atol, (void*) &args);
 }
 
 void
@@ -780,12 +780,12 @@ field_3d_derivs_traceable(double point[3], double field[3], void *args_p) {
 }
 
 size_t
-trace_particle_3d_derivs(double *pos_array, double bounds[3][2], double atol,
+trace_particle_3d_derivs(double *times_array, double *pos_array, double bounds[3][2], double atol,
 	double *z_interpolation, double *axial_coefficients, size_t N_z) {
 
 	struct field_derivs_args args = { z_interpolation, axial_coefficients, N_z };
 	
-	return trace_particle( pos_array, field_3d_derivs_traceable, bounds, atol, (void*) &args);
+	return trace_particle(times_array, pos_array, field_3d_derivs_traceable, bounds, atol, (void*) &args);
 }
 
 
