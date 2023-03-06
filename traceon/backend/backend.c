@@ -8,8 +8,9 @@
 #error "Requires IEEE 754 floating point!"
 #endif
 
-#define DERIVS_MAX_2D 9
-#define DERIV_3D_MAX 9
+// Symbols that are accessed by Python cannot be put in a macro.
+extern const int DERIV_2D_MAX = 9;
+extern const int DERIV_3D_MAX = 9;
 #define NU_MAX (DERIV_3D_MAX/2)
 #define M_MAX DERIV_3D_MAX
 #define N_TRIANGLE_QUAD 9
@@ -23,6 +24,9 @@
     #define M_PI 3.14159265358979323846
 #endif
 
+
+const size_t TRACING_BLOCK_SIZE = (size_t) 1e5;
+
 //////////////////////////////// ELLIPTIC FUNCTIONS
 
 // Chebyshev Approximations for the Complete Elliptic Integrals K and E.
@@ -34,7 +38,7 @@
 double ellipk_singularity(double k) {
 	double eta = 1 - k;
 	
-	double A[] = {log(4),
+	double A[] = {log(4.0),
 			9.65736020516771e-2,
 			3.08909633861795e-2,
 			1.52618320622534e-2,
@@ -43,7 +47,7 @@ double ellipk_singularity(double k) {
 			1.09423810688623e-2,
 			1.40704915496101e-3};
 	
-	double B[] = {1/2,
+	double B[] = {1.0/2.0,
 			1.24999998585309e-1,
 			7.03114105853296e-2,
 			4.87379510945218e-2,
@@ -240,7 +244,6 @@ double B2[] = {2/9};
 double CH[] = {47/450, 0, 12/25, 32/225, 1/30, 6/25};
 double CT[] = {-1/150, 0, 3/100, -16/75, -1/20, 6/25};
 
-size_t TRACING_BLOCK_SIZE = (size_t) 1e5;
 
 typedef void (*field_fun)(double pos[6], double field[3], void* args);
 
@@ -491,7 +494,7 @@ trace_particle_radial(double *pos_array, double bounds[3][2], double atol,
 void
 field_radial_derivs(double point[3], double field[3], double *z_inter, double *coeff_p, size_t N_z) {
 	
-	double (*coeff)[DERIVS_MAX_2D][4] = (double (*)[DERIVS_MAX_2D][4]) coeff_p;
+	double (*coeff)[DERIV_2D_MAX][4] = (double (*)[DERIV_2D_MAX][4]) coeff_p;
 	
 	double r = point[0], z = point[1];
 	double z0 = z_inter[0], zlast = z_inter[N_z-1];
@@ -507,9 +510,9 @@ field_radial_derivs(double point[3], double field[3], double *z_inter, double *c
 		
 	double (*C)[4] = &coeff[index][0];
 		
-	double derivs[DERIVS_MAX_2D];
+	double derivs[DERIV_2D_MAX];
 
-	for(int i = 0; i < DERIVS_MAX_2D; i++)
+	for(int i = 0; i < DERIV_2D_MAX; i++)
 		derivs[i] = C[i][0]*pow(diffz, 3) + C[i][1]*pow(diffz, 2) + C[i][2]*diffz + C[i][3];
 		
 	field[0] = r/2*(derivs[2] - pow(r,2)/8*derivs[4] + pow(r,4)/192*derivs[6] - pow(r,6)/9216*derivs[8]);
