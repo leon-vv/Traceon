@@ -239,8 +239,9 @@ def create_two_cylinder_lens(N=200, S=0.2, R=1, wall_thickness=1, boundary_lengt
         
         if gap_at_zero:
             mesh.points[:, 1] -= cylinder_length + S/2
-         
-        return Geometry(mesh, N, **kwargs)
+        
+        bounds = ( (-0.8*R, 0.8*R), (-0.8*boundary_length/2, 0.8*boundary_length/2) )
+        return Geometry(mesh, N, bounds, **kwargs)
 
 
 
