@@ -52,7 +52,7 @@ def create_geometry(N, symmetry, for_plot):
         geom.add_physical([*d1, *d2], 'dielectric')
         
         mesh = geom.generate_mesh(dim=1 if symmetry != '3d' else 2)
-        geom = G.Geometry(mesh, N, symmetry=symmetry)
+        geom = G.Geometry(mesh, N, None, symmetry=symmetry)
     
     return geom
 
@@ -68,11 +68,9 @@ def compute_error(geom):
     x = np.linspace(0.55, 0.95)
     f = [field.field_at_point(np.array([x_, 0.0, 0.0]))[0] for x_ in x]
     
-    plt.plot(x, f)
-    plt.show()
+    #plt.plot(x, f)
+    #plt.show()
      
-
-    
     vertices = field.vertices
     charges = field.charges
      

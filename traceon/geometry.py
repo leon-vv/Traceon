@@ -33,7 +33,7 @@ class Geometry:
         self.N = N
         self._symmetry = symmetry
 
-        assert (symmetry == '3d' and len(bounds) == 3) or len(bounds) == 2
+        assert bounds is None or (symmetry == '3d' and len(bounds) == 3) or len(bounds) == 2
          
         self.bounds = bounds
      
