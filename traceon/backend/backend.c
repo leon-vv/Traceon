@@ -51,10 +51,14 @@ double ellipk_singularity(double k) {
 			2.09857677336790e-2,
 			5.81807961871996e-3,
 			3.42805719229748e-4};
-		
-	return A[0] + A[1]*eta + A[2]*pow(eta,2) + A[3]*pow(eta,3) + A[4]*pow(eta,4) + A[5]*pow(eta,5) + A[6]*pow(eta,6) + A[7]*pow(eta,7) 
-                + log(1./eta)*(B[0] + B[1]*eta + B[2]*pow(eta,2) + B[3]*pow(eta,3) + B[4]*pow(eta,4) + B[5]*pow(eta,5) + B[6]*pow(eta,6) + B[7]*pow(eta,7));
+	
+	double L = log(1./eta);
+	double sum_ = 0.0;
 
+	for(int i = 0; i < 8; i++)
+		sum_ += (A[i] + L*B[i])*pow(eta, i);
+	
+	return sum_;
 }
 
 double ellipk(double k) {
@@ -84,8 +88,13 @@ double ellipe_01(double k) {
         6.45682247315060e-3,
         3.78886487349367e-4};
 	
-	return A[0] + A[1]*eta + A[2]*pow(eta,2) + A[3]*pow(eta,3) + A[4]*pow(eta,4) + A[5]*pow(eta,5) + A[6]*pow(eta,6) + A[7]*pow(eta,7) 
-                + log(1./eta)*(B[0] + B[1]*eta + B[2]*pow(eta,2) + B[3]*pow(eta,3) + B[4]*pow(eta,4) + B[5]*pow(eta,5) + B[6]*pow(eta,6) + B[7]*pow(eta,7));
+	double L = log(1./eta);
+	double sum_ = 0.0;
+
+	for(int i = 0; i < 8; i++)
+		sum_ += (A[i] + L*B[i])*pow(eta, i);
+		
+	return sum_;
 }
 
 double ellipe(double k) {
