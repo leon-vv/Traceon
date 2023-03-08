@@ -52,7 +52,7 @@ def create_geometry(N, symmetry, for_plot):
         geom.add_physical([*d1, *d2], 'floating')
         
         mesh = geom.generate_mesh(dim=1 if symmetry != '3d' else 2)
-        geom = G.Geometry(mesh, N, symmetry=symmetry)
+        geom = G.Geometry(mesh, N, None, symmetry=symmetry)
     
     return geom
 
