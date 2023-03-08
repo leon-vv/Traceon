@@ -183,7 +183,7 @@ line_integral(double target[2], double v1[2], double v2[2], integration_cb_2d fu
 
 typedef double (*integration_cb_3d)(double, double, double, double, double, double, void*);
 
-double
+extern inline double
 norm_3d(double x, double y, double z) {
 	return sqrt(x*x + y*y + z*z);
 }
@@ -233,6 +233,43 @@ triangle_integral(double target[3], double v1[3], double v2[3], double v3[3], in
 	      
     return area*sum_;
 }
+
+// This is a bit of a hack.. we supply a triangle_integral function which is exactly
+// the same as above, except we inline the 'potential_3d_point' function directly. Weirdly this
+// seem to trigger some kind of optimization within GCC that makes building the matrix much faster. I was not
+// able to reproduce this behaviour simply by extensive use of the 'inline' keyword.
+extern inline double potential_3d_point(double x0, double y0, double z0, double x, double y, double z, void *_) {
+	double r = norm_3d(x-x0, y-y0, z-z0);
+    return 1/(4*r);
+}
+
+double
+triangle_integral_potential_3d_point(double target[3], double v1[3], double v2[3], double v3[3]) {
+	double v1x = v1[0], v1y = v1[1], v1z = v1[2];
+	double v2x = v2[0], v2y = v2[1], v2z = v2[2];
+	double v3x = v3[0], v3y = v3[1], v3z = v3[2];
+		
+	double area = 0.5*sqrt(pow((v2y-v1y)*(v3z-v1z)-(v2z-v1z)*(v3y-v1y), 2) + pow((v2z-v1z)*(v3x-v1x)-(v2x-v1x)*(v3z-v1z), 2) + pow((v2x-v1x)*(v3y-v1y)-(v2y-v1y)*(v3x-v1x), 2));
+	
+	double sum_ = 0.0;
+	
+	for (int k=0; k < N_TRIANGLE_QUAD; k++) {
+		double b1_ = QUAD_B1[k];
+		double b2_ = QUAD_B2[k];
+		double w = QUAD_WEIGHTS[k];
+			
+        double x = v1x + b1_*(v2x-v1x) + b2_*(v3x-v1x);
+        double y = v1y + b1_*(v2y-v1y) + b2_*(v3y-v1y);
+        double z = v1z + b1_*(v2z-v1z) + b2_*(v3z-v1z);
+			
+        sum_ += w*potential_3d_point(target[0], target[1], target[2], x, y, z, NULL);
+	}
+	      
+    return area*sum_;
+}
+
+
+
 
 
 //////////////////////////////// PARTICLE TRACING
@@ -563,11 +600,6 @@ double dz1_potential_3d_point(double x0, double y0, double z0, double x, double 
     return (z-z0)/(4*pow(r, 3));
 }
 
-double potential_3d_point(double x0, double y0, double z0, double x, double y, double z, void *_) {
-	double r = norm_3d(x-x0, y-y0, z-z0);
-    return 1/(4*r);
-}
-
 void
 axial_coefficients_3d(double *vertices_p, double *charges, size_t N_v,
 	double *zs, double *output_coeffs_p, size_t N_z,
@@ -882,7 +914,7 @@ void fill_matrix_3d(double *matrix_p,
                 double *v1 = &triangle_points[j][0][0];
                 double *v2 = &triangle_points[j][1][0];
                 double *v3 = &triangle_points[j][2][0];
-                matrix[i][j] = triangle_integral(target, v1, v2, v3, potential_3d_point, NULL);
+                matrix[i][j] = triangle_integral_potential_3d_point(target, v1, v2, v3);
             }
         } 
         else if (type_ == DIELECTRIC) {
