@@ -1,6 +1,7 @@
 import matplotlib.pyplot as plt
 import numpy as np
 from pygmsh import *
+import time
 
 import traceon.geometry as G
 import traceon.excitation as E
@@ -65,10 +66,12 @@ def compute_error(geometry):
       
     field = S.solve_bem(excitation)
 
+    st = time.time()
     if excitation.geometry.symmetry == '3d':
         pot = field.potential_at_point(np.array([12, 0.0, 4]))
     else:
         pot = field.potential_at_point(np.array([12, 4]))
+    print(f'Time for computing potential {(time.time()-st)*1000:.2f} ms')
     
     correct = 6.69099430708
     print('Potential: ', pot)

@@ -14,7 +14,7 @@ from . import planar_odd_symmetry
 from .. import excitation as E
 from .. import interpolation
 from .. import radial_series_interpolation_3d as radial_3d
-from ..backend import fill_matrix_radial, fill_matrix_3d
+from .. import backend
 
 FACTOR_AXIAL_DERIV_SAMPLING_2D = 0.2
 FACTOR_AXIAL_DERIV_SAMPLING_3D = 0.035
@@ -234,7 +234,7 @@ def solve_bem(excitation):
     matrix = np.zeros( (N_matrix, N_matrix) )
     split = np.array_split(np.arange(N_lines), THREADS)
      
-    fill_fun = fill_matrix_radial if excitation.geometry.symmetry != '3d' else fill_matrix_3d
+    fill_fun = backend.fill_matrix_radial if excitation.geometry.symmetry != '3d' else backend.fill_matrix_3d
     threads = [Thread(target=fill_fun, args=(matrix, vertices, excitation_types, excitation_values, r[0], r[-1])) for r in split]
      
     for t in threads:
@@ -465,8 +465,15 @@ class Field:
         return _field_at_point(point, self.geometry.symmetry, self.vertices, self.charges)
      
     def potential_at_point(self, point):
-        return _potential_at_point(point, self.geometry.symmetry, self.vertices, self.charges)
-
+        if self.geometry.symmetry == 'radial':
+            if point.shape == (2,):
+                point = np.array([point[0], point[1], 0.0])
+            return backend.potential_radial(point, self.vertices, self.charges)
+        elif self.geometry.symmetry == '3d':
+            return backend.potential_3d(point, self.vertices, self.charges)
+        
+        raise ValueError('Symmetry not recognized: ' + self.geometry.symmetry)
+    
     def _get_optical_axis_sampling(self, zmin=None, zmax=None):
         idx = 1 if self.geometry.symmetry != '3d' else 2
         
