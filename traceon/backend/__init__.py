@@ -247,7 +247,8 @@ def field_3d_derivs(point, z, coeffs):
 
 def fill_matrix_radial(matrix, lines, excitation_types, excitation_values, start_index, end_index):
     N = len(lines)
-    assert matrix.shape == (N, N)
+    # Due to floating conductor constraints the matrix might actually be bigger than NxN
+    assert matrix.shape[0] >= N and matrix.shape[1] >= N and matrix.shape[0] == matrix.shape[1]
     assert lines.shape == (N, 2, 3)
     assert excitation_types.shape == (N,)
     assert excitation_values.shape == (N,)
@@ -258,7 +259,7 @@ def fill_matrix_radial(matrix, lines, excitation_types, excitation_values, start
 def fill_matrix_3d(matrix, vertices, excitation_types, excitation_values, start_index, end_index):
     N = len(vertices)
     # Due to floating conductor constraints the matrix might actually be bigger than NxN
-    assert matrix.shape[0] <= N and matrix.shape[1] <= N and matrix.shape[0] == matrix.shape[1]
+    assert matrix.shape[0] >= N and matrix.shape[1] >= N and matrix.shape[0] == matrix.shape[1]
     assert vertices.shape == (N, 3, 3)
     assert excitation_types.shape == (N,)
     assert excitation_values.shape == (N,)
