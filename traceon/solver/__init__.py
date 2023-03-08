@@ -462,7 +462,15 @@ class Field:
         return self.__mul__(other)
      
     def field_at_point(self, point):
-        return _field_at_point(point, self.geometry.symmetry, self.vertices, self.charges)
+        if self.geometry.symmetry == 'radial':
+            if point.shape == (2,):
+                point = np.array([point[0], point[1], 0.0])
+            return backend.field_radial(point, self.vertices, self.charges)
+        elif self.geometry.symmetry == '3d':
+            assert point.shape == (3,)
+            return backend.field_3d(point, self.vertices, self.charges)
+             
+        raise ValueError('Symmetry not recognized: ' + self.geometry.symmetry)
      
     def potential_at_point(self, point):
         if self.geometry.symmetry == 'radial':

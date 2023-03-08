@@ -73,12 +73,7 @@ def compute_error(geom):
         point = np.array([(r3+r4)/2, 0.0, 0.0])
         field_val = field.field_at_point(point)
         print('Electric field inside conductor: Ex=%.2e, Ey=%.2e, Ez=%.2e' % (field_val[0], field_val[1], field_val[2]))
-
-    r = np.linspace(0.55, 0.95)
-    pot = [field.potential_at_point(np.array([r_, 0.0])) for r_ in r]
-    plt.plot(r, pot)
-    plt.show()
-     
+    
     print('Potential inside conductor: ', field.potential_at_point(point))
      
     # Field should be zero
