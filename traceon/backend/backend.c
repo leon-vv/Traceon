@@ -839,12 +839,13 @@ void fill_matrix_radial(double *matrix_p,
                         uint8_t *excitation_types, 
                         double *excitation_values, 
 						size_t N_lines,
+						size_t N_matrix,
                         int lines_range_start, 
                         int lines_range_end) {
     
 	assert(lines_range_start < N_lines && lines_range_end < N_lines);
 
-	double (*matrix)[N_lines] = (double (*)[N_lines]) matrix_p;
+	double (*matrix)[N_matrix] = (double (*)[N_lines]) matrix_p;
 	double (*line_points)[2][3] = (double (*)[2][3]) line_points_p;
 		
     for (int i = lines_range_start; i <= lines_range_end; i++) {
@@ -894,12 +895,13 @@ void fill_matrix_3d(double *matrix_p,
                     uint8_t *excitation_types, 
                     double *excitation_values, 
 					size_t N_lines,
+					size_t N_matrix,
                     int lines_range_start, 
                     int lines_range_end) {
     
 	assert(lines_range_start < N_lines && lines_range_end < N_lines);
 	
-	double (*matrix)[N_lines] = (double (*)[N_lines]) matrix_p;
+	double (*matrix)[N_matrix] = (double (*)[N_lines]) matrix_p;
 	double (*triangle_points)[3][3] = (double (*)[3][3]) triangle_points_p;
 		
     for (int i = lines_range_start; i <= lines_range_end; i++) {
