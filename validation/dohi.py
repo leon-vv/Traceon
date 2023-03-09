@@ -17,7 +17,7 @@ def create_geometry(N, symmetry, for_plot):
 
     revolve_factor = 0.0
 
-    bounds = ((-0.03, 0.03), (0.1, 2.0))
+    bounds = ((-0.03, 0.03), (0.1, 5.0))
 
     if symmetry == '3d':
         bounds = (bounds[0], (-0.03, 0.03), bounds[1])
@@ -26,7 +26,7 @@ def create_geometry(N, symmetry, for_plot):
     else:
         rmax = 1.25
     
-    with G.MEMSStack(bounds, z0=-0.3-0.15, revolve_factor=revolve_factor, rmax=rmax, margin_right=0.2, mesh_size=MESH_SIZE) as geom:
+    with G.MEMSStack(bounds, z0=-0.3-0.15, revolve_factor=revolve_factor, rmax=rmax, mesh_size=MESH_SIZE) as geom:
         
         # Close mirror at the bottom, like in the paper
         if symmetry == '3d':
@@ -52,61 +52,41 @@ def create_geometry(N, symmetry, for_plot):
 
 def compute_error(geom):
     exc = E.Excitation(geom)
-    exc.add_voltage(ground=0.0, mirror=-2139.1093, lens=-1200)
+    exc.add_voltage(ground=0.0, mirror=-1250, lens=695)
     
     field = S.solve_bem(exc)
-
-    ## HERMITE validation
-    #coeffs = field.get_hermite_interpolation_coeffs(sampling_factor=3)
-    #x, zi = coeffs[0], coeffs[2]
-    #x_ = x[x.size//2]
-    
-    #z = np.linspace(0.2, 1.5, 200)
-    #Ex = [field(np.array([x_, 0.0, z_]))[0] for z_ in z]
      
-    #Ex_inter = [interpolation.compute_hermite_field_3d(np.array([x_, 0.0, z_]), *coeffs)[0] for z_ in z]
-    #plt.plot(z, Ex)
-    #plt.plot(z, Ex_inter, linestyle='dashed')
-    #for z_ in zi:
-    #    plt.axvline(z_)
-    #plt.show()
-      
     bounds = ((-0.03, 0.03), (-0.03, 0.03), (0.05, 19.0)) if geom.symmetry == '3d' else ((-0.03, 0.03), (0.05, 19.0))
-    tracer_hermite = T.Tracer(field, bounds, T.Interpolation.HERMITE)
+    tracer_derivs = T.Tracer(field, bounds, T.Interpolation.AXIAL_DERIVS)
     
-    angle = 1.0e-3
-    z0 = 20-3.4
+    angle = 0.5e-3
+    z0 = 15
     
     start_pos = np.array([0.0, 0.0, z0]) if geom.symmetry == '3d' else np.array([0.0, z0])
-    start_vel = T.velocity_vec(2000, angle, -1, three_dimensional=geom.symmetry == '3d')
+    start_vel = T.velocity_vec(1000, angle, -1, three_dimensional=geom.symmetry == '3d')
      
     print('Starting trace.')
     st = time.time()
-    _, pos_hermite = tracer_hermite(start_pos, start_vel)
+    _, pos_derivs = tracer_derivs(start_pos, start_vel)
     print(f'Trace took {(time.time()-st)*1000:.1f} ms')
-    
-    plt.figure()
-    idx = 2 if geom.symmetry == '3d' else 1
-    plt.plot(pos_hermite[:, idx], pos_hermite[:, 0])
-    plt.scatter(pos_hermite[:, idx], pos_hermite[:, 0])
-    plt.show()
      
-    correct = 1.46214076e-02 # Determined by a accurate, naive trace
-    int_hermite = T.plane_intersection(pos_hermite, z0)
+    correct = 3.12936530852257e-03 # Determined by a accurate, naive trace
+    int_derivs = T.plane_intersection(pos_derivs, z0)
 
-    print(f'Calculated intersection: {int_hermite[0]:.4e} mm (correct: {correct:.4e} mm)')
+    print(f'Calculated intersection: {int_derivs[0]:.14e} mm (correct: {correct:.4e} mm)')
      
-    return exc.get_number_of_active_vertices(), abs(int_hermite[0]/correct - 1)
+    return exc.get_number_of_active_vertices(), abs(int_derivs[0]/correct - 1)
 
 
 util.parser.description = '''
-Consider the accuracy of Hermite interpolation by comparing a trace with the naive BEM tracing method
-(iterating over all line elements for every field evaluation). The geometry is the micro mirror taken from:
+Consider the accuracy of electron tracing using a field calculated by a radial series expansion
+using the axial derivatives. The accuracy of the trace is determined by computing the r value the
+electron has at z0=15mm after reflection of the Dohi mirror, see:
 
 H. Dohi, P. Kruit. Design for an aberration corrected scanning electron microscope using
 miniature electron mirrors. 2018.
 '''
 util.parse_validation_args(create_geometry, compute_error, mirror='brown', lens='blue', ground='green',
-    N={'radial': [100, 150, 300, 500], '3d': [5, 10, 20]})
+    N={'radial': [50, 100, 200, 300], '3d': [5, 10, 20]})
 
 
