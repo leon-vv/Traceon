@@ -91,7 +91,7 @@ class Geometry:
 
 class MEMSStack(occ.Geometry):
     
-    def __init__(self, bounds, z0=0.0, revolve_factor=0.0, mesh_size=1/10, rmax=2, enclose_right=True, margin_right=0.5):
+    def __init__(self, bounds, z0=0.0, revolve_factor=0.0, mesh_size=1/10, rmax=2, enclose_right=True, margin_right=0.1):
         super().__init__()
         self.bounds = bounds
         self.z0 = z0
@@ -164,16 +164,16 @@ class MEMSStack(occ.Geometry):
         # Enclose on right
         
         if self.enclose_right:
-            points = [[self.rmax + self.margin_right, self.z0], [self.rmax + self.margin_right, self._current_z]]
+            points = [[self.rmax, self.z0], [self.rmax + self.margin_right, self.z0], [self.rmax + self.margin_right, self._current_z], [self.rmax, self._current_z]]
             
             if self._3d:
                 points = [[p[0], 0.0, p[1]] for p in points]
-                line = self.add_line(self.add_point(points[0]), self.add_point(points[1]))
-                revolved = revolve_around_optical_axis(self, line, self.revolve_factor)
+                lines = [self.add_line(self.add_point(p1), self.add_point(p2)) for p1, p2 in zip(points[1:], points)]
+                revolved = revolve_around_optical_axis(self, lines, self.revolve_factor)
                 self._add_physical(self._last_name, revolved)
             else:
-                line = self.add_line(self.add_point(points[0]), self.add_point(points[1]))
-                self._add_physical(self._last_name, [line])
+                lines = [self.add_line(self.add_point(p1), self.add_point(p2)) for p1, p2 in zip(points[1:], points)]
+                self._add_physical(self._last_name, lines)
         
         for label, entities in self._physical_queue.items():
             self.add_physical(entities, label)
