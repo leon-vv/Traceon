@@ -409,56 +409,30 @@ double dz1_potential_radial_ring(double r_0, double z_0, double r, double z, voi
     return numerator / denominator;
 }
 
-double
-axial_potential_radial_ring(double r0, double z0, double r, double z, void* _) {
-	double D0 = 1/norm_2d(z0-z, r);
-	return M_PI*r/2 * D0;
-}
-
-double
-dz_axial_potential_radial_ring(double r0, double z0, double r, double z, void* _) {
-	double R = norm_2d(z0-z, r);
-	double D1 = -(z0-z)/pow(R,3);
-	return M_PI*r/2. * D1;
-}
-
-double
-dnext_axial_potential_radial_ring(double r0, double z0, double r, double z, void* args_p) {
-	struct {double *derivs; int n;} *args = args_p;
-		
-	double *derivs = args->derivs;
-	int n = args->n;
-		
-	double R = norm_2d(z0-z, r);
-		
-	double Dnext = -1./pow(R,2) * ((2*n + 1)*(z0 - z)*derivs[1] + pow(n,2)*derivs[0]);
-    return M_PI*r/2. * Dnext;
-}
-
-
 void
-axial_derivatives_radial_ring(double* derivs_p, double *lines_p, double charges[], size_t N_lines, double z[], size_t N_z) {
+axial_derivatives_radial_ring(double *derivs_p, double *lines_p, double *charges, size_t N_lines, double *z, size_t N_z) {
 
 	double (*derivs)[9] = (double (*)[9]) derivs_p;	
 	double (*lines)[2][3] = (double (*)[2][3]) lines_p;
 
 	for(int i = 0; i < N_z; i++) {
 		for(int j = 0; j < N_lines; j++) {
-			double *v1 = &lines[j][0][0];
-			double *v2 = &lines[j][1][0];
-				
-			double target[2] = {0.0, z[i]};
-			double derivs_line[9] = {0.};
-			
-			derivs_line[0] = line_integral(target, v1, v2, axial_potential_radial_ring, NULL);
-			derivs_line[1] = line_integral(target, v1, v2, dz_axial_potential_radial_ring, NULL);
-			
-			for(int k = 2; k < 9; k++) {
-				struct {double *derivs; int n;} args = {&derivs_line[k-2], k-1};
-				derivs_line[k] = line_integral(target, v1, v2, dnext_axial_potential_radial_ring, &args);
-			}
+			double z0 = z[i];
+			double r = (lines[j][0][0]+lines[j][1][0])/2;
+			double z = (lines[j][0][1]+lines[j][1][1])/2;
 
-			for(int k = 0; k < 9; k++) derivs[i][k] += charges[j]*derivs_line[k];
+			double length = norm_2d( lines[j][0][0] - lines[j][1][0], lines[j][0][1] - lines[j][1][1] );
+				
+			double R = norm_2d(z0-z, r);
+			
+			double D[9] = {0.}; // Derivatives of the currently considered line element.
+			D[0] = 1/R;
+			D[1] = -(z0-z)/pow(R, 3);
+				
+			for(int n = 1; n+1 < DERIV_2D_MAX; n++)
+				D[n+1] = -1./pow(R,2) *( (2*n + 1)*(z0-z)*D[n] + pow(n,2)*D[n-1]);
+			
+			for(int k = 0; k < 9; k++) derivs[i][k] += M_PI*r/2 * charges[j]*D[k] * length;
 		}
 	}
 }

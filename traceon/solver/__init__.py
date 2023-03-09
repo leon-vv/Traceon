@@ -512,7 +512,7 @@ class Field:
         if z is None:
             z = self._get_optical_axis_sampling()
          
-        derivs = _get_all_axial_derivatives(self.geometry.symmetry, self.vertices, self.charges, z)
+        derivs = backend.axial_derivatives_radial_ring(z, self.vertices, self.charges).T
          
         return z, derivs
     
