@@ -167,8 +167,7 @@ def _z_to_bounds(z1, z2):
 
 class Interpolation(Enum):
     NONE = 0,
-    HERMITE = 1,
-    AXIAL_DERIVS = 2
+    AXIAL_DERIVS = 1,
 
 class Tracer:
 
@@ -186,9 +185,7 @@ class Tracer:
         self.interpolate = interpolate
         self.atol = atol
         
-        if self.interpolate == Interpolation.HERMITE:
-            self.hermite_coeffs = self.field.get_hermite_interpolation_coeffs()
-        elif self.interpolate == Interpolation.AXIAL_DERIVS:
+        if self.interpolate == Interpolation.AXIAL_DERIVS:
             if symmetry == '3d':
                 self.z_radial, self.z_coeff_interpolation = self.field.get_radial_series_coeffs_3d()
             elif symmetry == 'radial':
@@ -197,8 +194,6 @@ class Tracer:
     def __call__(self, position, velocity):
         if self.interpolate == Interpolation.NONE:
             return self._trace_naive(position, velocity)
-        elif self.interpolate == Interpolation.HERMITE:
-            return self._trace_hermite(position, velocity)
         elif self.interpolate == Interpolation.AXIAL_DERIVS:
             return self._trace_axial_derivs(position, velocity)
 
