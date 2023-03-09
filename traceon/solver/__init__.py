@@ -4,7 +4,7 @@ from threading import Thread
 
 import numpy as np
 import numba as nb
-from scipy.interpolate import CubicSpline
+from scipy.interpolate import CubicSpline, BPoly, PPoly
 import findiff
 
 from ..util import *
@@ -337,20 +337,31 @@ def _field_at_point_superposition(point, scaling, symmetries, vertices, charges)
     
     return E
 
+def _get_one_dimensional_high_order_ppoly(z, y, dydz, dydz2):
+    bpoly = BPoly.from_derivatives(z, np.array([y, dydz, dydz2]).T)
+    return PPoly.from_bernstein_basis(bpoly)
 
-def _cubic_spline_coefficients(z, derivs):
+def _quintic_spline_coefficients(z, derivs):
     # k is degree of polynomial
-    assert derivs.shape == (9, z.size)
-    c = np.zeros( (z.size-1, 9, 4) )
+    #assert derivs.shape == (z.size, backend.DERIV_2D_MAX)
+    c = np.zeros( (z.size-1, 9, 6) )
     
     dz = z[1] - z[0]
-    assert np.all(np.isclose(np.diff(z), dz))
+    assert np.all(np.isclose(np.diff(z), dz)) # Equally spaced
      
     for i, d in enumerate(derivs):
-        ppoly = CubicSpline(z, d)
-        c[:, i, :], x, k = ppoly.c.T, ppoly.x, ppoly.c.shape[0]-1
+        high_order = i + 2 < len(derivs)
+        
+        if high_order:
+            ppoly = _get_one_dimensional_high_order_ppoly(z, d, derivs[i+1], derivs[i+2])
+            start_index = 0
+        else:
+            ppoly = CubicSpline(z, d)
+            start_index = 2
+        
+        c[:, i, start_index:], x, k = ppoly.c.T, ppoly.x, ppoly.c.shape[0]-1
         assert np.all(x == z)
-        assert k == 3
+        assert (high_order and k == 5) or (not high_order and k == 3)
     
     return z, c
 
@@ -394,7 +405,7 @@ def _get_hermite_field_3d(symmetry, vertices, charges, x, y, z):
 def _get_all_axial_derivatives(symmetry, lines, charges, z):
     assert symmetry == 'radial'
      
-    derivs = np.zeros( (9, z.size), dtype=np.float64 )
+    derivs = np.zeros( (backend.DERIV_2D_MAX, z.size), dtype=np.float64 )
     
     for i, z_ in enumerate(z):
         for c, l in zip(charges, lines):
@@ -408,7 +419,7 @@ def _field_from_interpolated_derivatives(point, z_inter, coeff):
 
     r, z = point[0], point[1]
      
-    assert coeff.shape == (z_inter.size-1, 9, 4)
+    assert coeff.shape == (z_inter.size-1, backend.DERIV_2D_MAX, 6)
     
     if not (z_inter[0] < z < z_inter[-1]):
         return np.array([0.0, 0.0])
@@ -418,11 +429,11 @@ def _field_from_interpolated_derivatives(point, z_inter, coeff):
     index = np.int32( (z-z0) / dz )
     diffz = z - z_inter[index]
      
-    d1, d2, d3 = diffz, diffz**2, diffz**3
+    d1, d2, d3, d4, d5 = diffz, diffz**2, diffz**3, diffz**4, diffz**5
      
     # Interpolated derivatives, 0 is potential, 1 is first derivative etc.
-    i0, i1, i2, i3, i4, i5, i6, i7, i8 = coeff[index] @ np.array([d3, d2, diffz, 1])
-    
+    i0, i1, i2, i3, i4, i5, i6, i7, i8 = coeff[index] @ np.array([d5, d4, d3, d2, d1, 1.0])
+     
     return np.array([
         r/2*(i2 - r**2/8*i4 + r**4/192*i6 - r**6/9216*i8),
         -i1 + r**2/4*i3 - r**4/64*i5 + r**6/2304*i7])
@@ -532,7 +543,7 @@ class Field:
          
         st = time.time()
         z, derivs = self.get_axial_potential_derivatives(z)
-        z, coeffs = _cubic_spline_coefficients(z, derivs)
+        z, coeffs = _quintic_spline_coefficients(z, derivs)
         print(f'Computing derivative interpolation took {(time.time()-st)*1000:.2f} ms ({len(z)} items)')
         
         self._derivs_cache.append( (z, coeffs) )
