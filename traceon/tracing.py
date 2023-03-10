@@ -205,11 +205,10 @@ class Tracer:
             if self.field.geometry.symmetry == 'radial':
                 return backend.trace_particle_radial(position, velocity, self.bounds, self.atol,
                     self.field.vertices, self.field.charges)
-            else:
-                args = (self.field.geometry.symmetry, self.field.vertices, self.field.charges)
-                return trace_particle(position, velocity,
-                    S._field_at_point, self.bounds, args=args, atol=self.atol)
-        
+            elif self.field.geometry.symmetry == '3d':
+                return backend.trace_particle_3d(position, velocity, self.bounds, self.atol,
+                    self.field.vertices, self.field.charges)
+         
         elif isinstance(self.field, S.FieldSuperposition):
             
             symmetries = [f.geometry.symmetry for f in self.field.fields]

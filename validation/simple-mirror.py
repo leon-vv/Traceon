@@ -18,10 +18,10 @@ def create_geometry(N, symmetry, for_plot):
     
     MESH_SIZE = 1/N
      
-    bounds = ( (-0.22, 0.22), (0.02, 3) )
+    bounds = ( (-0.22, 0.22), (0.02, 4) )
 
     if symmetry == '3d':
-        bounds = ( (-0.22, 0.22), (-0.22, 0.22), (0.02, 3) )
+        bounds = ( (-0.22, 0.22), (-0.22, 0.22), (0.02, 4) )
         revolve_factor = 1.0
         
         if for_plot:
@@ -81,12 +81,13 @@ def compute_error(geom):
     _, pos = tracer(pos, vel)
     print(f'Trace took {(time.time()-st)*1000:.0f} ms')
     
-    p = T.plane_intersection(pos, 10.0)
+    p = T.xy_plane_intersection(pos, 10)
      
     plt.plot(pos[:, 2 if _3d else 1], pos[:, 0])
     plt.show()
     correct = 0.16338325
      
+    print(f'Computed intersection: {p[0]:.4e} (correct: {correct:.4e})')
     return excitation.get_number_of_active_vertices(), p[0]/correct - 1
 
 util.parser.description = '''   '''
