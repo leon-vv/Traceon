@@ -378,6 +378,8 @@ def plane_intersection(positions, z):
 
     return None
 
+def xy_plane_intersection(*args, **kwargs):
+    return backend.xy_plane_intersection(*args, **kwargs)
 
 def axis_intersection(positions):
     """Calculate the intersection with the optical axis using a linear interpolation.

@@ -3,6 +3,7 @@
 #include <math.h>
 #include <stdlib.h>
 #include <stdint.h>
+#include <stdbool.h>
 
 // Symbols that are accessed by Python cannot be put in a macro.
 extern const int DERIV_2D_MAX = 9;
@@ -917,6 +918,61 @@ void fill_matrix_3d(double *matrix_p,
         }
     }
 }
+
+bool
+xy_plane_intersection_2d(double *positions_p, size_t N_p, double result[4], double z) {
+
+	double (*positions)[4] = (double (*)[4]) positions_p;
+
+	for(int i = N_p-1; i > 0; i--) {
+	
+		double z1 = positions[i-1][1];
+		double z2 = positions[i][1];
+		
+		if(fmin(z1, z2) <= z && z <= fmax(z1, z2)) {
+			double ratio = fabs( (z-z1)/(z1-z2) );
+			
+			for(int k = 0; k < 4; k++)
+				result[k] = positions[i-1][k] + ratio*(positions[i][k] - positions[i-1][k]);
+
+			return true;
+		}
+	}
+
+	return false;
+}
+
+bool
+xy_plane_intersection_3d(double *positions_p, size_t N_p, double result[6], double z) {
+
+	double (*positions)[6] = (double (*)[6]) positions_p;
+
+	for(int i = N_p-1; i > 0; i--) {
+	
+		double z1 = positions[i-1][2];
+		double z2 = positions[i][2];
+		
+		if(fmin(z1, z2) <= z && z <= fmax(z1, z2)) {
+			double ratio = fabs( (z-z1)/(z1-z2) );
+			
+			for(int k = 0; k < 6; k++)
+				result[k] = positions[i-1][k] + ratio*(positions[i][k] - positions[i-1][k]);
+
+			return true;
+		}
+	}
+
+	return false;
+}
+
+
+
+
+
+
+
+
+
 
 
 

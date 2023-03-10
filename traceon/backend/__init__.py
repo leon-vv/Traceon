@@ -68,7 +68,9 @@ backend_functions = {
     'field_3d_derivs': (None, v3, v3, z_values, arr(ndim=5), sz),
     'trace_particle_3d_derivs': (sz, times_block, tracing_block, bounds, dbl, z_values, arr(ndim=5), sz),
     'fill_matrix_radial': (None, arr(ndim=2), lines, arr(dtype=C.c_uint8, ndim=1), arr(ndim=1), sz, sz, C.c_int, C.c_int),
-    'fill_matrix_3d': (None, arr(ndim=2), vertices, arr(dtype=C.c_uint8, ndim=1), arr(ndim=1), sz, sz, C.c_int, C.c_int)
+    'fill_matrix_3d': (None, arr(ndim=2), vertices, arr(dtype=C.c_uint8, ndim=1), arr(ndim=1), sz, sz, C.c_int, C.c_int),
+    'xy_plane_intersection_2d': (C.c_bool, arr(ndim=2), sz, arr(shape=(4,)), dbl),
+    'xy_plane_intersection_3d': (C.c_bool, arr(ndim=2), sz, arr(shape=(6,)), dbl)
 }
 
 
@@ -289,7 +291,26 @@ def fill_matrix_3d(matrix, vertices, excitation_types, excitation_values, start_
     
     backend_lib.fill_matrix_3d(matrix, vertices, excitation_types, excitation_values, N, matrix.shape[0], start_index, end_index)
 
+def xy_plane_intersection(positions, z):
+    
+    assert positions.shape[1] == 4 or positions.shape[1] == 6
+    
+    positions = np.require(positions, dtype=np.float64, requirements=('C_CONTIGUOUS', 'ALIGNED'))
+     
+    if positions.shape[1] == 4:
+        result = np.zeros( (4,) )
+        found = backend_lib.xy_plane_intersection_2d(positions, len(positions), result, z)
+        
+        return result if found else None
 
+    if positions.shape[1] == 6:
+        result = np.zeros( (6,) )
+        found = backend_lib.xy_plane_intersection_3d(positions, len(positions), result, z)
+        
+        return result if found else None
+
+
+    
 
 
 
