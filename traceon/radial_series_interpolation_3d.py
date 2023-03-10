@@ -16,16 +16,13 @@ thetas = np.load(thetas_file)
 theta0 = thetas[0]
 dtheta = thetas[1]-thetas[0]
 
-radial_coefficients = np.load(coefficients_file)
 thetas_interpolation_coefficients = np.load(coefficients_file)
 
 # Maximal directional derivative being considered in 3D.
 # Directly related to the shapes in 'theta_interpolation'.
 DERIV_3D_MAX = 9
 
-_shape = thetas_interpolation_coefficients.shape
-assert _shape[1] == 4 # Cubic spline interpolation
-assert _shape[2] == DERIV_3D_MAX//2 and _shape[3] == DERIV_3D_MAX
+assert thetas_interpolation_coefficients.shape == (thetas.size-1, DERIV_3D_MAX//2, DERIV_3D_MAX, 4)
 
 @traceon_jit
 def radial_series_coefficients_3d(vertices, charges, zs, thetas, thetas_interpolation_coefficients):
@@ -61,7 +58,7 @@ def radial_series_coefficients_3d(vertices, charges, zs, thetas, thetas_interpol
                 
                 for nu in range(DERIV_3D_MAX//2):
                     for m in range(DERIV_3D_MAX):
-                        base = t**3*C[0, nu, m] + t**2*C[1, nu, m] + t*C[2, nu, m] + C[3, nu, m]
+                        base = t**3*C[nu, m, 0] + t**2*C[nu, m, 1] + t*C[nu, m, 2] + C[nu, m, 3]
                         r_dependence = r**(-2*nu - m - 1)
                         
                         coeffs[i, 0, nu, m] += c*area*w*base*cos(m*mu)*r_dependence

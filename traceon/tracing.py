@@ -188,9 +188,9 @@ class Tracer:
         
         if self.interpolate == Interpolation.AXIAL_DERIVS:
             if symmetry == '3d':
-                self.z_radial, self.z_coeff_interpolation = self.field.get_radial_series_coeffs_3d()
+                self.z_axial, self.z_coeff_interpolation = self.field.get_radial_series_coeffs_3d()
             elif symmetry == 'radial':
-                self.z_radial, self.z_coeff_interpolation = self.field.get_derivative_interpolation_coeffs()
+                self.z_axial, self.z_coeff_interpolation = self.field.get_derivative_interpolation_coeffs()
      
     def __call__(self, position, velocity):
         if self.interpolate == Interpolation.NONE:
@@ -240,12 +240,11 @@ class Tracer:
     def _trace_axial_derivs(self, position, velocity):
 
         if self.geometry.symmetry == '3d':
-            F = radial_3d.compute_interpolated_field
-            return trace_particle(position, velocity, F,
-                self.bounds, args=(self.z_radial, self.z_coeff_interpolation), atol=self.atol)
+            return backend.trace_particle_3d_derivs(position, velocity, self.bounds, self.atol,
+                self.z_axial, self.z_coeff_interpolation)
         elif self.geometry.symmetry == 'radial':
             return backend.trace_particle_radial_derivs(position, velocity, self.bounds, self.atol,
-                self.z_radial, self.z_coeff_interpolation)
+                self.z_axial, self.z_coeff_interpolation)
                 
 
 class PlaneTracer:

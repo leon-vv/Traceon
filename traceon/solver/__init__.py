@@ -518,17 +518,19 @@ class Field:
     
     def get_radial_series_coeffs_3d(self, z=None):
         assert self.geometry.symmetry == '3d'
-          
+         
         if z is None:
             z = self._get_optical_axis_sampling()
          
         print(f'Number of points on z-axis: {len(z)}')
         st = time.time()
-        coeffs = radial_3d.radial_series_coefficients_3d(self.vertices, self.charges, z, radial_3d.thetas, radial_3d.thetas_interpolation_coefficients)
-        interpolated = CubicSpline(z, coeffs)
-        print(f'Time for calculating radial series expansion coefficients: {(time.time()-st)*1000:.0f} ms')
+        coeffs = backend.axial_coefficients_3d(self.vertices, self.charges, z, radial_3d.thetas, radial_3d.thetas_interpolation_coefficients)
+        interpolated_coeffs = CubicSpline(z, coeffs).c
+        interpolated_coeffs = np.moveaxis(interpolated_coeffs, 0, -1)
+        interpolated_coeffs = np.require(interpolated_coeffs, requirements=('C_CONTIGUOUS', 'ALIGNED'))
+        print(f'Time for calculating radial series expansion coefficients: {(time.time()-st)*1000:.0f} ms ({len(z)} items)')
         
-        return z, interpolated.c
+        return z, interpolated_coeffs
 
     
     def get_derivative_interpolation_coeffs(self, z=None):

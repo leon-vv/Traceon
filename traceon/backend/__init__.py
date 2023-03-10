@@ -188,7 +188,7 @@ def trace_particle_3d(position, velocity, bounds, atol, vertices, charges):
         lambda T, P: backend_lib.trace_particle_3d(T, P, bounds, atol, vertices, charges, len(charges)))
 
 def trace_particle_3d_derivs(position, velocity, bounds, atol, z, coeffs):
-    assert coeffs.shape == (len(z), NU_MAX, M_MAX, 4)
+    assert coeffs.shape == (len(z)-1, 2, NU_MAX, M_MAX, 4)
     bounds = np.array(bounds)
      
     return trace_particle_wrapper(position, velocity,
@@ -232,7 +232,7 @@ potential_3d_point = remove_arg(backend_lib.potential_3d_point)
 
 def axial_coefficients_3d(vertices, charges, z, thetas, theta_interpolation):
     assert vertices.shape == (len(charges), 3, 3)
-    assert theta_interpolation.shape == (len(thetas), NU_MAX, M_MAX, 4)
+    assert theta_interpolation.shape == (len(thetas)-1, NU_MAX, M_MAX, 4)
 
     output_coeffs = np.zeros( (len(z), 2, NU_MAX, M_MAX) )
     
