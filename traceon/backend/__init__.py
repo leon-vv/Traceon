@@ -158,8 +158,13 @@ def trace_particle_radial(position, velocity, bounds, atol, vertices, charges):
     assert vertices.shape == (len(charges), 2, 3)
     bounds = np.array(bounds)
     
-    return trace_particle_wrapper(position, velocity,
+    if bounds.shape[0] == 2:
+        bounds = np.array([bounds[0], bounds[1], [-1.0, 0.0]])
+     
+    times, positions = trace_particle_wrapper(position, velocity,
         lambda T, P: backend_lib.trace_particle_radial(T, P, bounds, atol, vertices, charges, len(charges)))
+    
+    return times, positions[:, [0,1,3,4]]
 
 def trace_particle_radial_derivs(position, velocity, bounds, atol, z, coeffs):
     assert coeffs.shape == (len(z)-1, DERIV_2D_MAX, 6)
