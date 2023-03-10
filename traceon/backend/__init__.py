@@ -4,6 +4,8 @@ import os.path as path
 from numpy.ctypeslib import ndpointer, as_array
 import numpy as np
 
+from ..util import DEBUG
+
 backend_lib = C.CDLL(path.join(path.dirname(__file__), 'backend.so'))
 
 TRACING_BLOCK_SIZE = C.c_size_t.in_dll(backend_lib, 'TRACING_BLOCK_SIZE').value
@@ -76,7 +78,25 @@ backend_functions = {
 
 for (fun, (res, *args)) in backend_functions.items():
     libfun = getattr(backend_lib, fun)
-    
+
+    def backend_check_numpy_requirements_wrapper(*args, _cfun_reference=libfun, _cfun_name=fun):
+        new_args = []
+        
+        for a in args:
+            if isinstance(a, np.ndarray):
+                new_arr = np.require(a, requirements=('C_CONTIGUOUS', 'ALIGNED'));
+                
+                if DEBUG and not (new_arr is a):
+                    print('WARNING: copied Numpy array while making call to C backend function: ' + _cfun_name)
+                new_args.append(new_arr)
+            else:
+                new_args.append(a)
+         
+        assert len(args) == len(new_args)
+        return _cfun_reference(*new_args)
+      
+    setattr(backend_lib, fun, backend_check_numpy_requirements_wrapper)
+     
     libfun.restype = res
     libfun.argtypes = args
 
