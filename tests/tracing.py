@@ -16,7 +16,7 @@ def field(*_):
     acceleration_x = 3 # mm/ns
     return np.array([acceleration_x/EM, 0.0, 0.0])
 
-bounds = np.array(((-2.0, 2.0), (-2.0, 2.0), (-2.0, np.sqrt(12)+1)) )
+bounds = ((-2.0, 2.0), (-2.0, 2.0), (-2.0, np.sqrt(12)+1))
 times, positions = backend.trace_particle(np.zeros( (3,) ), np.array([0., 0., 3.]), field, bounds, 1e-10)
 
 correct_x = 3/2*times**2

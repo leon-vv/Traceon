@@ -96,8 +96,14 @@ def triangle_integral(point, v1, v2, v3, callback):
     return backend_lib.triangle_integral(point, v1, v2, v3, integration_cb_3d(remove_arg(callback)), None)
 
 def trace_particle_wrapper(position, velocity, fill_positions_fun):
-    assert position.shape == (3,) and velocity.shape == (3,)
     
+    if position.shape == (2,):
+        position = np.array([position[0], position[1], 0.0])
+    if velocity.shape == (2,):
+        velocity = np.array([velocity[0], velocity[1], 0.0])
+    
+    assert position.shape == (3,) and velocity.shape == (3,)
+     
     N = TRACING_BLOCK_SIZE
     pos_blocks = []
     times_blocks = []
@@ -143,29 +149,40 @@ def wrap_field_fun(ff):
     return field_fun(wrapper)
 
 def trace_particle(position, velocity, field, bounds, atol):
+    bounds = np.array(bounds)
+    
     return trace_particle_wrapper(position, velocity,
         lambda T, P: backend_lib.trace_particle(T, P, wrap_field_fun(field), bounds, atol, None))
 
 def trace_particle_radial(position, velocity, bounds, atol, vertices, charges):
     assert vertices.shape == (len(charges), 2, 3)
+    bounds = np.array(bounds)
     
     return trace_particle_wrapper(position, velocity,
         lambda T, P: backend_lib.trace_particle_radial(T, P, bounds, atol, vertices, charges, len(charges)))
 
 def trace_particle_radial_derivs(position, velocity, bounds, atol, z, coeffs):
-    assert coeffs.shape == (len(z), DERIV_2D_MAX, 4)
-     
-    return trace_particle_wrapper(position, velocity,
+    assert coeffs.shape == (len(z)-1, DERIV_2D_MAX, 6)
+    bounds = np.array(bounds)
+
+    if bounds.shape[0] == 2:
+        bounds = np.array([bounds[0], bounds[1], [-1.0, 0.0]])
+    
+    times, positions = trace_particle_wrapper(position, velocity,
         lambda T, P: backend_lib.trace_particle_radial_derivs(T, P, bounds, atol, z, coeffs, len(z)))
+    
+    return times, positions[:, [0,1,3,4]]
 
 def trace_particle_3d(position, velocity, bounds, atol, vertices, charges):
     assert vertices.shape == (len(charges), 3, 3)
+    bounds = np.array(bounds)
     
     return trace_particle_wrapper(position, velocity,
         lambda T, P: backend_lib.trace_particle_3d(T, P, bounds, atol, vertices, charges, len(charges)))
 
 def trace_particle_3d_derivs(position, velocity, bounds, atol, z, coeffs):
     assert coeffs.shape == (len(z), NU_MAX, M_MAX, 4)
+    bounds = np.array(bounds)
      
     return trace_particle_wrapper(position, velocity,
         lambda T, P: backend_lib.trace_particle_3d_derivs(T, P, bounds, atol, z, coeffs, len(z)))

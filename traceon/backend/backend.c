@@ -510,29 +510,31 @@ trace_particle_radial(double *times_array, double *pos_array, double bounds[3][2
 void
 field_radial_derivs(double point[3], double field[3], double *z_inter, double *coeff_p, size_t N_z) {
 	
-	double (*coeff)[DERIV_2D_MAX][4] = (double (*)[DERIV_2D_MAX][4]) coeff_p;
+	double (*coeff)[DERIV_2D_MAX][6] = (double (*)[DERIV_2D_MAX][6]) coeff_p;
 	
 	double r = point[0], z = point[1];
 	double z0 = z_inter[0], zlast = z_inter[N_z-1];
 	
 	if(!(z0 < z && z < zlast)) {
-		field[0] = 0.0, field[1] = 0.0;
+		field[0] = 0.0, field[1] = 0.0; field[2] = 0.0;
 		return;
 	}
-
+	
 	double dz = z_inter[1] - z_inter[0];
 	int index = (int) ( (z-z0)/dz );
 	double diffz = z - z_inter[index];
 		
-	double (*C)[4] = &coeff[index][0];
+	double (*C)[6] = &coeff[index][0];
 		
 	double derivs[DERIV_2D_MAX];
 
 	for(int i = 0; i < DERIV_2D_MAX; i++)
-		derivs[i] = C[i][0]*pow(diffz, 3) + C[i][1]*pow(diffz, 2) + C[i][2]*diffz + C[i][3];
+		derivs[i] = C[i][0]*pow(diffz, 5) + C[i][1]*pow(diffz, 4) + C[i][2]*pow(diffz, 3)
+			      +	C[i][3]*pow(diffz, 2) + C[i][4]*diffz		  + C[i][5];
 		
 	field[0] = r/2*(derivs[2] - pow(r,2)/8*derivs[4] + pow(r,4)/192*derivs[6] - pow(r,6)/9216*derivs[8]);
 	field[1] = -derivs[1] + pow(r,2)/4*derivs[3] - pow(r,4)/64*derivs[5] + pow(r,6)/2304*derivs[7];
+	field[2] = 0.0;
 }
 
 struct field_derivs_args {

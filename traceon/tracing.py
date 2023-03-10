@@ -12,6 +12,7 @@ from . import solver as S
 from .util import traceon_jit
 from . import interpolation
 from . import radial_series_interpolation_3d as radial_3d
+from . import backend
 
 EM = -0.1758820022723908 # e/m units ns and mm
 
@@ -235,14 +236,15 @@ class Tracer:
                 args=self.hermite_coeffs, atol=self.atol)
     
     def _trace_axial_derivs(self, position, velocity):
+
         if self.geometry.symmetry == '3d':
             F = radial_3d.compute_interpolated_field
+            return trace_particle(position, velocity, F,
+                self.bounds, args=(self.z_radial, self.z_coeff_interpolation), atol=self.atol)
         elif self.geometry.symmetry == 'radial':
-            F = S._field_from_interpolated_derivatives
-         
-        return trace_particle(position, velocity, F,
-            self.bounds, args=(self.z_radial, self.z_coeff_interpolation), atol=self.atol)
-        
+            return backend.trace_particle_radial_derivs(position, velocity, self.bounds, self.atol,
+                self.z_radial, self.z_coeff_interpolation)
+                
 
 class PlaneTracer:
     """A PlaneTracer traces a particle starting from the optical axis to a plane (perpendicular
