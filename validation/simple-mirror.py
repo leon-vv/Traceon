@@ -9,8 +9,6 @@ import traceon.geometry as G
 import traceon.excitation as E
 import traceon.tracing as T
 import traceon.solver as S
-import traceon.interpolation as interpolation
-import traceon.radial_series_interpolation_3d as radial_3d
 
 import util
 
@@ -91,6 +89,6 @@ def compute_error(geom):
 
 util.parser.description = '''   '''
 util.parse_validation_args(create_geometry, compute_error, mirror='brown', lens='blue', ground='green',
-    N={'radial': [50, 100, 200, 300, 500], '3d':[1, 2, 4, 6]})
+    N={'radial': [50, 100, 200, 300, 500], '3d':[2, 4, 6, 8]})
 
 

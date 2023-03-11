@@ -7,7 +7,6 @@ import traceon.geometry as G
 import traceon.excitation as E
 import traceon.tracing as T
 import traceon.solver as S
-import traceon.interpolation as interpolation
 
 import util
 

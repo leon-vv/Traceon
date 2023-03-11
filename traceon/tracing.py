@@ -3,15 +3,11 @@ import time
 from enum import Enum
 
 import matplotlib.pyplot as plt
-import numba as nb
 import numpy as np
 import scipy
 from scipy.integrate import *
 
 from . import solver as S
-from .util import traceon_jit
-from . import interpolation
-from . import radial_series_interpolation_3d as radial_3d
 from . import backend
 
 EM = -0.1758820022723908 # e/m units ns and mm
@@ -75,88 +71,6 @@ def trace_particle(position, velocity, field, bounds, rmin=None, args=(), atol=1
         return times[0], positions[0]
     else:
         return np.concatenate(times, axis=0), np.concatenate(positions, axis=0)
-
-@traceon_jit(inline='always')
-def _field_to_acceleration(field, args, y):
-    if y.shape == (4,):
-        Er, Ez = field(y, *args)
-        return np.array([y[2], y[3], EM*Er, EM*Ez])
-    elif y.shape == (6,):
-        Ex, Ey, Ez = field(y, *args)
-        return np.array([y[3], y[4], y[5], EM*Ex, EM*Ey, EM*Ez])
-
-@nb.njit(fastmath=True)
-def _trace_particle(position, velocity, field, bounds, args=(), atol=1e-10):
-    
-    assert len(bounds) == 2 or len(bounds) == 3
-    assert len(position) == len(velocity) and len(velocity) == len(bounds)
-    
-    Nblock = int(1e5)
-    V = np.linalg.norm(velocity)
-    h = STEP_MAX/V
-    hmax = STEP_MAX/V
-    hmin = STEP_MIN/V
-     
-    y = np.array([*position, *velocity])
-
-    assert len(y) == 2*len(bounds)
-     
-    position_block = np.zeros( (Nblock, y.size) ) # Could be np.empty?
-    positions = [position_block]
-    position_block[0, :] = y
-         
-    time_block = np.zeros(Nblock)
-    times = [time_block]
-    time_block[0] = 0.0
-    last_time = 0.0
-    
-    N = 1
-    
-    A = (0.0, 0.0, 2/9, 1/3, 3/4, 1, 5/6) # https://en.wikipedia.org/wiki/Runge%E2%80%93Kutta%E2%80%93Fehlberg_method
-    B6 = (0.0, 65/432, -5/16, 13/16, 4/27, 5/144) # Left pad with 0.0 to keep indices the same
-    B5 = (0.0, -17/12, 27/4, -27/5, 16/15)
-    B4 = (0.0, 69/128, -243/128, 135/64)
-    B3 = (0.0, 1/12, 1/4)
-    B2 = (0.0, 2/9)
-    CH = (0.0, 47/450, 0, 12/25, 32/225, 1/30, 6/25)
-    CT = (0.0, -1/150, 0, 3/100, -16/75, -1/20, 6/25)
-    
-    xmin, xmax = bounds[0]
-    ymin, ymax = bounds[1]
-      
-    while xmin <= y[0] <= xmax and ymin <= y[1] <= ymax and (len(bounds) == 2 or bounds[2][0] <= y[2] <= bounds[2][1]):
-        k1 = h * _field_to_acceleration(field, args,y)
-        k2 = h * _field_to_acceleration(field, args,y + B2[1]*k1)
-        k3 = h * _field_to_acceleration(field, args,y + B3[1]*k1 + B3[2]*k2)
-        k4 = h * _field_to_acceleration(field, args,y + B4[1]*k1 + B4[2]*k2 + B4[3]*k3)
-        k5 = h * _field_to_acceleration(field, args,y + B5[1]*k1 + B5[2]*k2 + B5[3]*k3 + B5[4]*k4)
-        k6 = h * _field_to_acceleration(field, args,y + B6[1]*k1 + B6[2]*k2 + B6[3]*k3 + B6[4]*k4 + B6[5]*k5)
-        
-        TE = np.max(np.abs(CT[1]*k1 + CT[2]*k2 + CT[3]*k3 + CT[4]*k4 + CT[5]*k5 + CT[6]*k6))
-         
-        if TE <= atol or h == hmin:
-            y = y + CH[1]*k1 + CH[2]*k2 + CH[3]*k3 + CH[4]*k4 + CH[5]*k5 + CH[6]*k6
-
-            if N == Nblock:
-                position_block = np.zeros( (Nblock, y.size) )
-                positions.append(position_block)
-                times_block = np.zeros(Nblock)
-                times.append(times_block)
-                N = 0
-             
-            position_block[N, :] = y
-            last_time += h
-            time_block[N] = last_time
-            N += 1
-         
-        if TE > atol/10:
-            h = max(min(0.9*h*(atol/TE)**(1/5), hmax), hmin)
-        elif TE < atol/100:
-            h = hmax
-     
-    positions[-1] = positions[-1][:N]
-    times[-1] = times[-1][:N]
-    return times, positions
 
 def _z_to_bounds(z1, z2):
     if z1 < 0 and z2 < 0:
@@ -222,6 +136,8 @@ class Tracer:
                 atol=self.atol)
     
     def _trace_hermite(self, position, velocity):
+        raise NotImplementedError('Hermite interpolation is obsolete')
+        
         if self.geometry.symmetry == '3d':
             assert len(self.hermite_coeffs) == 6
              
@@ -347,34 +263,6 @@ class PlaneTracer:
         
         return angles, positions
 
-
-@nb.njit(cache=True, boundscheck=True)
-def plane_intersection(positions, z):
-    """Calculate the intersection with a plane (perpendicular to the optical axis)
-    using a linear interpolation.
-
-    Args:
-        positions: trajectory of a particle as returned by 'trace_particle'
-        z: z-coordinate of the plane with which the intersection is computed
-    
-    Returns:
-        np.ndarray of shape (4,) containing the r coordinate, z coordinate, velocity
-        in r direction, velocity in z direction at the intersection point. Returns None
-        if the trajectory does not intersect the plane.
-    """
-     
-    assert len(positions) > 1, "Not enough positions supplied"
-
-    for i in range(len(positions)-1, -1, -1):
-        z1 = positions[i-1, 1 if positions.shape[1] == 4 else 2]
-        z2 = positions[i, 1 if positions.shape[1] == 4 else 2]
-        
-        if min(z1, z2) <= z <= max(z1, z2):
-            ratio = abs(z - z1) / abs(z1 - z2)
-            assert 0 <= ratio <= 1
-            return positions[i-1] + ratio * (positions[i] - positions[i-1])
-
-    return None
 
 def xy_plane_intersection(*args, **kwargs):
     return backend.xy_plane_intersection(*args, **kwargs)

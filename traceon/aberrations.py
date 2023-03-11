@@ -20,7 +20,6 @@ import time, pickle
 
 import matplotlib.pyplot as plt
 import numpy as np
-import numba as nb
 
 from . import tracing as T
 

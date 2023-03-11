@@ -1,10 +1,8 @@
 import numpy as np
 import math as m
 
-from numba import njit
 import traceon.backend as backend
 
-@njit
 def f1(t1, t2, x, y):
     return x**2
 
@@ -16,19 +14,16 @@ print_error(backend.line_integral(np.array([0.0, 0.0]), np.array([5.0, 0.0]), np
 print_error(backend.line_integral(np.array([0.0, 0.0]), np.array([1.0, 0.0]), np.array([1.0, 1.0]), f1), 1.0)
 print_error(backend.line_integral(np.array([0.0, 0.0]), np.array([2.0, 0.0]), np.array([2.0, 2.0]), f1), 8.0)
 
-@njit
 def f2(t1, t2, x, y):
     return 1.0
 
 print_error(backend.line_integral(np.array([0.0, 0.0]), np.array([-2.0, -2.0]), np.array([2.0, 2.0]), f2), m.sqrt(32))
     
-@njit
 def f3(t1, t2, x, y):
     return x**2 + y**2
 
 print_error(backend.line_integral(np.array([0.0, 0.0]), np.array([-2.0, -2.0]), np.array([2.0, 2.0]), f3), 8/3*m.sqrt(32))
 
-@njit
 def f4(t1, t2, x, y):
     return m.cos(x) + m.sin(y)
 

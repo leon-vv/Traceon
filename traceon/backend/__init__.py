@@ -4,7 +4,7 @@ import os.path as path
 from numpy.ctypeslib import ndpointer, as_array
 import numpy as np
 
-from ..util import DEBUG
+DEBUG = False
 
 backend_lib = C.CDLL(path.join(path.dirname(__file__), 'backend.so'))
 
@@ -46,7 +46,9 @@ tracing_block = arr(shape=(TRACING_BLOCK_SIZE, 6))
 backend_functions = {
     'ellipk' : (dbl, dbl),
     'ellipe': (dbl, dbl),
+    'normal_2d': (None, v2, v2, v2),
     'line_integral': (dbl, v2, v2, v2, integration_cb_2d, C.c_void_p),
+    'normal_3d': (None, v3, v3, v3),
     'triangle_integral': (dbl, v3, v3, v3, v3, integration_cb_3d, C.c_void_p),
     'trace_particle': (sz, times_block, tracing_block, field_fun, bounds, dbl, vp),
     'potential_radial_ring': (dbl, dbl, dbl, dbl, dbl, vp), 
@@ -103,6 +105,11 @@ for (fun, (res, *args)) in backend_functions.items():
 ellipk = np.frompyfunc(backend_lib.ellipk, 1, 1)
 ellipe = np.frompyfunc(backend_lib.ellipe, 1, 1)
 
+def normal_2d(p1, p2):
+    normal = np.zeros( (2,) )
+    backend_lib.normal_2d(p1, p2, normal)
+    return normal
+
 # Remove the last argument, which is usually a void pointer to optional data
 # passed to the function. In Python we don't need this functionality
 # as we can simply use closures.
@@ -112,7 +119,12 @@ def remove_arg(fun):
 def line_integral(point, v1, v2, callback):
     assert point.shape == (2,) and v1.shape == (2,) and v2.shape == (2,)
     return backend_lib.line_integral(point, v1, v2, integration_cb_2d(remove_arg(callback)), None)
-    
+
+def normal_3d(p1, p2, p3):
+    normal = np.zeros( (3,) )
+    backend_lib.normal_2d(p1, p2, normal)
+    return normal
+   
 def triangle_integral(point, v1, v2, v3, callback):
     assert point.shape == (3,) and v1.shape == (3,) and v2.shape == (3,) and v3.shape == (3,)
     return backend_lib.triangle_integral(point, v1, v2, v3, integration_cb_3d(remove_arg(callback)), None)

@@ -4,7 +4,7 @@ from matplotlib.collections import LineCollection
 from scipy.interpolate import *
 import numpy as np
 
-from .util import get_normal_3d
+from . import backend
 
 def _create_point_to_physical_dict(mesh):
     d = {}
@@ -80,7 +80,7 @@ def show_triangle_mesh(mesh, show_legend=True, show_normals=False, **colors):
         for i, t in enumerate(triangles_to_plot):
             v1, v2, v3 = mesh.points[t]
             middle = (v1 + v2 + v3)/3
-            normal = 0.1*get_normal_3d(v1, v2, v3)
+            normal = 0.1*backend.normal_3d(v1, v2, v3)
             normals[i] = [*middle, *normal]
          
         ax.quiver(*normals.T)
