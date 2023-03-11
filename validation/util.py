@@ -40,6 +40,7 @@ def parse_validation_args(create_geometry, compute_error, N={'radial': [10,50,10
         errors = []
 
         for n in N[args.symmetry]:
+            print('-'*75, f' N={n}')
             st = time.time()
             geom = create_geometry(n, args.symmetry, False)
             N, err = compute_error(geom)
