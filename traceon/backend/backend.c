@@ -21,6 +21,11 @@ extern const int DERIV_3D_MAX = 9;
     #define M_PI 3.14159265358979323846
 #endif
 
+#if defined(__clang__)
+	#define UNROLL _Pragma("clang loop unroll(full)")
+#elif defined(__GNUC__) || defined(__GNUG__)
+	#define UNROLL _Pragma("GCC unroll 100")
+#endif
 
 const size_t TRACING_BLOCK_SIZE = (size_t) 1e5;
 
@@ -111,7 +116,7 @@ double ellipe(double k) {
 typedef double (*integration_cb_2d)(double, double, double, double, void*);
 
 
-double
+inline double
 norm_2d(double x, double y) {
 	return sqrt(x*x + y*y);
 }
@@ -578,9 +583,9 @@ double dz1_potential_3d_point(double x0, double y0, double z0, double x, double 
 }
 
 void
-axial_coefficients_3d(double *vertices_p, double *charges, size_t N_v,
-	double *zs, double *output_coeffs_p, size_t N_z,
-	double *thetas, double *theta_coeffs_p, size_t N_t) {
+axial_coefficients_3d(double *restrict vertices_p, double *restrict charges, size_t N_v,
+	double *restrict zs, double *restrict output_coeffs_p, size_t N_z,
+	double *restrict thetas, double *restrict theta_coeffs_p, size_t N_t) {
 	
 	double (*vertices)[3][3] = (double (*)[3][3]) vertices_p;
 	double (*theta_coeffs)[NU_MAX][M_MAX][4] = (double (*)[NU_MAX][M_MAX][4]) theta_coeffs_p;
@@ -598,6 +603,7 @@ axial_coefficients_3d(double *vertices_p, double *charges, size_t N_v,
 		double area = 0.5*sqrt(pow((v2y-v1y)*(v3z-v1z)-(v2z-v1z)*(v3y-v1y), 2) + pow((v2z-v1z)*(v3x-v1x)-(v2x-v1x)*(v3z-v1z), 2) + pow((v2x-v1x)*(v3y-v1y)-(v2y-v1y)*(v3x-v1x), 2));
 		
         for (int i=0; i < N_z; i++) 
+		UNROLL
 		for (int k=0; k < N_TRIANGLE_QUAD; k++) {
 			double b1_ = QUAD_B1[k];
 			double b2_ = QUAD_B2[k];
@@ -616,7 +622,9 @@ axial_coefficients_3d(double *vertices_p, double *charges, size_t N_v,
 			double t = theta-thetas[index];
 			double (*C)[M_MAX][4] = &theta_coeffs[index][0];
 				
+			UNROLL
 			for (int nu=0; nu < NU_MAX; nu++)
+			UNROLL
 			for (int m=0; m < M_MAX; m++) {
 				double base = pow(t, 3)*C[nu][m][0] + pow(t, 2)*C[nu][m][1] + t*C[nu][m][2] + C[nu][m][3];
 				double r_dependence = pow(r, -2*nu - m - 1);
@@ -734,7 +742,7 @@ trace_particle_3d(double *times_array, double *pos_array, double bounds[3][2], d
 }
 
 void
-field_3d_derivs(double point[3], double field[3], double *zs, double *coeffs_p, size_t N_z) {
+field_3d_derivs(double point[3], double field[3], double *restrict zs, double *restrict coeffs_p, size_t N_z) {
 	
 	double (*coeffs)[2][NU_MAX][M_MAX][4] = (double (*)[2][NU_MAX][M_MAX][4]) coeffs_p;
 
@@ -754,7 +762,9 @@ field_3d_derivs(double point[3], double field[3], double *zs, double *coeffs_p, 
 	
 	double (*C)[NU_MAX][M_MAX][4] = &coeffs[index][0];
 		
+	UNROLL
 	for (int nu=0; nu < NU_MAX; nu++)
+	UNROLL
 	for (int m=0; m < M_MAX; m++) {
 		A[nu][m] = pow(z_, 3)*C[0][nu][m][0] + pow(z_, 2)*C[0][nu][m][1] + z_*C[0][nu][m][2] + C[0][nu][m][3];
 		B[nu][m] = pow(z_, 3)*C[1][nu][m][0] + pow(z_, 2)*C[1][nu][m][1] + z_*C[1][nu][m][2] + C[1][nu][m][3];
@@ -774,7 +784,9 @@ field_3d_derivs(double point[3], double field[3], double *zs, double *coeffs_p, 
 	}
 	
 	
+	UNROLL
 	for (int nu=0; nu < NU_MAX; nu++)
+	UNROLL
 	for (int m=0; m < M_MAX; m++) {
 		int exp = 2*nu + m;
 
