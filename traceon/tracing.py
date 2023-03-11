@@ -120,24 +120,6 @@ class Tracer:
             return backend.trace_particle_3d(position, velocity, self.bounds, self.atol,
                 self.field.vertices, self.field.charges)
      
-    def _trace_hermite(self, position, velocity):
-        raise NotImplementedError('Hermite interpolation is obsolete')
-        
-        if self.geometry.symmetry == '3d':
-            assert len(self.hermite_coeffs) == 6
-             
-            return trace_particle(position, velocity,
-                interpolation.compute_hermite_field_3d,
-                self.bounds,
-                args=self.hermite_coeffs, atol=self.atol)
-        else:
-            assert len(self.hermite_coeffs) == 4
-            
-            return trace_particle(position, velocity,
-                interpolation.compute_hermite_field_2d,
-                self.bounds,
-                args=self.hermite_coeffs, atol=self.atol)
-    
     def _trace_axial_derivs(self, position, velocity):
 
         if self.geometry.symmetry == '3d':

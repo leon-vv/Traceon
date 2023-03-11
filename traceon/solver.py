@@ -13,9 +13,6 @@ from . import backend
 FACTOR_AXIAL_DERIV_SAMPLING_2D = 0.2
 FACTOR_AXIAL_DERIV_SAMPLING_3D = 0.075
 
-FACTOR_HERMITE_SAMPLING_2D = 1.5
-FACTOR_HERMITE_SAMPLING_3D = 2.0
-
 DERIV_ACCURACY = 6
 
 dir_ = path.dirname(__file__)
@@ -187,9 +184,7 @@ def _quintic_spline_coefficients(z, derivs):
     
     return z, c
 
-
-class Field:
-     
+class Field2D_BEM:
     def __init__(self, excitation, vertices, names, charges, floating_voltages=None):
         assert len(vertices) == len(charges)
          
@@ -285,123 +280,3 @@ class Field:
         self._derivs_cache.append( (z, coeffs) )
         return z, coeffs
     
-    def get_hermite_interpolation_coeffs(self, *args, **kwargs):
-        raise NotImplementedError('Hermite interpolation is obsolete')
-        
-        if self.geometry.symmetry == '3d':
-            return self.get_hermite_interpolation_coeffs_3d(*args, **kwargs)
-        else:
-            return self.get_hermite_interpolation_coeffs_2d(*args, **kwargs)
-        
-    def get_hermite_interpolation_coeffs_3d(self, x=None, y=None, z=None, sampling_factor=FACTOR_HERMITE_SAMPLING_3D):
-        st = time.time()
-         
-        N = round(sampling_factor* (self.excitation.get_number_of_active_vertices())**(1/3))
-        print(f'Computing hermite with {N}^3 number of points')
-        
-        if x is None:
-            xmin, xmax = self.geometry.bounds[0]
-            x = np.linspace(xmin, xmax, N)
-        
-        if y is None:
-            ymin, ymax = self.geometry.bounds[1]
-            y = np.linspace(ymin, ymax, N)
-
-        if z is None:
-            zmin, zmax = self.geometry.bounds[2]
-            z = np.linspace(zmin, zmax, N)
-         
-        Ex, Ey, Ez = _get_hermite_field_3d(self.geometry.symmetry, self.vertices, self.charges, x, y, z)
-        assert all(arr.shape == (x.size, y.size, z.size) for arr in [Ex, Ey, Ez])
-         
-        dx, dy, dz = x[1]-x[0], y[1]-y[0], z[1]-z[0]
-        
-        DX =  findiff.FinDiff(0, dx, 1, acc=DERIV_ACCURACY)
-        DY =  findiff.FinDiff(1, dy, 1, acc=DERIV_ACCURACY)
-        DZ =  findiff.FinDiff(2, dz, 1, acc=DERIV_ACCURACY)
-        
-        DXX = findiff.FinDiff(0, dx, 2, acc=DERIV_ACCURACY)
-        DXY = findiff.FinDiff((0, dx, 1), (1, dy, 1), acc=DERIV_ACCURACY)
-        DXZ = findiff.FinDiff((0, dx, 1), (2, dz, 1), acc=DERIV_ACCURACY)
-        DYY = findiff.FinDiff(1, dy, 2, acc=DERIV_ACCURACY)
-        DYZ = findiff.FinDiff((1, dy, 1), (2, dz, 1), acc=DERIV_ACCURACY)
-        DZZ = findiff.FinDiff(2, dz, 2, acc=DERIV_ACCURACY)
-        
-        derivs = np.zeros( (3, x.size, y.size, z.size, 10) )
-        
-        for i in range(3):
-            field = [Ex, Ey, Ez][i]
-            derivs[i, :, :, :, 0] = field
-            derivs[i, :, :, :, 1] = DX(field)
-            derivs[i, :, :, :, 2] = DY(field)
-            derivs[i, :, :, :, 3] = DZ(field)
-            derivs[i, :, :, :, 4] = DXX(field)
-            derivs[i, :, :, :, 5] = DXY(field)
-            derivs[i, :, :, :, 6] = DXZ(field)
-            derivs[i, :, :, :, 7] = DYY(field)
-            derivs[i, :, :, :, 8] = DYZ(field)
-            derivs[i, :, :, :, 9] = DZZ(field)
-        
-        coeffs_x = interpolation.get_hermite_coeffs_3d(x, y, z, derivs[0])
-        coeffs_y = interpolation.get_hermite_coeffs_3d(x, y, z, derivs[1])
-        coeffs_z = interpolation.get_hermite_coeffs_3d(x, y, z, derivs[2])
-
-        print(f'Computing hermite interpolation coefficients took {(time.time()-st)*1000:.0f} ms')
-
-        return x, y, z, coeffs_x, coeffs_y, coeffs_z
-
-        
-        
-    def get_hermite_interpolation_coeffs_2d(self, x=None, y=None, z=None, sampling_factor=FACTOR_HERMITE_SAMPLING_2D):
-        st = time.time()
-         
-        N = round(sampling_factor*m.sqrt(self.excitation.get_number_of_active_vertices()))
-        
-        if x is None:
-            xmin, xmax = self.geometry.bounds[0]
-            x = np.linspace(xmin, xmax, N)
-        
-        if y is None:
-            ymin, ymax = self.geometry.bounds[1]
-            y = np.linspace(ymin, ymax, N)
-         
-        Ex, Ey = _get_hermite_field_2d(self.geometry.symmetry, self.vertices, self.charges, x, y)
-        assert Ex.shape == Ey.shape
-         
-        dx, dy = x[1]-x[0], y[1]-y[0]
-        
-        DX =  findiff.FinDiff(0, dx, 1, acc=DERIV_ACCURACY)
-        DY =  findiff.FinDiff(1, dy, 1, acc=DERIV_ACCURACY)
-        DXX = findiff.FinDiff(0, dx, 2, acc=DERIV_ACCURACY)
-        DXY = findiff.FinDiff((0, dx, 1), (1, dy, 1), acc=DERIV_ACCURACY)
-        DYY = findiff.FinDiff(1, dy, 2, acc=DERIV_ACCURACY)
-
-        derivs_x = np.zeros( (*Ex.shape, 6) )
-        derivs_x[:, :, 0] = Ex
-        derivs_x[:, :, 1] = DX(Ex)
-        derivs_x[:, :, 2] = DY(Ex)
-        derivs_x[:, :, 3] = DXX(Ex)
-        derivs_x[:, :, 4] = DXY(Ex)
-        derivs_x[:, :, 5] = DYY(Ex)
-        
-        derivs_y = np.zeros( (*Ey.shape, 6) )
-        derivs_y[:, :, 0] = Ey
-        derivs_y[:, :, 1] = DX(Ey)
-        derivs_y[:, :, 2] = DY(Ey)
-        derivs_y[:, :, 3] = DXX(Ey)
-        derivs_y[:, :, 4] = DXY(Ey)
-        derivs_y[:, :, 5] = DYY(Ey)
-
-        coeffs_x = interpolation.get_hermite_coeffs_2d(x, y, derivs_x)
-        coeffs_y = interpolation.get_hermite_coeffs_2d(x, y, derivs_y)
-
-        print(f'Computing hermite interpolation coefficients took {(time.time()-st)*1000:.0f} ms')
-
-        return x, y, coeffs_x, coeffs_y
-
-    def compute_hermite_interpolated_field(self, x, y, coeffs_x, coeffs_y, x_, y_):
-        return interpolation.compute_hermite_field_2d(x, y, coeffs_x, coeffs_y, x_, y_)
-
-
-
-
