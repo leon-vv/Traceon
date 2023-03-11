@@ -196,8 +196,6 @@ class Field2D_BEM:
         assert len(self.charges) == len(self.vertices)
         self.floating_voltages = floating_voltages
 
-        self._derivs_cache = []
-
     def __call__(self, point):
         return self.field_at_point(point)
      
@@ -267,16 +265,11 @@ class Field2D_BEM:
         
         if z is None:
             z = self._get_optical_axis_sampling()
-        
-        for (z_cache, coeffs) in self._derivs_cache:
-            if z.shape == z_cache.shape and np.all(z_cache == z):
-                return z, coeffs
          
         st = time.time()
         z, derivs = self.get_axial_potential_derivatives(z)
         z, coeffs = _quintic_spline_coefficients(z, derivs)
         print(f'Computing derivative interpolation took {(time.time()-st)*1000:.2f} ms ({len(z)} items)')
-        
-        self._derivs_cache.append( (z, coeffs) )
+         
         return z, coeffs
     
