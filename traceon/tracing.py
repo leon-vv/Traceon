@@ -91,7 +91,7 @@ class Tracer:
         self.geometry = field.geometry
         assert self.geometry.bounds is None or len(bounds) == len(self.geometry.bounds)
         self.field = field
-        assert isinstance(field, S.Field) or isinstance(field, S.FieldSuperposition)
+        assert isinstance(field, S.Field)
         
         symmetry = self.geometry.symmetry
         assert (symmetry == '3d' and len(bounds) == 3) or len(bounds) == 2
@@ -113,28 +113,13 @@ class Tracer:
             return self._trace_axial_derivs(position, velocity)
 
     def _trace_naive(self, position, velocity):
+        if self.field.geometry.symmetry == 'radial':
+            return backend.trace_particle_radial(position, velocity, self.bounds, self.atol,
+                self.field.vertices, self.field.charges)
+        elif self.field.geometry.symmetry == '3d':
+            return backend.trace_particle_3d(position, velocity, self.bounds, self.atol,
+                self.field.vertices, self.field.charges)
      
-        if isinstance(self.field, S.Field):
-            
-            if self.field.geometry.symmetry == 'radial':
-                return backend.trace_particle_radial(position, velocity, self.bounds, self.atol,
-                    self.field.vertices, self.field.charges)
-            elif self.field.geometry.symmetry == '3d':
-                return backend.trace_particle_3d(position, velocity, self.bounds, self.atol,
-                    self.field.vertices, self.field.charges)
-         
-        elif isinstance(self.field, S.FieldSuperposition):
-            
-            symmetries = [f.geometry.symmetry for f in self.field.fields]
-            lines = [f.vertices for f in self.field.fields]
-            charges = [f.charges for f in self.field.fields]
-            
-            return trace_particle(position, velocity,
-                S._field_at_point_superposition,
-                self.bounds,
-                args=(self.field.scales, symmetries, lines, charges),
-                atol=self.atol)
-    
     def _trace_hermite(self, position, velocity):
         raise NotImplementedError('Hermite interpolation is obsolete')
         

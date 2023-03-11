@@ -206,21 +206,6 @@ class Field:
     def __call__(self, point):
         return self.field_at_point(point)
      
-    def __add__(self, other):
-        if isinstance(other, Field):
-            return FieldSuperposition([self, other])
-        if isinstance(other, FieldSuperposition):
-            return other.__add__(self)
-
-        raise NotImplementedError('Can only add Field or FieldSuperposition to Field (unrecognized type in +)')
-
-    def __mul__(self, other):
-        assert isinstance(other, int) or isinstance(other, float), 'Can only multiply Field by int or float (unrecognized type in *)'
-        return FieldSuperposition([self], scales=[float(other)])
-
-    def __rmul__(self, other):
-        return self.__mul__(other)
-     
     def field_at_point(self, point):
         if self.geometry.symmetry == 'radial':
             if point.shape == (2,):
