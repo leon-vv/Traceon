@@ -13,6 +13,8 @@ import traceon.tracing as T
 import util
 
 angle = 0.05
+r1 = 7.5
+r2 = 12.5
 
 def create_geometry(N, symmetry, for_plot):
     """Create the spherical deflection analyzer from the following paper
@@ -22,10 +24,7 @@ def create_geometry(N, symmetry, for_plot):
     1999.
     """
     with occ.Geometry() as geom:
-        
-        r1 = 7.5
-        r2 = 12.5
-
+         
         points = [
             [0, -r2],
             [0, -r1],
@@ -48,13 +47,13 @@ def create_geometry(N, symmetry, for_plot):
         if symmetry == 'radial':
             geom.add_physical([l2, l3], 'inner')
             geom.add_physical([l5, l6], 'outer')
-            return G.Geometry(geom.generate_mesh(dim=1), N, symmetry='radial')
+            return G.Geometry(geom.generate_mesh(dim=1), N, None, symmetry='radial')
         elif symmetry == '3d':
             s1 = G.revolve_around_optical_axis(geom, [l2, l3])
             s2 = G.revolve_around_optical_axis(geom, [l5, l6], factor=0.5 if for_plot else 1.0)
             geom.add_physical(s1, 'inner')
             geom.add_physical(s2, 'outer')
-            return G.Geometry(geom.generate_mesh(dim=2), N, symmetry='3d')
+            return G.Geometry(geom.generate_mesh(dim=2), N, None, symmetry='3d')
 
 
 def compute_error(geom):
@@ -66,13 +65,15 @@ def compute_error(geom):
     assert -12.5 <= correct <= 7.5 # Between spheres
      
     if geom.symmetry == 'radial':
+        bounds = ((-0.1, 12.5), (-12.5, 12.5))
         position = np.array([0.0, 10.0]) 
         vel = np.array([np.cos(angle), -np.sin(angle)])*0.5930969604919433
     else:
+        bounds = ((-0.1, 12.5), (-0.1, 0.1), (-12.5, 12.5))
         position = np.array([0.0, 0.0, 10.0]) 
         vel = np.array([np.cos(angle), 0.0, -np.sin(angle)])*0.5930969604919433
      
-    tracer = T.Tracer(field, 12.5, -12.5, 12.5, rmin=-0.1, interpolate=False)
+    tracer = T.Tracer(field, bounds)
     times, pos = tracer(position, vel)
      
     if geom.symmetry == '3d':

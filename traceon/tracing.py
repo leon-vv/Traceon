@@ -175,7 +175,7 @@ class Tracer:
     def __init__(self, field, bounds, interpolate=Interpolation.NONE, atol=1e-10):
          
         self.geometry = field.geometry
-        assert len(bounds) == len(self.geometry.bounds)
+        assert self.geometry.bounds is None or len(bounds) == len(self.geometry.bounds)
         self.field = field
         assert isinstance(field, S.Field) or isinstance(field, S.FieldSuperposition)
         
