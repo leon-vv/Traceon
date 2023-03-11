@@ -83,8 +83,6 @@ def compute_error(geom):
     
     p = T.xy_plane_intersection(pos, 10)
      
-    plt.plot(pos[:, 2 if _3d else 1], pos[:, 0])
-    plt.show()
     correct = 0.16338325
     calculated = np.linalg.norm(p[:2] if _3d else p[:1])
      
