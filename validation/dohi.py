@@ -63,7 +63,7 @@ def compute_error(geom):
     z0 = 15
     
     start_pos = np.array([0.0, 0.0, z0]) if geom.symmetry == '3d' else np.array([0.0, z0])
-    start_vel = T.velocity_vec(1000, angle, -1, three_dimensional=geom.symmetry == '3d')
+    start_vel = T.velocity_vec_xz_plane(1000, angle, three_dimensional=geom.symmetry == '3d')
      
     print('Starting trace.')
     st = time.time()

@@ -16,27 +16,27 @@ from . import backend
 
 EM = -0.1758820022723908 # e/m units ns and mm
 
-def velocity_vec(eV, theta, direction=1, three_dimensional=False):
-    """Compute a velocity vector (np.array of shape (2,)).
-    
-    Args:
-        eV: the energy of the electron
-        theta: angle with respect to the optical axis (r=0)
-        direction: whether the vector points in the positive z direction
-            (direction=1) or in the negative z direction (direction=-1)
-    
-    Returns:
-        Velocity vector (np.array of shape (2,))
-    """
 
+def velocity_vec(eV, direction):
+    assert eV > 0.0
+    
+    if eV > 10000:
+        print(f'WARNING: velocity vector with large energy ({eV} eV) requested. Note that relativistic tracing is not yet implemented.')
+     
     # From electronvolt to mm/ns
     V = 0.5930969604919433*sqrt(eV)
-    assert direction == -1.0 or direction == 1.0
+    return V* np.array(direction)/np.linalg.norm(direction)
+
+def velocity_vec_spherical(eV, theta, phi):
+    return velocity_vec(eV, [sin(theta)*cos(phi), sin(theta)*sin(phi), cos(theta)])
+
+def velocity_vec_xz_plane(eV, angle, downward=True, three_dimensional=False):
+    
+    sign = -1 if downward else 1
+    direction = [sin(angle), sign*cos(angle)] if not three_dimensional else [sin(angle), 0.0, sign*cos(angle)]
+    return velocity_vec(eV, direction)
+    
      
-    if not three_dimensional:
-        return np.array([V*sin(theta), direction*V*cos(theta)])
-    else:
-        return np.array([V*sin(theta), 0.0, direction*V*cos(theta)])
 
 def _angle(vr, vz):
     return np.sign(vr) * np.arctan(np.abs(vr/vz))

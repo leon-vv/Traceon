@@ -1,4 +1,4 @@
-import time
+import time, math
 
 import numpy as np
 import matplotlib.pyplot as plt
@@ -75,7 +75,7 @@ def compute_error(geom):
     tracer = T.Tracer(field, bounds, T.Interpolation.AXIAL_DERIVS)
     
     pos = np.array([0.0, 10.0]) if not _3d else np.array([0.0, 0.0, 10.0])
-    vel = T.velocity_vec(100, 1e-3, -1, three_dimensional=_3d)
+    vel = T.velocity_vec_xz_plane(100, 1e-3, three_dimensional=_3d)
      
     st = time.time()
     _, pos = tracer(pos, vel)
@@ -86,9 +86,10 @@ def compute_error(geom):
     plt.plot(pos[:, 2 if _3d else 1], pos[:, 0])
     plt.show()
     correct = 0.16338325
+    calculated = np.linalg.norm(p[:2] if _3d else p[:1])
      
-    print(f'Computed intersection: {p[0]:.4e} (correct: {correct:.4e})')
-    return excitation.get_number_of_active_vertices(), p[0]/correct - 1
+    print(f'Computed intersection: {calculated:.4e} (correct: {correct:.4e})')
+    return excitation.get_number_of_active_vertices(), calculated/correct - 1
 
 util.parser.description = '''   '''
 util.parse_validation_args(create_geometry, compute_error, mirror='brown', lens='blue', ground='green',
