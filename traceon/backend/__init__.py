@@ -56,6 +56,7 @@ backend_functions = {
     'dz1_potential_radial_ring': (dbl, dbl, dbl, dbl, dbl, vp), 
     'axial_derivatives_radial_ring': (None, arr(ndim=2), lines, charges, sz, z_values, sz),
     'potential_radial': (dbl, v3, vertices, charges, sz),
+    'potential_radial_derivs': (dbl, v2, z_values, arr(ndim=3), sz),
     'field_radial': (None, v3, v3, vertices, charges, sz),
     'trace_particle_radial': (sz, times_block, tracing_block, bounds, dbl, vertices, charges, sz),
     'field_radial_derivs': (None, v3, v3, z_values, arr(ndim=3), sz),
@@ -243,6 +244,10 @@ def potential_radial(point, vertices, charges):
     assert vertices.shape == (len(charges), 2, 3)
     return backend_lib.potential_radial(point, vertices, charges, len(charges))
 
+def potential_radial_derivs(point, z, coeffs):
+    assert coeffs.shape == (len(z), DERIV_2D_MAX, 6)
+    return backend_lib.potential_radial_derivs(point, z, coeffs, len(z))
+
 def field_radial(point, vertices, charges):
     assert point.shape == (3,)
     assert vertices.shape == (len(charges), 2, 3)
@@ -252,7 +257,7 @@ def field_radial(point, vertices, charges):
     return field
 
 def field_radial_derivs(point, z, coeffs):
-    assert coeffs.shape == (len(z), DERIV_2D_MAX, 4)
+    assert coeffs.shape == (len(z), DERIV_2D_MAX, 6)
     field = np.zeros( (3,) )
     backend_lib.field_radial_derivs(point, field, z, coeffs, len(z))
     return field

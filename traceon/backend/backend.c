@@ -459,6 +459,32 @@ potential_radial(double point[3], double *vertices_p, double *charges, size_t N_
 	return sum_;
 }
 
+double
+potential_radial_derivs(double point[2], double *z_inter, double *coeff_p, size_t N_z) {
+	
+	double (*coeff)[DERIV_2D_MAX][6] = (double (*)[DERIV_2D_MAX][6]) coeff_p;
+	
+	double r = point[0], z = point[1];
+	double z0 = z_inter[0], zlast = z_inter[N_z-1];
+	
+	if(!(z0 < z && z < zlast)) {
+		return 0.0;
+	}
+	
+	double dz = z_inter[1] - z_inter[0];
+	int index = (int) ( (z-z0)/dz );
+	double diffz = z - z_inter[index];
+		
+	double (*C)[6] = &coeff[index][0];
+		
+	double derivs[DERIV_2D_MAX];
+
+	for(int i = 0; i < DERIV_2D_MAX; i++)
+		derivs[i] = C[i][0]*pow(diffz, 5) + C[i][1]*pow(diffz, 4) + C[i][2]*pow(diffz, 3)
+			      +	C[i][3]*pow(diffz, 2) + C[i][4]*diffz		  + C[i][5];
+		
+	return derivs[0] - pow(r,2)*derivs[2] + pow(r,4)/64.*derivs[4] - pow(r,6)/2304.*derivs[6] + pow(r,8)/147456.*derivs[8];
+}
 
 
 //////////////////////////////// RADIAL SYMMETRY FIELD EVALUATION
