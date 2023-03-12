@@ -54,9 +54,11 @@ def compute_error(geom):
     exc.add_voltage(ground=0.0, mirror=-1250, lens=695)
     
     field = S.solve_bem(exc)
+
+    axial_field = field.axial_derivative_interpolation(0.1, 5.0)
      
     bounds = ((-0.03, 0.03), (-0.03, 0.03), (0.05, 19.0)) if geom.symmetry == '3d' else ((-0.03, 0.03), (0.05, 19.0))
-    tracer_derivs = T.Tracer(field, bounds, T.Interpolation.AXIAL_DERIVS)
+    tracer_derivs = T.Tracer(axial_field, bounds)
     
     angle = 0.5e-3
     z0 = 15

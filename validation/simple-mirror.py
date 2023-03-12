@@ -70,7 +70,8 @@ def compute_error(geom):
     if _3d:
         bounds = ((-0.22, 0.22), (-0.22, 0.22), (0.02, 11))
      
-    tracer = T.Tracer(field, bounds, T.Interpolation.AXIAL_DERIVS)
+    axial_field = field.axial_derivative_interpolation(0.02, 4)
+    tracer = T.Tracer(axial_field, bounds)
     
     pos = np.array([0.0, 10.0]) if not _3d else np.array([0.0, 0.0, 10.0])
     vel = T.velocity_vec_xz_plane(100, 1e-3, three_dimensional=_3d)

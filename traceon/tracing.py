@@ -80,55 +80,32 @@ def _z_to_bounds(z1, z2):
     else:
         return (min(z1, z2)-1, max(z1, z2)+1)
 
-class Interpolation(Enum):
-    NONE = 0,
-    AXIAL_DERIVS = 1,
-
 class Tracer:
 
-    def __init__(self, field, bounds, interpolate=Interpolation.NONE, atol=1e-10):
+    def __init__(self, field, bounds, atol=1e-10):
          
         self.geometry = field.geometry
         assert self.geometry.bounds is None or len(bounds) == len(self.geometry.bounds)
         self.field = field
-        assert isinstance(field, S.Field)
+        assert isinstance(field, S.FieldRadialBEM) or isinstance(field, S.FieldRadialAxial) or \
+               isinstance(field, S.Field3D_BEM)    or isinstance(field, S.Field3DAxial)
         
         symmetry = self.geometry.symmetry
         assert (symmetry == '3d' and len(bounds) == 3) or len(bounds) == 2
         self.bounds = bounds
          
-        self.interpolate = interpolate
         self.atol = atol
         
-        if self.interpolate == Interpolation.AXIAL_DERIVS:
-            if symmetry == '3d':
-                self.z_axial, self.z_coeff_interpolation = self.field.get_radial_series_coeffs_3d()
-            elif symmetry == 'radial':
-                self.z_axial, self.z_coeff_interpolation = self.field.get_derivative_interpolation_coeffs()
-     
     def __call__(self, position, velocity):
-        if self.interpolate == Interpolation.NONE:
-            return self._trace_naive(position, velocity)
-        elif self.interpolate == Interpolation.AXIAL_DERIVS:
-            return self._trace_axial_derivs(position, velocity)
-
-    def _trace_naive(self, position, velocity):
-        if self.field.geometry.symmetry == 'radial':
-            return backend.trace_particle_radial(position, velocity, self.bounds, self.atol,
-                self.field.vertices, self.field.charges)
-        elif self.field.geometry.symmetry == '3d':
-            return backend.trace_particle_3d(position, velocity, self.bounds, self.atol,
-                self.field.vertices, self.field.charges)
-     
-    def _trace_axial_derivs(self, position, velocity):
-
-        if self.geometry.symmetry == '3d':
-            return backend.trace_particle_3d_derivs(position, velocity, self.bounds, self.atol,
-                self.z_axial, self.z_coeff_interpolation)
-        elif self.geometry.symmetry == 'radial':
-            return backend.trace_particle_radial_derivs(position, velocity, self.bounds, self.atol,
-                self.z_axial, self.z_coeff_interpolation)
-                
+        if isinstance(self.field, S.FieldRadialBEM):
+            return backend.trace_particle_radial(position, velocity, self.bounds, self.atol, self.field.lines, self.field.charges)
+        elif isinstance(self.field, S.FieldRadialAxial):
+            return backend.trace_particle_radial_derivs(position, velocity, self.bounds, self.atol, self.field.z, self.field.coeffs)
+        elif isinstance(self.field, S.Field3D_BEM):
+            return backend.trace_particle_3d(position, velocity, self.bounds, self.atol, self.field.vertices, self.field.charges)
+        elif isinstance(self.field, S.Field3DAxial):
+            return backend.trace_particle_3d_derivs(position, velocity, self.bounds, self.atol, self.field.z, self.field.coeffs)
+ 
 
 class PlaneTracer:
     """A PlaneTracer traces a particle starting from the optical axis to a plane (perpendicular

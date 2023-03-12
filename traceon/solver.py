@@ -153,7 +153,7 @@ def solve_bem(excitation):
      
     assert np.all(np.isfinite(charges))
     
-    field_class = Field2D_BEM if excitation.geometry.symmetry != '3d' else Field3D_BEM
+    field_class = FieldRadialBEM if excitation.geometry.symmetry != '3d' else Field3D_BEM
     return field_class(excitation, vertices, names, charges, floating_voltages=floating_voltages)
 
 
@@ -183,9 +183,9 @@ def _quintic_spline_coefficients(z, derivs):
         assert np.all(x == z)
         assert (high_order and k == 5) or (not high_order and k == 3)
     
-    return z, c
+    return c
 
-class Field2D_BEM:
+class FieldRadialBEM:
     def __init__(self, excitation, lines, names, charges, floating_voltages=None):
         assert len(lines) == len(charges)
          
@@ -217,39 +217,60 @@ class Field2D_BEM:
         
         return backend.potential_radial(point, self.lines, self.charges)
      
-    def _get_optical_axis_sampling(self, zmin=None, zmax=None):
-        idx = 1 if self.geometry.symmetry != '3d' else 2
-        
-        if zmin is None:
-            zmin = self.geometry.bounds[1][0]
-        if zmax is None:
-            zmax = self.geometry.bounds[1][1]
-          
+    def get_axial_potential_derivatives(self, z):
+        return backend.axial_derivatives_radial_ring(z, self.lines, self.charges).T
+     
+    def axial_derivative_interpolation(self, zmin, zmax):
         assert zmax > zmin
-        # TODO: determine good factor between mesh size and optical axis sampling
-        return np.linspace(zmin, zmax, int(FACTOR_AXIAL_DERIV_SAMPLING_2D*self.excitation.get_number_of_active_lines()))
-     
-    def get_axial_potential_derivatives(self, z=None):
-        assert self.geometry.symmetry == 'radial'
-         
-        if z is None:
-            z = self._get_optical_axis_sampling()
-         
-        derivs = backend.axial_derivatives_radial_ring(z, self.lines, self.charges).T
-         
-        return z, derivs
-     
-    def get_derivative_interpolation_coeffs(self, z=None):
-        if z is None:
-            z = self._get_optical_axis_sampling()
-         
+        z = np.linspace(zmin, zmax, int(FACTOR_AXIAL_DERIV_SAMPLING_2D*self.excitation.get_number_of_active_vertices()))
+        
         st = time.time()
-        z, derivs = self.get_axial_potential_derivatives(z)
-        z, coeffs = _quintic_spline_coefficients(z, derivs)
+        derivs = self.get_axial_potential_derivatives(z)
+        coeffs = _quintic_spline_coefficients(z, derivs)
         print(f'Computing derivative interpolation took {(time.time()-st)*1000:.2f} ms ({len(z)} items)')
-         
-        return z, coeffs
+        
+        return FieldRadialAxial(self.excitation, z, coeffs)
+
+class FieldRadialAxial:
+    def __init__(self, excitation, z, coeffs):
+        self.geometry = excitation.geometry
+        assert self.geometry.symmetry == 'radial'
+        self.excitation = excitation
+        self.z = z
+        self.coeffs = coeffs
+     
+    def __call__(self, point):
+        return self.field_at_point(point)
+
+    def field_at_point(self, point):
+        assert point.shape == (2,)
+        return backend.field_radial_derivs(point, self.z, self.coeffs)
+     
+    def potential_at_point(self, point):
+        assert point.shape == (2,)
+        return backend.potential_radial_derivs(point, self.z, self.coeffs)
     
+class Field3DAxial:
+    def __init__(self, excitation, z, coeffs):
+        self.geometry = excitation.geometry
+        assert self.geometry.symmetry == '3d'
+        self.excitation = excitation
+        self.z = z
+        self.coeffs = coeffs
+
+    def __call__(self, point):
+        return self.field_at_point(point)
+
+    def field_at_point(self, point):
+        assert point.shape == (3,)
+        return backend.field_3d_derivs(point, self.z, self.coeffs)
+     
+    def potential_at_point(self, point):
+        assert point.shape == (3,)
+        return backend.potential_3d_derivs(point, self.z, self.coeffs)
+    
+    
+
 class Field3D_BEM:
     def __init__(self, excitation, triangles, names, charges, floating_voltages=None):
         assert len(triangles) == len(charges)
@@ -274,20 +295,10 @@ class Field3D_BEM:
         assert point.shape == (3,)
         return backend.potential_3d(point, self.triangles, self.charges)
     
-    def _get_optical_axis_sampling(self, zmin=None, zmax=None):
-        if zmin is None:
-            zmin = self.geometry.bounds[2][0]
-        if zmax is None:
-            zmax = self.geometry.bounds[2][1]
-          
+    def axial_derivative_interpolation(self, zmin, zmax):
         assert zmax > zmin
-        return np.linspace(zmin, zmax, int(FACTOR_AXIAL_DERIV_SAMPLING_3D*self.excitation.get_number_of_active_triangles()))
-     
-    def get_radial_series_coeffs_3d(self, z=None):
-         
-        if z is None:
-            z = self._get_optical_axis_sampling()
-         
+        z = np.linspace(zmin, zmax, int(FACTOR_AXIAL_DERIV_SAMPLING_3D*self.excitation.get_number_of_active_vertices()))
+        
         print(f'Number of points on z-axis: {len(z)}')
         st = time.time()
         coeffs = backend.axial_coefficients_3d(self.triangles, self.charges, z, thetas, thetas_interpolation_coefficients)
@@ -295,5 +306,5 @@ class Field3D_BEM:
         interpolated_coeffs = np.moveaxis(interpolated_coeffs, 0, -1)
         interpolated_coeffs = np.require(interpolated_coeffs, requirements=('C_CONTIGUOUS', 'ALIGNED'))
         print(f'Time for calculating radial series expansion coefficients: {(time.time()-st)*1000:.0f} ms ({len(z)} items)')
-        
-        return z, interpolated_coeffs
+
+        return Field3DAxial(self.excitation, z, interpolated_coeffs)
