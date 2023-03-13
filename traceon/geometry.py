@@ -1,8 +1,12 @@
 import numpy as np
 from math import sqrt
 from pygmsh import *
+import gmsh
+from enum import Enum
 
 import pickle
+
+from .util import Saveable
 
 
 def revolve_around_optical_axis(geom, elements, factor=1.0):
@@ -17,8 +21,71 @@ def revolve_around_optical_axis(geom, elements, factor=1.0):
      
     return revolved
 
+class Symmetry(Enum):
+    RADIAL = 0
+    THREE_D = 1
 
-class Geometry:
+class Geometry(occ.Geometry):
+    def __init__(self, symmetry, size_from_distance=False, zmin=None, zmax=None, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.size_from_distance = size_from_distance
+        self.zmin = zmin
+        self.zmax = zmax
+        self.symmetry = symmetry
+        self._physical_queue = dict()
+        
+    def _add_physical(self, name, entities):
+        assert isinstance(entities, list)
+        
+        if name in self._physical_queue:
+            self._physical_queue[name].extend(entities)
+        else:
+            self._physical_queue[name] = entities
+
+    def generate_mesh(self, *args, **kwargs):
+        # Enclose on right
+          
+        for label, entities in self._physical_queue.items():
+            self.add_physical(entities, label)
+          
+        if self.size_from_distance:
+            self.set_mesh_size_callback(self.mesh_size_callback)
+        
+        dim = 2 if self.symmetry == Symmetry.THREE_D else 1
+        
+        return Mesh(super().generate_mesh(dim=dim, *args, **kwargs), self.symmetry)
+
+    def set_mesh_size_factor(self, factor):
+        if self.symmetry == Symmetry.RADIAL:
+            gmsh.option.setNumber('Mesh.MeshSizeFactor', 1/factor)
+        elif self.symmetry == Symmetry.THREE_D:
+            # GMSH seems to produce meshes which contain way more elements for 3D geometries
+            # with the same mesh factor. This is confusing for users and therefore we arbtrarily
+            # incrase the mesh size to roughly correspond with the 2D number of elements.
+            gmsh.option.setNumber('Mesh.MeshSizeFactor', 4*sqrt(1/factor))
+
+    def set_minimum_mesh_size(self, size):
+        gmsh.option.setNumber('Mesh.MeshSizeMin', size)
+     
+    def mesh_size_callback(self, dim, tag, x, y, z):
+        # Scale mesh size with distance to optical axis, but only the part of the optical
+        # axis that lies between zmin and zmax
+        
+        z_optical = z if self.symmetry == Symmetry.THREE_D else y
+         
+        if self.zmin is not None:
+            z_optical = max(z_optical, self.zmin)
+        if self.zmax is not None:
+            z_optical = min(z_optical, self.zmax)
+         
+        if self.symmetry == Symmetry.THREE_D:
+            return sqrt( x**2 + y**2 + (z-z_optical)**2 )
+        else:
+            return sqrt( x**2 + (y-z_optical)**2 )
+
+
+
+class Mesh:
     """Class containing a mesh and related metadata.
     
     Attributes:
@@ -26,23 +93,12 @@ class Geometry:
         metadata: dictionary containing arbitrary metadata
     """
     
-    def __init__(self, mesh, N, bounds, metadata={}, symmetry='radial'):
-        """ Args: """
+    def __init__(self, mesh, symmetry, metadata={}):
+        assert isinstance(symmetry, Symmetry)
         self.mesh = mesh
         self.metadata = metadata
-        self.N = N
-        self._symmetry = symmetry
-
-        assert bounds is None or (symmetry == '3d' and len(bounds) == 3) or len(bounds) == 2
-         
-        self.bounds = bounds
-     
-    def get_z_bounds(self):
-        if self.symmetry == '3d':
-            return self.bounds[2]
-        else:
-            return self.bounds[1]
-          
+        self.symmetry = symmetry
+    
     def write(self, filename):
         """Write a mesh to a file. The pickle module will be used
         to save the Geometry object.
@@ -53,24 +109,6 @@ class Geometry:
         with open(filename, 'wb') as f:
             pickle.dump(self, f)
     
-    def get_mesh_size(self):
-        line_points = self.mesh.points[ self.mesh.cells_dict['line'] ]
-        return np.mean(np.linalg.norm(line_points[:, 1] - line_points[:, 0], axis=1))
-    
-    @property
-    def symmetry(self):
-        if hasattr(self, '_symmetry'):
-            return self._symmetry
-        else:
-            return 'radial'
-
-    def get_electrodes(self):
-        """Get the names of all the electrodes in the geometry.
-
-        Returns:
-            List of electrode names"""
-        return list(self.mesh.cell_sets_dict.keys())
-    
     def read(filename):
         """Read a geometry from disk (previously saved with the write method)
         
@@ -78,63 +116,37 @@ class Geometry:
             filename: the name of the file.
         """
         with open(filename, 'rb') as f:
-            object_ = pickle.load(f)
-        
-        if isinstance(object_, dict): 
-            # Backwards compatibility
-            return Geometry(object_['mesh'], object_['N'], metadata=object_['metadata'])
-        else:
-            return object_
+            return pickle.load(f)
+     
+    def get_electrodes(self):
+        """Get the names of all the electrodes in the geometry.
+
+        Returns:
+            List of electrode names"""
+        return list(self.mesh.cell_sets_dict.keys())
     
     def __str__(self):
         return str(self.mesh) + ' (metadata: ' + str(self.metadata) + ')'
 
-class MEMSStack(occ.Geometry):
+class MEMSStack(Geometry):
     
-    def __init__(self, bounds, z0=0.0, revolve_factor=0.0, mesh_size=1/10, rmax=2, enclose_right=True, margin_right=0.1):
-        super().__init__()
-        self.bounds = bounds
+    def __init__(self, *args, z0=0.0, revolve_factor=0.0, rmax=2, enclose_right=True, margin_right=0.1, **kwargs):
+        self.symmetry = Symmetry.RADIAL if revolve_factor == 0.0 else Symmetry.THREE_D
+        super().__init__(self.symmetry, *args, **kwargs)
+        
         self.z0 = z0
         self.revolve_factor = revolve_factor
         self._3d = self.revolve_factor != 0.0
-        assert (self._3d and len(self.bounds)==3) or (not self._3d and len(self.bounds)==2)
-        self.mesh_size = mesh_size
         self.rmax = rmax
         self.margin_right = margin_right
         self.enclose_right = enclose_right
         
         self._current_z = z0
         self._last_name = None
-        self._physical_queue = dict()
-        
      
     def add_spacer(self, thickness):
         self._current_z += thickness
-
-    def _add_physical(self, name, entities):
-        assert isinstance(entities, list)
-        
-        if name in self._physical_queue:
-            self._physical_queue[name].extend(entities)
-        else:
-            self._physical_queue[name] = entities
-
-    def mesh_size_callback(self, dim, tag, x, y, z):
-        # Scale mesh size with distance to optical axis, but only the part of the optical
-        # axis that lies in the bounds.
-        
-        z_optical = z if self._3d else y
-        z_bounds = self.bounds[2] if self._3d else self.bounds[1]
-        
-        z_optical = min(max(z_optical, z_bounds[0]), z_bounds[1])
-        
-        if self._3d:
-            res = sqrt( x**2 + y**2 + (z-z_optical)**2 )
-        else:
-            res = sqrt( x**2 + (y-z_optical)**2 )
-        
-        return self.mesh_size*res
-     
+    
     def add_electrode(self, radius, thickness, name):
         x0 = [radius, self._current_z]
           
@@ -175,14 +187,11 @@ class MEMSStack(occ.Geometry):
                 lines = [self.add_line(self.add_point(p1), self.add_point(p2)) for p1, p2 in zip(points[1:], points)]
                 self._add_physical(self._last_name, lines)
         
-        for label, entities in self._physical_queue.items():
-            self.add_physical(entities, label)
-         
-        self.set_mesh_size_callback(self.mesh_size_callback)
-        return super().generate_mesh(*args, **kwargs)
+        return super().generate_mesh(*args, **kwargs)        
 
+    
         
-def create_two_cylinder_lens(N=200, S=0.2, R=1, wall_thickness=1, boundary_length=20, gap_at_zero=False, include_boundary=True, **kwargs):
+def create_two_cylinder_lens(MSF, S=0.2, R=1, wall_thickness=1, boundary_length=20, include_boundary=True):
     """Generate lens consisting of two concentric cylinders. For example studied in
     David Edwards, Jr. Accurate Potential Calculations For The Two Tube Electrostatic Lens Using FDM A Multiregion Method.  2007.
     
@@ -195,7 +204,7 @@ def create_two_cylinder_lens(N=200, S=0.2, R=1, wall_thickness=1, boundary_lengt
         boundary_length: length of the entire lens.
     """
  
-    with occ.Geometry() as geom:
+    with Geometry(Symmetry.RADIAL) as geom:
         cylinder_length = (boundary_length - S)/2
         assert boundary_length == 2*cylinder_length + S
 
@@ -228,20 +237,14 @@ def create_two_cylinder_lens(N=200, S=0.2, R=1, wall_thickness=1, boundary_lengt
             else:
                 physicals = [('v1', [1]), ('v2', [3]), ('gap', [2])]
          
-        lcar = boundary_length/N
-        poly = geom.add_polygon(points, lcar)
+        poly = geom.add_polygon(points)
          
         for key, indices in physicals:
             lines = [poly.curves[idx] for idx in indices]
             geom.add_physical(lines, key)
 
-        mesh = geom.generate_mesh(dim=1)
-        
-        if gap_at_zero:
-            mesh.points[:, 1] -= cylinder_length + S/2
-        
-        bounds = ( (-0.8*R, 0.8*R), (-0.8*boundary_length/2, 0.8*boundary_length/2) )
-        return Geometry(mesh, N, bounds, **kwargs)
+        geom.set_mesh_size_factor(MSF)
+        return geom.generate_mesh()
 
 
 

@@ -7,6 +7,7 @@ import numpy as np
 from scipy.interpolate import CubicSpline, BPoly, PPoly
 import findiff
 
+from . import geometry as G
 from . import excitation as E
 from . import backend
 
@@ -44,7 +45,8 @@ def _excitation_to_right_hand_side(excitation, vertices, names):
             F[indices] = value
         elif type_ == E.ExcitationType.VOLTAGE_FUN:
             for i in indices:
-                middle = np.average(points[i], axis=0)
+                points = vertices[i]
+                middle = np.average(points, axis=0)
                 F[i] = value(*middle)
         elif type_ == E.ExcitationType.DIELECTRIC or \
                 type_ == E.ExcitationType.FLOATING_CONDUCTOR:
@@ -59,11 +61,11 @@ def _excitation_to_right_hand_side(excitation, vertices, names):
 
 def area(symmetry, points):
     
-    if symmetry == 'radial':
+    if symmetry == G.Symmetry.RADIAL:
         middle = np.average(points, axis=0)
         length = np.linalg.norm(points[1] - points[0])
         return length*2*np.pi*middle[0]
-    elif symmetry == '3d':
+    elif symmetry == G.Symmetry.THREE_D:
         v1, v2, v3 = points 
         return 1/2*np.linalg.norm(np.cross(v2-v1, v3-v1))
 
@@ -84,7 +86,7 @@ def _add_floating_conductor_constraints_to_matrix(matrix, vertices, names, excit
             # The surface area of the respective line element (or triangle) is multiplied by the surface charge (unknown)
             # to arrive at the total specified charge (right hand side).
             element = vertices[index]
-            matrix[ -len(floating) + i, index] = area(excitation.geometry.symmetry, element)
+            matrix[ -len(floating) + i, index] = area(excitation.mesh.symmetry, element)
 
 def _excitation_to_matrix(excitation, vertices, names):
     floating_names = excitation.get_floating_conductor_names()
@@ -104,7 +106,7 @@ def _excitation_to_matrix(excitation, vertices, names):
      
     assert np.all(excitation_types != 0)
      
-    print(f'Total number of elements: {N_lines}, symmetry: {excitation.geometry.symmetry}')
+    print(f'Total number of elements: {N_lines}, symmetry: {excitation.mesh.symmetry}')
      
     st = time.time()
     THREADS = 2
@@ -112,7 +114,7 @@ def _excitation_to_matrix(excitation, vertices, names):
     matrix = np.zeros( (N_matrix, N_matrix) )
     split = np.array_split(np.arange(N_lines), THREADS)
      
-    fill_fun = backend.fill_matrix_radial if excitation.geometry.symmetry != '3d' else backend.fill_matrix_3d
+    fill_fun = backend.fill_matrix_radial if excitation.mesh.symmetry != G.Symmetry.THREE_D else backend.fill_matrix_3d
     threads = [Thread(target=fill_fun, args=(matrix, vertices, excitation_types, excitation_values, r[0], r[-1])) for r in split]
      
     for t in threads:
@@ -138,7 +140,7 @@ def _charges_to_field(excitation, charges, vertices, names):
      
     assert len(charges) == len(vertices)
       
-    field_class = FieldRadialBEM if excitation.geometry.symmetry != '3d' else Field3D_BEM
+    field_class = FieldRadialBEM if excitation.mesh.symmetry != G.Symmetry.THREE_D else Field3D_BEM
     return field_class(vertices, charges, floating_voltages=floating_voltages)
     
 

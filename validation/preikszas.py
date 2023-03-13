@@ -28,7 +28,7 @@ def create_geometry(N, symmetry, for_plot):
         N: number of mesh points. The size of the mesh elements will be chosen such that a line that is
             as long as the geometry is tall will have N points."""
     
-    assert symmetry == 'radial', 'Only radial symmetry supported'
+    assert symmetry == G.Symmetry.RADIAL, 'Only radial symmetry supported'
     
     with occ.Geometry() as geom:
         

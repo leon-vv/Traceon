@@ -18,26 +18,26 @@ r2 = 1.0
 r3 = 0.6
 r4 = 0.9
 
-def create_geometry(N, symmetry, for_plot):
+def create_geometry(MSF, symmetry, for_plot):
      
-    with occ.Geometry() as geom:
-        center = geom.add_point([0.0, 0.0], 1/N)
+    with G.Geometry(symmetry) as geom:
+        center = geom.add_point([0.0, 0.0])
         
         def add_shell(r, reorient=False, factor=1.0):
             
-            if symmetry == 'radial':
+            if symmetry == G.Symmetry.RADIAL:
                 points = [[0,-r], [r, 0], [0,r]]
-            elif symmetry == '3d':
+            elif symmetry == G.Symmetry.THREE_D:
                 points = [[0,0,-r], [r,0, 0], [0,0,r]]
             
-            p = [geom.add_point(p, 1/N) for p in points]
+            p = [geom.add_point(p) for p in points]
 
             if not reorient:
                 arcs = [geom.add_circle_arc(p[0], center, p[1]), geom.add_circle_arc(p[1], center, p[2])]
             else:
                 arcs = [geom.add_circle_arc(p[2], center, p[1]), geom.add_circle_arc(p[1], center, p[0])]
 
-            if symmetry == '3d':
+            if symmetry == G.Symmetry.THREE_D:
                 return G.revolve_around_optical_axis(geom, arcs, factor=factor)
             else:
                 return arcs
@@ -51,10 +51,9 @@ def create_geometry(N, symmetry, for_plot):
         geom.add_physical(l2, 'outer')
         geom.add_physical([*d1, *d2], 'dielectric')
         
-        mesh = geom.generate_mesh(dim=1 if symmetry != '3d' else 2)
-        geom = G.Geometry(mesh, N, None, symmetry=symmetry)
-    
-    return geom
+        geom.set_mesh_size_factor(MSF)
+         
+        return geom.generate_mesh()
 
 
 def compute_error(geom):
@@ -76,19 +75,21 @@ def compute_error(geom):
      
     # Find the charges
     Q = {}
+
+    _, names = exc.get_active_vertices()
      
-    for n, v in field.names.items():
+    for n, v in names.items():
         Q[n] = 0
         
         for vs, charge in zip(vertices[v], charges[v]):
             
-            if geom.symmetry == 'radial':
+            if geom.symmetry == G.Symmetry.RADIAL:
                 v1, v2 = vs
                 length = np.linalg.norm(v1 - v2)
                 middle = (v1 + v2)/2
                 # Take into account surface area of entire ring
                 Q[n] += charge * length*2*np.pi*middle[0]
-            elif geom.symmetry == '3d':
+            elif geom.symmetry == G.Symmetry.THREE_D:
                 v1, v2, v3 = vs
                 area = 1/2*np.linalg.norm(np.cross(v2-v1, v3-v1))
                 Q[n] += charge * area
@@ -101,5 +102,5 @@ def compute_error(geom):
     return len(vertices), error
 
 util.parser.description = '''Compute the capacitance of two concentric spheres with a layer of dielectric material in between.'''
-util.parse_validation_args(create_geometry, compute_error, inner='blue', outer='darkblue', dielectric='green',
-    N={'radial':[10, 50, 100, 300,500,700],'3d':[2,5,7,9, 11]})
+util.parse_validation_args(create_geometry, compute_error, inner='blue', outer='darkblue', dielectric='green')
+

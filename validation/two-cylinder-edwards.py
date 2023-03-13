@@ -13,9 +13,9 @@ import traceon.plotting as P
 import util
 
 
-def create_geometry(N, symmetry, for_plot):
-    assert symmetry == 'radial', 'Only radial symmetry supported'
-    return G.create_two_cylinder_lens(N)
+def create_geometry(MSF, symmetry, for_plot):
+    assert symmetry == G.Symmetry.RADIAL, 'Only radial symmetry supported'
+    return G.create_two_cylinder_lens(MSF)
 
 def gap_voltage(x, y, _):
     return (y-9.9)/0.2 * 10
@@ -40,6 +40,5 @@ Compute the potential inside a two cylinder lens.  The correct values for the po
 Accurate Potential Calculations For The Two Tube Electrostatic Lens Using A Multiregion FDM Method.  David Edwards, Jr. 2007.
 '''
 
-util.parse_validation_args(create_geometry, compute_error, v1='blue', v2='green', gap='orange',
-    N={'radial': [10, 100, 500, 1000, 2000, 3000, 4000]})
+util.parse_validation_args(create_geometry, compute_error, v1='blue', v2='green', gap='orange')
 

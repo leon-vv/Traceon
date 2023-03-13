@@ -1,7 +1,8 @@
-
 from enum import IntEnum
 
 import numpy as np
+
+from .geometry import Symmetry
 
 class ExcitationType(IntEnum):
     VOLTAGE_FIXED = 1
@@ -11,9 +12,9 @@ class ExcitationType(IntEnum):
 
 class Excitation:
      
-    def __init__(self, geom):
-        self.geometry = geom
-        self.electrodes = geom.get_electrodes()
+    def __init__(self, mesh):
+        self.mesh = mesh
+        self.electrodes = mesh.get_electrodes()
         self.excitation_types = {}
      
     def add_voltage(self, **kwargs):
@@ -37,7 +38,7 @@ class Excitation:
             self.excitation_types[name] = (ExcitationType.FLOATING_CONDUCTOR, charge)
      
     def _get_element_type(self):
-        if self.geometry.symmetry == '3d':
+        if self.mesh.symmetry == Symmetry.THREE_D:
             return 'triangle'
         else:
             return 'line'
@@ -67,7 +68,7 @@ class Excitation:
                 else:
                     new_types_dict[n] = (t, v)
             
-            exc = Excitation(self.geometry)
+            exc = Excitation(self.mesh)
             exc.excitation_types = new_types_dict
             excitations.append(exc)
 
@@ -77,7 +78,7 @@ class Excitation:
     def get_active_vertices(self):
          
         type_ = self._get_element_type()
-        mesh = self.geometry.mesh
+        mesh = self.mesh.mesh
         vertices = mesh.cells_dict[type_] # Indices making up the lines and triangles
         inactive = np.full(len(vertices), True)
         names = {}
@@ -94,7 +95,7 @@ class Excitation:
     
     def get_number_of_active_vertices(self):
         type_ = self._get_element_type()
-        mesh = self.geometry.mesh
+        mesh = self.mesh.mesh
         
         return sum(len(mesh.cell_sets_dict[n][type_]) for n in self.excitation_types.keys())
 
