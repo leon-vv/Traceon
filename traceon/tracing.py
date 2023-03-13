@@ -83,22 +83,17 @@ def _z_to_bounds(z1, z2):
 class Tracer:
 
     def __init__(self, field, bounds, atol=1e-10):
-         
-        self.geometry = field.geometry
-        assert self.geometry.bounds is None or len(bounds) == len(self.geometry.bounds)
+          
         self.field = field
         assert isinstance(field, S.FieldRadialBEM) or isinstance(field, S.FieldRadialAxial) or \
                isinstance(field, S.Field3D_BEM)    or isinstance(field, S.Field3DAxial)
-        
-        symmetry = self.geometry.symmetry
-        assert (symmetry == '3d' and len(bounds) == 3) or len(bounds) == 2
-        self.bounds = bounds
          
+        self.bounds = bounds
         self.atol = atol
         
     def __call__(self, position, velocity):
         if isinstance(self.field, S.FieldRadialBEM):
-            return backend.trace_particle_radial(position, velocity, self.bounds, self.atol, self.field.lines, self.field.charges)
+            return backend.trace_particle_radial(position, velocity, self.bounds, self.atol, self.field.vertices, self.field.charges)
         elif isinstance(self.field, S.FieldRadialAxial):
             return backend.trace_particle_radial_derivs(position, velocity, self.bounds, self.atol, self.field.z, self.field.coeffs)
         elif isinstance(self.field, S.Field3D_BEM):

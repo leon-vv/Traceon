@@ -41,7 +41,39 @@ class Excitation:
             return 'triangle'
         else:
             return 'line'
+    
+    def get_floating_conductor_names(self):
+        return [n for n, (t, v) in self.excitation_types.items() if t == ExcitationType.FLOATING_CONDUCTOR]
+    
+    def split_for_superposition(self):
+        # Names that have a fixed voltage excitation, not equal to 0.0
+        types = self.excitation_types
+        non_zero_fixed = [n for n, (t, v) in types.items() if t == ExcitationType.VOLTAGE_FIXED and v != 0.0]
         
+        excitations = []
+         
+        for name in non_zero_fixed:
+
+            new_types_dict = {}
+             
+            for n, (t, v) in types.items():
+                assert t != ExcitationType.VOLTAGE_FUN, "VOLTAGE_FUN excitation not supported for superposition."
+                assert (t != ExcitationType.FLOATING_CONDUCTOR or v == 0.0), "FLOATING_CONDUCTOR only supported in superposition if total charge equals zero."
+                 
+                if n == name:
+                    new_types_dict[n] = (t, 1.0)
+                elif t == ExcitationType.VOLTAGE_FIXED:
+                    new_types_dict[n] = (t, 0.0)
+                else:
+                    new_types_dict[n] = (t, v)
+            
+            exc = Excitation(self.geometry)
+            exc.excitation_types = new_types_dict
+            excitations.append(exc)
+
+        assert len(non_zero_fixed) == len(excitations)
+        return {n:e for (n,e) in zip(non_zero_fixed, excitations)}
+
     def get_active_vertices(self):
          
         type_ = self._get_element_type()
