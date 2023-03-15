@@ -88,46 +88,6 @@ def velocity_vec_xz_plane(eV, angle, downward=True, three_dimensional=False):
     direction = [sin(angle), sign*cos(angle)] if not three_dimensional else [sin(angle), 0.0, sign*cos(angle)]
     return velocity_vec(eV, direction)
     
-     
-
-def _angle(vr, vz):
-    return np.sign(vr) * np.arctan(np.abs(vr/vz))
-
-STEP_MAX = 0.085
-STEP_MIN = STEP_MAX/1e10
-
-def trace_particle(position, velocity, field, bounds, rmin=None, args=(), atol=1e-10):
-    """Trace a particle. Using the Runge-Kutta-Fehlberg method RK45. See:
-        
-        https://en.wikipedia.org/wiki/Runge%E2%80%93Kutta%E2%80%93Fehlberg_method
-
-        Erwin Fehlberg. Low-Order Classical Runge-Kutta Formulas With Stepsize Control and their Application to Some Heat
-        Transfer Problems. 1969. National Aeronautics and Space Administration.
-    
-    Args:
-        position: starting position of the particle
-        velocity: starting velocity vector of the particle (see 'velocity_vec')
-        field: field function (see solver.py)
-        rmax: maximum r value allowed, when a particle goes outside [-rmax,rmax]
-            the tracing will end
-        rmin: optional, minimum r value allowed, when a particle goes outside [rmin,rmax]
-            the tracing will end
-        zmin: minimum value of z
-        zmax: maximum value of z, when a particle goes outside the bounds [zmin,zmax]
-            the tracing will end
-        args: extra arguments passed to field, besides r and z. Useful to supply voltages
-            when the field function is a result of a superposition (see solver.py)
-    
-    Returns:
-        np.narray of shape (N, 4) where N is the number of time steps taken. 
-    """
-    times, positions = _trace_particle(position, velocity, field, bounds, args=args, atol=atol)
-    
-    if len(times) == 1:
-        return times[0], positions[0]
-    else:
-        return np.concatenate(times, axis=0), np.concatenate(positions, axis=0)
-
 def _z_to_bounds(z1, z2):
     if z1 < 0 and z2 < 0:
         return (min(z1, z2)-1, 1.0)

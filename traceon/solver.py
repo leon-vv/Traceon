@@ -70,8 +70,11 @@ thetas_interpolation_coefficients = np.load(coefficients_file)
 
 assert thetas_interpolation_coefficients.shape == (thetas.size-1, backend.DERIV_3D_MAX//2, backend.DERIV_3D_MAX, 4)
 
+def _get_floating_conductor_names(exc):
+    return [n for n, (t, v) in exc.excitation_types.items() if t == E.ExcitationType.FLOATING_CONDUCTOR]
+
 def _excitation_to_right_hand_side(excitation, vertices, names):
-    floating_names = excitation.get_floating_conductor_names()
+    floating_names = _get_floating_conductor_names(excitation)
      
     N_floating = len(floating_names)
     N_lines = len(vertices)
@@ -100,7 +103,7 @@ def _excitation_to_right_hand_side(excitation, vertices, names):
     assert np.all(np.isfinite(F))
     return F
 
-def area(symmetry, points):
+def _area(symmetry, points):
     if symmetry == G.Symmetry.RADIAL:
         middle = np.average(points, axis=0)
         length = np.linalg.norm(points[1] - points[0])
@@ -111,7 +114,7 @@ def area(symmetry, points):
 
 
 def _add_floating_conductor_constraints_to_matrix(matrix, vertices, names, excitation):
-    floating = excitation.get_floating_conductor_names()
+    floating = _get_floating_conductor_names(excitation)
     N_matrix = matrix.shape[0]
     assert matrix.shape == (N_matrix, N_matrix)
      
@@ -126,10 +129,10 @@ def _add_floating_conductor_constraints_to_matrix(matrix, vertices, names, excit
             # The surface area of the respective line element (or triangle) is multiplied by the surface charge (unknown)
             # to arrive at the total specified charge (right hand side).
             element = vertices[index]
-            matrix[ -len(floating) + i, index] = area(excitation.mesh.symmetry, element)
+            matrix[ -len(floating) + i, index] = _area(excitation.mesh.symmetry, element)
 
 def _excitation_to_matrix(excitation, vertices, names):
-    floating_names = excitation.get_floating_conductor_names()
+    floating_names = _get_floating_conductor_names(excitation)
     
     N_floating = len(floating_names)
     N_lines = len(vertices)
@@ -170,7 +173,7 @@ def _excitation_to_matrix(excitation, vertices, names):
 
 
 def _charges_to_field(excitation, charges, vertices, names):
-    floating_names = excitation.get_floating_conductor_names()
+    floating_names = _get_floating_conductor_names(excitation)
     N_floating = len(floating_names)
     assert len(charges) == len(vertices) + N_floating
     
@@ -223,7 +226,7 @@ def solve_bem(excitation, superposition=False):
 
         return _charges_to_field(excitation, charges, vertices, names)
      
-    excs = excitation.split_for_superposition()
+    excs = excitation._split_for_superposition()
     superposed_names = excs.keys()
     matrix = _excitation_to_matrix(excitation, vertices, names)
     F = np.array([_excitation_to_right_hand_side(excs[n], vertices, names) for n in superposed_names]).T

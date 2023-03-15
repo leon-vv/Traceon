@@ -52,3 +52,11 @@ To keep the charge values from becoming very small, the charge values are always
 in the formulas for the potential (and thus also in the formulas for the electric field) the actual \( \\sigma \) values themselves need not to be computed.
 
 """
+
+__pdoc__ = {}
+__pdoc__['traceon.util'] = False
+__pdoc__['traceon.backend'] = False
+__pdoc__['traceon.tracing.Tracer.__call__'] = True
+
+
+

@@ -95,11 +95,8 @@ class Excitation:
         else:
             return 'line'
     
-    def get_floating_conductor_names(self):
-        """ """
-        return [n for n, (t, v) in self.excitation_types.items() if t == ExcitationType.FLOATING_CONDUCTOR]
-    
-    def split_for_superposition(self):
+        
+    def _split_for_superposition(self):
         """ """
         # Names that have a fixed voltage excitation, not equal to 0.0
         types = self.excitation_types
