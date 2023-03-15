@@ -34,4 +34,21 @@ executed as follows:
     python3 ./validation/edwards2007.py --help
 ```
 
+# Units
+
+The units used throughout the code base are as follows:
+
+| **Name**       	| **Unit** 	|
+|----------------	|----------	|
+| Length         	| mm       	|
+| Time           	| ns       	|
+| Velocity       	| mm/ns    	|
+| Potential      	| V        	|
+| Electric field 	| V/mm     	|
+| Charge         	| σ/επ     	|
+|                	|          	|
+
+To keep the charge values from becoming very small, the charge values are always saved as \( \\frac{ \\sigma}{ \\epsilon_0 \\pi} \). Since this term appears
+in the formulas for the potential (and thus also in the formulas for the electric field) the actual \( \\sigma \) values themselves need not to be computed.
+
 """
