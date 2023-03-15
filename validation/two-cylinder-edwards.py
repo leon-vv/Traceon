@@ -15,7 +15,42 @@ import util
 
 def create_geometry(MSF, symmetry, for_plot):
     assert symmetry == G.Symmetry.RADIAL, 'Only radial symmetry supported'
-    return G.create_two_cylinder_lens(MSF)
+    
+    S = 0.2
+    R = 1.0
+    wall_thickness = 1
+    boundary_length = 20
+    
+    with G.Geometry(G.Symmetry.RADIAL) as geom:
+        cylinder_length = (boundary_length - S)/2
+        assert boundary_length == 2*cylinder_length + S
+
+        assert wall_thickness == 0.0 or wall_thickness > 0.1
+         
+        points = [
+            [0, 0],
+            [R, 0],
+            [R, cylinder_length],
+            [R + wall_thickness, cylinder_length],
+            [R + wall_thickness, cylinder_length + S],
+            [R, cylinder_length + S],
+            [R, boundary_length],
+            [0, boundary_length]
+        ]
+            
+        physicals = [('v1', [0, 1, 2]), ('v2', [4, 5, 6]), ('gap', [3])]
+         
+        poly = geom.add_polygon(points)
+         
+        for key, indices in physicals:
+            lines = [poly.curves[idx] for idx in indices]
+            geom.add_physical(lines, key)
+
+        geom.set_mesh_size_factor(MSF)
+        return geom.generate_mesh()
+
+
+
 
 def gap_voltage(x, y, _):
     return (y-9.9)/0.2 * 10
