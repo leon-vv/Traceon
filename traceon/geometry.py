@@ -201,7 +201,7 @@ class Geometry(occ.Geometry):
 
 
 
-class Mesh:
+class Mesh(Saveable):
     """Class containing a mesh and related metadata."""
     
     def __init__(self, mesh, symmetry, metadata={}):
@@ -209,37 +209,6 @@ class Mesh:
         self.mesh = mesh
         self.metadata = metadata
         self.symmetry = symmetry
-    
-    def write(self, filename):
-        """Write a mesh to a file. The pickle module will be used
-        to save the Geometry object.
-
-        Parameters
-        ----------
-        filename :
-            name of the file
-
-        Returns
-        -------
-
-        """
-        with open(filename, 'wb') as f:
-            pickle.dump(self, f)
-    
-    def read(filename):
-        """Read a geometry from disk (previously saved with the write method)
-
-        Parameters
-        ----------
-        filename :
-            the name of the file.
-
-        Returns
-        -------
-
-        """
-        with open(filename, 'rb') as f:
-            return pickle.load(f)
      
     def get_electrodes(self):
         """Get the names of all the electrodes in the geometry.
