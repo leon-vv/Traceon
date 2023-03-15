@@ -83,7 +83,7 @@ def compute_error(geom):
     calculated = np.linalg.norm(p[:2] if _3d else p[:1])
      
     print(f'Computed intersection: {calculated:.5e} (correct: {correct:.5e})')
-    return excitation.get_number_of_active_vertices(), calculated/correct - 1
+    return excitation.get_number_of_active_elements(), calculated/correct - 1
 
 util.parser.description = '''   '''
 util.parse_validation_args(create_geometry, compute_error, mirror='brown', lens='blue', ground='green',

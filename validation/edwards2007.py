@@ -63,7 +63,7 @@ def compute_error(geometry):
     excitation = E.Excitation(geometry)
     excitation.add_voltage(boundary=0, inner=10)
 
-    Nlines = excitation.get_number_of_active_vertices()
+    Nlines = excitation.get_number_of_active_elements()
       
     field = S.solve_bem(excitation)
 

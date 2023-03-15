@@ -75,7 +75,7 @@ def compute_error(geom):
     print('Potential inside conductor: ', field.potential_at_point(point))
      
     # Field should be zero
-    return exc.get_number_of_active_vertices(), field.potential_at_point(point)/0.25 - 1
+    return exc.get_number_of_active_elements(), field.potential_at_point(point)/0.25 - 1
      
 
 util.parser.description = '''Compute the field of two concentric spheres with a layer of floating (voltage not fixed) neutrally charged conductor in between.

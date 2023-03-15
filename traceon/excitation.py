@@ -129,7 +129,7 @@ class Excitation:
         assert len(non_zero_fixed) == len(excitations)
         return {n:e for (n,e) in zip(non_zero_fixed, excitations)}
 
-    def get_active_vertices(self):
+    def get_active_elements(self):
         """ """
          
         type_ = self._get_element_type()
@@ -148,7 +148,7 @@ class Excitation:
               
         return mesh.points[ vertices[~inactive] ], names
     
-    def get_number_of_active_vertices(self):
+    def get_number_of_active_elements(self):
         """Get the number of elements that are active. Active in this context means that they have been
         assigned an excitation """
         type_ = self._get_element_type()

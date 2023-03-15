@@ -71,7 +71,7 @@ def compute_error(geom):
 
     print(f'Calculated intersection: {int_derivs[0]:.14e} mm (correct: {correct:.4e} mm)')
      
-    return exc.get_number_of_active_vertices(), abs(int_derivs[0]/correct - 1)
+    return exc.get_number_of_active_elements(), abs(int_derivs[0]/correct - 1)
 
 
 util.parser.description = '''

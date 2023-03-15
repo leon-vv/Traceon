@@ -87,7 +87,7 @@ def compute_error(geom):
         print(f'C{i}{j} = {C[i,j]:.4e} (correct: {1000*c:.4e}) \t~ {abs(C[i,j])/abs(c*1000) - 1:+.1e}')
     print('-'*20)
     
-    return excitation.get_number_of_active_vertices(), abs(C[3,0]/(C30*1000) - 1)
+    return excitation.get_number_of_active_elements(), abs(C[3,0]/(C30*1000) - 1)
 
 util.parser.description = '''
 Calculate the aberration coefficients of a diode mirror. The accuracy plotted is determined from the 

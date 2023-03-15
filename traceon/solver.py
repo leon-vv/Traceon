@@ -210,7 +210,7 @@ def solve_bem(excitation, superposition=False):
     are the physical groups with unity excitation, and the values are the resulting fields.
     """
     
-    vertices, names = excitation.get_active_vertices()
+    vertices, names = excitation.get_active_elements()
      
     if not superposition:
         matrix = _excitation_to_matrix(excitation, vertices, names)

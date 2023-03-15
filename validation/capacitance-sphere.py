@@ -76,7 +76,7 @@ def compute_error(geom):
     # Find the charges
     Q = {}
 
-    _, names = exc.get_active_vertices()
+    _, names = exc.get_active_elements()
      
     for n, v in names.items():
         Q[n] = 0
