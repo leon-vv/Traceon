@@ -1,3 +1,7 @@
+"""The backend module is a small wrapper around code implemented in C. All performance critical code is 
+implemented in the C backend. As a user you should not use these functions directly yourself."""
+
+
 import ctypes as C
 import os.path as path
 

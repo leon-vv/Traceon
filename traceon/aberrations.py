@@ -1,6 +1,6 @@
 r"""
-Aberration coefficients give the deviation from perfect focussing in the focal plane. The deviations are notated as $\Delta r$ and
-are a function of the initial angle with the optical axis $\alpha$ and the deviation from the mean beam energy $\frac{\Delta E}{E}$.
+Aberration coefficients give the deviation from perfect focussing in the focal plane. The deviations are notated as \(\Delta r\) and
+are a function of the initial angle with the optical axis $\alpha$ and the deviation from the mean beam energy \(\frac{\Delta E}{E}\).
 
 $$
 \Delta r = \underbrace{-\sum_{i=1, i \text{ odd}}C_{i0}\alpha^i}_\text{spherical} +
@@ -8,11 +8,11 @@ $$
 $$
 
 Aberration coefficients are notated as $C_{ij}$ where i is the spherical power and j the chromatic power. 
-The rank is $i+j$. i is in [1, 3, 5, 7] while j is in [0, 1, 2, 3], this gives 12 aberration coefficients.
+The rank is \(i+j\). i is in [1, 3, 5, 7] while j is in [0, 1, 2, 3], this gives 12 aberration coefficients.
 The spherical coefficients $C_{10}$, $C_{30}$, $C_{50}$ can be fitted independently from the chromatic terms.
 
 The aberrations are stored in memory as an array of shape (8, 4). The array is padded
-with zeros to allow straightforward indexing. For example, the spherical aberration $C_{30}$
+with zeros to allow straightforward indexing. For example, the spherical aberration \(C_{30}\)
 can be indexed as C[3, 0].
 """
 
@@ -23,7 +23,6 @@ import numpy as np
 
 from . import tracing as T
 
-@nb.njit(cache=True)
 def compute_intersections_fast(coeff, dE, angles):
     """Compute the deviation $\Delta r$.
 

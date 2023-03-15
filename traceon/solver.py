@@ -1,3 +1,44 @@
+"""The solver module uses the Boundary Element Method (BEM) to compute the surface charge distribution of a given
+geometry and excitation. Once the surface charge distribution is known, the field at any arbitrary position in space
+can be calculated by integration over the charged boundary. However, doing a field evaluation in this manner is very slow
+as for every field evaluation an iteration needs to be done over all elements in the mesh. Especially for particle tracing it
+is crucial that the field evaluation can be done faster. To achieve this, interpolation techniques can be used. 
+
+The solver package offers interpolation in the form of _radial series expansions_ to drastically increas the speed of ray tracing. For
+this consider the `axial_derivative_interpolation` methods documented below.
+
+## Radial series expansion in 2D
+
+Let \( \phi_0(z) \) be the potential along the optical axis. We can express the potential around the optical axis as:
+
+$$
+\phi = \phi_0(z_0) - r^2 \\frac{\\partial \phi_0^2}{\\partial z^2} + \\frac{r^4}{64} \\frac{\\partial^4 \phi_0}{\\partial z^4} - \\frac{r^6}{2304} \\frac{\\partial \phi_0^6}{\\partial z^6} + \\cdots
+$$
+
+Therefore, if we can efficiently compute the axial potential derivatives \( \\frac{\\partial \phi_0^n}{\\partial z^n} \) we can compute the potential and therefore the fields around the optical axis.
+For the derivatives of \( \phi_0(z) \) closed form formulas exist in the case of radially symmetric geometries, see for example formula 13.16a in [1]. Traceon uses a recursive version of these formulas to
+very efficiently compute the axial derivatives of the potential.
+
+## Radial series expansion in 3D
+
+In a general three dimensional geometry the potential will be dependent not only on the distance from the optical axis but also on the angle \( \\theta \) around the optical axis
+at which the potential is sampled. It turns out (equation (35, 24) in [2]) the potential can be written as follows:
+
+$$
+\phi = \sum_{\\nu=0}^\infty \sum_{m=0}^\infty r^{2\\nu + m} \\left( A^\\nu_m \cos(m\\theta) + B^\\nu_m \sin(m\\theta) \\right)
+$$
+
+The \(A^\\nu_m\) and \(B^\\nu_m\) coefficients can be expressed in _directional derivatives_ perpendicular to the optical axis, analogous to the radial symmetric case. The 
+mathematics of calculating these coefficients quickly and accurately gets quite involved, but all details have been abstracted away from the user.
+
+### References
+[1] P. Hawkes, E. Kasper. Principles of Electron Optics. Volume one: Basic Geometrical Optics. 2018.
+
+[2] W. Glaser. Grundlagen der Elektronenoptik. 1952.
+
+"""
+
+
 import math as m
 import time
 from threading import Thread
@@ -60,7 +101,6 @@ def _excitation_to_right_hand_side(excitation, vertices, names):
     return F
 
 def area(symmetry, points):
-    
     if symmetry == G.Symmetry.RADIAL:
         middle = np.average(points, axis=0)
         length = np.linalg.norm(points[1] - points[0])
@@ -145,6 +185,30 @@ def _charges_to_field(excitation, charges, vertices, names):
     
 
 def solve_bem(excitation, superposition=False):
+    """
+    Solve for the charges on the surface of the geometry by using the Boundary Element Method (BEM) and taking
+    into account the specified `excitation`. 
+
+    Parameters
+    ----------
+    excitation : traceon.excitation.Excitation
+        The excitation that produces the resulting field.
+        
+    superposition : bool
+        When `superposition=True` the function returns multiple fields. Each field corresponds with a unity excitation (1V)
+        of a physical group that was previously assigned a non-zero fixed voltage value. This is useful when a geometry needs
+        to be analyzed for many different voltage settings. In this case taking a linear superposition of the returned fields
+        allows to select a different voltage 'setting' without inducing any computational cost. There is no computational cost
+        involved in using `superposition=True` since a direct solver is used which easily allows for multiple right hand sides (the
+        matrix does not have to be inverted multiple times). However, some excitations are invalid in the superposition process: floating
+        conductor with a non-zero total charge and voltage functions (position dependent voltages).
+    
+    Returns
+    -------
+    A `FieldRadialBEM` if the geometry (contained in the given `excitation`) is radially symmetric. If the geometry is a generic three
+    dimensional geometry `Field3D_BEM` is returned. Alternatively, when `superposition=True` a dictionary is returned, where the keys
+    are the physical groups with unity excitation, and the values are the resulting fields.
+    """
     
     vertices, names = excitation.get_active_vertices()
      
@@ -203,6 +267,10 @@ class Field:
         return self.field_at_point(np.array(args))
 
 class FieldBEM(Field):
+    """An electrostatic field (resulting from surface charges) as computed from the Boundary Element Method. You should
+    not initialize this class yourself, but it is used as a base class for the fields returned by the `solve_bem` function. 
+    This base class overloads the +,*,- operators so it is very easy to take a superposition of different fields."""
+    
     def __init__(self, vertices, charges, floating_voltages={}):
         assert len(vertices) == len(charges)
         self.vertices = vertices
@@ -240,11 +308,26 @@ class FieldBEM(Field):
 
 
 class FieldRadialBEM(FieldBEM):
+    """A radially symmetric electrostatic field. The field is a result of the surface charges as computed by the
+    `solve_bem` function. See the comments in `FieldBEM`."""
+    
     def __init__(self, vertices, charges, floating_voltages={}):
         super().__init__(vertices, charges, floating_voltages)
         assert vertices.shape == (len(charges), 2, 3)
         
     def field_at_point(self, point):
+        """
+        Compute the electric field, \( \\vec{E} = -\\nabla \phi \)
+        
+        Parameters
+        ----------
+        point: (2,) array of float64
+            Position at which to compute the field.
+        
+        Returns
+        -------
+        Numpy array containing the field strengths (in units of V/mm) in the r and z directions.   
+        """
         assert point.shape == (2,) or point.shape == (3,)
          
         if point.shape == (2,):
@@ -253,6 +336,18 @@ class FieldRadialBEM(FieldBEM):
         return backend.field_radial(point, self.vertices, self.charges)
     
     def potential_at_point(self, point):
+        """
+        Compute the potential.
+
+        Parameters
+        ----------
+        point: (2,) array of float64
+            Position at which to compute the field.
+        
+        Returns
+        -------
+        Potential as a float value (in units of V).
+        """
         assert point.shape == (2,) or point.shape == (3,)
         
         if point.shape == (2,):
@@ -261,9 +356,43 @@ class FieldRadialBEM(FieldBEM):
         return backend.potential_radial(point, self.vertices, self.charges)
      
     def get_axial_potential_derivatives(self, z):
+        """
+        Compute the derivatives of the potential at a point on the optical axis (z-axis). 
+         
+        Parameters
+        ----------
+        z : float
+            Position on the optical axis at which to compute the derivatives.
+        
+
+        Returns
+        ------- 
+        Numpy array containing the derivatives. At index i one finds the i-th derivative (so
+        at position 0 the potential itself is returned). The highest derivative returned is a 
+        constant currently set to 9.
+        """
         return backend.axial_derivatives_radial_ring(z, self.vertices, self.charges).T
      
     def axial_derivative_interpolation(self, zmin, zmax):
+        """
+        Use a radial series expansion based on the potential derivatives at the optical axis
+        to allow very fast field evaluations.
+        
+        Parameters
+        ----------
+        zmin : float
+            Location on the optical axis where to start sampling the derivatives.
+            
+        zmax : float
+            Location on the optical axis where to stop sampling the derivatives. Any field
+            evaluation outside [zmin, zmax] will return a zero field strength.
+            
+
+        Returns
+        -------
+        `FieldRadialAxial` object allowing fast field evaluations.
+
+        """
         assert zmax > zmin
         z = np.linspace(zmin, zmax, int(FACTOR_AXIAL_DERIV_SAMPLING_2D*len(self.vertices)))
         
@@ -275,19 +404,65 @@ class FieldRadialBEM(FieldBEM):
         return FieldRadialAxial(z, coeffs)
 
 class Field3D_BEM(FieldBEM):
+    """An electrostatic field resulting from a general 3D geometry. The field is a result of the surface charges as computed by the
+    `solve_bem` function. See the comments in `FieldBEM`."""
+     
     def __init__(self, vertices, charges, floating_voltages={}):
         super().__init__(vertices, charges, floating_voltages)
         assert vertices.shape == (len(charges), 3, 3)
     
     def field_at_point(self, point):
+        """
+        Compute the electric field, \( \\vec{E} = -\\nabla \phi \)
+        
+        Parameters
+        ----------
+        point: (3,) array of float64
+            Position at which to compute the field.
+             
+        Returns
+        -------
+        Numpy array containing the field strengths (in units of V/mm) in the x, y and z directions.
+        """
         assert point.shape == (3,)
         return backend.field_3d(point, self.vertices, self.charges)
      
     def potential_at_point(self, point):
+        """
+        Compute the potential.
+
+        Parameters
+        ----------
+        point: (3,) array of float64
+            Position at which to compute the field.
+        
+        Returns
+        -------
+        Potential as a float value (in units of V).
+        """
         assert point.shape == (3,)
         return backend.potential_3d(point, self.vertices, self.charges)
     
     def axial_derivative_interpolation(self, zmin, zmax):
+        """
+        Use a radial series expansion around the optical axis to allow for very fast field
+        evaluations. Constructing the radial series expansion in 3D is much more complicated
+        than the radial symmetric case, but all details have been abstracted away from the user.
+        
+        Parameters
+        ----------
+        zmin : float
+            Location on the optical axis where to start sampling the radial expansion coefficients.
+            
+        zmax : float
+            Location on the optical axis where to stop sampling the radial expansion coefficients. Any field
+            evaluation outside [zmin, zmax] will return a zero field strength.
+        
+        Returns
+        -------
+        `Field3DAxial` object allowing fast field evaluations.
+
+        """
         assert zmax > zmin
         z = np.linspace(zmin, zmax, int(FACTOR_AXIAL_DERIV_SAMPLING_3D*len(self.vertices)))
         
@@ -302,6 +477,10 @@ class Field3D_BEM(FieldBEM):
         return Field3DAxial(z, interpolated_coeffs)
 
 class FieldAxial(Field):
+    """An electrostatic field resulting from a radial series expansion around the optical axis. You should
+    not initialize this class yourself, but it is used as a base class for the fields returned by the `axial_derivative_interpolation` methods. 
+    This base class overloads the +,*,- operators so it is very easy to take a superposition of different fields."""
+    
     def __init__(self, z, coeffs):
         assert len(z)-1 == len(coeffs)
         assert z[0] < z[-1], "z values in axial interpolation should be ascending"
@@ -336,20 +515,48 @@ class FieldAxial(Field):
 
                 
 class FieldRadialAxial(FieldAxial):
+    """ """
     def __init__(self, z, coeffs):
         super().__init__(z, coeffs)
         assert coeffs.shape == (len(z)-1, backend.DERIV_2D_MAX, 6)
     
     def field_at_point(self, point):
+        """
+        Compute the electric field, \( \\vec{E} = -\\nabla \phi \)
+        
+        Parameters
+        ----------
+        point: (2,) array of float64
+            Position at which to compute the field.
+             
+        Returns
+        -------
+        Numpy array containing the field strengths (in units of V/mm) in the r and z directions.
+        """
         assert point.shape == (2,)
         return backend.field_radial_derivs(point, self.z, self.coeffs)
      
     def potential_at_point(self, point):
+        """
+        Compute the potential.
+
+        Parameters
+        ----------
+        point: (2,) array of float64
+            Position at which to compute the potential.
+        
+        Returns
+        -------
+        Potential as a float value (in units of V).
+        """
         assert point.shape == (2,)
         return backend.potential_radial_derivs(point, self.z, self.coeffs)
     
 
 class Field3DAxial(FieldAxial):
+    """Field computed using a radial series expansion around the optical axis (z-axis). See comments at the start of this page.
+     """
+    
     def __init__(self, z, coeffs):
         super().__init__(z, coeffs)
         assert coeffs.shape == (len(z)-1, 2, backend.NU_MAX, backend.M_MAX, 4)
@@ -358,10 +565,34 @@ class Field3DAxial(FieldAxial):
         return self.field_at_point(point)
 
     def field_at_point(self, point):
+        """
+        Compute the electric field, \( \\vec{E} = -\\nabla \phi \)
+        
+        Parameters
+        ----------
+        point: (3,) array of float64
+            Position at which to compute the field.
+             
+        Returns
+        -------
+        Numpy array containing the field strengths (in units of V/mm) in the x, y and z directions.
+        """
         assert point.shape == (3,)
         return backend.field_3d_derivs(point, self.z, self.coeffs)
      
     def potential_at_point(self, point):
+        """
+        Compute the potential.
+
+        Parameters
+        ----------
+        point: (3,) array of float64
+            Position at which to compute the potential.
+        
+        Returns
+        -------
+        Potential as a float value (in units of V).
+        """
         assert point.shape == (3,)
         return backend.potential_3d_derivs(point, self.z, self.coeffs)
     
