@@ -25,6 +25,17 @@ class ExcitationType(IntEnum):
     DIELECTRIC = 3
     FLOATING_CONDUCTOR = 4
 
+    def __str__(self):
+        if self == ExcitationType.VOLTAGE_FIXED:
+            return 'voltage fixed'
+        elif self == ExcitationType.VOLTAGE_FUN:
+            return 'voltage function'
+        elif self == ExcitationType.DIELECTRIC:
+            return 'dielectric'
+        elif self == ExcitationType.FLOATING_CONDUCTOR:
+            return 'floating conductor'
+
+
 class Excitation:
     """ """
      
@@ -32,6 +43,11 @@ class Excitation:
         self.mesh = mesh
         self.electrodes = mesh.get_electrodes()
         self.excitation_types = {}
+    
+    def __str__(self):
+        return f'<Traceon Excitation,\n\t' \
+            + '\n\t'.join([f'{n}={v} ({t})' for n, (t, v) in self.excitation_types.items()]) \
+            + '>'
      
     def add_voltage(self, **kwargs):
         """

@@ -64,6 +64,12 @@ class Symmetry(Enum):
     RADIAL = 0
     THREE_D = 1
 
+    def __str__(self):
+        if self == Symmetry.RADIAL:
+            return 'radial'
+        elif self == Symmetry.THREE_D:
+            return '3d'
+
 class Geometry(occ.Geometry):
     """
     Small wrapper class around pygmsh.occ.Geometry which itself is a small wrapper around the powerful GMSH library.
@@ -93,6 +99,12 @@ class Geometry(occ.Geometry):
         self.zmax = zmax
         self.symmetry = symmetry
         self._physical_queue = dict()
+
+    def __str__(self):
+        if self.zmin is not None and self.zmax is not None:
+            return f'<Traceon Geometry {self.symmetry}, zmin={self.zmin:.2f} mm, zmax={self.zmax:.2f} mm'
+        else:
+            return f'<Traceon Geometry {self.symmetry}>'
         
     def _add_physical(self, name, entities):
         """
@@ -225,7 +237,24 @@ class Mesh(Saveable):
         return list(self.mesh.cell_sets_dict.keys())
     
     def __str__(self):
-        return str(self.mesh) + ' (metadata: ' + str(self.metadata) + ')'
+        physicals = self.mesh.cell_sets_dict.keys()
+        physical_names = ', '.join(physicals)
+        type_ = 'line' if self.symmetry != Symmetry.THREE_D else 'triangle'
+        physical_nums = ', '.join([str(len(self.mesh.cell_sets_dict[n][type_])) for n in physicals])
+        
+        cells_type = ['point'] + [str(c.type) for c in self.mesh.cells]
+        cells_count = [len(self.mesh.points)] + [len(c) for c in self.mesh.cells]
+        
+        return f'<Traceon Mesh {self.symmetry},\n' \
+            f'\tPhysical groups: {physical_names}\n' \
+            f'\tElements in physical groups: {physical_nums}\n' \
+            f'\tNumber of.. \n\t    ' \
+            + '\n\t    '.join([f'{t}: \t{c}' for t, c in zip(cells_type, cells_count)]) \
+            + '>'
+
+
+        #return f'<Traceon Mesh with {len(self.mesh.points)} points, ', '.join(self.mesh.cell_sets_dict.keys()))
+        #return str(self.mesh) + ' (metadata: ' + str(self.metadata) + ')'
 
 class MEMSStack(Geometry):
     """Geometry consisting of a stack of MEMS fabricated elements. This geometry is modelled using a stack

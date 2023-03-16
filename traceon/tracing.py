@@ -119,6 +119,12 @@ class Tracer:
          
         self.bounds = bounds
         self.atol = atol
+    
+    def __str__(self):
+        field_name = self.field.__class__.__name__
+        bounds_str = ' '.join([f'({bmin:.2f}, {bmax:.2f})' for bmin, bmax in self.bounds])
+        return f'<Traceon Tracer of {field_name},\n\t' \
+            + 'Bounds: ' + bounds_str + ' mm >'
         
     def __call__(self, position, velocity):
         """Trace an electron.

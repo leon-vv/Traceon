@@ -279,6 +279,10 @@ class FieldBEM(Field):
         self.vertices = vertices
         self.charges = charges
         self.floating_voltages = floating_voltages
+
+    def __str__(self):
+        name = self.__class__.__name__
+        return f'<Traceon {name}, number of elements: {len(self.vertices)}>'
      
     def __add__(self, other):
         if isinstance(other, FieldBEM):
@@ -498,7 +502,11 @@ class FieldAxial(Field):
         assert z[0] < z[-1], "z values in axial interpolation should be ascending"
         self.z = z
         self.coeffs = coeffs
-    
+     
+    def __str__(self):
+        name = self.__class__.__name__
+        return f'<Traceon {name}, zmin={self.z[0]} mm, zmax={self.z[-1]} mm,\n\tNumber of samples on optical axis: {len(self.z)}>'
+     
     def __add__(self, other):
         if isinstance(other, FieldAxial):
             assert np.array_equal(self.z, other.z), "Cannot add Field3DAxial if optical axis sampling is different."
