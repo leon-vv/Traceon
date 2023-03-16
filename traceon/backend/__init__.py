@@ -134,13 +134,18 @@ def triangle_integral(point, v1, v2, v3, callback):
     assert point.shape == (3,) and v1.shape == (3,) and v2.shape == (3,) and v3.shape == (3,)
     return backend_lib.triangle_integral(point, v1, v2, v3, integration_cb_3d(remove_arg(callback)), None)
 
+def _vec_2d_to_3d(vec):
+    assert vec.shape == (2,) or vec.shape == (3,)
+     
+    if vec.shape == (2,):
+        return np.array([vec[0], vec[1], 0.0])
+    
+    return vec
+
 def trace_particle_wrapper(position, velocity, fill_positions_fun):
-    
-    if position.shape == (2,):
-        position = np.array([position[0], position[1], 0.0])
-    if velocity.shape == (2,):
-        velocity = np.array([velocity[0], velocity[1], 0.0])
-    
+    position = _vec_2d_to_3d(position)
+    velocity = _vec_2d_to_3d(velocity)
+     
     assert position.shape == (3,) and velocity.shape == (3,)
      
     N = TRACING_BLOCK_SIZE
@@ -244,7 +249,7 @@ def axial_derivatives_radial_ring(z, lines, charges):
     return derivs
 
 def potential_radial(point, vertices, charges):
-    assert point.shape == (3,)
+    point = _vec_2d_to_3d(point)
     assert vertices.shape == (len(charges), 2, 3)
     return backend_lib.potential_radial(point, vertices, charges, len(charges))
 
@@ -253,18 +258,19 @@ def potential_radial_derivs(point, z, coeffs):
     return backend_lib.potential_radial_derivs(point, z, coeffs, len(z))
 
 def field_radial(point, vertices, charges):
-    assert point.shape == (3,)
+    point = _vec_2d_to_3d(point)
     assert vertices.shape == (len(charges), 2, 3)
-    
+     
     field = np.zeros( (3,) )
     backend_lib.field_radial(point, field, vertices, charges, len(charges))
-    return field
+    return field[:2]
 
 def field_radial_derivs(point, z, coeffs):
+    point = _vec_2d_to_3d(point)
     assert coeffs.shape == (len(z), DERIV_2D_MAX, 6)
     field = np.zeros( (3,) )
     backend_lib.field_radial_derivs(point, field, z, coeffs, len(z))
-    return field
+    return field[:2]
 
 dx1_potential_3d_point = remove_arg(backend_lib.dx1_potential_3d_point)
 dy1_potential_3d_point = remove_arg(backend_lib.dy1_potential_3d_point)

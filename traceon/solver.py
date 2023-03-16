@@ -336,10 +336,6 @@ class FieldRadialBEM(FieldBEM):
         Numpy array containing the field strengths (in units of V/mm) in the r and z directions.   
         """
         assert point.shape == (2,) or point.shape == (3,)
-         
-        if point.shape == (2,):
-            point = np.array([point[0], point[1], 0.0])
-        
         return backend.field_radial(point, self.vertices, self.charges)
     
     def potential_at_point(self, point):
@@ -356,10 +352,6 @@ class FieldRadialBEM(FieldBEM):
         Potential as a float value (in units of V).
         """
         assert point.shape == (2,) or point.shape == (3,)
-        
-        if point.shape == (2,):
-            point = np.array([point[0], point[1], 0.0])
-        
         return backend.potential_radial(point, self.vertices, self.charges)
      
     def get_axial_potential_derivatives(self, z):
