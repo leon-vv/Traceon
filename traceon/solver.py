@@ -53,7 +53,7 @@ from . import excitation as E
 from . import backend
 
 FACTOR_AXIAL_DERIV_SAMPLING_2D = 0.2
-FACTOR_AXIAL_DERIV_SAMPLING_3D = 0.075
+FACTOR_AXIAL_DERIV_SAMPLING_3D = 0.06
 
 DERIV_ACCURACY = 6
 
@@ -376,7 +376,7 @@ class FieldRadialBEM(FieldBEM):
         """
         return backend.axial_derivatives_radial_ring(z, self.vertices, self.charges).T
      
-    def axial_derivative_interpolation(self, zmin, zmax):
+    def axial_derivative_interpolation(self, zmin, zmax, N=None):
         """
         Use a radial series expansion based on the potential derivatives at the optical axis
         to allow very fast field evaluations.
@@ -389,6 +389,9 @@ class FieldRadialBEM(FieldBEM):
         zmax : float
             Location on the optical axis where to stop sampling the derivatives. Any field
             evaluation outside [zmin, zmax] will return a zero field strength.
+        N: int, optional
+            Number of samples to take on the optical axis, if N=None the amount of samples
+            is determined by taking into account the number of elements in the mesh.
             
 
         Returns
@@ -397,7 +400,8 @@ class FieldRadialBEM(FieldBEM):
 
         """
         assert zmax > zmin
-        z = np.linspace(zmin, zmax, int(FACTOR_AXIAL_DERIV_SAMPLING_2D*len(self.vertices)))
+        N = N if N is not None else int(FACTOR_AXIAL_DERIV_SAMPLING_2D*len(self.vertices))
+        z = np.linspace(zmin, zmax, N)
         
         st = time.time()
         derivs = self.get_axial_potential_derivatives(z)
@@ -446,7 +450,7 @@ class Field3D_BEM(FieldBEM):
         assert point.shape == (3,)
         return backend.potential_3d(point, self.vertices, self.charges)
     
-    def axial_derivative_interpolation(self, zmin, zmax):
+    def axial_derivative_interpolation(self, zmin, zmax, N=None):
         """
         Use a radial series expansion around the optical axis to allow for very fast field
         evaluations. Constructing the radial series expansion in 3D is much more complicated
@@ -460,14 +464,19 @@ class Field3D_BEM(FieldBEM):
         zmax : float
             Location on the optical axis where to stop sampling the radial expansion coefficients. Any field
             evaluation outside [zmin, zmax] will return a zero field strength.
-        
+        N: int, optional
+            Number of samples to take on the optical axis, if N=None the amount of samples
+            is determined by taking into account the number of elements in the mesh.
+         
         Returns
         -------
         `Field3DAxial` object allowing fast field evaluations.
 
         """
         assert zmax > zmin
-        z = np.linspace(zmin, zmax, int(FACTOR_AXIAL_DERIV_SAMPLING_3D*len(self.vertices)))
+
+        N = N if N is not None else int(FACTOR_AXIAL_DERIV_SAMPLING_3D*len(self.vertices))
+        z = np.linspace(zmin, zmax, N)
         
         print(f'Number of points on z-axis: {len(z)}')
         st = time.time()
