@@ -139,7 +139,7 @@ class Geometry(occ.Geometry):
             self.add_physical(entities, label)
           
         if self.size_from_distance:
-            self.set_mesh_size_callback(self.mesh_size_callback)
+            self.set_mesh_size_callback(self._mesh_size_callback)
         
         dim = 2 if self.symmetry == Symmetry.THREE_D else 1
         
@@ -176,26 +176,7 @@ class Geometry(occ.Geometry):
         """
         gmsh.option.setNumber('Mesh.MeshSizeMin', size)
      
-    def mesh_size_callback(self, dim, tag, x, y, z):
-        """
-
-        Parameters
-        ----------
-        dim :
-            
-        tag :
-            
-        x :
-            
-        y :
-            
-        z :
-            
-
-        Returns
-        -------
-
-        """
+    def _mesh_size_callback(self, dim, tag, x, y, z):
         # Scale mesh size with distance to optical axis, but only the part of the optical
         # axis that lies between zmin and zmax
         
@@ -224,14 +205,10 @@ class Mesh(Saveable):
      
     def get_electrodes(self):
         """Get the names of all the electrodes in the geometry.
-
-        Parameters
-        ----------
-
+         
         Returns
-        -------
-        
-            List of electrode names
+        ---------
+        List of electrode names
 
         """
         return list(self.mesh.cell_sets_dict.keys())
@@ -262,21 +239,21 @@ class MEMSStack(Geometry):
     lenses and mirrors.
     
     Parameters
-    _________
-        z0: float
-            Starting z-value to begin building up the MEMS elements from.
-        revolve_factor: float
-            Revolve the resulting geometry around the optical axis to generate a 3D geometry. When `revolve_factor=0.0` a
-            2D geometry is returned. For `0 < revolve_factor <= 1.0` see the documentation of `revolve_around_optical_axis`.
-        rmax: float
-            The rectangular MEMS objects extend to \( r = r_{max} \).
-        enclose_right: bool
-            When creating a MEMS component it is important to have well specified boundary conditions above and
-            beneath the element. This is usually achieved by having grounded electrodes at the top and bottom of the stack.
-            To finish the grounded enclosure a grounded elements should connect these electrodes vertically at the right
-            side of the stack. 
-        margin_right: float
-            Distance between the grounded enclosure on the right and the MEMS electrodes.
+    ----------
+    z0: float
+        Starting z-value to begin building up the MEMS elements from.
+    revolve_factor: float
+        Revolve the resulting geometry around the optical axis to generate a 3D geometry. When `revolve_factor=0.0` a
+        2D geometry is returned. For `0 < revolve_factor <= 1.0` see the documentation of `revolve_around_optical_axis`.
+    rmax: float
+        The rectangular MEMS objects extend to \( r = r_{max} \).
+    enclose_right: bool
+        When creating a MEMS component it is important to have well specified boundary conditions above and
+        beneath the element. This is usually achieved by having grounded electrodes at the top and bottom of the stack.
+        To finish the grounded enclosure a grounded elements should connect these electrodes vertically at the right
+        side of the stack. 
+    margin_right: float
+        Distance between the grounded enclosure on the right and the MEMS electrodes.
     """
     
     def __init__(self, *args, z0=0.0, revolve_factor=0.0, rmax=2, enclose_right=True, margin_right=0.1, **kwargs):

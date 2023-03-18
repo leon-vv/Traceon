@@ -165,11 +165,10 @@ def xy_plane_intersection(positions, z):
         Positions of an electron as returned by `Tracer`.
     z: float
         z-coordinate of the plane with which to compute the intersection
-
+    
     Returns
     --------
-    np.ndarray of shape (4,) or (6,) containing the position and velocity of the electron
-    at the intersection point.
+    np.ndarray of shape (4,) or (6,) containing the position and velocity of the electron at the intersection point.
     """
     return backend.xy_plane_intersection(positions, z)
 

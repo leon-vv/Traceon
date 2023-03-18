@@ -95,11 +95,8 @@ class Excitation:
         **kwargs : dict
             The keys of the dictionary are the geometry names, while the values are the charge on the conductors. For example,
             calling the function as `add_floating_conductor(spacer=10)` specifies the physical group `spacer` as a floating conductor with
-            a total charge on its surface equal to 10.
-        
-        Returns
-        -------
-
+            a total charge on its surface equal to 10. For the unit of charge, see the section 'Units' on the `traceon` page.
+            
         """
         for name, charge in kwargs.items():
             assert name in self.electrodes
@@ -113,7 +110,7 @@ class Excitation:
     
         
     def _split_for_superposition(self):
-        """ """
+        
         # Names that have a fixed voltage excitation, not equal to 0.0
         types = self.excitation_types
         non_zero_fixed = [n for n, (t, v) in types.items() if t == ExcitationType.VOLTAGE_FIXED and v != 0.0]
@@ -143,8 +140,16 @@ class Excitation:
         return {n:e for (n,e) in zip(non_zero_fixed, excitations)}
 
     def get_active_elements(self):
-        """ """
-         
+        """Get elements in the mesh that are active, in the sense that
+        an excitation to them has been applied. 
+    
+        Returns
+        --------
+        A tuple of two elements: (points, names). points is a Numpy array of shape (N, 2, 3) in the case of 2D and (N, 3, 3) in the case of 3D. \
+        This array contains the vertices of the line elements or the triangles. \
+        names is a dictionary, the keys being the names of the physical groups mentioned by this excitation, \
+        while the values are Numpy arrays of indices that can be used to index the points array.
+        """
         type_ = self._get_element_type()
         mesh = self.mesh.mesh
         vertices = mesh.cells_dict[type_] # Indices making up the lines and triangles
@@ -162,8 +167,13 @@ class Excitation:
         return mesh.points[ vertices[~inactive] ], names
     
     def get_number_of_active_elements(self):
-        """Get the number of elements that are active. Active in this context means that they have been
-        assigned an excitation """
+        """Get elements in the mesh that are active, in the sense that
+        an excitation to them has been applied. This is the length of the points
+        array returned by the `Excitation.get_active_elements`.
+
+        Returns
+        --------
+        int, giving the number of elements. """
         type_ = self._get_element_type()
         mesh = self.mesh.mesh
         

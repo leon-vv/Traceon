@@ -4,10 +4,10 @@ can be calculated by integration over the charged boundary. However, doing a fie
 as for every field evaluation an iteration needs to be done over all elements in the mesh. Especially for particle tracing it
 is crucial that the field evaluation can be done faster. To achieve this, interpolation techniques can be used. 
 
-The solver package offers interpolation in the form of _radial series expansions_ to drastically increas the speed of ray tracing. For
+The solver package offers interpolation in the form of _radial series expansions_ to drastically increase the speed of ray tracing. For
 this consider the `axial_derivative_interpolation` methods documented below.
 
-## Radial series expansion in 2D
+## Radial series expansion in cylindrical symmetry
 
 Let \( \phi_0(z) \) be the potential along the optical axis. We can express the potential around the optical axis as:
 
@@ -368,8 +368,7 @@ class FieldRadialBEM(FieldBEM):
         ------- 
         Numpy array containing the derivatives. At index i one finds the i-th derivative (so
         at position 0 the potential itself is returned). The highest derivative returned is a 
-        constant currently set to 9.
-        """
+        constant currently set to 9."""
         return backend.axial_derivatives_radial_ring(z, self.vertices, self.charges).T
      
     def axial_derivative_interpolation(self, zmin, zmax, N=None):
