@@ -1,0 +1,1734 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, minimum-scale=1" />
+<meta name="generator" content="pdoc 0.10.0" />
+<title>traceon.solver API documentation</title>
+<meta name="description" content="The solver module uses the Boundary Element Method (BEM) to compute the surface charge distribution of a given
+geometry and excitation. Once the …" />
+<link rel="preload stylesheet" as="style" href="https://cdnjs.cloudflare.com/ajax/libs/10up-sanitize.css/11.0.1/sanitize.min.css" integrity="sha256-PK9q560IAAa6WVRRh76LtCaI8pjTJ2z11v0miyNNjrs=" crossorigin>
+<link rel="preload stylesheet" as="style" href="https://cdnjs.cloudflare.com/ajax/libs/10up-sanitize.css/11.0.1/typography.min.css" integrity="sha256-7l/o7C8jubJiy74VsKTidCy1yBkRtiUGbVkYBylBqUg=" crossorigin>
+<link rel="stylesheet preload" as="style" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/10.1.1/styles/github.min.css" crossorigin>
+<style>:root{--highlight-color:#fe9}.flex{display:flex !important}body{line-height:1.5em}#content{padding:20px}#sidebar{padding:30px;overflow:hidden}#sidebar > *:last-child{margin-bottom:2cm}.http-server-breadcrumbs{font-size:130%;margin:0 0 15px 0}#footer{font-size:.75em;padding:5px 30px;border-top:1px solid #ddd;text-align:right}#footer p{margin:0 0 0 1em;display:inline-block}#footer p:last-child{margin-right:30px}h1,h2,h3,h4,h5{font-weight:300}h1{font-size:2.5em;line-height:1.1em}h2{font-size:1.75em;margin:1em 0 .50em 0}h3{font-size:1.4em;margin:25px 0 10px 0}h4{margin:0;font-size:105%}h1:target,h2:target,h3:target,h4:target,h5:target,h6:target{background:var(--highlight-color);padding:.2em 0}a{color:#058;text-decoration:none;transition:color .3s ease-in-out}a:hover{color:#e82}.title code{font-weight:bold}h2[id^="header-"]{margin-top:2em}.ident{color:#900}pre code{background:#f8f8f8;font-size:.8em;line-height:1.4em}code{background:#f2f2f1;padding:1px 4px;overflow-wrap:break-word}h1 code{background:transparent}pre{background:#f8f8f8;border:0;border-top:1px solid #ccc;border-bottom:1px solid #ccc;margin:1em 0;padding:1ex}#http-server-module-list{display:flex;flex-flow:column}#http-server-module-list div{display:flex}#http-server-module-list dt{min-width:10%}#http-server-module-list p{margin-top:0}.toc ul,#index{list-style-type:none;margin:0;padding:0}#index code{background:transparent}#index h3{border-bottom:1px solid #ddd}#index ul{padding:0}#index h4{margin-top:.6em;font-weight:bold}@media (min-width:200ex){#index .two-column{column-count:2}}@media (min-width:300ex){#index .two-column{column-count:3}}dl{margin-bottom:2em}dl dl:last-child{margin-bottom:4em}dd{margin:0 0 1em 3em}#header-classes + dl > dd{margin-bottom:3em}dd dd{margin-left:2em}dd p{margin:10px 0}.name{background:#eee;font-weight:bold;font-size:.85em;padding:5px 10px;display:inline-block;min-width:40%}.name:hover{background:#e0e0e0}dt:target .name{background:var(--highlight-color)}.name > span:first-child{white-space:nowrap}.name.class > span:nth-child(2){margin-left:.4em}.inherited{color:#999;border-left:5px solid #eee;padding-left:1em}.inheritance em{font-style:normal;font-weight:bold}.desc h2{font-weight:400;font-size:1.25em}.desc h3{font-size:1em}.desc dt code{background:inherit}.source summary,.git-link-div{color:#666;text-align:right;font-weight:400;font-size:.8em;text-transform:uppercase}.source summary > *{white-space:nowrap;cursor:pointer}.git-link{color:inherit;margin-left:1em}.source pre{max-height:500px;overflow:auto;margin:0}.source pre code{font-size:12px;overflow:visible}.hlist{list-style:none}.hlist li{display:inline}.hlist li:after{content:',\2002'}.hlist li:last-child:after{content:none}.hlist .hlist{display:inline;padding-left:1em}img{max-width:100%}td{padding:0 .5em}.admonition{padding:.1em .5em;margin-bottom:1em}.admonition-title{font-weight:bold}.admonition.note,.admonition.info,.admonition.important{background:#aef}.admonition.todo,.admonition.versionadded,.admonition.tip,.admonition.hint{background:#dfd}.admonition.warning,.admonition.versionchanged,.admonition.deprecated{background:#fd4}.admonition.error,.admonition.danger,.admonition.caution{background:lightpink}</style>
+<style media="screen and (min-width: 700px)">@media screen and (min-width:700px){#sidebar{width:30%;height:100vh;overflow:auto;position:sticky;top:0}#content{width:70%;max-width:100ch;padding:3em 4em;border-left:1px solid #ddd}pre code{font-size:1em}.item .name{font-size:1em}main{display:flex;flex-direction:row-reverse;justify-content:flex-end}.toc ul ul,#index ul{padding-left:1.5em}.toc > ul > li{margin-top:.5em}}</style>
+<style media="print">@media print{#sidebar h1{page-break-before:always}.source{display:none}}@media print{*{background:transparent !important;color:#000 !important;box-shadow:none !important;text-shadow:none !important}a[href]:after{content:" (" attr(href) ")";font-size:90%}a[href][title]:after{content:none}abbr[title]:after{content:" (" attr(title) ")"}.ir a:after,a[href^="javascript:"]:after,a[href^="#"]:after{content:""}pre,blockquote{border:1px solid #999;page-break-inside:avoid}thead{display:table-header-group}tr,img{page-break-inside:avoid}img{max-width:100% !important}@page{margin:0.5cm}p,h2,h3{orphans:3;widows:3}h1,h2,h3,h4,h5,h6{page-break-after:avoid}}</style>
+<script async src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.7/latest.js?config=TeX-AMS_CHTML" integrity="sha256-kZafAc6mZvK3W3v1pHOcUix30OHQN6pU/NO2oFkqZVw=" crossorigin></script>
+<script defer src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/10.1.1/highlight.min.js" integrity="sha256-Uv3H6lx7dJmRfRvH8TH6kJD1TSK1aFcwgx+mdg3epi8=" crossorigin></script>
+<script>window.addEventListener('DOMContentLoaded', () => hljs.initHighlighting())</script>
+</head>
+<body>
+<main>
+<article id="content">
+<header>
+<h1 class="title">Module <code>traceon.solver</code></h1>
+</header>
+<section id="section-intro">
+<p>The solver module uses the Boundary Element Method (BEM) to compute the surface charge distribution of a given
+geometry and excitation. Once the surface charge distribution is known, the field at any arbitrary position in space
+can be calculated by integration over the charged boundary. However, doing a field evaluation in this manner is very slow
+as for every field evaluation an iteration needs to be done over all elements in the mesh. Especially for particle tracing it
+is crucial that the field evaluation can be done faster. To achieve this, interpolation techniques can be used. </p>
+<p>The solver package offers interpolation in the form of <em>radial series expansions</em> to drastically increase the speed of ray tracing. For
+this consider the <code>axial_derivative_interpolation</code> methods documented below.</p>
+<h2 id="radial-series-expansion-in-cylindrical-symmetry">Radial series expansion in cylindrical symmetry</h2>
+<p>Let <span><span class="MathJax_Preview"> \phi_0(z) </span><script type="math/tex"> \phi_0(z) </script></span> be the potential along the optical axis. We can express the potential around the optical axis as:</p>
+<p><span><span class="MathJax_Preview">
+\phi = \phi_0(z_0) - r^2 \frac{\partial \phi_0^2}{\partial z^2} + \frac{r^4}{64} \frac{\partial^4 \phi_0}{\partial z^4} - \frac{r^6}{2304} \frac{\partial \phi_0^6}{\partial z^6} + \cdots
+</span><script type="math/tex; mode=display">
+\phi = \phi_0(z_0) - r^2 \frac{\partial \phi_0^2}{\partial z^2} + \frac{r^4}{64} \frac{\partial^4 \phi_0}{\partial z^4} - \frac{r^6}{2304} \frac{\partial \phi_0^6}{\partial z^6} + \cdots
+</script></span></p>
+<p>Therefore, if we can efficiently compute the axial potential derivatives <span><span class="MathJax_Preview"> \frac{\partial \phi_0^n}{\partial z^n} </span><script type="math/tex"> \frac{\partial \phi_0^n}{\partial z^n} </script></span> we can compute the potential and therefore the fields around the optical axis.
+For the derivatives of <span><span class="MathJax_Preview"> \phi_0(z) </span><script type="math/tex"> \phi_0(z) </script></span> closed form formulas exist in the case of radially symmetric geometries, see for example formula 13.16a in [1]. Traceon uses a recursive version of these formulas to
+very efficiently compute the axial derivatives of the potential.</p>
+<h2 id="radial-series-expansion-in-3d">Radial series expansion in 3D</h2>
+<p>In a general three dimensional geometry the potential will be dependent not only on the distance from the optical axis but also on the angle <span><span class="MathJax_Preview"> \theta </span><script type="math/tex"> \theta </script></span> around the optical axis
+at which the potential is sampled. It turns out (equation (35, 24) in [2]) the potential can be written as follows:</p>
+<p><span><span class="MathJax_Preview">
+\phi = \sum_{\nu=0}^\infty \sum_{m=0}^\infty r^{2\nu + m} \left( A^\nu_m \cos(m\theta) + B^\nu_m \sin(m\theta) \right)
+</span><script type="math/tex; mode=display">
+\phi = \sum_{\nu=0}^\infty \sum_{m=0}^\infty r^{2\nu + m} \left( A^\nu_m \cos(m\theta) + B^\nu_m \sin(m\theta) \right)
+</script></span></p>
+<p>The <span><span class="MathJax_Preview">A^\nu_m</span><script type="math/tex">A^\nu_m</script></span> and <span><span class="MathJax_Preview">B^\nu_m</span><script type="math/tex">B^\nu_m</script></span> coefficients can be expressed in <em>directional derivatives</em> perpendicular to the optical axis, analogous to the radial symmetric case. The
+mathematics of calculating these coefficients quickly and accurately gets quite involved, but all details have been abstracted away from the user.</p>
+<h3 id="references">References</h3>
+<p>[1] P. Hawkes, E. Kasper. Principles of Electron Optics. Volume one: Basic Geometrical Optics. 2018.</p>
+<p>[2] W. Glaser. Grundlagen der Elektronenoptik. 1952.</p>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">&#34;&#34;&#34;The solver module uses the Boundary Element Method (BEM) to compute the surface charge distribution of a given
+geometry and excitation. Once the surface charge distribution is known, the field at any arbitrary position in space
+can be calculated by integration over the charged boundary. However, doing a field evaluation in this manner is very slow
+as for every field evaluation an iteration needs to be done over all elements in the mesh. Especially for particle tracing it
+is crucial that the field evaluation can be done faster. To achieve this, interpolation techniques can be used. 
+
+The solver package offers interpolation in the form of _radial series expansions_ to drastically increase the speed of ray tracing. For
+this consider the `axial_derivative_interpolation` methods documented below.
+
+## Radial series expansion in cylindrical symmetry
+
+Let \( \phi_0(z) \) be the potential along the optical axis. We can express the potential around the optical axis as:
+
+$$
+\phi = \phi_0(z_0) - r^2 \\frac{\\partial \phi_0^2}{\\partial z^2} + \\frac{r^4}{64} \\frac{\\partial^4 \phi_0}{\\partial z^4} - \\frac{r^6}{2304} \\frac{\\partial \phi_0^6}{\\partial z^6} + \\cdots
+$$
+
+Therefore, if we can efficiently compute the axial potential derivatives \( \\frac{\\partial \phi_0^n}{\\partial z^n} \) we can compute the potential and therefore the fields around the optical axis.
+For the derivatives of \( \phi_0(z) \) closed form formulas exist in the case of radially symmetric geometries, see for example formula 13.16a in [1]. Traceon uses a recursive version of these formulas to
+very efficiently compute the axial derivatives of the potential.
+
+## Radial series expansion in 3D
+
+In a general three dimensional geometry the potential will be dependent not only on the distance from the optical axis but also on the angle \( \\theta \) around the optical axis
+at which the potential is sampled. It turns out (equation (35, 24) in [2]) the potential can be written as follows:
+
+$$
+\phi = \sum_{\\nu=0}^\infty \sum_{m=0}^\infty r^{2\\nu + m} \\left( A^\\nu_m \cos(m\\theta) + B^\\nu_m \sin(m\\theta) \\right)
+$$
+
+The \(A^\\nu_m\) and \(B^\\nu_m\) coefficients can be expressed in _directional derivatives_ perpendicular to the optical axis, analogous to the radial symmetric case. The 
+mathematics of calculating these coefficients quickly and accurately gets quite involved, but all details have been abstracted away from the user.
+
+### References
+[1] P. Hawkes, E. Kasper. Principles of Electron Optics. Volume one: Basic Geometrical Optics. 2018.
+
+[2] W. Glaser. Grundlagen der Elektronenoptik. 1952.
+
+&#34;&#34;&#34;
+
+
+import math as m
+import time
+from threading import Thread
+import os.path as path
+
+import numpy as np
+from scipy.interpolate import CubicSpline, BPoly, PPoly
+import findiff
+
+from . import geometry as G
+from . import excitation as E
+from . import backend
+
+FACTOR_AXIAL_DERIV_SAMPLING_2D = 0.2
+FACTOR_AXIAL_DERIV_SAMPLING_3D = 0.06
+
+DERIV_ACCURACY = 6
+
+dir_ = path.dirname(__file__)
+data = path.join(dir_, &#39;data&#39;)
+thetas_file = path.join(data, &#39;radial-series-3D-thetas.npy&#39;)
+coefficients_file = path.join(data, &#39;radial-series-3D-theta-dependent-coefficients.npy&#39;)
+
+thetas = np.load(thetas_file)
+theta0 = thetas[0]
+dtheta = thetas[1]-thetas[0]
+
+thetas_interpolation_coefficients = np.load(coefficients_file)
+
+assert thetas_interpolation_coefficients.shape == (thetas.size-1, backend.DERIV_3D_MAX//2, backend.DERIV_3D_MAX, 4)
+
+def _get_floating_conductor_names(exc):
+    return [n for n, (t, v) in exc.excitation_types.items() if t == E.ExcitationType.FLOATING_CONDUCTOR]
+
+def _excitation_to_right_hand_side(excitation, vertices, names):
+    floating_names = _get_floating_conductor_names(excitation)
+     
+    N_floating = len(floating_names)
+    N_lines = len(vertices)
+    N_matrix = N_lines + N_floating # Every floating conductor adds one constraint
+
+    F = np.zeros( (N_matrix) )
+     
+    for name, indices in names.items():
+        type_, value  = excitation.excitation_types[name]
+         
+        if type_ == E.ExcitationType.VOLTAGE_FIXED:
+            F[indices] = value
+        elif type_ == E.ExcitationType.VOLTAGE_FUN:
+            for i in indices:
+                points = vertices[i]
+                middle = np.average(points, axis=0)
+                F[i] = value(*middle)
+        elif type_ == E.ExcitationType.DIELECTRIC or \
+                type_ == E.ExcitationType.FLOATING_CONDUCTOR:
+            F[indices] = 0
+    
+    # See comments in _add_floating_conductor_constraints_to_matrix
+    for i, f in enumerate(floating_names):
+        F[-N_floating+i] = excitation.excitation_types[f][1]
+     
+    assert np.all(np.isfinite(F))
+    return F
+
+def _area(symmetry, points):
+    if symmetry == G.Symmetry.RADIAL:
+        middle = np.average(points, axis=0)
+        length = np.linalg.norm(points[1] - points[0])
+        return length*2*np.pi*middle[0]
+    elif symmetry == G.Symmetry.THREE_D:
+        v1, v2, v3 = points 
+        return 1/2*np.linalg.norm(np.cross(v2-v1, v3-v1))
+
+
+def _add_floating_conductor_constraints_to_matrix(matrix, vertices, names, excitation):
+    floating = _get_floating_conductor_names(excitation)
+    N_matrix = matrix.shape[0]
+    assert matrix.shape == (N_matrix, N_matrix)
+     
+    for i, f in enumerate(floating):
+        for index in names[f]:
+            # An extra unknown voltage is added to the matrix for every floating conductor.
+            # The column related to this unknown voltage is positioned at the rightmost edge of the matrix.
+            # If multiple floating conductors are present the column lives at -len(floating) + i
+            matrix[ index, -len(floating) + i] = -1
+            # The unknown voltage is determined by the constraint on the total charge of the conductor.
+            # This constraint lives at the bottom edge of the matrix.
+            # The surface area of the respective line element (or triangle) is multiplied by the surface charge (unknown)
+            # to arrive at the total specified charge (right hand side).
+            element = vertices[index]
+            matrix[ -len(floating) + i, index] = _area(excitation.mesh.symmetry, element)
+
+def _excitation_to_matrix(excitation, vertices, names):
+    floating_names = _get_floating_conductor_names(excitation)
+    
+    N_floating = len(floating_names)
+    N_lines = len(vertices)
+    N_matrix = N_lines + N_floating # Every floating conductor adds one constraint
+     
+    excitation_types = np.zeros(N_lines, dtype=np.uint8)
+    excitation_values = np.zeros(N_lines)
+    
+    for n, indices in names.items():
+        excitation_types[indices] = int( excitation.excitation_types[n][0] )
+        
+        if excitation.excitation_types[n][0] == E.ExcitationType.DIELECTRIC:
+            excitation_values[indices] = excitation.excitation_types[n][1]
+     
+    assert np.all(excitation_types != 0)
+     
+    print(f&#39;Total number of elements: {N_lines}, symmetry: {excitation.mesh.symmetry}&#39;)
+     
+    st = time.time()
+    THREADS = 2
+    
+    matrix = np.zeros( (N_matrix, N_matrix) )
+    split = np.array_split(np.arange(N_lines), THREADS)
+     
+    fill_fun = backend.fill_matrix_radial if excitation.mesh.symmetry != G.Symmetry.THREE_D else backend.fill_matrix_3d
+    threads = [Thread(target=fill_fun, args=(matrix, vertices, excitation_types, excitation_values, r[0], r[-1])) for r in split]
+     
+    for t in threads:
+        t.start()
+    for t in threads:
+        t.join()
+     
+    assert np.all(np.isfinite(matrix))
+    _add_floating_conductor_constraints_to_matrix(matrix, vertices, names, excitation)
+    print(f&#39;Time for building matrix: {(time.time()-st)*1000:.0f} ms&#39;)
+        
+    return matrix
+
+
+def _charges_to_field(excitation, charges, vertices, names):
+    floating_names = _get_floating_conductor_names(excitation)
+    N_floating = len(floating_names)
+    assert len(charges) == len(vertices) + N_floating
+    
+    floating_voltages = {n:charges[-N_floating+i] for i, n in enumerate(floating_names)}
+    if N_floating &gt; 0:
+        charges = charges[:-N_floating]
+     
+    assert len(charges) == len(vertices)
+      
+    field_class = FieldRadialBEM if excitation.mesh.symmetry != G.Symmetry.THREE_D else Field3D_BEM
+    return field_class(vertices, charges, floating_voltages=floating_voltages)
+    
+
+def solve_bem(excitation, superposition=False):
+    &#34;&#34;&#34;
+    Solve for the charges on the surface of the geometry by using the Boundary Element Method (BEM) and taking
+    into account the specified `excitation`. 
+
+    Parameters
+    ----------
+    excitation : traceon.excitation.Excitation
+        The excitation that produces the resulting field.
+        
+    superposition : bool
+        When `superposition=True` the function returns multiple fields. Each field corresponds with a unity excitation (1V)
+        of a physical group that was previously assigned a non-zero fixed voltage value. This is useful when a geometry needs
+        to be analyzed for many different voltage settings. In this case taking a linear superposition of the returned fields
+        allows to select a different voltage &#39;setting&#39; without inducing any computational cost. There is no computational cost
+        involved in using `superposition=True` since a direct solver is used which easily allows for multiple right hand sides (the
+        matrix does not have to be inverted multiple times). However, some excitations are invalid in the superposition process: floating
+        conductor with a non-zero total charge and voltage functions (position dependent voltages).
+    
+    Returns
+    -------
+    A `FieldRadialBEM` if the geometry (contained in the given `excitation`) is radially symmetric. If the geometry is a generic three
+    dimensional geometry `Field3D_BEM` is returned. Alternatively, when `superposition=True` a dictionary is returned, where the keys
+    are the physical groups with unity excitation, and the values are the resulting fields.
+    &#34;&#34;&#34;
+    
+    vertices, names = excitation.get_active_elements()
+     
+    if not superposition:
+        matrix = _excitation_to_matrix(excitation, vertices, names)
+        F = _excitation_to_right_hand_side(excitation, vertices, names)
+        
+        st = time.time()
+        charges = np.linalg.solve(matrix, F)
+        assert np.all(np.isfinite(charges))
+        print(f&#39;Time for solving matrix: {(time.time()-st)*1000:.0f} ms&#39;)
+
+        return _charges_to_field(excitation, charges, vertices, names)
+     
+    excs = excitation._split_for_superposition()
+    superposed_names = excs.keys()
+    matrix = _excitation_to_matrix(excitation, vertices, names)
+    F = np.array([_excitation_to_right_hand_side(excs[n], vertices, names) for n in superposed_names]).T
+    st = time.time()
+    charges = np.linalg.solve(matrix, F)
+    print(f&#39;Time for solving matrix: {(time.time()-st)*1000:.0f} ms&#39;)
+    assert np.all(np.isfinite(charges))
+    return {n:_charges_to_field(excs[n], charges[:, i], vertices, names) for i, n in enumerate(superposed_names)}
+
+
+def _get_one_dimensional_high_order_ppoly(z, y, dydz, dydz2):
+    bpoly = BPoly.from_derivatives(z, np.array([y, dydz, dydz2]).T)
+    return PPoly.from_bernstein_basis(bpoly)
+
+def _quintic_spline_coefficients(z, derivs):
+    # k is degree of polynomial
+    #assert derivs.shape == (z.size, backend.DERIV_2D_MAX)
+    c = np.zeros( (z.size-1, 9, 6) )
+    
+    dz = z[1] - z[0]
+    assert np.all(np.isclose(np.diff(z), dz)) # Equally spaced
+     
+    for i, d in enumerate(derivs):
+        high_order = i + 2 &lt; len(derivs)
+        
+        if high_order:
+            ppoly = _get_one_dimensional_high_order_ppoly(z, d, derivs[i+1], derivs[i+2])
+            start_index = 0
+        else:
+            ppoly = CubicSpline(z, d)
+            start_index = 2
+        
+        c[:, i, start_index:], x, k = ppoly.c.T, ppoly.x, ppoly.c.shape[0]-1
+        assert np.all(x == z)
+        assert (high_order and k == 5) or (not high_order and k == 3)
+    
+    return c
+
+class Field:
+    def __call__(self, *args):
+        return self.field_at_point(np.array(args))
+
+class FieldBEM(Field):
+    &#34;&#34;&#34;An electrostatic field (resulting from surface charges) as computed from the Boundary Element Method. You should
+    not initialize this class yourself, but it is used as a base class for the fields returned by the `solve_bem` function. 
+    This base class overloads the +,*,- operators so it is very easy to take a superposition of different fields.&#34;&#34;&#34;
+    
+    def __init__(self, vertices, charges, floating_voltages={}):
+        assert len(vertices) == len(charges)
+        self.vertices = vertices
+        self.charges = charges
+        self.floating_voltages = floating_voltages
+
+    def __str__(self):
+        name = self.__class__.__name__
+        return f&#39;&lt;Traceon {name}, number of elements: {len(self.vertices)}&gt;&#39;
+     
+    def __add__(self, other):
+        if isinstance(other, FieldBEM):
+            assert np.array_equal(self.vertices, other.vertices), &#34;Cannot add Field3D_BEM if geometry is unequal.&#34;
+            assert self.charges.shape == other.charges.shape, &#34;Cannot add Field3D_BEM if charges have not equal shape.&#34;
+            assert set(self.floating_voltages.keys()) == set(other.floating_voltages.keys())
+            floating = {n:self.floating_voltages[n]+other.floating_voltages[n] for n in self.floating_voltages.keys()}
+            return self.__class__(self.vertices, self.charges+other.charges, floating)
+         
+        return NotImpemented
+    
+    def __sub__(self, other):
+        return self.__add__(-other)
+     
+    def __radd__(self, other):
+        return self.__add__(other)
+     
+    def __mul__(self, other):
+        if isinstance(other, int) or isinstance(other, float):
+            floating = {n:v*other for n, v in self.floating_voltages.items()}
+            return self.__class__(self.vertices, other*self.charges, floating)
+        
+        return NotImpemented
+
+    def __neg__(self):
+        return -1*self
+    
+    def __rmul__(self, other):
+        return self.__mul__(other)
+
+
+class FieldRadialBEM(FieldBEM):
+    &#34;&#34;&#34;A radially symmetric electrostatic field. The field is a result of the surface charges as computed by the
+    `solve_bem` function. See the comments in `FieldBEM`.&#34;&#34;&#34;
+    
+    def __init__(self, vertices, charges, floating_voltages={}):
+        super().__init__(vertices, charges, floating_voltages)
+        assert vertices.shape == (len(charges), 2, 3)
+        
+    def field_at_point(self, point):
+        &#34;&#34;&#34;
+        Compute the electric field, \( \\vec{E} = -\\nabla \phi \)
+        
+        Parameters
+        ----------
+        point: (2,) array of float64
+            Position at which to compute the field.
+        
+        Returns
+        -------
+        Numpy array containing the field strengths (in units of V/mm) in the r and z directions.   
+        &#34;&#34;&#34;
+        assert point.shape == (2,) or point.shape == (3,)
+        return backend.field_radial(point, self.vertices, self.charges)
+    
+    def potential_at_point(self, point):
+        &#34;&#34;&#34;
+        Compute the potential.
+
+        Parameters
+        ----------
+        point: (2,) array of float64
+            Position at which to compute the field.
+        
+        Returns
+        -------
+        Potential as a float value (in units of V).
+        &#34;&#34;&#34;
+        assert point.shape == (2,) or point.shape == (3,)
+        return backend.potential_radial(point, self.vertices, self.charges)
+     
+    def get_axial_potential_derivatives(self, z):
+        &#34;&#34;&#34;
+        Compute the derivatives of the potential at a point on the optical axis (z-axis). 
+         
+        Parameters
+        ----------
+        z : float
+            Position on the optical axis at which to compute the derivatives.
+        
+
+        Returns
+        ------- 
+        Numpy array containing the derivatives. At index i one finds the i-th derivative (so
+        at position 0 the potential itself is returned). The highest derivative returned is a 
+        constant currently set to 9.&#34;&#34;&#34;
+        return backend.axial_derivatives_radial_ring(z, self.vertices, self.charges).T
+     
+    def axial_derivative_interpolation(self, zmin, zmax, N=None):
+        &#34;&#34;&#34;
+        Use a radial series expansion based on the potential derivatives at the optical axis
+        to allow very fast field evaluations.
+        
+        Parameters
+        ----------
+        zmin : float
+            Location on the optical axis where to start sampling the derivatives.
+            
+        zmax : float
+            Location on the optical axis where to stop sampling the derivatives. Any field
+            evaluation outside [zmin, zmax] will return a zero field strength.
+        N: int, optional
+            Number of samples to take on the optical axis, if N=None the amount of samples
+            is determined by taking into account the number of elements in the mesh.
+            
+
+        Returns
+        -------
+        `FieldRadialAxial` object allowing fast field evaluations.
+
+        &#34;&#34;&#34;
+        assert zmax &gt; zmin
+        N = N if N is not None else int(FACTOR_AXIAL_DERIV_SAMPLING_2D*len(self.vertices))
+        z = np.linspace(zmin, zmax, N)
+        
+        st = time.time()
+        derivs = self.get_axial_potential_derivatives(z)
+        coeffs = _quintic_spline_coefficients(z, derivs)
+        print(f&#39;Computing derivative interpolation took {(time.time()-st)*1000:.2f} ms ({len(z)} items)&#39;)
+        
+        return FieldRadialAxial(z, coeffs)
+
+class Field3D_BEM(FieldBEM):
+    &#34;&#34;&#34;An electrostatic field resulting from a general 3D geometry. The field is a result of the surface charges as computed by the
+    `solve_bem` function. See the comments in `FieldBEM`.&#34;&#34;&#34;
+     
+    def __init__(self, vertices, charges, floating_voltages={}):
+        super().__init__(vertices, charges, floating_voltages)
+        assert vertices.shape == (len(charges), 3, 3)
+    
+    def field_at_point(self, point):
+        &#34;&#34;&#34;
+        Compute the electric field, \( \\vec{E} = -\\nabla \phi \)
+        
+        Parameters
+        ----------
+        point: (3,) array of float64
+            Position at which to compute the field.
+             
+        Returns
+        -------
+        Numpy array containing the field strengths (in units of V/mm) in the x, y and z directions.
+        &#34;&#34;&#34;
+        assert point.shape == (3,)
+        return backend.field_3d(point, self.vertices, self.charges)
+     
+    def potential_at_point(self, point):
+        &#34;&#34;&#34;
+        Compute the potential.
+
+        Parameters
+        ----------
+        point: (3,) array of float64
+            Position at which to compute the field.
+        
+        Returns
+        -------
+        Potential as a float value (in units of V).
+        &#34;&#34;&#34;
+        assert point.shape == (3,)
+        return backend.potential_3d(point, self.vertices, self.charges)
+    
+    def axial_derivative_interpolation(self, zmin, zmax, N=None):
+        &#34;&#34;&#34;
+        Use a radial series expansion around the optical axis to allow for very fast field
+        evaluations. Constructing the radial series expansion in 3D is much more complicated
+        than the radial symmetric case, but all details have been abstracted away from the user.
+        
+        Parameters
+        ----------
+        zmin : float
+            Location on the optical axis where to start sampling the radial expansion coefficients.
+            
+        zmax : float
+            Location on the optical axis where to stop sampling the radial expansion coefficients. Any field
+            evaluation outside [zmin, zmax] will return a zero field strength.
+        N: int, optional
+            Number of samples to take on the optical axis, if N=None the amount of samples
+            is determined by taking into account the number of elements in the mesh.
+         
+        Returns
+        -------
+        `Field3DAxial` object allowing fast field evaluations.
+
+        &#34;&#34;&#34;
+        assert zmax &gt; zmin
+
+        N = N if N is not None else int(FACTOR_AXIAL_DERIV_SAMPLING_3D*len(self.vertices))
+        z = np.linspace(zmin, zmax, N)
+        
+        print(f&#39;Number of points on z-axis: {len(z)}&#39;)
+        st = time.time()
+        coeffs = backend.axial_coefficients_3d(self.vertices, self.charges, z, thetas, thetas_interpolation_coefficients)
+        interpolated_coeffs = CubicSpline(z, coeffs).c
+        interpolated_coeffs = np.moveaxis(interpolated_coeffs, 0, -1)
+        interpolated_coeffs = np.require(interpolated_coeffs, requirements=(&#39;C_CONTIGUOUS&#39;, &#39;ALIGNED&#39;))
+        print(f&#39;Time for calculating radial series expansion coefficients: {(time.time()-st)*1000:.0f} ms ({len(z)} items)&#39;)
+
+        return Field3DAxial(z, interpolated_coeffs)
+
+class FieldAxial(Field):
+    &#34;&#34;&#34;An electrostatic field resulting from a radial series expansion around the optical axis. You should
+    not initialize this class yourself, but it is used as a base class for the fields returned by the `axial_derivative_interpolation` methods. 
+    This base class overloads the +,*,- operators so it is very easy to take a superposition of different fields.&#34;&#34;&#34;
+    
+    def __init__(self, z, coeffs):
+        assert len(z)-1 == len(coeffs)
+        assert z[0] &lt; z[-1], &#34;z values in axial interpolation should be ascending&#34;
+        self.z = z
+        self.coeffs = coeffs
+     
+    def __str__(self):
+        name = self.__class__.__name__
+        return f&#39;&lt;Traceon {name}, zmin={self.z[0]} mm, zmax={self.z[-1]} mm,\n\tNumber of samples on optical axis: {len(self.z)}&gt;&#39;
+     
+    def __add__(self, other):
+        if isinstance(other, FieldAxial):
+            assert np.array_equal(self.z, other.z), &#34;Cannot add Field3DAxial if optical axis sampling is different.&#34;
+            assert self.coeffs.shape == other.coeffs.shape, &#34;Cannot add Field3DAxial if shape of axial coefficients is unequal.&#34;
+            return self.__class__(self.z, self.coeffs+other.coeffs)
+         
+        return NotImpemented
+     
+    def __sub__(self, other):
+        return self.__add__(-other)
+    
+    def __radd__(self, other):
+        return self.__add__(other)
+     
+    def __mul__(self, other):
+        if isinstance(other, int) or isinstance(other, float):
+            return self.__class__(self.z, other*self.coeffs)
+         
+        return NotImpemented
+
+    def __neg__(self):
+        return -1*self
+    
+    def __rmul__(self, other):
+        return self.__mul__(other)
+
+                
+class FieldRadialAxial(FieldAxial):
+    &#34;&#34;&#34; &#34;&#34;&#34;
+    def __init__(self, z, coeffs):
+        super().__init__(z, coeffs)
+        assert coeffs.shape == (len(z)-1, backend.DERIV_2D_MAX, 6)
+    
+    def field_at_point(self, point):
+        &#34;&#34;&#34;
+        Compute the electric field, \( \\vec{E} = -\\nabla \phi \)
+        
+        Parameters
+        ----------
+        point: (2,) array of float64
+            Position at which to compute the field.
+             
+        Returns
+        -------
+        Numpy array containing the field strengths (in units of V/mm) in the r and z directions.
+        &#34;&#34;&#34;
+        assert point.shape == (2,)
+        return backend.field_radial_derivs(point, self.z, self.coeffs)
+     
+    def potential_at_point(self, point):
+        &#34;&#34;&#34;
+        Compute the potential.
+
+        Parameters
+        ----------
+        point: (2,) array of float64
+            Position at which to compute the potential.
+        
+        Returns
+        -------
+        Potential as a float value (in units of V).
+        &#34;&#34;&#34;
+        assert point.shape == (2,)
+        return backend.potential_radial_derivs(point, self.z, self.coeffs)
+    
+
+class Field3DAxial(FieldAxial):
+    &#34;&#34;&#34;Field computed using a radial series expansion around the optical axis (z-axis). See comments at the start of this page.
+     &#34;&#34;&#34;
+    
+    def __init__(self, z, coeffs):
+        super().__init__(z, coeffs)
+        assert coeffs.shape == (len(z)-1, 2, backend.NU_MAX, backend.M_MAX, 4)
+    
+    def __call__(self, point):
+        return self.field_at_point(point)
+
+    def field_at_point(self, point):
+        &#34;&#34;&#34;
+        Compute the electric field, \( \\vec{E} = -\\nabla \phi \)
+        
+        Parameters
+        ----------
+        point: (3,) array of float64
+            Position at which to compute the field.
+             
+        Returns
+        -------
+        Numpy array containing the field strengths (in units of V/mm) in the x, y and z directions.
+        &#34;&#34;&#34;
+        assert point.shape == (3,)
+        return backend.field_3d_derivs(point, self.z, self.coeffs)
+     
+    def potential_at_point(self, point):
+        &#34;&#34;&#34;
+        Compute the potential.
+
+        Parameters
+        ----------
+        point: (3,) array of float64
+            Position at which to compute the potential.
+        
+        Returns
+        -------
+        Potential as a float value (in units of V).
+        &#34;&#34;&#34;
+        assert point.shape == (3,)
+        return backend.potential_3d_derivs(point, self.z, self.coeffs)
+    </code></pre>
+</details>
+</section>
+<section>
+</section>
+<section>
+</section>
+<section>
+<h2 class="section-title" id="header-functions">Functions</h2>
+<dl>
+<dt id="traceon.solver.solve_bem"><code class="name flex">
+<span>def <span class="ident">solve_bem</span></span>(<span>excitation, superposition=False)</span>
+</code></dt>
+<dd>
+<div class="desc"><p>Solve for the charges on the surface of the geometry by using the Boundary Element Method (BEM) and taking
+into account the specified <code>excitation</code>. </p>
+<h2 id="parameters">Parameters</h2>
+<dl>
+<dt><strong><code>excitation</code></strong> :&ensp;<code><a title="traceon.excitation.Excitation" href="excitation.html#traceon.excitation.Excitation">Excitation</a></code></dt>
+<dd>The excitation that produces the resulting field.</dd>
+<dt><strong><code>superposition</code></strong> :&ensp;<code>bool</code></dt>
+<dd>When <code>superposition=True</code> the function returns multiple fields. Each field corresponds with a unity excitation (1V)
+of a physical group that was previously assigned a non-zero fixed voltage value. This is useful when a geometry needs
+to be analyzed for many different voltage settings. In this case taking a linear superposition of the returned fields
+allows to select a different voltage 'setting' without inducing any computational cost. There is no computational cost
+involved in using <code>superposition=True</code> since a direct solver is used which easily allows for multiple right hand sides (the
+matrix does not have to be inverted multiple times). However, some excitations are invalid in the superposition process: floating
+conductor with a non-zero total charge and voltage functions (position dependent voltages).</dd>
+</dl>
+<h2 id="returns">Returns</h2>
+<p>A <code><a title="traceon.solver.FieldRadialBEM" href="#traceon.solver.FieldRadialBEM">FieldRadialBEM</a></code> if the geometry (contained in the given <code>excitation</code>) is radially symmetric. If the geometry is a generic three
+dimensional geometry <code><a title="traceon.solver.Field3D_BEM" href="#traceon.solver.Field3D_BEM">Field3D_BEM</a></code> is returned. Alternatively, when <code>superposition=True</code> a dictionary is returned, where the keys
+are the physical groups with unity excitation, and the values are the resulting fields.</p></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def solve_bem(excitation, superposition=False):
+    &#34;&#34;&#34;
+    Solve for the charges on the surface of the geometry by using the Boundary Element Method (BEM) and taking
+    into account the specified `excitation`. 
+
+    Parameters
+    ----------
+    excitation : traceon.excitation.Excitation
+        The excitation that produces the resulting field.
+        
+    superposition : bool
+        When `superposition=True` the function returns multiple fields. Each field corresponds with a unity excitation (1V)
+        of a physical group that was previously assigned a non-zero fixed voltage value. This is useful when a geometry needs
+        to be analyzed for many different voltage settings. In this case taking a linear superposition of the returned fields
+        allows to select a different voltage &#39;setting&#39; without inducing any computational cost. There is no computational cost
+        involved in using `superposition=True` since a direct solver is used which easily allows for multiple right hand sides (the
+        matrix does not have to be inverted multiple times). However, some excitations are invalid in the superposition process: floating
+        conductor with a non-zero total charge and voltage functions (position dependent voltages).
+    
+    Returns
+    -------
+    A `FieldRadialBEM` if the geometry (contained in the given `excitation`) is radially symmetric. If the geometry is a generic three
+    dimensional geometry `Field3D_BEM` is returned. Alternatively, when `superposition=True` a dictionary is returned, where the keys
+    are the physical groups with unity excitation, and the values are the resulting fields.
+    &#34;&#34;&#34;
+    
+    vertices, names = excitation.get_active_elements()
+     
+    if not superposition:
+        matrix = _excitation_to_matrix(excitation, vertices, names)
+        F = _excitation_to_right_hand_side(excitation, vertices, names)
+        
+        st = time.time()
+        charges = np.linalg.solve(matrix, F)
+        assert np.all(np.isfinite(charges))
+        print(f&#39;Time for solving matrix: {(time.time()-st)*1000:.0f} ms&#39;)
+
+        return _charges_to_field(excitation, charges, vertices, names)
+     
+    excs = excitation._split_for_superposition()
+    superposed_names = excs.keys()
+    matrix = _excitation_to_matrix(excitation, vertices, names)
+    F = np.array([_excitation_to_right_hand_side(excs[n], vertices, names) for n in superposed_names]).T
+    st = time.time()
+    charges = np.linalg.solve(matrix, F)
+    print(f&#39;Time for solving matrix: {(time.time()-st)*1000:.0f} ms&#39;)
+    assert np.all(np.isfinite(charges))
+    return {n:_charges_to_field(excs[n], charges[:, i], vertices, names) for i, n in enumerate(superposed_names)}</code></pre>
+</details>
+</dd>
+</dl>
+</section>
+<section>
+<h2 class="section-title" id="header-classes">Classes</h2>
+<dl>
+<dt id="traceon.solver.Field"><code class="flex name class">
+<span>class <span class="ident">Field</span></span>
+</code></dt>
+<dd>
+<div class="desc"></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class Field:
+    def __call__(self, *args):
+        return self.field_at_point(np.array(args))</code></pre>
+</details>
+<h3>Subclasses</h3>
+<ul class="hlist">
+<li><a title="traceon.solver.FieldAxial" href="#traceon.solver.FieldAxial">FieldAxial</a></li>
+<li><a title="traceon.solver.FieldBEM" href="#traceon.solver.FieldBEM">FieldBEM</a></li>
+</ul>
+</dd>
+<dt id="traceon.solver.Field3DAxial"><code class="flex name class">
+<span>class <span class="ident">Field3DAxial</span></span>
+<span>(</span><span>z, coeffs)</span>
+</code></dt>
+<dd>
+<div class="desc"><p>Field computed using a radial series expansion around the optical axis (z-axis). See comments at the start of this page.</p></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class Field3DAxial(FieldAxial):
+    &#34;&#34;&#34;Field computed using a radial series expansion around the optical axis (z-axis). See comments at the start of this page.
+     &#34;&#34;&#34;
+    
+    def __init__(self, z, coeffs):
+        super().__init__(z, coeffs)
+        assert coeffs.shape == (len(z)-1, 2, backend.NU_MAX, backend.M_MAX, 4)
+    
+    def __call__(self, point):
+        return self.field_at_point(point)
+
+    def field_at_point(self, point):
+        &#34;&#34;&#34;
+        Compute the electric field, \( \\vec{E} = -\\nabla \phi \)
+        
+        Parameters
+        ----------
+        point: (3,) array of float64
+            Position at which to compute the field.
+             
+        Returns
+        -------
+        Numpy array containing the field strengths (in units of V/mm) in the x, y and z directions.
+        &#34;&#34;&#34;
+        assert point.shape == (3,)
+        return backend.field_3d_derivs(point, self.z, self.coeffs)
+     
+    def potential_at_point(self, point):
+        &#34;&#34;&#34;
+        Compute the potential.
+
+        Parameters
+        ----------
+        point: (3,) array of float64
+            Position at which to compute the potential.
+        
+        Returns
+        -------
+        Potential as a float value (in units of V).
+        &#34;&#34;&#34;
+        assert point.shape == (3,)
+        return backend.potential_3d_derivs(point, self.z, self.coeffs)</code></pre>
+</details>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li><a title="traceon.solver.FieldAxial" href="#traceon.solver.FieldAxial">FieldAxial</a></li>
+<li><a title="traceon.solver.Field" href="#traceon.solver.Field">Field</a></li>
+</ul>
+<h3>Methods</h3>
+<dl>
+<dt id="traceon.solver.Field3DAxial.field_at_point"><code class="name flex">
+<span>def <span class="ident">field_at_point</span></span>(<span>self, point)</span>
+</code></dt>
+<dd>
+<div class="desc"><p>Compute the electric field, <span><span class="MathJax_Preview"> \vec{E} = -\nabla \phi </span><script type="math/tex"> \vec{E} = -\nabla \phi </script></span></p>
+<h2 id="parameters">Parameters</h2>
+<dl>
+<dt><strong><code>point</code></strong> :&ensp;<code>(3,) array</code> of <code>float64</code></dt>
+<dd>Position at which to compute the field.</dd>
+</dl>
+<h2 id="returns">Returns</h2>
+<p>Numpy array containing the field strengths (in units of V/mm) in the x, y and z directions.</p></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def field_at_point(self, point):
+    &#34;&#34;&#34;
+    Compute the electric field, \( \\vec{E} = -\\nabla \phi \)
+    
+    Parameters
+    ----------
+    point: (3,) array of float64
+        Position at which to compute the field.
+         
+    Returns
+    -------
+    Numpy array containing the field strengths (in units of V/mm) in the x, y and z directions.
+    &#34;&#34;&#34;
+    assert point.shape == (3,)
+    return backend.field_3d_derivs(point, self.z, self.coeffs)</code></pre>
+</details>
+</dd>
+<dt id="traceon.solver.Field3DAxial.potential_at_point"><code class="name flex">
+<span>def <span class="ident">potential_at_point</span></span>(<span>self, point)</span>
+</code></dt>
+<dd>
+<div class="desc"><p>Compute the potential.</p>
+<h2 id="parameters">Parameters</h2>
+<dl>
+<dt><strong><code>point</code></strong> :&ensp;<code>(3,) array</code> of <code>float64</code></dt>
+<dd>Position at which to compute the potential.</dd>
+</dl>
+<h2 id="returns">Returns</h2>
+<p>Potential as a float value (in units of V).</p></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def potential_at_point(self, point):
+    &#34;&#34;&#34;
+    Compute the potential.
+
+    Parameters
+    ----------
+    point: (3,) array of float64
+        Position at which to compute the potential.
+    
+    Returns
+    -------
+    Potential as a float value (in units of V).
+    &#34;&#34;&#34;
+    assert point.shape == (3,)
+    return backend.potential_3d_derivs(point, self.z, self.coeffs)</code></pre>
+</details>
+</dd>
+</dl>
+</dd>
+<dt id="traceon.solver.Field3D_BEM"><code class="flex name class">
+<span>class <span class="ident">Field3D_BEM</span></span>
+<span>(</span><span>vertices, charges, floating_voltages={})</span>
+</code></dt>
+<dd>
+<div class="desc"><p>An electrostatic field resulting from a general 3D geometry. The field is a result of the surface charges as computed by the
+<code><a title="traceon.solver.solve_bem" href="#traceon.solver.solve_bem">solve_bem()</a></code> function. See the comments in <code><a title="traceon.solver.FieldBEM" href="#traceon.solver.FieldBEM">FieldBEM</a></code>.</p></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class Field3D_BEM(FieldBEM):
+    &#34;&#34;&#34;An electrostatic field resulting from a general 3D geometry. The field is a result of the surface charges as computed by the
+    `solve_bem` function. See the comments in `FieldBEM`.&#34;&#34;&#34;
+     
+    def __init__(self, vertices, charges, floating_voltages={}):
+        super().__init__(vertices, charges, floating_voltages)
+        assert vertices.shape == (len(charges), 3, 3)
+    
+    def field_at_point(self, point):
+        &#34;&#34;&#34;
+        Compute the electric field, \( \\vec{E} = -\\nabla \phi \)
+        
+        Parameters
+        ----------
+        point: (3,) array of float64
+            Position at which to compute the field.
+             
+        Returns
+        -------
+        Numpy array containing the field strengths (in units of V/mm) in the x, y and z directions.
+        &#34;&#34;&#34;
+        assert point.shape == (3,)
+        return backend.field_3d(point, self.vertices, self.charges)
+     
+    def potential_at_point(self, point):
+        &#34;&#34;&#34;
+        Compute the potential.
+
+        Parameters
+        ----------
+        point: (3,) array of float64
+            Position at which to compute the field.
+        
+        Returns
+        -------
+        Potential as a float value (in units of V).
+        &#34;&#34;&#34;
+        assert point.shape == (3,)
+        return backend.potential_3d(point, self.vertices, self.charges)
+    
+    def axial_derivative_interpolation(self, zmin, zmax, N=None):
+        &#34;&#34;&#34;
+        Use a radial series expansion around the optical axis to allow for very fast field
+        evaluations. Constructing the radial series expansion in 3D is much more complicated
+        than the radial symmetric case, but all details have been abstracted away from the user.
+        
+        Parameters
+        ----------
+        zmin : float
+            Location on the optical axis where to start sampling the radial expansion coefficients.
+            
+        zmax : float
+            Location on the optical axis where to stop sampling the radial expansion coefficients. Any field
+            evaluation outside [zmin, zmax] will return a zero field strength.
+        N: int, optional
+            Number of samples to take on the optical axis, if N=None the amount of samples
+            is determined by taking into account the number of elements in the mesh.
+         
+        Returns
+        -------
+        `Field3DAxial` object allowing fast field evaluations.
+
+        &#34;&#34;&#34;
+        assert zmax &gt; zmin
+
+        N = N if N is not None else int(FACTOR_AXIAL_DERIV_SAMPLING_3D*len(self.vertices))
+        z = np.linspace(zmin, zmax, N)
+        
+        print(f&#39;Number of points on z-axis: {len(z)}&#39;)
+        st = time.time()
+        coeffs = backend.axial_coefficients_3d(self.vertices, self.charges, z, thetas, thetas_interpolation_coefficients)
+        interpolated_coeffs = CubicSpline(z, coeffs).c
+        interpolated_coeffs = np.moveaxis(interpolated_coeffs, 0, -1)
+        interpolated_coeffs = np.require(interpolated_coeffs, requirements=(&#39;C_CONTIGUOUS&#39;, &#39;ALIGNED&#39;))
+        print(f&#39;Time for calculating radial series expansion coefficients: {(time.time()-st)*1000:.0f} ms ({len(z)} items)&#39;)
+
+        return Field3DAxial(z, interpolated_coeffs)</code></pre>
+</details>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li><a title="traceon.solver.FieldBEM" href="#traceon.solver.FieldBEM">FieldBEM</a></li>
+<li><a title="traceon.solver.Field" href="#traceon.solver.Field">Field</a></li>
+</ul>
+<h3>Methods</h3>
+<dl>
+<dt id="traceon.solver.Field3D_BEM.axial_derivative_interpolation"><code class="name flex">
+<span>def <span class="ident">axial_derivative_interpolation</span></span>(<span>self, zmin, zmax, N=None)</span>
+</code></dt>
+<dd>
+<div class="desc"><p>Use a radial series expansion around the optical axis to allow for very fast field
+evaluations. Constructing the radial series expansion in 3D is much more complicated
+than the radial symmetric case, but all details have been abstracted away from the user.</p>
+<h2 id="parameters">Parameters</h2>
+<dl>
+<dt><strong><code>zmin</code></strong> :&ensp;<code>float</code></dt>
+<dd>Location on the optical axis where to start sampling the radial expansion coefficients.</dd>
+<dt><strong><code>zmax</code></strong> :&ensp;<code>float</code></dt>
+<dd>Location on the optical axis where to stop sampling the radial expansion coefficients. Any field
+evaluation outside [zmin, zmax] will return a zero field strength.</dd>
+<dt><strong><code>N</code></strong> :&ensp;<code>int</code>, optional</dt>
+<dd>Number of samples to take on the optical axis, if N=None the amount of samples
+is determined by taking into account the number of elements in the mesh.</dd>
+</dl>
+<h2 id="returns">Returns</h2>
+<p><code><a title="traceon.solver.Field3DAxial" href="#traceon.solver.Field3DAxial">Field3DAxial</a></code> object allowing fast field evaluations.</p></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def axial_derivative_interpolation(self, zmin, zmax, N=None):
+    &#34;&#34;&#34;
+    Use a radial series expansion around the optical axis to allow for very fast field
+    evaluations. Constructing the radial series expansion in 3D is much more complicated
+    than the radial symmetric case, but all details have been abstracted away from the user.
+    
+    Parameters
+    ----------
+    zmin : float
+        Location on the optical axis where to start sampling the radial expansion coefficients.
+        
+    zmax : float
+        Location on the optical axis where to stop sampling the radial expansion coefficients. Any field
+        evaluation outside [zmin, zmax] will return a zero field strength.
+    N: int, optional
+        Number of samples to take on the optical axis, if N=None the amount of samples
+        is determined by taking into account the number of elements in the mesh.
+     
+    Returns
+    -------
+    `Field3DAxial` object allowing fast field evaluations.
+
+    &#34;&#34;&#34;
+    assert zmax &gt; zmin
+
+    N = N if N is not None else int(FACTOR_AXIAL_DERIV_SAMPLING_3D*len(self.vertices))
+    z = np.linspace(zmin, zmax, N)
+    
+    print(f&#39;Number of points on z-axis: {len(z)}&#39;)
+    st = time.time()
+    coeffs = backend.axial_coefficients_3d(self.vertices, self.charges, z, thetas, thetas_interpolation_coefficients)
+    interpolated_coeffs = CubicSpline(z, coeffs).c
+    interpolated_coeffs = np.moveaxis(interpolated_coeffs, 0, -1)
+    interpolated_coeffs = np.require(interpolated_coeffs, requirements=(&#39;C_CONTIGUOUS&#39;, &#39;ALIGNED&#39;))
+    print(f&#39;Time for calculating radial series expansion coefficients: {(time.time()-st)*1000:.0f} ms ({len(z)} items)&#39;)
+
+    return Field3DAxial(z, interpolated_coeffs)</code></pre>
+</details>
+</dd>
+<dt id="traceon.solver.Field3D_BEM.field_at_point"><code class="name flex">
+<span>def <span class="ident">field_at_point</span></span>(<span>self, point)</span>
+</code></dt>
+<dd>
+<div class="desc"><p>Compute the electric field, <span><span class="MathJax_Preview"> \vec{E} = -\nabla \phi </span><script type="math/tex"> \vec{E} = -\nabla \phi </script></span></p>
+<h2 id="parameters">Parameters</h2>
+<dl>
+<dt><strong><code>point</code></strong> :&ensp;<code>(3,) array</code> of <code>float64</code></dt>
+<dd>Position at which to compute the field.</dd>
+</dl>
+<h2 id="returns">Returns</h2>
+<p>Numpy array containing the field strengths (in units of V/mm) in the x, y and z directions.</p></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def field_at_point(self, point):
+    &#34;&#34;&#34;
+    Compute the electric field, \( \\vec{E} = -\\nabla \phi \)
+    
+    Parameters
+    ----------
+    point: (3,) array of float64
+        Position at which to compute the field.
+         
+    Returns
+    -------
+    Numpy array containing the field strengths (in units of V/mm) in the x, y and z directions.
+    &#34;&#34;&#34;
+    assert point.shape == (3,)
+    return backend.field_3d(point, self.vertices, self.charges)</code></pre>
+</details>
+</dd>
+<dt id="traceon.solver.Field3D_BEM.potential_at_point"><code class="name flex">
+<span>def <span class="ident">potential_at_point</span></span>(<span>self, point)</span>
+</code></dt>
+<dd>
+<div class="desc"><p>Compute the potential.</p>
+<h2 id="parameters">Parameters</h2>
+<dl>
+<dt><strong><code>point</code></strong> :&ensp;<code>(3,) array</code> of <code>float64</code></dt>
+<dd>Position at which to compute the field.</dd>
+</dl>
+<h2 id="returns">Returns</h2>
+<p>Potential as a float value (in units of V).</p></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def potential_at_point(self, point):
+    &#34;&#34;&#34;
+    Compute the potential.
+
+    Parameters
+    ----------
+    point: (3,) array of float64
+        Position at which to compute the field.
+    
+    Returns
+    -------
+    Potential as a float value (in units of V).
+    &#34;&#34;&#34;
+    assert point.shape == (3,)
+    return backend.potential_3d(point, self.vertices, self.charges)</code></pre>
+</details>
+</dd>
+</dl>
+</dd>
+<dt id="traceon.solver.FieldAxial"><code class="flex name class">
+<span>class <span class="ident">FieldAxial</span></span>
+<span>(</span><span>z, coeffs)</span>
+</code></dt>
+<dd>
+<div class="desc"><p>An electrostatic field resulting from a radial series expansion around the optical axis. You should
+not initialize this class yourself, but it is used as a base class for the fields returned by the <code>axial_derivative_interpolation</code> methods.
+This base class overloads the +,*,- operators so it is very easy to take a superposition of different fields.</p></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class FieldAxial(Field):
+    &#34;&#34;&#34;An electrostatic field resulting from a radial series expansion around the optical axis. You should
+    not initialize this class yourself, but it is used as a base class for the fields returned by the `axial_derivative_interpolation` methods. 
+    This base class overloads the +,*,- operators so it is very easy to take a superposition of different fields.&#34;&#34;&#34;
+    
+    def __init__(self, z, coeffs):
+        assert len(z)-1 == len(coeffs)
+        assert z[0] &lt; z[-1], &#34;z values in axial interpolation should be ascending&#34;
+        self.z = z
+        self.coeffs = coeffs
+     
+    def __str__(self):
+        name = self.__class__.__name__
+        return f&#39;&lt;Traceon {name}, zmin={self.z[0]} mm, zmax={self.z[-1]} mm,\n\tNumber of samples on optical axis: {len(self.z)}&gt;&#39;
+     
+    def __add__(self, other):
+        if isinstance(other, FieldAxial):
+            assert np.array_equal(self.z, other.z), &#34;Cannot add Field3DAxial if optical axis sampling is different.&#34;
+            assert self.coeffs.shape == other.coeffs.shape, &#34;Cannot add Field3DAxial if shape of axial coefficients is unequal.&#34;
+            return self.__class__(self.z, self.coeffs+other.coeffs)
+         
+        return NotImpemented
+     
+    def __sub__(self, other):
+        return self.__add__(-other)
+    
+    def __radd__(self, other):
+        return self.__add__(other)
+     
+    def __mul__(self, other):
+        if isinstance(other, int) or isinstance(other, float):
+            return self.__class__(self.z, other*self.coeffs)
+         
+        return NotImpemented
+
+    def __neg__(self):
+        return -1*self
+    
+    def __rmul__(self, other):
+        return self.__mul__(other)</code></pre>
+</details>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li><a title="traceon.solver.Field" href="#traceon.solver.Field">Field</a></li>
+</ul>
+<h3>Subclasses</h3>
+<ul class="hlist">
+<li><a title="traceon.solver.Field3DAxial" href="#traceon.solver.Field3DAxial">Field3DAxial</a></li>
+<li><a title="traceon.solver.FieldRadialAxial" href="#traceon.solver.FieldRadialAxial">FieldRadialAxial</a></li>
+</ul>
+</dd>
+<dt id="traceon.solver.FieldBEM"><code class="flex name class">
+<span>class <span class="ident">FieldBEM</span></span>
+<span>(</span><span>vertices, charges, floating_voltages={})</span>
+</code></dt>
+<dd>
+<div class="desc"><p>An electrostatic field (resulting from surface charges) as computed from the Boundary Element Method. You should
+not initialize this class yourself, but it is used as a base class for the fields returned by the <code><a title="traceon.solver.solve_bem" href="#traceon.solver.solve_bem">solve_bem()</a></code> function.
+This base class overloads the +,*,- operators so it is very easy to take a superposition of different fields.</p></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class FieldBEM(Field):
+    &#34;&#34;&#34;An electrostatic field (resulting from surface charges) as computed from the Boundary Element Method. You should
+    not initialize this class yourself, but it is used as a base class for the fields returned by the `solve_bem` function. 
+    This base class overloads the +,*,- operators so it is very easy to take a superposition of different fields.&#34;&#34;&#34;
+    
+    def __init__(self, vertices, charges, floating_voltages={}):
+        assert len(vertices) == len(charges)
+        self.vertices = vertices
+        self.charges = charges
+        self.floating_voltages = floating_voltages
+
+    def __str__(self):
+        name = self.__class__.__name__
+        return f&#39;&lt;Traceon {name}, number of elements: {len(self.vertices)}&gt;&#39;
+     
+    def __add__(self, other):
+        if isinstance(other, FieldBEM):
+            assert np.array_equal(self.vertices, other.vertices), &#34;Cannot add Field3D_BEM if geometry is unequal.&#34;
+            assert self.charges.shape == other.charges.shape, &#34;Cannot add Field3D_BEM if charges have not equal shape.&#34;
+            assert set(self.floating_voltages.keys()) == set(other.floating_voltages.keys())
+            floating = {n:self.floating_voltages[n]+other.floating_voltages[n] for n in self.floating_voltages.keys()}
+            return self.__class__(self.vertices, self.charges+other.charges, floating)
+         
+        return NotImpemented
+    
+    def __sub__(self, other):
+        return self.__add__(-other)
+     
+    def __radd__(self, other):
+        return self.__add__(other)
+     
+    def __mul__(self, other):
+        if isinstance(other, int) or isinstance(other, float):
+            floating = {n:v*other for n, v in self.floating_voltages.items()}
+            return self.__class__(self.vertices, other*self.charges, floating)
+        
+        return NotImpemented
+
+    def __neg__(self):
+        return -1*self
+    
+    def __rmul__(self, other):
+        return self.__mul__(other)</code></pre>
+</details>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li><a title="traceon.solver.Field" href="#traceon.solver.Field">Field</a></li>
+</ul>
+<h3>Subclasses</h3>
+<ul class="hlist">
+<li><a title="traceon.solver.Field3D_BEM" href="#traceon.solver.Field3D_BEM">Field3D_BEM</a></li>
+<li><a title="traceon.solver.FieldRadialBEM" href="#traceon.solver.FieldRadialBEM">FieldRadialBEM</a></li>
+</ul>
+</dd>
+<dt id="traceon.solver.FieldRadialAxial"><code class="flex name class">
+<span>class <span class="ident">FieldRadialAxial</span></span>
+<span>(</span><span>z, coeffs)</span>
+</code></dt>
+<dd>
+<div class="desc"></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class FieldRadialAxial(FieldAxial):
+    &#34;&#34;&#34; &#34;&#34;&#34;
+    def __init__(self, z, coeffs):
+        super().__init__(z, coeffs)
+        assert coeffs.shape == (len(z)-1, backend.DERIV_2D_MAX, 6)
+    
+    def field_at_point(self, point):
+        &#34;&#34;&#34;
+        Compute the electric field, \( \\vec{E} = -\\nabla \phi \)
+        
+        Parameters
+        ----------
+        point: (2,) array of float64
+            Position at which to compute the field.
+             
+        Returns
+        -------
+        Numpy array containing the field strengths (in units of V/mm) in the r and z directions.
+        &#34;&#34;&#34;
+        assert point.shape == (2,)
+        return backend.field_radial_derivs(point, self.z, self.coeffs)
+     
+    def potential_at_point(self, point):
+        &#34;&#34;&#34;
+        Compute the potential.
+
+        Parameters
+        ----------
+        point: (2,) array of float64
+            Position at which to compute the potential.
+        
+        Returns
+        -------
+        Potential as a float value (in units of V).
+        &#34;&#34;&#34;
+        assert point.shape == (2,)
+        return backend.potential_radial_derivs(point, self.z, self.coeffs)</code></pre>
+</details>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li><a title="traceon.solver.FieldAxial" href="#traceon.solver.FieldAxial">FieldAxial</a></li>
+<li><a title="traceon.solver.Field" href="#traceon.solver.Field">Field</a></li>
+</ul>
+<h3>Methods</h3>
+<dl>
+<dt id="traceon.solver.FieldRadialAxial.field_at_point"><code class="name flex">
+<span>def <span class="ident">field_at_point</span></span>(<span>self, point)</span>
+</code></dt>
+<dd>
+<div class="desc"><p>Compute the electric field, <span><span class="MathJax_Preview"> \vec{E} = -\nabla \phi </span><script type="math/tex"> \vec{E} = -\nabla \phi </script></span></p>
+<h2 id="parameters">Parameters</h2>
+<dl>
+<dt><strong><code>point</code></strong> :&ensp;<code>(2,) array</code> of <code>float64</code></dt>
+<dd>Position at which to compute the field.</dd>
+</dl>
+<h2 id="returns">Returns</h2>
+<p>Numpy array containing the field strengths (in units of V/mm) in the r and z directions.</p></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def field_at_point(self, point):
+    &#34;&#34;&#34;
+    Compute the electric field, \( \\vec{E} = -\\nabla \phi \)
+    
+    Parameters
+    ----------
+    point: (2,) array of float64
+        Position at which to compute the field.
+         
+    Returns
+    -------
+    Numpy array containing the field strengths (in units of V/mm) in the r and z directions.
+    &#34;&#34;&#34;
+    assert point.shape == (2,)
+    return backend.field_radial_derivs(point, self.z, self.coeffs)</code></pre>
+</details>
+</dd>
+<dt id="traceon.solver.FieldRadialAxial.potential_at_point"><code class="name flex">
+<span>def <span class="ident">potential_at_point</span></span>(<span>self, point)</span>
+</code></dt>
+<dd>
+<div class="desc"><p>Compute the potential.</p>
+<h2 id="parameters">Parameters</h2>
+<dl>
+<dt><strong><code>point</code></strong> :&ensp;<code>(2,) array</code> of <code>float64</code></dt>
+<dd>Position at which to compute the potential.</dd>
+</dl>
+<h2 id="returns">Returns</h2>
+<p>Potential as a float value (in units of V).</p></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def potential_at_point(self, point):
+    &#34;&#34;&#34;
+    Compute the potential.
+
+    Parameters
+    ----------
+    point: (2,) array of float64
+        Position at which to compute the potential.
+    
+    Returns
+    -------
+    Potential as a float value (in units of V).
+    &#34;&#34;&#34;
+    assert point.shape == (2,)
+    return backend.potential_radial_derivs(point, self.z, self.coeffs)</code></pre>
+</details>
+</dd>
+</dl>
+</dd>
+<dt id="traceon.solver.FieldRadialBEM"><code class="flex name class">
+<span>class <span class="ident">FieldRadialBEM</span></span>
+<span>(</span><span>vertices, charges, floating_voltages={})</span>
+</code></dt>
+<dd>
+<div class="desc"><p>A radially symmetric electrostatic field. The field is a result of the surface charges as computed by the
+<code><a title="traceon.solver.solve_bem" href="#traceon.solver.solve_bem">solve_bem()</a></code> function. See the comments in <code><a title="traceon.solver.FieldBEM" href="#traceon.solver.FieldBEM">FieldBEM</a></code>.</p></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class FieldRadialBEM(FieldBEM):
+    &#34;&#34;&#34;A radially symmetric electrostatic field. The field is a result of the surface charges as computed by the
+    `solve_bem` function. See the comments in `FieldBEM`.&#34;&#34;&#34;
+    
+    def __init__(self, vertices, charges, floating_voltages={}):
+        super().__init__(vertices, charges, floating_voltages)
+        assert vertices.shape == (len(charges), 2, 3)
+        
+    def field_at_point(self, point):
+        &#34;&#34;&#34;
+        Compute the electric field, \( \\vec{E} = -\\nabla \phi \)
+        
+        Parameters
+        ----------
+        point: (2,) array of float64
+            Position at which to compute the field.
+        
+        Returns
+        -------
+        Numpy array containing the field strengths (in units of V/mm) in the r and z directions.   
+        &#34;&#34;&#34;
+        assert point.shape == (2,) or point.shape == (3,)
+        return backend.field_radial(point, self.vertices, self.charges)
+    
+    def potential_at_point(self, point):
+        &#34;&#34;&#34;
+        Compute the potential.
+
+        Parameters
+        ----------
+        point: (2,) array of float64
+            Position at which to compute the field.
+        
+        Returns
+        -------
+        Potential as a float value (in units of V).
+        &#34;&#34;&#34;
+        assert point.shape == (2,) or point.shape == (3,)
+        return backend.potential_radial(point, self.vertices, self.charges)
+     
+    def get_axial_potential_derivatives(self, z):
+        &#34;&#34;&#34;
+        Compute the derivatives of the potential at a point on the optical axis (z-axis). 
+         
+        Parameters
+        ----------
+        z : float
+            Position on the optical axis at which to compute the derivatives.
+        
+
+        Returns
+        ------- 
+        Numpy array containing the derivatives. At index i one finds the i-th derivative (so
+        at position 0 the potential itself is returned). The highest derivative returned is a 
+        constant currently set to 9.&#34;&#34;&#34;
+        return backend.axial_derivatives_radial_ring(z, self.vertices, self.charges).T
+     
+    def axial_derivative_interpolation(self, zmin, zmax, N=None):
+        &#34;&#34;&#34;
+        Use a radial series expansion based on the potential derivatives at the optical axis
+        to allow very fast field evaluations.
+        
+        Parameters
+        ----------
+        zmin : float
+            Location on the optical axis where to start sampling the derivatives.
+            
+        zmax : float
+            Location on the optical axis where to stop sampling the derivatives. Any field
+            evaluation outside [zmin, zmax] will return a zero field strength.
+        N: int, optional
+            Number of samples to take on the optical axis, if N=None the amount of samples
+            is determined by taking into account the number of elements in the mesh.
+            
+
+        Returns
+        -------
+        `FieldRadialAxial` object allowing fast field evaluations.
+
+        &#34;&#34;&#34;
+        assert zmax &gt; zmin
+        N = N if N is not None else int(FACTOR_AXIAL_DERIV_SAMPLING_2D*len(self.vertices))
+        z = np.linspace(zmin, zmax, N)
+        
+        st = time.time()
+        derivs = self.get_axial_potential_derivatives(z)
+        coeffs = _quintic_spline_coefficients(z, derivs)
+        print(f&#39;Computing derivative interpolation took {(time.time()-st)*1000:.2f} ms ({len(z)} items)&#39;)
+        
+        return FieldRadialAxial(z, coeffs)</code></pre>
+</details>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li><a title="traceon.solver.FieldBEM" href="#traceon.solver.FieldBEM">FieldBEM</a></li>
+<li><a title="traceon.solver.Field" href="#traceon.solver.Field">Field</a></li>
+</ul>
+<h3>Methods</h3>
+<dl>
+<dt id="traceon.solver.FieldRadialBEM.axial_derivative_interpolation"><code class="name flex">
+<span>def <span class="ident">axial_derivative_interpolation</span></span>(<span>self, zmin, zmax, N=None)</span>
+</code></dt>
+<dd>
+<div class="desc"><p>Use a radial series expansion based on the potential derivatives at the optical axis
+to allow very fast field evaluations.</p>
+<h2 id="parameters">Parameters</h2>
+<dl>
+<dt><strong><code>zmin</code></strong> :&ensp;<code>float</code></dt>
+<dd>Location on the optical axis where to start sampling the derivatives.</dd>
+<dt><strong><code>zmax</code></strong> :&ensp;<code>float</code></dt>
+<dd>Location on the optical axis where to stop sampling the derivatives. Any field
+evaluation outside [zmin, zmax] will return a zero field strength.</dd>
+<dt><strong><code>N</code></strong> :&ensp;<code>int</code>, optional</dt>
+<dd>Number of samples to take on the optical axis, if N=None the amount of samples
+is determined by taking into account the number of elements in the mesh.</dd>
+</dl>
+<h2 id="returns">Returns</h2>
+<p><code><a title="traceon.solver.FieldRadialAxial" href="#traceon.solver.FieldRadialAxial">FieldRadialAxial</a></code> object allowing fast field evaluations.</p></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def axial_derivative_interpolation(self, zmin, zmax, N=None):
+    &#34;&#34;&#34;
+    Use a radial series expansion based on the potential derivatives at the optical axis
+    to allow very fast field evaluations.
+    
+    Parameters
+    ----------
+    zmin : float
+        Location on the optical axis where to start sampling the derivatives.
+        
+    zmax : float
+        Location on the optical axis where to stop sampling the derivatives. Any field
+        evaluation outside [zmin, zmax] will return a zero field strength.
+    N: int, optional
+        Number of samples to take on the optical axis, if N=None the amount of samples
+        is determined by taking into account the number of elements in the mesh.
+        
+
+    Returns
+    -------
+    `FieldRadialAxial` object allowing fast field evaluations.
+
+    &#34;&#34;&#34;
+    assert zmax &gt; zmin
+    N = N if N is not None else int(FACTOR_AXIAL_DERIV_SAMPLING_2D*len(self.vertices))
+    z = np.linspace(zmin, zmax, N)
+    
+    st = time.time()
+    derivs = self.get_axial_potential_derivatives(z)
+    coeffs = _quintic_spline_coefficients(z, derivs)
+    print(f&#39;Computing derivative interpolation took {(time.time()-st)*1000:.2f} ms ({len(z)} items)&#39;)
+    
+    return FieldRadialAxial(z, coeffs)</code></pre>
+</details>
+</dd>
+<dt id="traceon.solver.FieldRadialBEM.field_at_point"><code class="name flex">
+<span>def <span class="ident">field_at_point</span></span>(<span>self, point)</span>
+</code></dt>
+<dd>
+<div class="desc"><p>Compute the electric field, <span><span class="MathJax_Preview"> \vec{E} = -\nabla \phi </span><script type="math/tex"> \vec{E} = -\nabla \phi </script></span></p>
+<h2 id="parameters">Parameters</h2>
+<dl>
+<dt><strong><code>point</code></strong> :&ensp;<code>(2,) array</code> of <code>float64</code></dt>
+<dd>Position at which to compute the field.</dd>
+</dl>
+<h2 id="returns">Returns</h2>
+<p>Numpy array containing the field strengths (in units of V/mm) in the r and z directions.</p></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def field_at_point(self, point):
+    &#34;&#34;&#34;
+    Compute the electric field, \( \\vec{E} = -\\nabla \phi \)
+    
+    Parameters
+    ----------
+    point: (2,) array of float64
+        Position at which to compute the field.
+    
+    Returns
+    -------
+    Numpy array containing the field strengths (in units of V/mm) in the r and z directions.   
+    &#34;&#34;&#34;
+    assert point.shape == (2,) or point.shape == (3,)
+    return backend.field_radial(point, self.vertices, self.charges)</code></pre>
+</details>
+</dd>
+<dt id="traceon.solver.FieldRadialBEM.get_axial_potential_derivatives"><code class="name flex">
+<span>def <span class="ident">get_axial_potential_derivatives</span></span>(<span>self, z)</span>
+</code></dt>
+<dd>
+<div class="desc"><p>Compute the derivatives of the potential at a point on the optical axis (z-axis). </p>
+<h2 id="parameters">Parameters</h2>
+<dl>
+<dt><strong><code>z</code></strong> :&ensp;<code>float</code></dt>
+<dd>Position on the optical axis at which to compute the derivatives.</dd>
+</dl>
+<h2 id="returns">Returns</h2>
+<p>Numpy array containing the derivatives. At index i one finds the i-th derivative (so
+at position 0 the potential itself is returned). The highest derivative returned is a
+constant currently set to 9.</p></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def get_axial_potential_derivatives(self, z):
+    &#34;&#34;&#34;
+    Compute the derivatives of the potential at a point on the optical axis (z-axis). 
+     
+    Parameters
+    ----------
+    z : float
+        Position on the optical axis at which to compute the derivatives.
+    
+
+    Returns
+    ------- 
+    Numpy array containing the derivatives. At index i one finds the i-th derivative (so
+    at position 0 the potential itself is returned). The highest derivative returned is a 
+    constant currently set to 9.&#34;&#34;&#34;
+    return backend.axial_derivatives_radial_ring(z, self.vertices, self.charges).T</code></pre>
+</details>
+</dd>
+<dt id="traceon.solver.FieldRadialBEM.potential_at_point"><code class="name flex">
+<span>def <span class="ident">potential_at_point</span></span>(<span>self, point)</span>
+</code></dt>
+<dd>
+<div class="desc"><p>Compute the potential.</p>
+<h2 id="parameters">Parameters</h2>
+<dl>
+<dt><strong><code>point</code></strong> :&ensp;<code>(2,) array</code> of <code>float64</code></dt>
+<dd>Position at which to compute the field.</dd>
+</dl>
+<h2 id="returns">Returns</h2>
+<p>Potential as a float value (in units of V).</p></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def potential_at_point(self, point):
+    &#34;&#34;&#34;
+    Compute the potential.
+
+    Parameters
+    ----------
+    point: (2,) array of float64
+        Position at which to compute the field.
+    
+    Returns
+    -------
+    Potential as a float value (in units of V).
+    &#34;&#34;&#34;
+    assert point.shape == (2,) or point.shape == (3,)
+    return backend.potential_radial(point, self.vertices, self.charges)</code></pre>
+</details>
+</dd>
+</dl>
+</dd>
+</dl>
+</section>
+</article>
+<nav id="sidebar">
+<h1>Index</h1>
+<div class="toc">
+<ul>
+<li><a href="#radial-series-expansion-in-cylindrical-symmetry">Radial series expansion in cylindrical symmetry</a></li>
+<li><a href="#radial-series-expansion-in-3d">Radial series expansion in 3D</a><ul>
+<li><a href="#references">References</a></li>
+</ul>
+</li>
+</ul>
+</div>
+<ul id="index">
+<li><h3>Super-module</h3>
+<ul>
+<li><code><a title="traceon" href="index.html">traceon</a></code></li>
+</ul>
+</li>
+<li><h3><a href="#header-functions">Functions</a></h3>
+<ul class="">
+<li><code><a title="traceon.solver.solve_bem" href="#traceon.solver.solve_bem">solve_bem</a></code></li>
+</ul>
+</li>
+<li><h3><a href="#header-classes">Classes</a></h3>
+<ul>
+<li>
+<h4><code><a title="traceon.solver.Field" href="#traceon.solver.Field">Field</a></code></h4>
+</li>
+<li>
+<h4><code><a title="traceon.solver.Field3DAxial" href="#traceon.solver.Field3DAxial">Field3DAxial</a></code></h4>
+<ul class="">
+<li><code><a title="traceon.solver.Field3DAxial.field_at_point" href="#traceon.solver.Field3DAxial.field_at_point">field_at_point</a></code></li>
+<li><code><a title="traceon.solver.Field3DAxial.potential_at_point" href="#traceon.solver.Field3DAxial.potential_at_point">potential_at_point</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="traceon.solver.Field3D_BEM" href="#traceon.solver.Field3D_BEM">Field3D_BEM</a></code></h4>
+<ul class="">
+<li><code><a title="traceon.solver.Field3D_BEM.axial_derivative_interpolation" href="#traceon.solver.Field3D_BEM.axial_derivative_interpolation">axial_derivative_interpolation</a></code></li>
+<li><code><a title="traceon.solver.Field3D_BEM.field_at_point" href="#traceon.solver.Field3D_BEM.field_at_point">field_at_point</a></code></li>
+<li><code><a title="traceon.solver.Field3D_BEM.potential_at_point" href="#traceon.solver.Field3D_BEM.potential_at_point">potential_at_point</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="traceon.solver.FieldAxial" href="#traceon.solver.FieldAxial">FieldAxial</a></code></h4>
+</li>
+<li>
+<h4><code><a title="traceon.solver.FieldBEM" href="#traceon.solver.FieldBEM">FieldBEM</a></code></h4>
+</li>
+<li>
+<h4><code><a title="traceon.solver.FieldRadialAxial" href="#traceon.solver.FieldRadialAxial">FieldRadialAxial</a></code></h4>
+<ul class="">
+<li><code><a title="traceon.solver.FieldRadialAxial.field_at_point" href="#traceon.solver.FieldRadialAxial.field_at_point">field_at_point</a></code></li>
+<li><code><a title="traceon.solver.FieldRadialAxial.potential_at_point" href="#traceon.solver.FieldRadialAxial.potential_at_point">potential_at_point</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="traceon.solver.FieldRadialBEM" href="#traceon.solver.FieldRadialBEM">FieldRadialBEM</a></code></h4>
+<ul class="">
+<li><code><a title="traceon.solver.FieldRadialBEM.axial_derivative_interpolation" href="#traceon.solver.FieldRadialBEM.axial_derivative_interpolation">axial_derivative_interpolation</a></code></li>
+<li><code><a title="traceon.solver.FieldRadialBEM.field_at_point" href="#traceon.solver.FieldRadialBEM.field_at_point">field_at_point</a></code></li>
+<li><code><a title="traceon.solver.FieldRadialBEM.get_axial_potential_derivatives" href="#traceon.solver.FieldRadialBEM.get_axial_potential_derivatives">get_axial_potential_derivatives</a></code></li>
+<li><code><a title="traceon.solver.FieldRadialBEM.potential_at_point" href="#traceon.solver.FieldRadialBEM.potential_at_point">potential_at_point</a></code></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</nav>
+</main>
+<footer id="footer">
+<p>Generated by <a href="https://pdoc3.github.io/pdoc" title="pdoc: Python API documentation generator"><cite>pdoc</cite> 0.10.0</a>.</p>
+</footer>
+</body>
+</html>
