@@ -8,13 +8,7 @@ setup(
     author='Léon van Velzen',
     license='AGPLv3',
     packages=['traceon'],
-    scripts= ['scripts/traceon-trace-electron',
-        'scripts/traceon-lens-strength',
-        'scripts/traceon-plot-axis',
-        'scripts/traceon-plot-geometry',
-        'scripts/traceon-solve-geometry',
-        'scripts/traceon-coeff-plot',
-        'scripts/traceon-aberration-scan'],
+    scripts= [],
     install_requires = ['matplotlib', 'numpy', 'numba', 'pygmsh>=7.1.13', 'scipy', 'findiff']
 )
 

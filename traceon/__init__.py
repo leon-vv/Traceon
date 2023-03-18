@@ -18,8 +18,6 @@ electrodes needs to be meshed. So in 2D (radial symmetry) the mesh consists of l
 mesh consists of triangles.  Next, one specifies a suitable excitation (voltages) using the `traceon.excitation` module.
 The excited geometry can then be passed to the `traceon.solver.solve_bem` function, which computes the resulting field. 
 The field can be passed to the `traceon.tracing.Tracer` class to compute the trajectory of electrons moving through the field.
-Alternatively, one can pass the `traceon.tracing.Tracer` class to the `traceon.aberrations` module to directly compute the aberration coefficients
-of the optical module under investigation.
 
 # Validations
 
