@@ -5,4 +5,3 @@ traceon/__pycache__/*
 __pycache__
 *.so
 *.o
-traceon/data/*.py

@@ -7,9 +7,18 @@
 
 // Symbols that are accessed by Python cannot be put in a macro.
 extern const int DERIV_2D_MAX = 9;
-extern const int DERIV_3D_MAX = 9;
-#define NU_MAX (DERIV_3D_MAX/2)
-#define M_MAX DERIV_3D_MAX
+
+#define NU_MAX 4
+#define M_MAX 8
+
+// NU_MAX_SYM and M_MAX_SYM need to be present in the .so file to
+// be able to read them. We cannot call them NU_MAX and M_MAX as
+// the preprocessor will substitute their names. We can also not 
+// simply only use these symbols instead of the preprocessor variables
+// as the length of arrays need to be a compile time constant in C...
+extern const int NU_MAX_SYM = NU_MAX;
+extern const int M_MAX_SYM = M_MAX;
+
 #define N_TRIANGLE_QUAD 9
 
 #define TRACING_STEP_MAX 0.085

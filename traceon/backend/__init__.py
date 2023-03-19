@@ -16,10 +16,8 @@ TRACING_BLOCK_SIZE = C.c_size_t.in_dll(backend_lib, 'TRACING_BLOCK_SIZE').value
 
 DERIV_2D_MAX = C.c_int.in_dll(backend_lib, 'DERIV_2D_MAX').value
 
-DERIV_3D_MAX = C.c_int.in_dll(backend_lib, 'DERIV_2D_MAX').value
-NU_MAX = DERIV_3D_MAX//2
-M_MAX = DERIV_3D_MAX
-
+NU_MAX = C.c_int.in_dll(backend_lib, 'NU_MAX_SYM').value
+M_MAX = C.c_int.in_dll(backend_lib, 'M_MAX_SYM').value
 
 # Pass numpy array to C
 def arr(*args, dtype=np.float64, **kwargs):
