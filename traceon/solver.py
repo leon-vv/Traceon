@@ -51,6 +51,7 @@ import findiff
 from . import geometry as G
 from . import excitation as E
 from . import backend
+from . import util
 
 FACTOR_AXIAL_DERIV_SAMPLING_2D = 0.2
 FACTOR_AXIAL_DERIV_SAMPLING_3D = 0.06
@@ -152,20 +153,17 @@ def _excitation_to_matrix(excitation, vertices, names):
     print(f'Total number of elements: {N_lines}, symmetry: {excitation.mesh.symmetry}')
      
     st = time.time()
-    THREADS = 2
     
     matrix = np.zeros( (N_matrix, N_matrix) )
-    split = np.array_split(np.arange(N_lines), THREADS)
-     
     fill_fun = backend.fill_matrix_radial if excitation.mesh.symmetry != G.Symmetry.THREE_D else backend.fill_matrix_3d
-    threads = [Thread(target=fill_fun, args=(matrix, vertices, excitation_types, excitation_values, r[0], r[-1])) for r in split]
-     
-    for t in threads:
-        t.start()
-    for t in threads:
-        t.join()
-     
+
+    def fill_matrix_rows(rows):
+        fill_fun(matrix, vertices, excitation_types, excitation_values, rows[0], rows[-1])
+    
+    util.split_collect(fill_matrix_rows, np.arange(N_lines))    
+      
     assert np.all(np.isfinite(matrix))
+    
     _add_floating_conductor_constraints_to_matrix(matrix, vertices, names, excitation)
     print(f'Time for building matrix: {(time.time()-st)*1000:.0f} ms')
         
@@ -360,16 +358,16 @@ class FieldRadialBEM(FieldBEM):
          
         Parameters
         ----------
-        z : float
-            Position on the optical axis at which to compute the derivatives.
+        z : (N,) np.ndarray of float64
+            Positions on the optical axis at which to compute the derivatives.
         
 
         Returns
         ------- 
-        Numpy array containing the derivatives. At index i one finds the i-th derivative (so
+        Numpy array of shape (N, 9) containing the derivatives. At index i one finds the i-th derivative (so
         at position 0 the potential itself is returned). The highest derivative returned is a 
         constant currently set to 9."""
-        return backend.axial_derivatives_radial_ring(z, self.vertices, self.charges).T
+        return backend.axial_derivatives_radial_ring(z, self.vertices, self.charges)
      
     def axial_derivative_interpolation(self, zmin, zmax, N=None):
         """
@@ -399,8 +397,8 @@ class FieldRadialBEM(FieldBEM):
         z = np.linspace(zmin, zmax, N)
         
         st = time.time()
-        derivs = self.get_axial_potential_derivatives(z)
-        coeffs = _quintic_spline_coefficients(z, derivs)
+        derivs = np.concatenate(util.split_collect(self.get_axial_potential_derivatives, z), axis=0)
+        coeffs = _quintic_spline_coefficients(z, derivs.T)
         print(f'Computing derivative interpolation took {(time.time()-st)*1000:.2f} ms ({len(z)} items)')
         
         return FieldRadialAxial(z, coeffs)
@@ -475,7 +473,8 @@ class Field3D_BEM(FieldBEM):
         
         print(f'Number of points on z-axis: {len(z)}')
         st = time.time()
-        coeffs = backend.axial_coefficients_3d(self.vertices, self.charges, z, thetas, thetas_interpolation_coefficients)
+        coeffs = util.split_collect(lambda z: backend.axial_coefficients_3d(self.vertices, self.charges, z, thetas, thetas_interpolation_coefficients), z)
+        coeffs = np.concatenate(coeffs, axis=0)
         interpolated_coeffs = CubicSpline(z, coeffs).c
         interpolated_coeffs = np.moveaxis(interpolated_coeffs, 0, -1)
         interpolated_coeffs = np.require(interpolated_coeffs, requirements=('C_CONTIGUOUS', 'ALIGNED'))
