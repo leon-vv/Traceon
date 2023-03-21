@@ -1,7 +1,7 @@
 """The backend module is a small wrapper around code implemented in C. All performance critical code is 
 implemented in the C backend. As a user you should not use these functions directly yourself."""
 
-
+import importlib
 import ctypes as C
 import os.path as path
 
@@ -10,7 +10,28 @@ import numpy as np
 
 DEBUG = False
 
-backend_lib = C.CDLL(path.join(path.dirname(__file__), 'backend.so'))
+## Attempt 1: load local
+local_path = path.join(path.dirname(__file__), 'traceon-backend.so')
+
+if path.isfile(local_path):
+    backend_lib = C.CDLL(local_path)
+else:
+    ## Attempt 2: load from pip installed path
+    global_path = importlib.util.find_spec('traceon.backend.traceon-backend')
+    
+    if global_path is None:
+        help_txt = '''
+        Cannot find Traceon backend (C compiled dynamic library).
+        It should have been compiled automatically when installing this package using 'pip3 install traceon'.
+        If you're running this package locally (i.e. git clone) you have to build this dynamic library yourself.
+        On Linux you can use:
+            gcc ./traceon/backend/traceon-backend.c -o ./traceon/backend/traceon-backend.so -lm -shared -fPIC -O3 -ffast-math -std=c99 -march=native'''
+
+        raise RuntimeError(help_txt)
+
+    global_path = global_path.origin
+    backend_lib = C.CDLL(global_path)
+
 
 TRACING_BLOCK_SIZE = C.c_size_t.in_dll(backend_lib, 'TRACING_BLOCK_SIZE').value
 

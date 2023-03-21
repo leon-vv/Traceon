@@ -1,15 +1,31 @@
-from setuptools import setup
+from setuptools import setup, Extension
+
+backend_extension = Extension(
+    name='traceon.backend.traceon-backend',
+    extra_compile_args=['-O3', '-mavx', '-ffast-math'],
+    extra_link_args=['-lm'],
+    sources=['traceon/backend/traceon-backend.c'])
 
 setup(
     name='traceon',
-    version='0.1',
-    description='Solver and tracer for electrostatic axisymmetrical problems',
+    version='0.1.3',
+    description='Solver and tracer for electrostatic problems',
     url='https://github.com/leon-vv/Traceon',
     author='Léon van Velzen',
+    author_email='leonvanvelzen@protonmail.com',
+    keywords=['boundary element method', 'BEM', 'electrostatic', 'electromagnetic', 'electron microscope', 'electron', 'tracing', 'particle', 'tracer', 'electron optics'],
     license='AGPLv3',
-    packages=['traceon'],
-    scripts= [],
-    install_requires = ['matplotlib', 'numpy', 'numba', 'pygmsh>=7.1.13', 'scipy', 'findiff']
+    ext_modules=[backend_extension],
+    packages=['traceon', 'traceon.backend'],
+    include_package_data=True,
+    long_description = open('README.md').read(),
+    long_description_content_type='text/markdown',
+    install_requires = ['matplotlib', 'numpy', 'numba', 'pygmsh>=7.1.13', 'scipy', 'findiff'],
+    project_urls = {
+        'Documentation': "https://leon.science/traceon",
+        'Code': "https://github.com/leon-vv/traceon",
+        'Issues': "https://github.com/leon-vv/traceon/issues"
+    }
 )
 
 
