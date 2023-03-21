@@ -5,17 +5,16 @@
 #include <stdint.h>
 #include <stdbool.h>
 
-// Symbols that are accessed by Python cannot be put in a macro.
-extern const int DERIV_2D_MAX = 9;
-
+#define DERIV_2D_MAX 9
 #define NU_MAX 4
 #define M_MAX 8
 
-// NU_MAX_SYM and M_MAX_SYM need to be present in the .so file to
+// DERIV_2D_MAX, NU_MAX_SYM and M_MAX_SYM need to be present in the .so file to
 // be able to read them. We cannot call them NU_MAX and M_MAX as
 // the preprocessor will substitute their names. We can also not 
 // simply only use these symbols instead of the preprocessor variables
 // as the length of arrays need to be a compile time constant in C...
+extern const int DERIV_2D_MAX_SYM = 9;
 extern const int NU_MAX_SYM = NU_MAX;
 extern const int M_MAX_SYM = M_MAX;
 
@@ -38,7 +37,7 @@ extern const int M_MAX_SYM = M_MAX;
 	#define UNROLL
 #endif
 
-const size_t TRACING_BLOCK_SIZE = (size_t) 1e5;
+extern const size_t TRACING_BLOCK_SIZE = (size_t) 1e5;
 
 //////////////////////////////// ELLIPTIC FUNCTIONS
 
@@ -860,7 +859,7 @@ enum ExcitationType{
     DIELECTRIC = 3,
     FLOATING_CONDUCTOR = 4};
 
-void fill_matrix_radial(double *matrix_p, 
+void fill_matrix_radial(double *matrix, 
                         double *line_points_p, 
                         uint8_t *excitation_types, 
                         double *excitation_values, 
@@ -870,8 +869,6 @@ void fill_matrix_radial(double *matrix_p,
                         int lines_range_end) {
     
 	assert(lines_range_start < N_lines && lines_range_end < N_lines);
-
-	double (*matrix)[N_matrix] = (double (*)[N_lines]) matrix_p;
 	double (*line_points)[2][3] = (double (*)[2][3]) line_points_p;
 		
     for (int i = lines_range_start; i <= lines_range_end; i++) {
@@ -885,7 +882,7 @@ void fill_matrix_radial(double *matrix_p,
             for (int j = 0; j < N_lines; j++) {
                 double *v1 = &line_points[j][0][0];
                 double *v2 = &line_points[j][1][0];
-                matrix[i][j] = line_integral(target, v1, v2, potential_radial_ring, NULL);
+                matrix[i*N_matrix + j] = line_integral(target, v1, v2, potential_radial_ring, NULL);
             }
         } 
         else if (type_ == DIELECTRIC) {
@@ -900,13 +897,13 @@ void fill_matrix_radial(double *matrix_p,
                 // calculated at the edge of the dielectric is basically the average of the
                 // field at either side of the surface of the dielecric (the field makes a jump).
                 double factor = (2*K - 2) / (M_PI*(1 + K));
-                matrix[i][j] = factor * line_integral(target, v1, v2, field_dot_normal_radial, normal);
+                matrix[i*N_matrix + j] = factor * line_integral(target, v1, v2, field_dot_normal_radial, normal);
                  
 				// When working with dielectrics, the constraint is that
 				// the electric field normal must sum to the surface charge.
 				// The constraint is satisfied by subtracting 1.0 from
 				// the diagonal of the matrix.
-                if (i == j) matrix[i][j] -= 1.0;
+                if (i == j) matrix[i*N_matrix + j] -= 1.0;
             }
         }
         else {
@@ -916,7 +913,7 @@ void fill_matrix_radial(double *matrix_p,
     }
 }
 
-void fill_matrix_3d(double *matrix_p, 
+void fill_matrix_3d(double *matrix, 
                     double *triangle_points_p, 
                     uint8_t *excitation_types, 
                     double *excitation_values, 
@@ -926,8 +923,6 @@ void fill_matrix_3d(double *matrix_p,
                     int lines_range_end) {
     
 	assert(lines_range_start < N_lines && lines_range_end < N_lines);
-	
-	double (*matrix)[N_matrix] = (double (*)[N_lines]) matrix_p;
 	double (*triangle_points)[3][3] = (double (*)[3][3]) triangle_points_p;
 		
     for (int i = lines_range_start; i <= lines_range_end; i++) {
@@ -942,7 +937,7 @@ void fill_matrix_3d(double *matrix_p,
                 double *v1 = &triangle_points[j][0][0];
                 double *v2 = &triangle_points[j][1][0];
                 double *v3 = &triangle_points[j][2][0];
-                matrix[i][j] = triangle_integral_potential_3d_point(target, v1, v2, v3);
+                matrix[i*N_matrix + j] = triangle_integral_potential_3d_point(target, v1, v2, v3);
             }
         } 
         else if (type_ == DIELECTRIC) {
@@ -956,9 +951,9 @@ void fill_matrix_3d(double *matrix_p,
                 double *v3 = &triangle_points[j][2][0];
 				// See comments in 'fill_matrix_2d'.
                 double factor = (2*K - 2) / (M_PI*(1 + K));
-                matrix[i][j] = factor * triangle_integral(target, v1, v2, v3, field_dot_normal_3d, normal);
+                matrix[i*N_matrix + j] = factor * triangle_integral(target, v1, v2, v3, field_dot_normal_3d, normal);
 				 
-                if (i == j) matrix[i][j] -= 1.0;
+                if (i == j) matrix[i*N_matrix + j] -= 1.0;
             }
         }
         else {
