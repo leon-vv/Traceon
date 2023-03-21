@@ -46,7 +46,6 @@ import os.path as path
 
 import numpy as np
 from scipy.interpolate import CubicSpline, BPoly, PPoly
-import findiff
 
 from . import geometry as G
 from . import excitation as E
