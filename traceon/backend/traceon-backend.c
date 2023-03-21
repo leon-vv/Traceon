@@ -34,6 +34,8 @@ extern const int M_MAX_SYM = M_MAX;
 	#define UNROLL _Pragma("clang loop unroll(full)")
 #elif defined(__GNUC__) || defined(__GNUG__)
 	#define UNROLL _Pragma("GCC unroll 100")
+#else
+	#define UNROLL
 #endif
 
 const size_t TRACING_BLOCK_SIZE = (size_t) 1e5;
