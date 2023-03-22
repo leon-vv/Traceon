@@ -246,6 +246,8 @@ def trace_particle_radial_derivs(position, velocity, bounds, atol, z, coeffs):
     return times, positions[:, [0,1,3,4]]
 
 def trace_particle_3d(position, velocity, bounds, atol, vertices, charges):
+    assert position.shape == (3,)
+    assert velocity.shape == (3,)
     assert vertices.shape == (len(charges), 3, 3)
     bounds = np.array(bounds)
     
@@ -253,6 +255,8 @@ def trace_particle_3d(position, velocity, bounds, atol, vertices, charges):
         lambda T, P: backend_lib.trace_particle_3d(T, P, bounds, atol, vertices, charges, len(charges)))
 
 def trace_particle_3d_derivs(position, velocity, bounds, atol, z, coeffs):
+    assert position.shape == (3,)
+    assert velocity.shape == (3,)
     assert coeffs.shape == (len(z)-1, 2, NU_MAX, M_MAX, 4)
     bounds = np.array(bounds)
      
@@ -277,7 +281,7 @@ def potential_radial(point, vertices, charges):
     return backend_lib.potential_radial(point, vertices, charges, len(charges))
 
 def potential_radial_derivs(point, z, coeffs):
-    assert coeffs.shape == (len(z), DERIV_2D_MAX, 6)
+    assert coeffs.shape == (len(z)-1, DERIV_2D_MAX, 6)
     return backend_lib.potential_radial_derivs(point, z, coeffs, len(z))
 
 def field_radial(point, vertices, charges):
