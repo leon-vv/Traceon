@@ -18,13 +18,11 @@ else:
     local_path = path.join(path.dirname(__file__), 'traceon_backend.dll')
 
 if path.isfile(local_path):
-    print(local_path)
     backend_lib = C.CDLL(local_path)
 else:
     ## Attempt 2: load from pip installed path
     global_path = importlib.util.find_spec('traceon.backend.traceon_backend')
-    print(global_path)
-
+    
     if global_path is None:
         help_txt = '''
         Cannot find Traceon backend (C compiled dynamic library).
