@@ -1,6 +1,6 @@
 # Traceon
 
-Traceon is a general software package for numerical electron optics. The heart of the package is an implementation of the Boundary Element Method (BEM) to efficiently compute the surface charge distribution. Currently radial symmetry and general three dimensional geometries are supported. In both symmetries very accuracute and efficient radial series interpolation can be used to make electron tracing very fast. The resulting electron trajectories can be used to determine the aberrations of optical components under study.
+Traceon is a general software package for numerical electron optics. The heart of the package is an implementation of the Boundary Element Method (BEM) to efficiently compute the surface charge distribution. Currently radial symmetry and general three dimensional geometries are supported. In both symmetries very accurate and efficient radial series interpolation can be used to make electron tracing very fast. The resulting electron trajectories can be used to determine the aberrations of optical components under study.
 
 Traceon is completely free to use and open source. The source code is distributed under the `AGPLv3` license.
 
