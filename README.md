@@ -12,7 +12,7 @@ Traceon is completely free to use and open source. The source code is distribute
 
 ## Validations
 
-To ensure the accuracy of the package, different problems from the literature have been analyzed using this software. See [/validations](https://github.com/leon-vv/Traceon/tree/main/validation) directory for more information. The validations can easily be executed from the command line, for example:
+To ensure the accuracy of the package, different problems from the literature have been analyzed using this software. See [/validation](https://github.com/leon-vv/Traceon/tree/main/validation) directory for more information. The validations can easily be executed from the command line, for example:
 ```bash
 python3 ./validation/edwards2007.py --help
 python3 ./validation/capacitance-sphere.py --help
