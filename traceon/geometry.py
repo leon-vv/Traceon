@@ -75,7 +75,7 @@ class Geometry(occ.Geometry):
     Small wrapper class around pygmsh.occ.Geometry which itself is a small wrapper around the powerful GMSH library.
     See the GMSH and pygmsh documentation to learn how to build any 2D or 3D geometry. This class makes it easier to control
     the mesh size (using the _mesh size factor_) and optionally allows to scale the mesh size with the distance from the optical
-    axis. It also add support for multiple calls to the `_add_physical` method with the same name.
+    axis. It also add support for multiple calls to the `add_physical` method with the same name.
     
     Parameters
     ---------
@@ -106,7 +106,7 @@ class Geometry(occ.Geometry):
         else:
             return f'<Traceon Geometry {self.symmetry}>'
         
-    def _add_physical(self, name, entities):
+    def add_physical(self, entities, name):
         """
 
         Parameters
@@ -115,10 +115,11 @@ class Geometry(occ.Geometry):
             Name of the physical group.
             
         entities : GMSH elements
-            Geometric entities to assign the given name (the given _physical group_ in GMSH terminology).
+            List of geometric entities to assign the given name (the given _physical group_ in GMSH terminology).
 
         """
-        assert isinstance(entities, list)
+        if not isinstance(entities, list):
+            entities = [entities]
         
         if name in self._physical_queue:
             self._physical_queue[name].extend(entities)
@@ -136,7 +137,7 @@ class Geometry(occ.Geometry):
 
         """
         for label, entities in self._physical_queue.items():
-            self.add_physical(entities, label)
+            super().add_physical(entities, label)
           
         if self.size_from_distance:
             self.set_mesh_size_callback(self._mesh_size_callback)
@@ -309,9 +310,9 @@ class MEMSStack(Geometry):
         
         if self._3d:
             revolved = revolve_around_optical_axis(self, lines, self.revolve_factor)
-            self._add_physical(name, revolved)
+            self.add_physical(name, revolved)
         else:
-            self._add_physical(name, lines)
+            self.add_physical(name, lines)
         
         self._last_name = name
          
@@ -338,10 +339,10 @@ class MEMSStack(Geometry):
                 points = [[p[0], 0.0, p[1]] for p in points]
                 lines = [self.add_line(self.add_point(p1), self.add_point(p2)) for p1, p2 in zip(points[1:], points)]
                 revolved = revolve_around_optical_axis(self, lines, self.revolve_factor)
-                self._add_physical(self._last_name, revolved)
+                self.add_physical(self._last_name, revolved)
             else:
                 lines = [self.add_line(self.add_point(p1), self.add_point(p2)) for p1, p2 in zip(points[1:], points)]
-                self._add_physical(self._last_name, lines)
+                self.add_physical(self._last_name, lines)
         
         return super().generate_mesh(*args, **kwargs)        
 
