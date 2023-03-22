@@ -41,9 +41,7 @@ EXPORT const int M_MAX_SYM = M_MAX;
 
 #define N_TRIANGLE_QUAD 9
 
-#define TRACING_STEP_MAX 0.085
-#define TRACING_STEP_MIN (TRACING_STEP_MAX/1e10)
-
+#define TRACING_STEP_MAX 0.01
 #define MIN_DISTANCE_AXIS 1e-10
 
 #ifndef M_PI
@@ -355,10 +353,9 @@ trace_particle(double *times_array, double *pos_array, field_fun field, double b
 	for(int i = 0; i < 6; i++) y[i] = positions[0][i];
 
     double V = norm_3d(y[3], y[4], y[5]);
-    double h = TRACING_STEP_MAX/V;
     double hmax = TRACING_STEP_MAX/V;
-    double hmin = TRACING_STEP_MIN/V;
-     
+    double h = hmax;
+	
     int N = 1;
 		
     double xmin = bounds[0][0], xmax = bounds[0][1];
@@ -386,7 +383,7 @@ trace_particle(double *times_array, double *pos_array, field_fun field, double b
 			if(fabs(err) > TE) TE = fabs(err);
 		}
 			
-		if(TE <= atol || h == hmin) {
+		if(TE <= atol) {
 			for(int i = 0; i < 6; i++) {
 				y[i] += CH[0]*k[0][i] + CH[1]*k[1][i] + CH[2]*k[2][i] + CH[3]*k[3][i] + CH[4]*k[4][i] + CH[5]*k[5][i];
 				positions[N][i] = y[i];
@@ -397,8 +394,7 @@ trace_particle(double *times_array, double *pos_array, field_fun field, double b
 			if(N==TRACING_BLOCK_SIZE) return N;
 		}
 		
-		if (TE > atol / 10) h = fmax(fmin(0.9 * h * pow(atol / TE, 0.2), hmax), hmin);
-		else if (TE < atol / 100) h = hmax;
+		h = fmin(0.9 * h * pow(atol / TE, 0.2), hmax);
 	}
 		
 	return N;
