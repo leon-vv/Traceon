@@ -10,6 +10,15 @@ Traceon is completely free to use and open source. The source code is distribute
 
 [API documentation](https://leon.science/traceon/index.html)
 
+## Validations
+
+To ensure the accuracy of the package, different problems from the literature have been analyzed using this software. See `/validations` directory for more information. The validations can easily be executed from the command line, for example:
+```bash
+python3 ./validation/edwards2007.py --help
+python3 ./validation/capacitance-sphere.py --help
+etc...
+```
+
 ## License
 
 [AGPLv3](https://www.gnu.org/licenses/agpl-3.0.en.html)
@@ -21,7 +30,7 @@ Install using the Python package manager:
 pip install traceon
 ```
 
-The installation is known to work on Linux and Windows. Please reach out to me if you have any installation problems (see below).
+The installation is known to work on Linux and Windows. Please reach out to me if you have any installation problems.
 
 ## Help! I have a problem!
 
@@ -42,12 +51,5 @@ Don't worry. You can reach me.
 - Field/potential calculation by integration over surface charges
 - Fast field/potential calculation by radial series expansion
 - Superposition of electrostatic fields
-
-## Validations
-
-To ensure the accuracy of the package, different problems from the literature have been analyzed using this software. See `/validations` directory for more information. The validations can easily be executed from the command line, for example:
-```bash
-python3 ./validation/edwards2007.py --help
-```
 
 
