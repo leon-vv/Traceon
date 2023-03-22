@@ -3,7 +3,7 @@
 
 clean:
 	rm -rf ./build ./dist
-	rm traceon/backend/traceon-backend.so
+	rm traceon/backend/traceon_backend.so
 
 sdist:
 	python3 ./setup.py sdist
