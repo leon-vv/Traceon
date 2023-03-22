@@ -4,6 +4,7 @@ implemented in the C backend. As a user you should not use these functions direc
 import importlib
 import ctypes as C
 import os.path as path
+import platform
 
 from numpy.ctypeslib import ndpointer, as_array
 import numpy as np
@@ -11,14 +12,19 @@ import numpy as np
 DEBUG = False
 
 ## Attempt 1: load local
-local_path = path.join(path.dirname(__file__), 'traceon-backend.so')
+if platform.system() in ['Linux', 'Darwin']:
+    local_path = path.join(path.dirname(__file__), 'traceon_backend.so')
+else:
+    local_path = path.join(path.dirname(__file__), 'traceon_backend.dll')
 
 if path.isfile(local_path):
+    print(local_path)
     backend_lib = C.CDLL(local_path)
 else:
     ## Attempt 2: load from pip installed path
-    global_path = importlib.util.find_spec('traceon.backend.traceon-backend')
-    
+    global_path = importlib.util.find_spec('traceon.backend.traceon_backend')
+    print(global_path)
+
     if global_path is None:
         help_txt = '''
         Cannot find Traceon backend (C compiled dynamic library).
@@ -30,7 +36,7 @@ else:
         raise RuntimeError(help_txt)
 
     global_path = global_path.origin
-    backend_lib = C.CDLL(global_path)
+    backend_lib = C.cdll.LoadLibrary(global_path)
 
 
 TRACING_BLOCK_SIZE = C.c_size_t.in_dll(backend_lib, 'TRACING_BLOCK_SIZE').value

@@ -38,7 +38,8 @@ def get_number_of_threads():
         # dependency for such a triviality. Here we simply assume that
         # we have two threads per logical core, which I think is correct
         # for at least modern Intel and AMD CPU's.
-        threads = len(os.sched_getaffinity(0)) // 2
+        cpu_count = len(os.sched_getaffinity(0)) if hasattr(os, 'sched_getaffinity') else os.cpu_count()
+        threads = cpu_count // 2
     
     return threads
 

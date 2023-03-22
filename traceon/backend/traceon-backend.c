@@ -5,6 +5,27 @@
 #include <stdint.h>
 #include <stdbool.h>
 
+#ifdef _MSC_VER
+#define EXPORT __declspec(dllexport)
+
+#include <Python.h>
+PyMODINIT_FUNC PyInit_traceon_backend(void) {
+	return NULL;
+}
+
+#else
+#define EXPORT extern
+#endif
+
+#if defined(__clang__)
+	#define UNROLL _Pragma("clang loop unroll(full)")
+#elif defined(__GNUC__) || defined(__GNUG__)
+	#define UNROLL _Pragma("GCC unroll 100")
+#else
+	#define UNROLL
+#endif
+
+
 #define DERIV_2D_MAX 9
 #define NU_MAX 4
 #define M_MAX 8
@@ -14,9 +35,9 @@
 // the preprocessor will substitute their names. We can also not 
 // simply only use these symbols instead of the preprocessor variables
 // as the length of arrays need to be a compile time constant in C...
-extern const int DERIV_2D_MAX_SYM = 9;
-extern const int NU_MAX_SYM = NU_MAX;
-extern const int M_MAX_SYM = M_MAX;
+EXPORT const int DERIV_2D_MAX_SYM = 9;
+EXPORT const int NU_MAX_SYM = NU_MAX;
+EXPORT const int M_MAX_SYM = M_MAX;
 
 #define N_TRIANGLE_QUAD 9
 
@@ -29,15 +50,8 @@ extern const int M_MAX_SYM = M_MAX;
     #define M_PI 3.14159265358979323846
 #endif
 
-#if defined(__clang__)
-	#define UNROLL _Pragma("clang loop unroll(full)")
-#elif defined(__GNUC__) || defined(__GNUG__)
-	#define UNROLL _Pragma("GCC unroll 100")
-#else
-	#define UNROLL
-#endif
 
-extern const size_t TRACING_BLOCK_SIZE = (size_t) 1e5;
+EXPORT const size_t TRACING_BLOCK_SIZE = (size_t) 1e5;
 
 //////////////////////////////// ELLIPTIC FUNCTIONS
 
@@ -77,7 +91,7 @@ double ellipk_singularity(double k) {
 	return sum_;
 }
 
-double ellipk(double k) {
+EXPORT double ellipk(double k) {
 	if(k > -1) return ellipk_singularity(k);
 	
 	return ellipk_singularity(1 - 1./(1-k))/sqrt(1-k);
@@ -113,11 +127,10 @@ double ellipe_01(double k) {
 	return sum_;
 }
 
-double ellipe(double k) {
+EXPORT double ellipe(double k) {
 	if (0 <= k && k <= 1) return ellipe_01(k);
 
 	return ellipe_01(k/(k-1.))*sqrt(1-k);
-
 }
 
 
@@ -126,12 +139,12 @@ double ellipe(double k) {
 typedef double (*integration_cb_2d)(double, double, double, double, void*);
 
 
-inline double
+EXPORT inline double
 norm_2d(double x, double y) {
 	return sqrt(x*x + y*y);
 }
 
-void
+EXPORT void
 normal_2d(double *p1, double *p2, double *normal) {
 	double x1 = p1[0], y1 = p1[1];
 	double x2 = p2[0], y2 = p2[1];
@@ -144,7 +157,7 @@ normal_2d(double *p1, double *p2, double *normal) {
 	normal[1] = normal_y/length;
 }
 
-double
+EXPORT double
 line_integral(double target[2], double v1[2], double v2[2], integration_cb_2d function, void* args) {
     
     double target_x = target[0], target_y = target[1];
@@ -199,12 +212,12 @@ line_integral(double target[2], double v1[2], double v2[2], integration_cb_2d fu
 
 typedef double (*integration_cb_3d)(double, double, double, double, double, double, void*);
 
-extern inline double
+EXPORT inline double
 norm_3d(double x, double y, double z) {
 	return sqrt(x*x + y*y + z*z);
 }
 
-void
+EXPORT void
 normal_3d(double *p1, double *p2, double *p3, double *normal) {
 	double x1 = p1[0], y1 = p1[1], z1 = p1[2];
 	double x2 = p2[0], y2 = p2[1], z2 = p2[2];
@@ -225,7 +238,7 @@ const double QUAD_B1[N_TRIANGLE_QUAD] = {0.124949503233232, 0.437525248383384, 0
 const double QUAD_B2[N_TRIANGLE_QUAD] = {0.437525248383384, 0.124949503233232, 0.437525248383384, 0.165409927389841, 0.037477420750088, 0.797112651860071, 0.037477420750088, 0.797112651860071, 0.165409927389841};
 const double QUAD_WEIGHTS[N_TRIANGLE_QUAD] = {0.205950504760887, 0.205950504760887, 0.205950504760887, 0.063691414286223, 0.063691414286223, 0.063691414286223, 0.063691414286223, 0.063691414286223, 0.063691414286223};
 
-double
+EXPORT double
 triangle_integral(double target[3], double v1[3], double v2[3], double v3[3], integration_cb_3d function, void *args) {
 	double v1x = v1[0], v1y = v1[1], v1z = v1[2];
 	double v2x = v2[0], v2y = v2[1], v2z = v2[2];
@@ -254,7 +267,7 @@ triangle_integral(double target[3], double v1[3], double v2[3], double v3[3], in
 // the same as above, except we inline the 'potential_3d_point' function directly. Weirdly this
 // seem to trigger some kind of optimization within GCC that makes building the matrix much faster. I was not
 // able to reproduce this behaviour simply by extensive use of the 'inline' keyword.
-extern inline double potential_3d_point(double x0, double y0, double z0, double x, double y, double z, void *_) {
+EXPORT inline double potential_3d_point(double x0, double y0, double z0, double x, double y, double z, void *_) {
 	double r = norm_3d(x-x0, y-y0, z-z0);
     return 1/(4*r);
 }
@@ -333,7 +346,7 @@ produce_new_k(double ys[6][6], double ks[6][6], size_t index, double h, field_fu
 }
 
 
-size_t
+EXPORT size_t
 trace_particle(double *times_array, double *pos_array, field_fun field, double bounds[3][2], double atol, void *args) {
 	
 	double (*positions)[6] = (double (*)[6]) pos_array;
@@ -396,7 +409,7 @@ trace_particle(double *times_array, double *pos_array, field_fun field, double b
 //////////////////////////////// RADIAL RING POTENTIAL (DERIVATIVES)
 
 
-double dr1_potential_radial_ring(double r_0, double z_0, double r, double z, void *_) {
+EXPORT double dr1_potential_radial_ring(double r_0, double z_0, double r, double z, void *_) {
 	
 	if (fabs(r_0) < MIN_DISTANCE_AXIS) return 0.0; // Prevent stepping into singularity
 	
@@ -411,13 +424,13 @@ double dr1_potential_radial_ring(double r_0, double z_0, double r, double z, voi
 }
 
 
-double potential_radial_ring(double r_0, double z_0, double r, double z, void *_) {
+EXPORT double potential_radial_ring(double r_0, double z_0, double r, double z, void *_) {
     double rz2 = pow(r + r_0, 2) + pow(z - z_0, 2);
     double t = 4.0 * r * r_0 / rz2;
     return ellipk(t) * r / sqrt(rz2);
 }
 
-double dz1_potential_radial_ring(double r_0, double z_0, double r, double z, void *_) {
+EXPORT double dz1_potential_radial_ring(double r_0, double z_0, double r, double z, void *_) {
     double rz2 = pow(r + r_0, 2) + pow(z - z_0, 2);
     double t = 4.0 * r * r_0 / rz2;
     double numerator = r * (z - z_0) * ellipe(t);
@@ -425,7 +438,7 @@ double dz1_potential_radial_ring(double r_0, double z_0, double r, double z, voi
     return numerator / denominator;
 }
 
-void
+EXPORT void
 axial_derivatives_radial_ring(double *derivs_p, double *lines_p, double *charges, size_t N_lines, double *z, size_t N_z) {
 
 	double (*derivs)[9] = (double (*)[9]) derivs_p;	
@@ -455,7 +468,7 @@ axial_derivatives_radial_ring(double *derivs_p, double *lines_p, double *charges
 
 //////////////////////////////// RADIAL SYMMETRY POTENTIAL EVALUATION
 
-double
+EXPORT double
 potential_radial(double point[3], double *vertices_p, double *charges, size_t N_vertices) {
 
 	double (*vertices)[2][3] = (double (*)[2][3]) vertices_p;	
@@ -469,7 +482,7 @@ potential_radial(double point[3], double *vertices_p, double *charges, size_t N_
 	return sum_;
 }
 
-double
+EXPORT double
 potential_radial_derivs(double point[2], double *z_inter, double *coeff_p, size_t N_z) {
 	
 	double (*coeff)[DERIV_2D_MAX][6] = (double (*)[DERIV_2D_MAX][6]) coeff_p;
@@ -511,7 +524,7 @@ field_dot_normal_radial(double r0, double z0, double r, double z, void* normal_p
 
 }
 
-void
+EXPORT void
 field_radial(double point[3], double result[3], double *vertices_p, double *charges, size_t N_vertices) {
 
 	double (*vertices)[2][3] = (double (*)[2][3]) vertices_p;	
@@ -540,7 +553,7 @@ field_radial_traceable(double point[3], double result[3], void *args_p) {
 	field_radial(point, result, args->vertices, args->charges, args->N_vertices);
 }
 
-size_t
+EXPORT size_t
 trace_particle_radial(double *times_array, double *pos_array, double bounds[3][2], double atol,
 	double *vertices, double *charges, size_t N_vertices) {
 
@@ -549,7 +562,7 @@ trace_particle_radial(double *times_array, double *pos_array, double bounds[3][2
 	return trace_particle(times_array, pos_array, field_radial_traceable, bounds, atol, (void*) &args);
 }
 
-void
+EXPORT void
 field_radial_derivs(double point[3], double field[3], double *z_inter, double *coeff_p, size_t N_z) {
 	
 	double (*coeff)[DERIV_2D_MAX][6] = (double (*)[DERIV_2D_MAX][6]) coeff_p;
@@ -591,7 +604,7 @@ field_radial_derivs_traceable(double point[3], double field[3], void *args_p) {
 	field_radial_derivs(point, field, args->z_interpolation, args->axial_coefficients, args->N_z);
 }
 
-size_t
+EXPORT size_t
 trace_particle_radial_derivs(double *times_array, double *pos_array, double bounds[3][2], double atol,
 	double *z_interpolation, double *axial_coefficients, size_t N_z) {
 
@@ -603,22 +616,22 @@ trace_particle_radial_derivs(double *times_array, double *pos_array, double boun
 
 //////////////////////////////// 3D POINT POTENTIAL (DERIVATIVES)
 
-double dx1_potential_3d_point(double x0, double y0, double z0, double x, double y, double z, void *_) {
+EXPORT double dx1_potential_3d_point(double x0, double y0, double z0, double x, double y, double z, void *_) {
 	double r = norm_3d(x-x0, y-y0, z-z0);
     return (x-x0)/(4*pow(r, 3));
 }
 
-double dy1_potential_3d_point(double x0, double y0, double z0, double x, double y, double z, void *_) {
+EXPORT double dy1_potential_3d_point(double x0, double y0, double z0, double x, double y, double z, void *_) {
 	double r = norm_3d(x-x0, y-y0, z-z0);
     return (y-y0)/(4*pow(r, 3));
 }
 
-double dz1_potential_3d_point(double x0, double y0, double z0, double x, double y, double z, void *_) {
+EXPORT double dz1_potential_3d_point(double x0, double y0, double z0, double x, double y, double z, void *_) {
 	double r = norm_3d(x-x0, y-y0, z-z0);
     return (z-z0)/(4*pow(r, 3));
 }
 
-void
+EXPORT void
 axial_coefficients_3d(double *restrict vertices_p, double *restrict charges, size_t N_v,
 	double *restrict zs, double *restrict output_coeffs_p, size_t N_z,
 	double *restrict thetas, double *restrict theta_coeffs_p, size_t N_t) {
@@ -675,7 +688,7 @@ axial_coefficients_3d(double *restrict vertices_p, double *restrict charges, siz
 
 //////////////////////////////// 3D POINT POTENTIAL EVALUATION
 
-double
+EXPORT double
 potential_3d(double point[3], double *vertices_p, double *charges, size_t N_vertices) {
 
 	double (*vertices)[3][3] = (double (*)[3][3]) vertices_p;	
@@ -689,7 +702,7 @@ potential_3d(double point[3], double *vertices_p, double *charges, size_t N_vert
 	return sum_;
 }
 
-double
+EXPORT double
 potential_3d_derivs(double point[3], double *zs, double *coeffs_p, size_t N_z) {
 
 	double (*coeffs)[2][NU_MAX][M_MAX][4] = (double (*)[2][NU_MAX][M_MAX][4]) coeffs_p;
@@ -739,7 +752,7 @@ field_dot_normal_3d(double x0, double y0, double z0, double x, double y, double 
 }
 
 
-void
+EXPORT void
 field_3d(double point[3], double result[3], double *vertices_p, double *charges, size_t N_vertices) {
 	
 		double (*vertices)[3][3] = (double (*)[3][3]) vertices_p;
@@ -768,7 +781,7 @@ field_3d_traceable(double point[3], double result[3], void *args_p) {
 	field_3d(point, result, args->vertices, args->charges, args->N_vertices);
 }
 
-size_t
+EXPORT size_t
 trace_particle_3d(double *times_array, double *pos_array, double bounds[3][2], double atol,
 	double *vertices, double *charges, size_t N_vertices) {
 
@@ -777,7 +790,7 @@ trace_particle_3d(double *times_array, double *pos_array, double bounds[3][2], d
 	return trace_particle(times_array, pos_array, field_3d_traceable, bounds, atol, (void*) &args);
 }
 
-void
+EXPORT void
 field_3d_derivs(double point[3], double field[3], double *restrict zs, double *restrict coeffs_p, size_t N_z) {
 	
 	double (*coeffs)[2][NU_MAX][M_MAX][4] = (double (*)[2][NU_MAX][M_MAX][4]) coeffs_p;
@@ -841,7 +854,7 @@ field_3d_derivs_traceable(double point[3], double field[3], void *args_p) {
 	field_3d_derivs(point, field, args->z_interpolation, args->axial_coefficients, args->N_z);
 }
 
-size_t
+EXPORT size_t
 trace_particle_3d_derivs(double *times_array, double *pos_array, double bounds[3][2], double atol,
 	double *z_interpolation, double *axial_coefficients, size_t N_z) {
 
@@ -859,7 +872,7 @@ enum ExcitationType{
     DIELECTRIC = 3,
     FLOATING_CONDUCTOR = 4};
 
-void fill_matrix_radial(double *matrix, 
+EXPORT void fill_matrix_radial(double *matrix, 
                         double *line_points_p, 
                         uint8_t *excitation_types, 
                         double *excitation_values, 
@@ -913,7 +926,7 @@ void fill_matrix_radial(double *matrix,
     }
 }
 
-void fill_matrix_3d(double *matrix, 
+EXPORT void fill_matrix_3d(double *matrix, 
                     double *triangle_points_p, 
                     uint8_t *excitation_types, 
                     double *excitation_values, 
@@ -963,7 +976,7 @@ void fill_matrix_3d(double *matrix,
     }
 }
 
-bool
+EXPORT bool
 xy_plane_intersection_2d(double *positions_p, size_t N_p, double result[4], double z) {
 
 	double (*positions)[4] = (double (*)[4]) positions_p;
@@ -986,7 +999,7 @@ xy_plane_intersection_2d(double *positions_p, size_t N_p, double result[4], doub
 	return false;
 }
 
-bool
+EXPORT bool
 xy_plane_intersection_3d(double *positions_p, size_t N_p, double result[6], double z) {
 
 	double (*positions)[6] = (double (*)[6]) positions_p;
@@ -1008,8 +1021,6 @@ xy_plane_intersection_3d(double *positions_p, size_t N_p, double result[6], doub
 
 	return false;
 }
-
-
 
 
 
