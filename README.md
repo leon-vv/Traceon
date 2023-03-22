@@ -40,6 +40,10 @@ Don't worry. You can reach me.
 
 [Send me an email](mailto:leonvanvelzen@protonmail.com)
 
+## Gallery
+
+![Image of 3D deflector](https://raw.githubusercontent.com/leon-vv/traceon/main/images/deflector-image.png)
+
 ## Features
 
 - Uses the powerful [GMSH library](https://gmsh.info/) for meshing
