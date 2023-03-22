@@ -6,19 +6,31 @@ Traceon is completely free to use and open source. The source code is distribute
 
 ## Installation
 
-Todo...
+Install using the Python package manager:
+```
+pip install traceon
+```
+
+The installation is known to work on Linux and Windows. Please reach out to me if you have any installation problems (see below).
+
+## Help! I have a problem!
+
+Don't worry. You can reach me.
+
+Open an issue: [https://github.com/leon-vv/Traceon/issues](https://github.com/leon-vv/Traceon/issues)
+Send me an email: [contact details](https://leon.science)
 
 ## Features
 
 - Uses the powerful [GMSH library](https://gmsh.info/) for meshing
- - Solve for surface charge distribution using BEM
- -  General 3D geometries or radially symmetric geometries
- - Dielectrics
- - Floating conductors
- - Accurate electron tracing using adaptive time steps
- - Field/potential calculation by integration over surface charges
- - Fast field/potential calculation by radial series expansion
- - Superposition of electrostatic fields
+- Solve for surface charge distribution using BEM
+- General 3D geometries and radially symmetric geometries
+- Dielectrics
+- Floating conductors
+- Accurate electron tracing using adaptive time steps
+- Field/potential calculation by integration over surface charges
+- Fast field/potential calculation by radial series expansion
+- Superposition of electrostatic fields
 
 ## Validations
 
