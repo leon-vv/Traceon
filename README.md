@@ -4,6 +4,14 @@ Traceon is a general software package for numerical electron optics. The heart o
 
 Traceon is completely free to use and open source. The source code is distributed under the `AGPLv3` license.
 
+## Documentation
+
+[API documentation](https://leon.science/traceon/index.html)
+
+## License
+
+[AGPLv3](https://www.gnu.org/licenses/agpl-3.0.en.html)
+
 ## Installation
 
 Install using the Python package manager:
@@ -17,8 +25,9 @@ The installation is known to work on Linux and Windows. Please reach out to me i
 
 Don't worry. You can reach me.
 
-Open an issue: [https://github.com/leon-vv/Traceon/issues](https://github.com/leon-vv/Traceon/issues)
-Send me an email: [contact details](https://leon.science)
+[Open an issue](https://github.com/leon-vv/Traceon/issues)
+
+[Send me an email](mailto:leonvanvelzen@protonmail.com)
 
 ## Features
 
@@ -39,10 +48,4 @@ To ensure the accuracy of the package, different problems from the literature ha
 python3 ./validation/edwards2007.py --help
 ```
 
-## Documentation
 
-[API documentation](https://leon.science/traceon/index.html)
-
-## License
-
-[AGPLv3](https://www.gnu.org/licenses/agpl-3.0.en.html)
