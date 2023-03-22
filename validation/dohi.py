@@ -26,10 +26,10 @@ def create_geometry(MSF, symmetry, for_plot):
         if symmetry == G.Symmetry.THREE_D:
             mirror_line = geom.add_line(geom.add_point([0.0, 0.0, 0.0]), geom.add_point([0.075, 0.0, 0.0]))
             revolved = G.revolve_around_optical_axis(geom, [mirror_line], revolve_factor)
-            geom.add_physical('mirror', revolved)
+            geom.add_physical(revolved, 'mirror')
         else:
             mirror_line = geom.add_line(geom.add_point([0.0, 0.0]), geom.add_point([0.075, 0.0]))
-            geom.add_physical('mirror', [mirror_line])
+            geom.add_physical(mirror_line, 'mirror')
         
         geom.add_electrode(0.075, 0.150, 'ground')
         geom.add_spacer(0.3)

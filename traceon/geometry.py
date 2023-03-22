@@ -111,12 +111,10 @@ class Geometry(occ.Geometry):
 
         Parameters
         ----------
+        entities : list of GMSH elements or GMSH element
+            Geometric entities to assign the given name (the given _physical group_ in GMSH terminology).
         name : string
             Name of the physical group.
-            
-        entities : GMSH elements
-            List of geometric entities to assign the given name (the given _physical group_ in GMSH terminology).
-
         """
         if not isinstance(entities, list):
             entities = [entities]
@@ -310,9 +308,9 @@ class MEMSStack(Geometry):
         
         if self._3d:
             revolved = revolve_around_optical_axis(self, lines, self.revolve_factor)
-            self.add_physical(name, revolved)
+            self.add_physical(revolved, name)
         else:
-            self.add_physical(name, lines)
+            self.add_physical(lines, name)
         
         self._last_name = name
          
@@ -339,10 +337,10 @@ class MEMSStack(Geometry):
                 points = [[p[0], 0.0, p[1]] for p in points]
                 lines = [self.add_line(self.add_point(p1), self.add_point(p2)) for p1, p2 in zip(points[1:], points)]
                 revolved = revolve_around_optical_axis(self, lines, self.revolve_factor)
-                self.add_physical(self._last_name, revolved)
+                self.add_physical(revolved, self._last_name)
             else:
                 lines = [self.add_line(self.add_point(p1), self.add_point(p2)) for p1, p2 in zip(points[1:], points)]
-                self.add_physical(self._last_name, lines)
+                self.add_physical(lines, self._last_name)
         
         return super().generate_mesh(*args, **kwargs)        
 
