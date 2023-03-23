@@ -175,7 +175,7 @@ class Geometry(occ.Geometry):
         """
         gmsh.option.setNumber('Mesh.MeshSizeMin', size)
      
-    def _mesh_size_callback(self, dim, tag, x, y, z):
+    def _mesh_size_callback(self, dim, tag, x, y, z, _):
         # Scale mesh size with distance to optical axis, but only the part of the optical
         # axis that lies between zmin and zmax
         

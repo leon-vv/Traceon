@@ -27,7 +27,7 @@ setup(
     include_package_data=True,
     long_description = open('README.md').read(),
     long_description_content_type='text/markdown',
-    install_requires = ['matplotlib', 'numpy', 'pygmsh>=7.1.13', 'scipy'],
+    install_requires=['matplotlib', 'numpy', 'gmsh>=4.9', 'pygmsh>=7.1.13', 'scipy'],
     project_urls = {
         'Documentation': "https://leon.science/traceon",
         'Code': "https://github.com/leon-vv/traceon",
