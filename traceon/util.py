@@ -41,6 +41,11 @@ def get_number_of_threads():
         cpu_count = len(os.sched_getaffinity(0)) if hasattr(os, 'sched_getaffinity') else os.cpu_count()
         threads = cpu_count // 2
     
+    # os.cpu_count() might be 1 on old CPU's and in virtual machines.
+    # Of course at least one thread is needed to run the computations.
+    if threads == 0:
+        return 1
+     
     return threads
 
 def collect_multi_threaded(f, args):
