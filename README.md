@@ -10,6 +10,23 @@ Traceon is completely free to use and open source. The source code is distribute
 
 [API documentation](https://leon.science/traceon/index.html)
 
+## Citation
+
+Please cite the software as follows:
+
+```
+L.B. van Velzen. Traceon software (version 0.1.3). 2023. https://doi.org/10.5281/zenodo.7773697
+```
+
+## Installation
+
+Install using the Python package manager:
+```
+pip install traceon
+```
+
+The installation is known to work on Linux and Windows. Please reach out to me if you have any installation problems.
+
 ## Validations
 
 To ensure the accuracy of the package, different problems from the literature have been analyzed using this software. See [/validation](https://github.com/leon-vv/Traceon/tree/main/validation) directory for more information. The validations can easily be executed from the command line, for example:
@@ -23,14 +40,6 @@ etc...
 
 [AGPLv3](https://www.gnu.org/licenses/agpl-3.0.en.html)
 
-## Installation
-
-Install using the Python package manager:
-```
-pip install traceon
-```
-
-The installation is known to work on Linux and Windows. Please reach out to me if you have any installation problems.
 
 ## Help! I have a problem!
 
