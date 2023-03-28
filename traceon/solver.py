@@ -141,16 +141,19 @@ def _fill_self_voltages(matrix, vertices):
     N_quad = 4
     N_lines = len(vertices)
     assert matrix.shape == (N_quad*N_lines, N_quad*N_lines)
-    
-    legendre_matrix = np.array([
-        [0.1739274225687269, 0.3260725774312731, 0.3260725774312731, 0.1739274225687269],
-        [-0.449325657467681, -0.3325754854784642, 0.3325754854784641, 0.4493256574676809],
-        [0.5325080420189117, -0.5325080420189116, -0.5325080420189116, 0.5325080420189117],
-        [-0.3710270034019474, 0.9397724703777531, -0.9397724703777531, 0.3710270034019474]])
-    
+     
     quad_points = np.array([ -0.8611363115940526, -0.3399810435848562, 0.3399810435848562, 0.8611363115940526])
+    quad_weights = np.array([0.3478548451374538, 0.6521451548625461, 0.6521451548625461, 0.3478548451374538])
+    
+    leg_fun = [legendre(i) for i in range(N_quad)]
+    
+    def legendre_contribution(i, j):
+        return quad_weights[j] * leg_fun[i](quad_points[j]) * (2*i + 1)/2
+    
+    legendre_matrix = np.array([ [legendre_contribution(i, j) for j in range(N_quad)] for i in range(N_quad) ] )
     
     for i, target in enumerate(vertices):
+        print(f'Computing self voltage of element {i}')
         length = np.linalg.norm(target[1]-target[0]);
          
         for l in range(N_quad):
@@ -158,20 +161,30 @@ def _fill_self_voltages(matrix, vertices):
             singular_point = target[0] + length_factor*(target[1]-target[0])
              
             for k in range(N_quad):
-                def integrate(r0, z0, r, z):
-                    length_sampled = np.linalg.norm([r-r0, z-z0])
+                def integrate(length_sampled):
                     
                     legendre_arg = 2*length_sampled/length - 1
-                    #sampled_point = target[0] + length_sampled/length*(target[1]-target[0])
+                    #length_sampled = np.linalg.norm([r-r0, z-z0])
+                    sampled_point = target[0] + length_sampled/length*(target[1]-target[0])
+                    r, z = sampled_point[0], sampled_point[1]
                      
                     assert -1 <= legendre_arg <= 1
                     assert 0 <= length_sampled <= length
                      
+                    sum_ = 0.0
                     for m in range(N_quad):
-                        return legendre_matrix[m, k]*legendre(m)(legendre_arg) * backend.potential_radial_ring(singular_point[0], singular_point[1], r, z)
-                 
-                #integrated, err = quad(integrate, 0., length, points=(length_factor*length,))
-                integrated = backend.line_integral(singular_point[:2], target[0, :2], target[1, :2], integrate)
+                        sum_ += legendre_matrix[m, k] * leg_fun[m](legendre_arg) * backend.potential_radial_ring(singular_point[0], singular_point[1], r, z)
+
+                    return sum_
+                
+                #import matplotlib.pyplot as plt
+                #print('Singularity should be at ', length_factor*length)
+                #x = np.linspace(0.0, length, 250)
+                #plt.plot(x, [integrate(l) for l in x])
+                #plt.show()
+                
+                integrated, err = quad(integrate, 0., length, points=(length_factor*length,), epsrel=5e-7)
+                #integrated = backend.line_integral(singular_point[:2], target[0, :2], target[1, :2], integrate)
                 matrix[N_quad*i + l, N_quad*i + k] = integrated
 
 
@@ -266,7 +279,6 @@ def solve_bem(excitation, superposition=False):
      
     if not superposition:
         matrix = _excitation_to_matrix(excitation, vertices, names)
-        [print(m) for m in matrix]
         F = _excitation_to_right_hand_side(excitation, vertices, names)
         st = time.time()
         charges = np.linalg.solve(matrix, F)
