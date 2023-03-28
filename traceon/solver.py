@@ -170,51 +170,6 @@ def log_integral(f, a, b, l):
 
     return sum_
 
-
-def _fill_self_voltages(matrix, vertices):
-    N_quad = 4
-    N_lines = len(vertices)
-    assert matrix.shape == (N_quad*N_lines, N_quad*N_lines)
-     
-    quad_points = np.array([ -0.8611363115940526, -0.3399810435848562, 0.3399810435848562, 0.8611363115940526])
-    quad_weights = np.array([0.3478548451374538, 0.6521451548625461, 0.6521451548625461, 0.3478548451374538])
-    
-    leg_fun = [legendre(i) for i in range(N_quad)]
-    
-    def legendre_contribution(i, j):
-        return quad_weights[j] * leg_fun[i](quad_points[j]) * (2*i + 1)/2
-    
-    legendre_matrix = np.array([ [legendre_contribution(i, j) for j in range(N_quad)] for i in range(N_quad) ] )
-    
-    for i, target in enumerate(vertices):
-        length = np.linalg.norm(target[1]-target[0]);
-         
-        for l in range(N_quad):
-            length_factor = quad_points[l]/2 + 1/2
-            singular_point = target[0] + length_factor*(target[1]-target[0])
-             
-            for k in range(N_quad):
-                def integrate(length_sampled):
-                    
-                    legendre_arg = 2*length_sampled/length - 1
-                    #length_sampled = np.linalg.norm([r-r0, z-z0])
-                    sampled_point = target[0] + length_sampled/length*(target[1]-target[0])
-                    r, z = sampled_point[0], sampled_point[1]
-                     
-                    assert -1 <= legendre_arg <= 1
-                    assert 0 <= length_sampled <= length
-                     
-                    sum_ = 0.0
-                    for m in range(N_quad):
-                        sum_ += legendre_matrix[m, k] * leg_fun[m](legendre_arg) * backend.potential_radial_ring(singular_point[0], singular_point[1], r, z)
-
-                    return sum_
-                 
-                integrated = log_integral(integrate, 0, length, length_factor*length)
-                #matrix[N_quad*i + l, N_quad*i + k] = integrated
-                assert np.isclose(matrix[N_quad*i + l, N_quad*i + k], integrated)
-
-
 def _excitation_to_matrix(excitation, vertices, names):
     floating_names = _get_floating_conductor_names(excitation)
     
@@ -248,7 +203,6 @@ def _excitation_to_matrix(excitation, vertices, names):
 
     # Fill the difficult self voltages
     print(f'Time for building matrix: {(time.time()-st)*1000:.0f} ms')
-    #_fill_self_voltages(matrix, vertices)
      
     assert np.all(np.isfinite(matrix))
     
