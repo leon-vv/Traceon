@@ -9,7 +9,7 @@ import platform
 from numpy.ctypeslib import ndpointer, as_array
 import numpy as np
 
-DEBUG = False
+DEBUG = True
 
 ## Attempt 1: load local
 if platform.system() in ['Linux', 'Darwin']:
@@ -82,7 +82,7 @@ backend_functions = {
     'dr1_potential_radial_ring': (dbl, dbl, dbl, dbl, dbl, vp), 
     'dz1_potential_radial_ring': (dbl, dbl, dbl, dbl, dbl, vp), 
     'axial_derivatives_radial_ring': (None, arr(ndim=2), lines, charges, sz, z_values, sz),
-    'potential_radial': (dbl, v3, vertices, charges, sz),
+    'potential_radial': (dbl, v3, vertices, arr(ndim=2), sz),
     'potential_radial_derivs': (dbl, v2, z_values, arr(ndim=3), sz),
     'field_radial': (None, v3, v3, vertices, charges, sz),
     'trace_particle_radial': (sz, times_block, tracing_block, bounds, dbl, vertices, charges, sz),
@@ -263,9 +263,9 @@ def trace_particle_3d_derivs(position, velocity, bounds, atol, z, coeffs):
     return trace_particle_wrapper(position, velocity,
         lambda T, P: backend_lib.trace_particle_3d_derivs(T, P, bounds, atol, z, coeffs, len(z)))
 
-potential_radial_ring = remove_arg(backend_lib.potential_radial_ring)
-dr1_potential_radial_ring = remove_arg(backend_lib.dr1_potential_radial_ring)
-dz1_potential_radial_ring = remove_arg(backend_lib.dz1_potential_radial_ring)
+potential_radial_ring = lambda *args: backend_lib.potential_radial_ring(*args, None)
+dr1_potential_radial_ring = lambda *args: backend_lib.dr1_potential_radial_ring(*args, None)
+dz1_potential_radial_ring = lambda *args: backend_lib.dz1_potential_radial_ring(*args, None)
 
 def axial_derivatives_radial_ring(z, lines, charges):
     derivs = np.zeros( (z.size, DERIV_2D_MAX) )
@@ -278,6 +278,7 @@ def axial_derivatives_radial_ring(z, lines, charges):
 def potential_radial(point, vertices, charges):
     point = _vec_2d_to_3d(point)
     assert vertices.shape == (len(charges), 2, 3)
+    assert charges.shape == (len(vertices), 4)
     return backend_lib.potential_radial(point, vertices, charges, len(charges))
 
 def potential_radial_derivs(point, z, coeffs):
@@ -345,8 +346,10 @@ def field_3d_derivs(point, z, coeffs):
 
 def fill_matrix_radial(matrix, lines, excitation_types, excitation_values, start_index, end_index):
     N = len(lines)
+    N_quad = 4*N
+    
     # Due to floating conductor constraints the matrix might actually be bigger than NxN
-    assert matrix.shape[0] >= N and matrix.shape[1] >= N and matrix.shape[0] == matrix.shape[1]
+    assert matrix.shape[0] >= N_quad and matrix.shape[1] >= N_quad and matrix.shape[0] == matrix.shape[1]
     assert lines.shape == (N, 2, 3)
     assert excitation_types.shape == (N,)
     assert excitation_values.shape == (N,)

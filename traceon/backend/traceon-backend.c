@@ -142,6 +142,11 @@ norm_2d(double x, double y) {
 	return sqrt(x*x + y*y);
 }
 
+EXPORT inline double
+length_2d(double *v1, double *v2) {
+	return norm_2d(v2[0]-v1[0], v2[1]-v1[1]);
+}
+
 EXPORT void
 normal_2d(double *p1, double *p2, double *normal) {
 	double x1 = p1[0], y1 = p1[1];
@@ -464,15 +469,28 @@ axial_derivatives_radial_ring(double *derivs_p, double *lines_p, double *charges
 
 //////////////////////////////// RADIAL SYMMETRY POTENTIAL EVALUATION
 
+const double gauss_quad_points[4] = {-0.8611363115940526, -0.3399810435848562, 0.3399810435848562, 0.8611363115940526};
+const double gauss_quad_weights[4] = {0.3478548451374538, 0.6521451548625461, 0.6521451548625461, 0.3478548451374538};
+
 EXPORT double
-potential_radial(double point[3], double *vertices_p, double *charges, size_t N_vertices) {
+potential_radial(double point[3], double *vertices_p, double *charges_p, size_t N_vertices) {
 
 	double (*vertices)[2][3] = (double (*)[2][3]) vertices_p;	
-
+	double (*charges)[4] = (double (*)[4]) charges_p;	
+	
 	double sum_ = 0.0;
 	
 	for(int i = 0; i < N_vertices; i++) {
-		sum_ += charges[i] * line_integral(point, vertices[i][0], vertices[i][1], potential_radial_ring, NULL);
+		double *v1 = &vertices[i][0][0];
+		double *v2 = &vertices[i][1][0];
+		double length = length_2d(v1, v2);
+		
+		for(int j = 0; j < 4; j++) {
+			double sample_factor = gauss_quad_points[j]/2 + 1/2.;
+			double sample_x = v1[0] + sample_factor*(v2[0] - v1[0]);
+			double sample_y = v1[1] + sample_factor*(v2[1] - v1[1]);
+			sum_ += length/2*gauss_quad_weights[j] * charges[i][j] * potential_radial_ring(point[0], point[1], sample_x, sample_y, NULL);
+		}
 	}
 
 	return sum_;
@@ -878,22 +896,49 @@ EXPORT void fill_matrix_radial(double *matrix,
                         int lines_range_end) {
     
 	assert(lines_range_start < N_lines && lines_range_end < N_lines);
+	assert(N_matrix == 4*N_lines);
 	double (*line_points)[2][3] = (double (*)[2][3]) line_points_p;
 		
     for (int i = lines_range_start; i <= lines_range_end; i++) {
-		double *p1 = &line_points[i][0][0];
-		double *p2 = &line_points[i][1][0];
 		
-		double target[2] = {(p1[0] + p2[0]) / 2, (p1[1] + p2[1]) / 2};
-        enum ExcitationType type_ = excitation_types[i];
-		 
-        if (type_ == VOLTAGE_FIXED || type_ == VOLTAGE_FUN || type_ == FLOATING_CONDUCTOR) {
-            for (int j = 0; j < N_lines; j++) {
-                double *v1 = &line_points[j][0][0];
-                double *v2 = &line_points[j][1][0];
-                matrix[i*N_matrix + j] = line_integral(target, v1, v2, potential_radial_ring, NULL);
-            }
+		double *target_v1 = &line_points[i][0][0];
+		double *target_v2 = &line_points[i][1][0];
+			
+		for(int l = 0; l < 4; l++) {
+			double target_length_factor = gauss_quad_points[l]/2 + 1/2.;
+			double target_x = target_v1[0] + target_length_factor*(target_v2[0]-target_v1[0]);
+			double target_y = target_v1[1] + target_length_factor*(target_v2[1]-target_v1[1]);
+			
+			enum ExcitationType type_ = excitation_types[i];
+			
+			if (type_ == VOLTAGE_FIXED || type_ == VOLTAGE_FUN || type_ == FLOATING_CONDUCTOR) {
+				for (int j = 0; j < N_lines; j++) {
+					
+					double *v1 = &line_points[j][0][0];
+					double *v2 = &line_points[j][1][0];
+					double source_length = length_2d(v1, v2);
+						
+					for(int k = 0; k < 4; k++) {
+						
+						double length_factor = gauss_quad_points[k]/2 + 1/2.;
+						double source_x = v1[0] + length_factor*(v2[0] - v1[0]);
+						double source_y = v1[1] + length_factor*(v2[1] - v1[1]);
+						
+						double weight = gauss_quad_weights[k] * source_length/2.;
+						
+						if(i != j) {
+							matrix[(4*i + l)*N_matrix + 4*j + k] = weight*potential_radial_ring(target_x, target_y, source_x, source_y, NULL);
+						}
+						else {
+							matrix[(4*i + l)*N_matrix + 4*j + k] = 0.0; // Filled in in Python backend
+						}
+					}
+				}
+			}
         } 
+	}
+		
+		/*
         else if (type_ == DIELECTRIC) {
             double normal[2];
             normal_2d(p1, p2, normal);
@@ -919,7 +964,7 @@ EXPORT void fill_matrix_radial(double *matrix,
             printf("ExcitationType unknown");
             exit(1);
         }
-    }
+    }*/
 }
 
 EXPORT void fill_matrix_3d(double *matrix, 

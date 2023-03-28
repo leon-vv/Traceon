@@ -46,6 +46,8 @@ import os.path as path
 
 import numpy as np
 from scipy.interpolate import CubicSpline, BPoly, PPoly
+from scipy.special import legendre
+from scipy.integrate import quad
 
 from . import geometry as G
 from . import excitation as E
@@ -78,7 +80,8 @@ def _excitation_to_right_hand_side(excitation, vertices, names):
      
     N_floating = len(floating_names)
     N_lines = len(vertices)
-    N_matrix = N_lines + N_floating # Every floating conductor adds one constraint
+    N_quad = 4
+    N_matrix = N_quad*N_lines + N_floating # Every floating conductor adds one constraint
 
     F = np.zeros( (N_matrix) )
      
@@ -86,7 +89,9 @@ def _excitation_to_right_hand_side(excitation, vertices, names):
         type_, value  = excitation.excitation_types[name]
          
         if type_ == E.ExcitationType.VOLTAGE_FIXED:
-            F[indices] = value
+            for i in range(N_quad):
+                F[4*indices+i] = value
+        '''
         elif type_ == E.ExcitationType.VOLTAGE_FUN:
             for i in indices:
                 points = vertices[i]
@@ -95,6 +100,7 @@ def _excitation_to_right_hand_side(excitation, vertices, names):
         elif type_ == E.ExcitationType.DIELECTRIC or \
                 type_ == E.ExcitationType.FLOATING_CONDUCTOR:
             F[indices] = 0
+        '''
     
     # See comments in _add_floating_conductor_constraints_to_matrix
     for i, f in enumerate(floating_names):
@@ -131,12 +137,50 @@ def _add_floating_conductor_constraints_to_matrix(matrix, vertices, names, excit
             element = vertices[index]
             matrix[ -len(floating) + i, index] = _area(excitation.mesh.symmetry, element)
 
+def _fill_self_voltages(matrix, vertices):
+    N_quad = 4
+    N_lines = len(vertices)
+    assert matrix.shape == (N_quad*N_lines, N_quad*N_lines)
+    
+    legendre_matrix = np.array([
+        [0.1739274225687269, 0.3260725774312731, 0.3260725774312731, 0.1739274225687269],
+        [-0.449325657467681, -0.3325754854784642, 0.3325754854784641, 0.4493256574676809],
+        [0.5325080420189117, -0.5325080420189116, -0.5325080420189116, 0.5325080420189117],
+        [-0.3710270034019474, 0.9397724703777531, -0.9397724703777531, 0.3710270034019474]])
+    
+    quad_points = np.array([ -0.8611363115940526, -0.3399810435848562, 0.3399810435848562, 0.8611363115940526])
+    
+    for i, target in enumerate(vertices):
+        length = np.linalg.norm(target[1]-target[0]);
+         
+        for l in range(N_quad):
+            length_factor = quad_points[l]/2 + 1/2
+            singular_point = target[0] + length_factor*(target[1]-target[0])
+            print(l, singular_point)
+            
+            for k in range(N_quad):
+                def integrate(length_sampled):
+                    legendre_arg = 2*length_sampled/length - 1
+
+                    sampled_point = target[0] + length_sampled/length*(target[1]-target[0])
+                     
+                    assert -1 <= legendre_arg <= 1
+                    assert 0 <= length_sampled <= length
+                     
+                    for m in range(N_quad):
+                        return legendre_matrix[m, k]*legendre(m)(legendre_arg) * backend.potential_radial_ring(singular_point[0], singular_point[1], sampled_point[0], sampled_point[1])
+                 
+                matrix[N_quad*i + l, N_quad*i + k], err = quad(integrate, 0., length, points=(length_factor*length,))
+
+
+
 def _excitation_to_matrix(excitation, vertices, names):
     floating_names = _get_floating_conductor_names(excitation)
     
     N_floating = len(floating_names)
     N_lines = len(vertices)
-    N_matrix = N_lines + N_floating # Every floating conductor adds one constraint
+    N_quad = 4
+    N_matrix = N_quad*N_lines + N_floating # Every floating conductor adds one constraint
      
     excitation_types = np.zeros(N_lines, dtype=np.uint8)
     excitation_values = np.zeros(N_lines)
@@ -160,7 +204,10 @@ def _excitation_to_matrix(excitation, vertices, names):
         fill_fun(matrix, vertices, excitation_types, excitation_values, rows[0], rows[-1])
     
     util.split_collect(fill_matrix_rows, np.arange(N_lines))    
-      
+
+    # Fill the difficult self voltages
+    _fill_self_voltages(matrix, vertices)
+     
     assert np.all(np.isfinite(matrix))
     
     _add_floating_conductor_constraints_to_matrix(matrix, vertices, names, excitation)
@@ -172,14 +219,18 @@ def _excitation_to_matrix(excitation, vertices, names):
 def _charges_to_field(excitation, charges, vertices, names):
     floating_names = _get_floating_conductor_names(excitation)
     N_floating = len(floating_names)
-    assert len(charges) == len(vertices) + N_floating
+    N_quad = 4
+    
+    assert len(charges) == N_quad*len(vertices) + N_floating
     
     floating_voltages = {n:charges[-N_floating+i] for i, n in enumerate(floating_names)}
     if N_floating > 0:
         charges = charges[:-N_floating]
      
-    assert len(charges) == len(vertices)
-      
+    assert len(charges) == N_quad*len(vertices)
+
+    charges = np.reshape(charges, (len(vertices), 4))
+     
     field_class = FieldRadialBEM if excitation.mesh.symmetry != G.Symmetry.THREE_D else Field3D_BEM
     return field_class(vertices, charges, floating_voltages=floating_voltages)
     
@@ -211,11 +262,12 @@ def solve_bem(excitation, superposition=False):
     """
     
     vertices, names = excitation.get_active_elements()
+    print(vertices)
      
     if not superposition:
         matrix = _excitation_to_matrix(excitation, vertices, names)
+        [print(m) for m in matrix]
         F = _excitation_to_right_hand_side(excitation, vertices, names)
-        
         st = time.time()
         charges = np.linalg.solve(matrix, F)
         assert np.all(np.isfinite(charges))
