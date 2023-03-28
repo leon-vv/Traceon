@@ -469,8 +469,27 @@ axial_derivatives_radial_ring(double *derivs_p, double *lines_p, double *charges
 
 //////////////////////////////// RADIAL SYMMETRY POTENTIAL EVALUATION
 
-const double gauss_quad_points[4] = {-0.8611363115940526, -0.3399810435848562, 0.3399810435848562, 0.8611363115940526};
-const double gauss_quad_weights[4] = {0.3478548451374538, 0.6521451548625461, 0.6521451548625461, 0.3478548451374538};
+#define N_QUAD_2D 4
+const double GAUSS_QUAD_POINTS[N_QUAD_2D] = {-0.8611363115940526, -0.3399810435848562, 0.3399810435848562, 0.8611363115940526};
+const double GAUSS_QUAD_WEIGHTS[N_QUAD_2D] = {0.3478548451374538, 0.6521451548625461, 0.6521451548625461, 0.3478548451374538};
+
+// John A. Crow. Quadrature of Integrands with a Logarithmic Singularity. 1993.
+#define N_LOG_QUAD_2D 7
+const double GAUSS_LOG_QUAD_POINTS[N_LOG_QUAD_2D] = {0.175965211846577428056264284949e-2,
+													0.244696507125133674276453373497e-1,
+													0.106748056858788954180259781083,
+													0.275807641295917383077859512057,
+													0.517855142151833716158668961982,
+													0.771815485362384900274646869494,
+													0.952841340581090558994306588503};
+
+const double GAUSS_LOG_QUAD_WEIGHTS[N_LOG_QUAD_2D] = {0.663266631902570511783904989051e-2,
+													0.457997079784753341255767348120e-1,
+													0.123840208071318194550489564922,
+													0.212101926023811930107914875456,
+													0.261390645672007725646580606859,
+													0.231636180290909384318815526104,
+													0.118598665644451726132783641957};
 
 EXPORT double
 potential_radial(double point[3], double *vertices_p, double *charges_p, size_t N_vertices) {
@@ -486,10 +505,10 @@ potential_radial(double point[3], double *vertices_p, double *charges_p, size_t 
 		double length = length_2d(v1, v2);
 		
 		for(int j = 0; j < 4; j++) {
-			double sample_factor = gauss_quad_points[j]/2 + 1/2.;
+			double sample_factor = GAUSS_QUAD_POINTS[j]/2 + 1/2.;
 			double sample_x = v1[0] + sample_factor*(v2[0] - v1[0]);
 			double sample_y = v1[1] + sample_factor*(v2[1] - v1[1]);
-			sum_ += length/2*gauss_quad_weights[j] * charges[i][j] * potential_radial_ring(point[0], point[1], sample_x, sample_y, NULL);
+			sum_ += length/2*GAUSS_QUAD_WEIGHTS[j] * charges[i][j] * potential_radial_ring(point[0], point[1], sample_x, sample_y, NULL);
 		}
 	}
 
@@ -886,6 +905,106 @@ enum ExcitationType{
     DIELECTRIC = 3,
     FLOATING_CONDUCTOR = 4};
 
+// Can be calculated as
+// def legendre_contribution(i, j):
+//	return quad_weights[j] * legendre(i)(quad_points[j]) * (2*i + 1)/2
+
+const double LEGENDRE_CONTRIB[N_QUAD_2D][N_QUAD_2D] = {
+	{1.7392742256872692869e-1, 3.2607257743127307131e-1, 3.2607257743127307131e-1, 1.7392742256872692869e-1},
+	{-4.4932565746768105384e-1, -3.3257548547846420788e-1, 3.3257548547846420788e-1, 4.4932565746768105384e-1},
+	{5.3250804201891149919e-1, -5.3250804201891149919e-1, -5.3250804201891149919e-1, 5.3250804201891149919e-1},
+	{-3.7102700340194730526e-1, 9.3977247037775304056e-1, -9.3977247037775304056e-1, 3.7102700340194730526e-1}};
+
+double legendre(int N, double x) {
+	switch(N) {
+		case 0:
+			return 1;
+		case 1:
+			return x;
+		case 2:
+			return (3*x*x-1)/2.;
+		case 3:
+			return (5*pow(x,3) -3*x)/2.;
+	}
+	
+	assert(N < N_QUAD_2D);
+	exit(1);
+}
+
+double log_integral(
+	double *v1,
+	double *v2,
+	int l, int k) {
+	
+	double length = length_2d(v1, v2);
+	
+	double length_factor = GAUSS_QUAD_POINTS[l]/2. + 1/2.;
+	double singular_point_x = v1[0] + length_factor*(v2[0]-v1[0]);
+	double singular_point_y = v1[1] + length_factor*(v2[1]-v1[1]);
+	double singular_length = length*length_factor;
+
+	double integration_sum = 0.0;
+
+	// Logarithmic integration using improved quadrature weights
+	// split the integration around the singularity
+	for(int o = 0; o < N_LOG_QUAD_2D; o++) {
+	
+		double p = GAUSS_LOG_QUAD_POINTS[o];
+		double w = GAUSS_LOG_QUAD_WEIGHTS[o];
+		
+		// Move away from the singularity in left direction
+		double length_left = singular_length - singular_length*p;
+
+		double sampled_x = v1[0] + length_left/length * (v2[0]-v1[0]);
+		double sampled_y = v1[1] + length_left/length * (v2[1]-v1[1]);
+
+		double legendre_arg = 2*length_left/length - 1;
+		
+		for(int m = 0; m < N_QUAD_2D; m++) {
+			double pot_ring = potential_radial_ring(singular_point_x, singular_point_y, sampled_x, sampled_y, NULL);
+			integration_sum += w * singular_length * LEGENDRE_CONTRIB[m][k] * legendre(m, legendre_arg) * pot_ring;
+		}
+		
+		// Move away from the singularity in right direction
+		double length_right = singular_length + (length - singular_length)*p;
+		
+		sampled_x = v1[0] + length_right/length * (v2[0]-v1[0]);
+		sampled_y = v1[1] + length_right/length * (v2[1]-v1[1]);
+
+		legendre_arg = 2*length_right/length - 1;
+
+		for(int m = 0; m < N_QUAD_2D; m++) {
+			double pot_ring = potential_radial_ring(singular_point_x, singular_point_y, sampled_x, sampled_y, NULL);
+			integration_sum += w*(length-singular_length)*LEGENDRE_CONTRIB[m][k] * legendre(m, legendre_arg) * pot_ring;
+		}
+	}
+	
+	return integration_sum;
+}
+
+void fill_self_voltages(double *matrix, 
+                        double *line_points_p, 
+						size_t N_lines,
+						size_t N_matrix,
+                        int lines_range_start, 
+                        int lines_range_end) {
+	 
+	double (*line_points)[2][3] = (double (*)[2][3]) line_points_p;
+	
+	for(int i = lines_range_start; i <= lines_range_end; i++) {
+		
+		double *v1 = &line_points[i][0][0];
+		double *v2 = &line_points[i][1][0];
+			
+		for(int l = 0; l < N_QUAD_2D; l++) 
+		for(int k = 0; k < N_QUAD_2D; k++) {
+
+			matrix[(N_QUAD_2D*i + l)*N_matrix + N_QUAD_2D*i + k] = log_integral(v1, v2, l, k);
+		}
+	}
+}
+
+
 EXPORT void fill_matrix_radial(double *matrix, 
                         double *line_points_p, 
                         uint8_t *excitation_types, 
@@ -896,47 +1015,44 @@ EXPORT void fill_matrix_radial(double *matrix,
                         int lines_range_end) {
     
 	assert(lines_range_start < N_lines && lines_range_end < N_lines);
-	assert(N_matrix == 4*N_lines);
+	assert(N_matrix == N_QUAD_2D*N_lines);
 	double (*line_points)[2][3] = (double (*)[2][3]) line_points_p;
 		
     for (int i = lines_range_start; i <= lines_range_end; i++) {
 		
 		double *target_v1 = &line_points[i][0][0];
 		double *target_v2 = &line_points[i][1][0];
+		
+		enum ExcitationType type_ = excitation_types[i];
 			
-		for(int l = 0; l < 4; l++) {
-			double target_length_factor = gauss_quad_points[l]/2 + 1/2.;
-			double target_x = target_v1[0] + target_length_factor*(target_v2[0]-target_v1[0]);
-			double target_y = target_v1[1] + target_length_factor*(target_v2[1]-target_v1[1]);
-			
-			enum ExcitationType type_ = excitation_types[i];
-			
-			if (type_ == VOLTAGE_FIXED || type_ == VOLTAGE_FUN || type_ == FLOATING_CONDUCTOR) {
-				for (int j = 0; j < N_lines; j++) {
+		if (type_ == VOLTAGE_FIXED || type_ == VOLTAGE_FUN || type_ == FLOATING_CONDUCTOR) {
+			for (int j = 0; j < N_lines; j++) {
+				
+				if (i == j) continue;
 					
-					double *v1 = &line_points[j][0][0];
-					double *v2 = &line_points[j][1][0];
-					double source_length = length_2d(v1, v2);
+				double *v1 = &line_points[j][0][0];
+				double *v2 = &line_points[j][1][0];
+				double source_length = length_2d(v1, v2);
+				
+				for(int l = 0; l < N_QUAD_2D; l++) {
+					double target_length_factor = GAUSS_QUAD_POINTS[l]/2 + 1/2.;
+					double target_x = target_v1[0] + target_length_factor*(target_v2[0]-target_v1[0]);
+					double target_y = target_v1[1] + target_length_factor*(target_v2[1]-target_v1[1]);
 						
-					for(int k = 0; k < 4; k++) {
-						
-						double length_factor = gauss_quad_points[k]/2 + 1/2.;
+					for(int k = 0; k < N_QUAD_2D; k++) {
+						double length_factor = GAUSS_QUAD_POINTS[k]/2 + 1/2.;
 						double source_x = v1[0] + length_factor*(v2[0] - v1[0]);
 						double source_y = v1[1] + length_factor*(v2[1] - v1[1]);
-						
-						double weight = gauss_quad_weights[k] * source_length/2.;
-						
-						if(i != j) {
-							matrix[(4*i + l)*N_matrix + 4*j + k] = weight*potential_radial_ring(target_x, target_y, source_x, source_y, NULL);
-						}
-						else {
-							matrix[(4*i + l)*N_matrix + 4*j + k] = 0.0; // Filled in in Python backend
-						}
+						double weight = GAUSS_QUAD_WEIGHTS[k] * source_length/2.;
+							
+						matrix[(N_QUAD_2D*i + l)*N_matrix + N_QUAD_2D*j + k] = weight*potential_radial_ring(target_x, target_y, source_x, source_y, NULL);
 					}
 				}
-			}
-        } 
+			} 
+		}
 	}
+	
+	fill_self_voltages(matrix, line_points_p, N_lines, N_matrix, lines_range_start, lines_range_end);
 		
 		/*
         else if (type_ == DIELECTRIC) {

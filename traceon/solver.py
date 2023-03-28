@@ -164,8 +164,9 @@ def log_integral(f, a, b, l):
         p_left = l - l*p
         p_right = l + (b - l)*p
         
-        sum_ += w * f(p_left) * l
-        sum_ += w * f(p_right) * (b - l)
+        sum_left = w * f(p_left) * l
+        sum_right = w * f(p_right) * (b - l)
+        sum_ += sum_left + sum_right
 
     return sum_
 
@@ -208,20 +209,10 @@ def _fill_self_voltages(matrix, vertices):
                         sum_ += legendre_matrix[m, k] * leg_fun[m](legendre_arg) * backend.potential_radial_ring(singular_point[0], singular_point[1], r, z)
 
                     return sum_
-                
-                                
-                '''
-
-                if np.isnan(err):
-                    import matplotlib.pyplot as plt
-                    print('Singularity should be at ', length_factor*length)
-                    x = np.linspace(0.0, length, 250)
-                    plt.plot(x, [integrate(l) for l in x])
-                    plt.show()
-                '''
                  
                 integrated = log_integral(integrate, 0, length, length_factor*length)
-                matrix[N_quad*i + l, N_quad*i + k] = integrated
+                #matrix[N_quad*i + l, N_quad*i + k] = integrated
+                assert np.isclose(matrix[N_quad*i + l, N_quad*i + k], integrated)
 
 
 def _excitation_to_matrix(excitation, vertices, names):
@@ -257,7 +248,7 @@ def _excitation_to_matrix(excitation, vertices, names):
 
     # Fill the difficult self voltages
     print(f'Time for building matrix: {(time.time()-st)*1000:.0f} ms')
-    _fill_self_voltages(matrix, vertices)
+    #_fill_self_voltages(matrix, vertices)
      
     assert np.all(np.isfinite(matrix))
     
