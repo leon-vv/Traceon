@@ -80,8 +80,7 @@ def _excitation_to_right_hand_side(excitation, vertices, names):
      
     N_floating = len(floating_names)
     N_lines = len(vertices)
-    N_quad = 4
-    N_matrix = N_quad*N_lines + N_floating # Every floating conductor adds one constraint
+    N_matrix = backend.N_QUAD_2D*N_lines + N_floating # Every floating conductor adds one constraint
 
     F = np.zeros( (N_matrix) )
      
@@ -89,8 +88,8 @@ def _excitation_to_right_hand_side(excitation, vertices, names):
         type_, value  = excitation.excitation_types[name]
          
         if type_ == E.ExcitationType.VOLTAGE_FIXED:
-            for i in range(N_quad):
-                F[4*indices+i] = value
+            for i in range(backend.N_QUAD_2D):
+                F[backend.N_QUAD_2D*indices+i] = value
         '''
         elif type_ == E.ExcitationType.VOLTAGE_FUN:
             for i in indices:
@@ -137,46 +136,12 @@ def _add_floating_conductor_constraints_to_matrix(matrix, vertices, names, excit
             element = vertices[index]
             matrix[ -len(floating) + i, index] = _area(excitation.mesh.symmetry, element)
 
-# John A. Crow. Quadrature of Integrands with a Logarithmic Singularity. 1993.
-
-points = np.array([0.175965211846577428056264284949e-2,
-                0.244696507125133674276453373497e-1,
-                0.106748056858788954180259781083,
-                0.275807641295917383077859512057,
-                0.517855142151833716158668961982,
-                0.771815485362384900274646869494,
-                0.952841340581090558994306588503])
-
-weights = np.array([0.663266631902570511783904989051e-2,
-                0.457997079784753341255767348120e-1,
-                0.123840208071318194550489564922,
-                0.212101926023811930107914875456,
-                0.261390645672007725646580606859,
-                0.231636180290909384318815526104,
-                0.118598665644451726132783641957])
-
-def log_integral(f, a, b, l):
-    
-    sum_ = 0.0
-
-    for p, w in zip(points, weights):
-
-        p_left = l - l*p
-        p_right = l + (b - l)*p
-        
-        sum_left = w * f(p_left) * l
-        sum_right = w * f(p_right) * (b - l)
-        sum_ += sum_left + sum_right
-
-    return sum_
-
 def _excitation_to_matrix(excitation, vertices, names):
     floating_names = _get_floating_conductor_names(excitation)
     
     N_floating = len(floating_names)
     N_lines = len(vertices)
-    N_quad = 4
-    N_matrix = N_quad*N_lines + N_floating # Every floating conductor adds one constraint
+    N_matrix = backend.N_QUAD_2D*N_lines + N_floating # Every floating conductor adds one constraint
      
     excitation_types = np.zeros(N_lines, dtype=np.uint8)
     excitation_values = np.zeros(N_lines)
@@ -214,17 +179,16 @@ def _excitation_to_matrix(excitation, vertices, names):
 def _charges_to_field(excitation, charges, vertices, names):
     floating_names = _get_floating_conductor_names(excitation)
     N_floating = len(floating_names)
-    N_quad = 4
-    
-    assert len(charges) == N_quad*len(vertices) + N_floating
+     
+    assert len(charges) == backend.N_QUAD_2D*len(vertices) + N_floating
     
     floating_voltages = {n:charges[-N_floating+i] for i, n in enumerate(floating_names)}
     if N_floating > 0:
         charges = charges[:-N_floating]
      
-    assert len(charges) == N_quad*len(vertices)
+    assert len(charges) == backend.N_QUAD_2D*len(vertices)
 
-    charges = np.reshape(charges, (len(vertices), 4))
+    charges = np.reshape(charges, (len(vertices), backend.N_QUAD_2D))
      
     field_class = FieldRadialBEM if excitation.mesh.symmetry != G.Symmetry.THREE_D else Field3D_BEM
     return field_class(vertices, charges, floating_voltages=floating_voltages)

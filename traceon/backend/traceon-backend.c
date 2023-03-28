@@ -470,8 +470,15 @@ axial_derivatives_radial_ring(double *derivs_p, double *lines_p, double *charges
 //////////////////////////////// RADIAL SYMMETRY POTENTIAL EVALUATION
 
 #define N_QUAD_2D 4
+const int N_QUAD_2D_SYM = N_QUAD_2D;
 const double GAUSS_QUAD_POINTS[N_QUAD_2D] = {-0.8611363115940526, -0.3399810435848562, 0.3399810435848562, 0.8611363115940526};
 const double GAUSS_QUAD_WEIGHTS[N_QUAD_2D] = {0.3478548451374538, 0.6521451548625461, 0.6521451548625461, 0.3478548451374538};
+
+/*
+#define N_QUAD_2D 8
+const double GAUSS_QUAD_POINTS[N_QUAD_2D] = {-0.8611363115940526, -0.3399810435848562, 0.3399810435848562, 0.8611363115940526};
+const double GAUSS_QUAD_WEIGHTS[N_QUAD_2D] = {0.3478548451374538, 0.6521451548625461, 0.6521451548625461, 0.3478548451374538};
+*/
 
 // John A. Crow. Quadrature of Integrands with a Logarithmic Singularity. 1993.
 #define N_LOG_QUAD_2D 7
@@ -491,11 +498,13 @@ const double GAUSS_LOG_QUAD_WEIGHTS[N_LOG_QUAD_2D] = {0.663266631902570511783904
 													0.231636180290909384318815526104,
 													0.118598665644451726132783641957};
 
+
+
 EXPORT double
 potential_radial(double point[3], double *vertices_p, double *charges_p, size_t N_vertices) {
 
 	double (*vertices)[2][3] = (double (*)[2][3]) vertices_p;	
-	double (*charges)[4] = (double (*)[4]) charges_p;	
+	double (*charges)[N_QUAD_2D] = (double (*)[N_QUAD_2D]) charges_p;	
 	
 	double sum_ = 0.0;
 	
@@ -504,7 +513,7 @@ potential_radial(double point[3], double *vertices_p, double *charges_p, size_t 
 		double *v2 = &vertices[i][1][0];
 		double length = length_2d(v1, v2);
 		
-		for(int j = 0; j < 4; j++) {
+		for(int j = 0; j < N_QUAD_2D; j++) {
 			double sample_factor = GAUSS_QUAD_POINTS[j]/2 + 1/2.;
 			double sample_x = v1[0] + sample_factor*(v2[0] - v1[0]);
 			double sample_y = v1[1] + sample_factor*(v2[1] - v1[1]);
@@ -905,15 +914,6 @@ enum ExcitationType{
     DIELECTRIC = 3,
     FLOATING_CONDUCTOR = 4};
 
-// Can be calculated as
-// def legendre_contribution(i, j):
-//	return quad_weights[j] * legendre(i)(quad_points[j]) * (2*i + 1)/2
-
-const double LEGENDRE_CONTRIB[N_QUAD_2D][N_QUAD_2D] = {
-	{1.7392742256872692869e-1, 3.2607257743127307131e-1, 3.2607257743127307131e-1, 1.7392742256872692869e-1},
-	{-4.4932565746768105384e-1, -3.3257548547846420788e-1, 3.3257548547846420788e-1, 4.4932565746768105384e-1},
-	{5.3250804201891149919e-1, -5.3250804201891149919e-1, -5.3250804201891149919e-1, 5.3250804201891149919e-1},
-	{-3.7102700340194730526e-1, 9.3977247037775304056e-1, -9.3977247037775304056e-1, 3.7102700340194730526e-1}};
 
 double legendre(int N, double x) {
 	switch(N) {
@@ -929,6 +929,11 @@ double legendre(int N, double x) {
 	
 	assert(N < N_QUAD_2D);
 	exit(1);
+}
+
+// Find the legendre coefficient by a quadrature using the GAUSS_QUAD_WEIGHTS
+inline double legendre_coefficient(int i, int j) {
+	return GAUSS_QUAD_WEIGHTS[j] * legendre(i, GAUSS_QUAD_POINTS[j]) * (2*i + 1)/2;
 }
 
 double log_integral(
@@ -962,7 +967,7 @@ double log_integral(
 		
 		for(int m = 0; m < N_QUAD_2D; m++) {
 			double pot_ring = potential_radial_ring(singular_point_x, singular_point_y, sampled_x, sampled_y, NULL);
-			integration_sum += w * singular_length * LEGENDRE_CONTRIB[m][k] * legendre(m, legendre_arg) * pot_ring;
+			integration_sum += w * singular_length * legendre_coefficient(m, k) * legendre(m, legendre_arg) * pot_ring;
 		}
 		
 		// Move away from the singularity in right direction
@@ -975,7 +980,7 @@ double log_integral(
 
 		for(int m = 0; m < N_QUAD_2D; m++) {
 			double pot_ring = potential_radial_ring(singular_point_x, singular_point_y, sampled_x, sampled_y, NULL);
-			integration_sum += w*(length-singular_length)*LEGENDRE_CONTRIB[m][k] * legendre(m, legendre_arg) * pot_ring;
+			integration_sum += w*(length-singular_length)*legendre_coefficient(m, k) * legendre(m, legendre_arg) * pot_ring;
 		}
 	}
 	
