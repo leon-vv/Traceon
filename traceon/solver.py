@@ -137,6 +137,39 @@ def _add_floating_conductor_constraints_to_matrix(matrix, vertices, names, excit
             element = vertices[index]
             matrix[ -len(floating) + i, index] = _area(excitation.mesh.symmetry, element)
 
+# John A. Crow. Quadrature of Integrands with a Logarithmic Singularity. 1993.
+
+points = np.array([0.175965211846577428056264284949e-2,
+                0.244696507125133674276453373497e-1,
+                0.106748056858788954180259781083,
+                0.275807641295917383077859512057,
+                0.517855142151833716158668961982,
+                0.771815485362384900274646869494,
+                0.952841340581090558994306588503])
+
+weights = np.array([0.663266631902570511783904989051e-2,
+                0.457997079784753341255767348120e-1,
+                0.123840208071318194550489564922,
+                0.212101926023811930107914875456,
+                0.261390645672007725646580606859,
+                0.231636180290909384318815526104,
+                0.118598665644451726132783641957])
+
+def log_integral(f, a, b, l):
+    
+    sum_ = 0.0
+
+    for p, w in zip(points, weights):
+
+        p_left = l - l*p
+        p_right = l + (b - l)*p
+        
+        sum_ += w * f(p_left) * l
+        sum_ += w * f(p_right) * (b - l)
+
+    return sum_
+
+
 def _fill_self_voltages(matrix, vertices):
     N_quad = 4
     N_lines = len(vertices)
@@ -153,7 +186,6 @@ def _fill_self_voltages(matrix, vertices):
     legendre_matrix = np.array([ [legendre_contribution(i, j) for j in range(N_quad)] for i in range(N_quad) ] )
     
     for i, target in enumerate(vertices):
-        print(f'Computing self voltage of element {i}')
         length = np.linalg.norm(target[1]-target[0]);
          
         for l in range(N_quad):
@@ -177,14 +209,18 @@ def _fill_self_voltages(matrix, vertices):
 
                     return sum_
                 
-                #import matplotlib.pyplot as plt
-                #print('Singularity should be at ', length_factor*length)
-                #x = np.linspace(0.0, length, 250)
-                #plt.plot(x, [integrate(l) for l in x])
-                #plt.show()
-                
-                integrated, err = quad(integrate, 0., length, points=(length_factor*length,), epsrel=5e-7)
-                #integrated = backend.line_integral(singular_point[:2], target[0, :2], target[1, :2], integrate)
+                                
+                '''
+
+                if np.isnan(err):
+                    import matplotlib.pyplot as plt
+                    print('Singularity should be at ', length_factor*length)
+                    x = np.linspace(0.0, length, 250)
+                    plt.plot(x, [integrate(l) for l in x])
+                    plt.show()
+                '''
+                 
+                integrated = log_integral(integrate, 0, length, length_factor*length)
                 matrix[N_quad*i + l, N_quad*i + k] = integrated
 
 
@@ -220,12 +256,12 @@ def _excitation_to_matrix(excitation, vertices, names):
     util.split_collect(fill_matrix_rows, np.arange(N_lines))    
 
     # Fill the difficult self voltages
+    print(f'Time for building matrix: {(time.time()-st)*1000:.0f} ms')
     _fill_self_voltages(matrix, vertices)
      
     assert np.all(np.isfinite(matrix))
     
     _add_floating_conductor_constraints_to_matrix(matrix, vertices, names, excitation)
-    print(f'Time for building matrix: {(time.time()-st)*1000:.0f} ms')
         
     return matrix
 
