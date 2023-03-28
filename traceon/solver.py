@@ -156,22 +156,23 @@ def _fill_self_voltages(matrix, vertices):
         for l in range(N_quad):
             length_factor = quad_points[l]/2 + 1/2
             singular_point = target[0] + length_factor*(target[1]-target[0])
-            print(l, singular_point)
-            
+             
             for k in range(N_quad):
-                def integrate(length_sampled):
+                def integrate(r0, z0, r, z):
+                    length_sampled = np.linalg.norm([r-r0, z-z0])
+                    
                     legendre_arg = 2*length_sampled/length - 1
-
-                    sampled_point = target[0] + length_sampled/length*(target[1]-target[0])
+                    #sampled_point = target[0] + length_sampled/length*(target[1]-target[0])
                      
                     assert -1 <= legendre_arg <= 1
                     assert 0 <= length_sampled <= length
                      
                     for m in range(N_quad):
-                        return legendre_matrix[m, k]*legendre(m)(legendre_arg) * backend.potential_radial_ring(singular_point[0], singular_point[1], sampled_point[0], sampled_point[1])
+                        return legendre_matrix[m, k]*legendre(m)(legendre_arg) * backend.potential_radial_ring(singular_point[0], singular_point[1], r, z)
                  
-                matrix[N_quad*i + l, N_quad*i + k], err = quad(integrate, 0., length, points=(length_factor*length,))
-
+                #integrated, err = quad(integrate, 0., length, points=(length_factor*length,))
+                integrated = backend.line_integral(singular_point[:2], target[0, :2], target[1, :2], integrate)
+                matrix[N_quad*i + l, N_quad*i + k] = integrated
 
 
 def _excitation_to_matrix(excitation, vertices, names):
@@ -262,7 +263,6 @@ def solve_bem(excitation, superposition=False):
     """
     
     vertices, names = excitation.get_active_elements()
-    print(vertices)
      
     if not superposition:
         matrix = _excitation_to_matrix(excitation, vertices, names)
