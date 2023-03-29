@@ -21,6 +21,7 @@ from enum import Enum
 import pickle
 
 from .util import Saveable
+from .backend import N_QUAD_2D
 
 
 def revolve_around_optical_axis(geom, elements, factor=1.0):
@@ -155,7 +156,7 @@ class Geometry(occ.Geometry):
         
         """
         if self.symmetry == Symmetry.RADIAL:
-            gmsh.option.setNumber('Mesh.MeshSizeFactor', 1/factor)
+            gmsh.option.setNumber('Mesh.MeshSizeFactor', 1/factor * N_QUAD_2D)
         elif self.symmetry == Symmetry.THREE_D:
             # GMSH seems to produce meshes which contain way more elements for 3D geometries
             # with the same mesh factor. This is confusing for users and therefore we arbtrarily
