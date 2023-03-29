@@ -160,56 +160,6 @@ normal_2d(double *p1, double *p2, double *normal) {
 	normal[1] = normal_y/length;
 }
 
-EXPORT double
-line_integral(double target[2], double v1[2], double v2[2], integration_cb_2d function, void* args) {
-    
-    double target_x = target[0], target_y = target[1];
-    double source_x1 = v1[0], source_y1 = v1[1];
-    double source_x2 = v2[0], source_y2 = v2[1];
-     
-    double middle_x = (source_x2 + source_x1)/2.;
-    double middle_y = (source_y1 + source_y2)/2.;
-    double length = norm_2d(source_x2 - source_x1, source_y2 - source_y1);
-    double distance = norm_2d(middle_x - target_x, middle_y - target_y);
-     
-    if(distance > 20*length) {
-        // Speedup, just consider middle point
-        return function(target_x, target_y, middle_x, middle_y, args) * length;
-	}
-    else {
-        size_t N_int = 256;
-		assert((N_int-1)%3 == 0);
-		
-		double dx = (source_x2 - source_x1)/(N_int-1);
-		double dy = (source_y2 - source_y1)/(N_int-1);
-		
-		int i = 1;
-		double sum_ = function(target_x, target_y, source_x1, source_y1, args);
-		while(i < N_int-1) {
-			double xi = source_x1 + dx*i, yi = source_y1 + dy*i;
-			double xi1 = source_x1 + dx*(i+1), yi1 = source_y1 + dy*(i+1);
-			double xi2 = source_x1 + dx*(i+2), yi2 = source_y1 + dy*(i+2);
-			
-			double fi = function(target_x, target_y, xi, yi, args);
-			double fi1 = function(target_x, target_y, xi1, yi1, args);
-			double fi2 = function(target_x, target_y, xi2, yi2, args);
-			
-			sum_ += 3*fi + 3*fi1 + 2*fi2;
-			i += 3;
-		}
-		
-		assert(i == N_int);
-		
-		// Last one is counted double in the previous iteration
-		sum_ -= function(target_x, target_y, source_x1 + dx*(i-1), source_y1 + dy*(i-1), args);
-		
-		double dline = norm_2d(dx, dy);
-		sum_ *= dline*3/8;
-		
-		return sum_;
-	}
-}
-
 //////////////////////////////// UTILITIES 3D
 
 
