@@ -439,46 +439,50 @@ EXPORT double dz1_potential_radial_ring(double r_0, double z_0, double r, double
     return numerator / denominator;
 }
 
+#define N_QUAD_2D 8
+const int N_QUAD_2D_SYM = N_QUAD_2D;
+const double GAUSS_QUAD_POINTS[N_QUAD_2D] = {-0.1834346424956498, 0.1834346424956498, -0.5255324099163290, 0.5255324099163290, -0.7966664774136267, 0.7966664774136267, -0.9602898564975363, 0.9602898564975363};
+const double GAUSS_QUAD_WEIGHTS[N_QUAD_2D] = {0.3626837833783620, 0.3626837833783620, 0.3137066458778873, 0.3137066458778873, 0.2223810344533745, 0.2223810344533745, 0.1012285362903763, 0.1012285362903763};
+
+
 EXPORT void
-axial_derivatives_radial_ring(double *derivs_p, double *lines_p, double *charges, size_t N_lines, double *z, size_t N_z) {
+axial_derivatives_radial_ring(double *derivs_p, double *lines_p, double *charges_p, size_t N_lines, double *z, size_t N_z) {
 
 	double (*derivs)[9] = (double (*)[9]) derivs_p;	
 	double (*lines)[2][3] = (double (*)[2][3]) lines_p;
+	double (*charges)[N_QUAD_2D] = (double (*)[N_QUAD_2D]) charges_p;
+	
+	for(int i = 0; i < N_z; i++) 
+	for(int j = 0; j < N_lines; j++)
+	for(int k = 0; k < N_QUAD_2D; k++) {
+		double z0 = z[i];
 
-	for(int i = 0; i < N_z; i++) {
-		for(int j = 0; j < N_lines; j++) {
-			double z0 = z[i];
-			double r = (lines[j][0][0]+lines[j][1][0])/2;
-			double z = (lines[j][0][1]+lines[j][1][1])/2;
-
-			double length = norm_2d( lines[j][0][0] - lines[j][1][0], lines[j][0][1] - lines[j][1][1] );
-				
-			double R = norm_2d(z0-z, r);
+		double *v1 = &lines[j][0][0];
+		double *v2 = &lines[j][1][0];
 			
-			double D[9] = {0.}; // Derivatives of the currently considered line element.
-			D[0] = 1/R;
-			D[1] = -(z0-z)/pow(R, 3);
-				
-			for(int n = 1; n+1 < DERIV_2D_MAX; n++)
-				D[n+1] = -1./pow(R,2) *( (2*n + 1)*(z0-z)*D[n] + pow(n,2)*D[n-1]);
+		double length_factor = GAUSS_QUAD_POINTS[k]/2 + 1/2.;
+		double r = v1[0] + length_factor*(v2[0] - v1[0]);
+		double z = v1[1] + length_factor*(v2[1] - v1[1]);
+		
+		double length = length_2d(v1, v2);
+		double weight = GAUSS_QUAD_WEIGHTS[k] * length/2.;
+		
+		double R = norm_2d(z0-z, r);
+		
+		double D[9] = {0.}; // Derivatives of the currently considered line element.
+		D[0] = 1/R;
+		D[1] = -(z0-z)/pow(R, 3);
 			
-			for(int k = 0; k < 9; k++) derivs[i][k] += M_PI*r/2 * charges[j]*D[k] * length;
-		}
+		for(int n = 1; n+1 < DERIV_2D_MAX; n++)
+			D[n+1] = -1./pow(R,2) *( (2*n + 1)*(z0-z)*D[n] + pow(n,2)*D[n-1]);
+		
+		for(int l = 0; l < 9; l++) derivs[i][l] += weight * M_PI*r/2 * charges[j][k]*D[l];
 	}
 }
 
 //////////////////////////////// RADIAL SYMMETRY POTENTIAL EVALUATION
 
-#define N_QUAD_2D 4
-const int N_QUAD_2D_SYM = N_QUAD_2D;
-const double GAUSS_QUAD_POINTS[N_QUAD_2D] = {-0.8611363115940526, -0.3399810435848562, 0.3399810435848562, 0.8611363115940526};
-const double GAUSS_QUAD_WEIGHTS[N_QUAD_2D] = {0.3478548451374538, 0.6521451548625461, 0.6521451548625461, 0.3478548451374538};
 
-/*
-#define N_QUAD_2D 8
-const double GAUSS_QUAD_POINTS[N_QUAD_2D] = {-0.8611363115940526, -0.3399810435848562, 0.3399810435848562, 0.8611363115940526};
-const double GAUSS_QUAD_WEIGHTS[N_QUAD_2D] = {0.3478548451374538, 0.6521451548625461, 0.6521451548625461, 0.3478548451374538};
-*/
 
 // John A. Crow. Quadrature of Integrands with a Logarithmic Singularity. 1993.
 #define N_LOG_QUAD_2D 7
@@ -497,6 +501,7 @@ const double GAUSS_LOG_QUAD_WEIGHTS[N_LOG_QUAD_2D] = {0.663266631902570511783904
 													0.261390645672007725646580606859,
 													0.231636180290909384318815526104,
 													0.118598665644451726132783641957};
+
 
 
 
@@ -554,6 +559,7 @@ potential_radial_derivs(double point[2], double *z_inter, double *coeff_p, size_
 
 //////////////////////////////// RADIAL SYMMETRY FIELD EVALUATION
 
+
 double
 field_dot_normal_radial(double r0, double z0, double r, double z, void* normal_p) {
 	
@@ -567,16 +573,30 @@ field_dot_normal_radial(double r0, double z0, double r, double z, void* normal_p
 }
 
 EXPORT void
-field_radial(double point[3], double result[3], double *vertices_p, double *charges, size_t N_vertices) {
+field_radial(double point[3], double result[3], double *vertices_p, double *charges_p, size_t N_vertices) {
 
 	double (*vertices)[2][3] = (double (*)[2][3]) vertices_p;	
+	double (*charges)[N_QUAD_2D] = (double (*)[N_QUAD_2D]) charges_p;
+	
 	double Ex = 0.0, Ey = 0.0;
 	
-	for(int i = 0; i < N_vertices; i++) {
-		Ex -= charges[i] * line_integral(point, vertices[i][0], vertices[i][1], dr1_potential_radial_ring, NULL);
-		Ey -= charges[i] * line_integral(point, vertices[i][0], vertices[i][1], dz1_potential_radial_ring, NULL);
+	for(int i = 0; i < N_vertices; i++) 
+	for(int k = 0; k < N_QUAD_2D; k++) {
+			
+		double *v1 = &vertices[i][0][0];
+		double *v2 = &vertices[i][1][0];
+		
+		double length_factor = GAUSS_QUAD_POINTS[k]/2 + 1/2.;
+		double r = v1[0] + length_factor*(v2[0] - v1[0]);
+		double z = v1[1] + length_factor*(v2[1] - v1[1]);
+		
+		double length = length_2d(v1, v2);
+		double weight = GAUSS_QUAD_WEIGHTS[k] * length/2.;
+		
+		Ex -= weight * charges[i][k] * dr1_potential_radial_ring(point[0], point[1], r, z, NULL);
+		Ey -= weight * charges[i][k] * dz1_potential_radial_ring(point[0], point[1], r, z, NULL);
 	}
-
+		
 	result[0] = Ex;
 	result[1] = Ey;
 	result[2] = 0.0;
@@ -922,17 +942,41 @@ double legendre(int N, double x) {
 		case 1:
 			return x;
 		case 2:
-			return (3*x*x-1)/2.;
+			return (3*pow(x,2)-1)/2.;
 		case 3:
 			return (5*pow(x,3) -3*x)/2.;
+		case 4:
+			return (35*pow(x,4)-30*pow(x,2)+3)/8.;
+		case 5:
+			return (63*pow(x,5)-70*pow(x,3)+15*x)/8.;
+		case 6:
+			return (231*pow(x,6)-315*pow(x,4)+105*pow(x,2)-5)/16.;
+		case 7:
+			return (429*pow(x,7)-693*pow(x,5)+315*pow(x,3)-35*x)/16.;
+		case 8:
+			return (6435*pow(x,8) - 12012*pow(x,6) + 6930*pow(x,4) - 1260*pow(x,2) + 35) / 128;
+		/*case 9:
+			return (12155*pow(x,9) - 25740*pow(x,7) + 18018*pow(x,5) - 4620*pow(x,3) + 315*x) / 128;
+		case 10:
+			return (46189*pow(x,10) - 109395*pow(x,8) + 90090*pow(x,6) - 30030*pow(x,4) + 3465*pow(x,2) - 63) / 256;
+		case 11:
+			return (88179*pow(x,11) - 230945*pow(x,9) + 218790*pow(x,7) - 90090*pow(x,5) + 15015*pow(x,3) - 693*x) / 256;
+		case 12:
+			return (676039*pow(x,12) - 1939938*pow(x,10) + 2078505*pow(x,8) - 1021020*pow(x,6) + 225225*pow(x,4) - 18018*pow(x,2) + 231) / 1024;
+		case 13:
+			return (1300075*pow(x,13) - 4056234*pow(x,11) + 4849845*pow(x,9) - 2771340*pow(x,7) + 765765*pow(x,5) - 90090*pow(x,3) + 3003*x) / 1024;
+		case 14:
+			return (5014575*pow(x,14) - 16900975*pow(x,12) + 22309287*pow(x,10) - 14549535*pow(x,8) + 4849845*pow(x,6) - 765765*pow(x,4) + 45045*pow(x,2) - 429) / 2048;
+		case 15:
+			return (9694845*pow(x,15) - 35102025*pow(x,13) + 50702925*pow(x,11) - 37182145*pow(x,9) + 14549535*pow(x,7) - 2909907*pow(x,5) + 255255*pow(x,3) - 6435*x) / 2048;
+		case 16:
+			return (300540195*pow(x,16) - 1163381400*pow(x,14) + 1825305300*pow(x,12) - 1487285800*pow(x,10) + 669278610*pow(x,8) - 162954792*pow(x,6) + 19399380*pow(x,4) - 875160*pow(x,2) + 6435) / 32768;*/
 	}
-	
-	assert(N < N_QUAD_2D);
 	exit(1);
 }
 
 // Find the legendre coefficient by a quadrature using the GAUSS_QUAD_WEIGHTS
-inline double legendre_coefficient(int i, int j) {
+double legendre_coefficient(int i, int j) {
 	return GAUSS_QUAD_WEIGHTS[j] * legendre(i, GAUSS_QUAD_POINTS[j]) * (2*i + 1)/2;
 }
 

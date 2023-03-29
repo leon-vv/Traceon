@@ -9,7 +9,7 @@ import platform
 from numpy.ctypeslib import ndpointer, as_array
 import numpy as np
 
-DEBUG = True
+DEBUG = False
 
 ## Attempt 1: load local
 if platform.system() in ['Linux', 'Darwin']:
@@ -41,6 +41,8 @@ TRACING_BLOCK_SIZE = C.c_size_t.in_dll(backend_lib, 'TRACING_BLOCK_SIZE').value
 
 DERIV_2D_MAX = C.c_int.in_dll(backend_lib, 'DERIV_2D_MAX_SYM').value
 
+N_QUAD_2D = C.c_int.in_dll(backend_lib, 'N_QUAD_2D_SYM').value
+
 NU_MAX = C.c_int.in_dll(backend_lib, 'NU_MAX_SYM').value
 M_MAX = C.c_int.in_dll(backend_lib, 'M_MAX_SYM').value
 
@@ -62,7 +64,8 @@ field_fun = C.CFUNCTYPE(None, C.POINTER(dbl), C.POINTER(dbl), vp);
 
 vertices = arr(ndim=3)
 lines = arr(ndim=3)
-charges = arr(ndim=1)
+charges_3d = arr(ndim=1)
+charges_2d = arr(ndim=2)
 z_values = arr(ndim=1)
 
 bounds = arr(shape=(3, 2))
@@ -81,22 +84,22 @@ backend_functions = {
     'potential_radial_ring': (dbl, dbl, dbl, dbl, dbl, vp), 
     'dr1_potential_radial_ring': (dbl, dbl, dbl, dbl, dbl, vp), 
     'dz1_potential_radial_ring': (dbl, dbl, dbl, dbl, dbl, vp), 
-    'axial_derivatives_radial_ring': (None, arr(ndim=2), lines, charges, sz, z_values, sz),
-    'potential_radial': (dbl, v3, vertices, arr(ndim=2), sz),
+    'axial_derivatives_radial_ring': (None, arr(ndim=2), lines, charges_2d, sz, z_values, sz),
+    'potential_radial': (dbl, v3, vertices, charges_2d, sz),
     'potential_radial_derivs': (dbl, v2, z_values, arr(ndim=3), sz),
-    'field_radial': (None, v3, v3, vertices, charges, sz),
-    'trace_particle_radial': (sz, times_block, tracing_block, bounds, dbl, vertices, charges, sz),
+    'field_radial': (None, v3, v3, vertices, charges_2d, sz),
+    'trace_particle_radial': (sz, times_block, tracing_block, bounds, dbl, vertices, charges_2d, sz),
     'field_radial_derivs': (None, v3, v3, z_values, arr(ndim=3), sz),
     'trace_particle_radial_derivs': (sz, times_block, tracing_block, bounds, dbl, z_values, arr(ndim=3), sz),
     'dx1_potential_3d_point': (dbl, dbl, dbl, dbl, dbl, dbl, dbl, vp),
     'dy1_potential_3d_point': (dbl, dbl, dbl, dbl, dbl, dbl, dbl, vp),
     'dz1_potential_3d_point': (dbl, dbl, dbl, dbl, dbl, dbl, dbl, vp),
     'potential_3d_point': (dbl, dbl, dbl, dbl, dbl, dbl, dbl, vp),
-    'axial_coefficients_3d': (None, vertices, charges, sz, z_values, arr(ndim=4), sz, arr(ndim=1), arr(ndim=4), sz),
-    'potential_3d': (dbl, v3, vertices, charges, sz),
+    'axial_coefficients_3d': (None, vertices, charges_3d, sz, z_values, arr(ndim=4), sz, arr(ndim=1), arr(ndim=4), sz),
+    'potential_3d': (dbl, v3, vertices, charges_3d, sz),
     'potential_3d_derivs': (dbl, v3, z_values, arr(ndim=5), sz),
-    'field_3d': (None, v3, v3, vertices, charges, sz),
-    'trace_particle_3d': (sz, times_block, tracing_block, bounds, dbl, vertices, charges, sz),
+    'field_3d': (None, v3, v3, vertices, charges_3d, sz),
+    'trace_particle_3d': (sz, times_block, tracing_block, bounds, dbl, vertices, charges_3d, sz),
     'field_3d_derivs': (None, v3, v3, z_values, arr(ndim=5), sz),
     'trace_particle_3d_derivs': (sz, times_block, tracing_block, bounds, dbl, z_values, arr(ndim=5), sz),
     'fill_matrix_radial': (None, arr(ndim=2), lines, arr(dtype=C.c_uint8, ndim=1), arr(ndim=1), sz, sz, C.c_int, C.c_int),
@@ -223,6 +226,7 @@ def trace_particle(position, velocity, field, bounds, atol):
 
 def trace_particle_radial(position, velocity, bounds, atol, vertices, charges):
     assert vertices.shape == (len(charges), 2, 3)
+    assert charges.shape == (len(charges), N_QUAD_2D)
     bounds = np.array(bounds)
     
     if bounds.shape[0] == 2:
@@ -271,6 +275,7 @@ def axial_derivatives_radial_ring(z, lines, charges):
     derivs = np.zeros( (z.size, DERIV_2D_MAX) )
     assert lines.shape[1] == 2 and lines.shape[2] == 3
     assert len(lines) == len(charges)
+    assert charges.shape == (len(charges), N_QUAD_2D)
     
     backend_lib.axial_derivatives_radial_ring(derivs, lines, charges, len(lines), z, len(z))
     return derivs
@@ -278,7 +283,7 @@ def axial_derivatives_radial_ring(z, lines, charges):
 def potential_radial(point, vertices, charges):
     point = _vec_2d_to_3d(point)
     assert vertices.shape == (len(charges), 2, 3)
-    assert charges.shape == (len(vertices), 4)
+    assert charges.shape == (len(vertices), N_QUAD_2D)
     return backend_lib.potential_radial(point, vertices, charges, len(charges))
 
 def potential_radial_derivs(point, z, coeffs):
@@ -288,6 +293,7 @@ def potential_radial_derivs(point, z, coeffs):
 def field_radial(point, vertices, charges):
     point = _vec_2d_to_3d(point)
     assert vertices.shape == (len(charges), 2, 3)
+    assert charges.shape == (len(charges), N_QUAD_2D)
      
     field = np.zeros( (3,) )
     backend_lib.field_radial(point, field, vertices, charges, len(charges))
@@ -346,10 +352,10 @@ def field_3d_derivs(point, z, coeffs):
 
 def fill_matrix_radial(matrix, lines, excitation_types, excitation_values, start_index, end_index):
     N = len(lines)
-    N_quad = 4*N
+    N_quad = N_QUAD_2D*N
     
     # Due to floating conductor constraints the matrix might actually be bigger than NxN
-    assert matrix.shape[0] >= N_quad and matrix.shape[1] >= N_quad and matrix.shape[0] == matrix.shape[1]
+    assert matrix.shape[0] == N_quad and matrix.shape[1] == N_quad and matrix.shape[0] == matrix.shape[1]
     assert lines.shape == (N, 2, 3)
     assert excitation_types.shape == (N,)
     assert excitation_values.shape == (N,)
