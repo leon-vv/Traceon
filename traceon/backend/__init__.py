@@ -295,7 +295,7 @@ def field_radial(point, vertices, charges):
 
 def field_radial_derivs(point, z, coeffs):
     point = _vec_2d_to_3d(point)
-    assert coeffs.shape == (len(z), DERIV_2D_MAX, 6)
+    assert coeffs.shape == (len(z)-1, DERIV_2D_MAX, 6)
     field = np.zeros( (3,) )
     backend_lib.field_radial_derivs(point, field, z, coeffs, len(z))
     return field[:2]
@@ -324,7 +324,7 @@ def potential_3d(point, vertices, charges):
     return backend_lib.potential_3d(point, vertices, charges, len(charges))
 
 def potential_3d_derivs(point, z, coeffs):
-    assert coeffs.shape == (len(z), NU_MAX, M_MAX, 4)
+    assert coeffs.shape == (len(z)-1, NU_MAX, M_MAX, 4)
     assert point.shape == (3,)
     
     return backend_lib.potential_3d_derivs(point, z, coeffs, len(z))
@@ -339,7 +339,7 @@ def field_3d(point, vertices, charges):
 
 def field_3d_derivs(point, z, coeffs):
     assert point.shape == (3,)
-    assert coeffs.shape == (len(z), NU_MAX, M_MAX, 4)
+    assert coeffs.shape == (len(z)-1, NU_MAX, M_MAX, 4)
 
     field = np.zeros( (3,) )
     backend_lib.field_3d_derivs(point, field, z, coeffs, len(z))
