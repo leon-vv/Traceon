@@ -72,6 +72,12 @@ thetas_interpolation_coefficients = np.load(coefficients_file)
 
 assert thetas_interpolation_coefficients.shape == (thetas.size-1, backend.NU_MAX, backend.M_MAX, 4)
 
+def _get_N_quad(exc):
+    if exc.mesh.symmetry == G.Symmetry.RADIAL:
+        return backend.N_QUAD_2D
+    elif exc.mesh.symmetry == G.Symmetry.THREE_D:
+        return 1
+
 def _get_floating_conductor_names(exc):
     return [n for n, (t, v) in exc.excitation_types.items() if t == E.ExcitationType.FLOATING_CONDUCTOR]
 
@@ -80,7 +86,8 @@ def _excitation_to_right_hand_side(excitation, vertices, names):
      
     N_floating = len(floating_names)
     N_lines = len(vertices)
-    N_matrix = backend.N_QUAD_2D*N_lines + N_floating # Every floating conductor adds one constraint
+    N_quad = _get_N_quad(excitation)
+    N_matrix = N_quad*N_lines + N_floating # Every floating conductor adds one constraint
 
     F = np.zeros( (N_matrix) )
      
@@ -88,8 +95,8 @@ def _excitation_to_right_hand_side(excitation, vertices, names):
         type_, value  = excitation.excitation_types[name]
          
         if type_ == E.ExcitationType.VOLTAGE_FIXED:
-            for i in range(backend.N_QUAD_2D):
-                F[backend.N_QUAD_2D*indices+i] = value
+            for i in range(N_quad):
+                F[N_quad*indices+i] = value
         '''
         elif type_ == E.ExcitationType.VOLTAGE_FUN:
             for i in indices:
@@ -141,7 +148,8 @@ def _excitation_to_matrix(excitation, vertices, names):
     
     N_floating = len(floating_names)
     N_lines = len(vertices)
-    N_matrix = backend.N_QUAD_2D*N_lines + N_floating # Every floating conductor adds one constraint
+    N_quad = _get_N_quad(excitation)
+    N_matrix = N_quad*N_lines + N_floating # Every floating conductor adds one constraint
      
     excitation_types = np.zeros(N_lines, dtype=np.uint8)
     excitation_values = np.zeros(N_lines)
@@ -179,16 +187,18 @@ def _excitation_to_matrix(excitation, vertices, names):
 def _charges_to_field(excitation, charges, vertices, names):
     floating_names = _get_floating_conductor_names(excitation)
     N_floating = len(floating_names)
+    N_quad = _get_N_quad(excitation)
      
-    assert len(charges) == backend.N_QUAD_2D*len(vertices) + N_floating
+    assert len(charges) == N_quad*len(vertices) + N_floating
     
     floating_voltages = {n:charges[-N_floating+i] for i, n in enumerate(floating_names)}
     if N_floating > 0:
         charges = charges[:-N_floating]
      
-    assert len(charges) == backend.N_QUAD_2D*len(vertices)
+    assert len(charges) == N_quad*len(vertices)
 
-    charges = np.reshape(charges, (len(vertices), backend.N_QUAD_2D))
+    if N_quad > 1:
+        charges = np.reshape(charges, (len(vertices), N_quad))
      
     field_class = FieldRadialBEM if excitation.mesh.symmetry != G.Symmetry.THREE_D else Field3D_BEM
     return field_class(vertices, charges, floating_voltages=floating_voltages)
