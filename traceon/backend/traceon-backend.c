@@ -937,19 +937,27 @@ double legendre(int N, double x) {
 	exit(1);
 }
 
-// Find the legendre coefficient by a quadrature using the GAUSS_QUAD_WEIGHTS
-double legendre_coefficient(int i, int j) {
-	return GAUSS_QUAD_WEIGHTS[j] * legendre(i, GAUSS_QUAD_POINTS[j]) * (2*i + 1)/2;
+
+// Modified weight taking into account that the charge contribution
+// is a sum of Legendre polynomials.
+double legendre_log_weight(int k, int l, double legendre_arg) {
+
+	double sum_ = 0.0;
+
+	for(int i = 0; i < N_QUAD_2D; i++)
+		sum_ += GAUSS_QUAD_WEIGHTS[k] * GAUSS_LOG_QUAD_WEIGHTS[l] * (2*i + 1)/2. * legendre(i, GAUSS_QUAD_POINTS[k]) * legendre(i, legendre_arg);
+	
+	return sum_;
 }
 
 double log_integral(
 	double *v1,
 	double *v2,
-	int l, int k) {
+	int row, int k) {
 	
 	double length = length_2d(v1, v2);
 	
-	double length_factor = GAUSS_QUAD_POINTS[l]/2. + 1/2.;
+	double length_factor = GAUSS_QUAD_POINTS[row]/2. + 1/2.;
 	double singular_point_x = v1[0] + length_factor*(v2[0]-v1[0]);
 	double singular_point_y = v1[1] + length_factor*(v2[1]-v1[1]);
 	double singular_length = length*length_factor;
@@ -958,36 +966,33 @@ double log_integral(
 
 	// Logarithmic integration using improved quadrature weights
 	// split the integration around the singularity
-	for(int o = 0; o < N_LOG_QUAD_2D; o++) {
+	for(int l = 0; l < N_LOG_QUAD_2D; l++) {
 	
-		double p = GAUSS_LOG_QUAD_POINTS[o];
-		double w = GAUSS_LOG_QUAD_WEIGHTS[o];
+		double p = GAUSS_LOG_QUAD_POINTS[l];
 		
 		// Move away from the singularity in left direction
 		double length_left = singular_length - singular_length*p;
-
+		
 		double sampled_x = v1[0] + length_left/length * (v2[0]-v1[0]);
 		double sampled_y = v1[1] + length_left/length * (v2[1]-v1[1]);
-
-		double legendre_arg = 2*length_left/length - 1;
 		
-		for(int m = 0; m < N_QUAD_2D; m++) {
-			double pot_ring = potential_radial_ring(singular_point_x, singular_point_y, sampled_x, sampled_y, NULL);
-			integration_sum += w * singular_length * legendre_coefficient(m, k) * legendre(m, legendre_arg) * pot_ring;
-		}
-		
+		// Argument of the Legendre function at the current position.
+		// Global here means we consider the Legendre function which is defined on the
+		// entire line element and not just on the left side we are considering.
+		double global_legendre_arg = 2*length_left/length - 1;
+			
+		double pot_ring = potential_radial_ring(singular_point_x, singular_point_y, sampled_x, sampled_y, NULL);
+		integration_sum += singular_length * legendre_log_weight(k, l, global_legendre_arg) * pot_ring;
+			
 		// Move away from the singularity in right direction
 		double length_right = singular_length + (length - singular_length)*p;
 		
 		sampled_x = v1[0] + length_right/length * (v2[0]-v1[0]);
 		sampled_y = v1[1] + length_right/length * (v2[1]-v1[1]);
 
-		legendre_arg = 2*length_right/length - 1;
-
-		for(int m = 0; m < N_QUAD_2D; m++) {
-			double pot_ring = potential_radial_ring(singular_point_x, singular_point_y, sampled_x, sampled_y, NULL);
-			integration_sum += w*(length-singular_length)*legendre_coefficient(m, k) * legendre(m, legendre_arg) * pot_ring;
-		}
+		global_legendre_arg = 2*length_right/length - 1;
+		pot_ring = potential_radial_ring(singular_point_x, singular_point_y, sampled_x, sampled_y, NULL);
+		integration_sum += (length-singular_length) * legendre_log_weight(k, l, global_legendre_arg) * pot_ring;
 	}
 	
 	return integration_sum;
