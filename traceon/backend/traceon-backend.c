@@ -964,46 +964,48 @@ double legendre_log_weight(int k, int l, double legendre_arg) {
 double log_integral(
 	double *v1,
 	double *v2,
+	double *v3,
 	int row, int k) {
 	
-	double length = length_2d(v1, v2);
+	double s = GAUSS_QUAD_POINTS[row];
 	
-	double length_factor = GAUSS_QUAD_POINTS[row]/2. + 1/2.;
-	double singular_point_x = v1[0] + length_factor*(v2[0]-v1[0]);
-	double singular_point_y = v1[1] + length_factor*(v2[1]-v1[1]);
-	double singular_length = length*length_factor;
+	double spos[2], jac;
+	position_and_jacobian_radial(s, v1, v2, v3, spos, &jac);
+	
+	double spos_left[2];
+	position_and_jacobian_radial( (s-1)/2, v1, v2, v3, spos_left, &jac);
 
+	double spos_right[2];
+	position_and_jacobian_radial( (s+1)/2, v1, v2, v3, spos_right, &jac);
+		
 	double integration_sum = 0.0;
-
+	
 	// Logarithmic integration using improved quadrature weights
 	// split the integration around the singularity
 	for(int l = 0; l < N_LOG_QUAD_2D; l++) {
-	
-		double p = GAUSS_LOG_QUAD_POINTS[l];
 		
-		// Move away from the singularity in left direction
-		double length_left = singular_length - singular_length*p;
+		// To left direction
+		double local_alpha = 2*GAUSS_LOG_QUAD_POINTS[l] - 1;
+		double global_alpha = s + GAUSS_LOG_QUAD_POINTS[l]*(-s-1);
 		
-		double sampled_x = v1[0] + length_left/length * (v2[0]-v1[0]);
-		double sampled_y = v1[1] + length_left/length * (v2[1]-v1[1]);
+		assert( (-1<local_alpha) && (local_alpha<1) );
+		assert( (-1<global_alpha) && (global_alpha<1) );
 		
-		// Argument of the Legendre function at the current position.
-		// Global here means we consider the Legendre function which is defined on the
-		// entire line element and not just on the left side we are considering.
-		double global_legendre_arg = 2*length_left/length - 1;
-			
-		double pot_ring = potential_radial_ring(singular_point_x, singular_point_y, sampled_x, sampled_y, NULL);
-		integration_sum += singular_length * legendre_log_weight(k, l, global_legendre_arg) * pot_ring;
-			
-		// Move away from the singularity in right direction
-		double length_right = singular_length + (length - singular_length)*p;
+		double pos[2], jac;
+		position_and_jacobian_radial(local_alpha, spos, spos_left, v1, pos, &jac);
+		double pot_ring = potential_radial_ring(spos[0], spos[1], pos[0], pos[1], NULL);
+		integration_sum += 2*jac * legendre_log_weight(k, l, global_alpha) * pot_ring;
 		
-		sampled_x = v1[0] + length_right/length * (v2[0]-v1[0]);
-		sampled_y = v1[1] + length_right/length * (v2[1]-v1[1]);
 
-		global_legendre_arg = 2*length_right/length - 1;
-		pot_ring = potential_radial_ring(singular_point_x, singular_point_y, sampled_x, sampled_y, NULL);
-		integration_sum += (length-singular_length) * legendre_log_weight(k, l, global_legendre_arg) * pot_ring;
+		// To right direction
+		global_alpha = s + GAUSS_LOG_QUAD_POINTS[l]*(1-s);
+			
+		assert( (-1<local_alpha) && (local_alpha<1) );
+		assert( (-1<global_alpha) && (global_alpha<1) );
+		
+		position_and_jacobian_radial(local_alpha, spos, spos_right, v3, pos, &jac);
+		pot_ring = potential_radial_ring(spos[0], spos[1], pos[0], pos[1], NULL);
+		integration_sum += 2*jac * legendre_log_weight(k, l, global_alpha) * pot_ring;
 	}
 	
 	return integration_sum;
@@ -1021,12 +1023,13 @@ void fill_self_voltages(double *matrix,
 	for(int i = lines_range_start; i <= lines_range_end; i++) {
 		
 		double *v1 = &line_points[i][0][0];
-		double *v2 = &line_points[i][1][0];
+		double *v2 = &line_points[i][2][0];
+		double *v3 = &line_points[i][1][0];
 			
 		for(int l = 0; l < N_QUAD_2D; l++) 
 		for(int k = 0; k < N_QUAD_2D; k++) {
 
-			matrix[(N_QUAD_2D*i + l)*N_matrix + N_QUAD_2D*i + k] = log_integral(v1, v2, l, k);
+			matrix[(N_QUAD_2D*i + l)*N_matrix + N_QUAD_2D*i + k] = log_integral(v1, v2, v3, l, k);
 		}
 	}
 }
