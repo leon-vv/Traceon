@@ -220,7 +220,7 @@ def trace_particle(position, velocity, field, bounds, atol):
         lambda T, P: backend_lib.trace_particle(T, P, wrap_field_fun(field), bounds, atol, None))
 
 def trace_particle_radial(position, velocity, bounds, atol, vertices, charges):
-    assert vertices.shape == (len(charges), 3, 3)
+    assert vertices.shape == (len(charges), 4, 3)
     assert charges.shape == (len(charges), N_QUAD_2D)
     bounds = np.array(bounds)
     
@@ -268,7 +268,7 @@ dz1_potential_radial_ring = lambda *args: backend_lib.dz1_potential_radial_ring(
 
 def axial_derivatives_radial_ring(z, lines, charges):
     derivs = np.zeros( (z.size, DERIV_2D_MAX) )
-    assert lines.shape == (len(charges), 3, 3)
+    assert lines.shape == (len(charges), 4, 3)
     assert len(lines) == len(charges)
     assert charges.shape == (len(charges), N_QUAD_2D)
     
@@ -277,7 +277,7 @@ def axial_derivatives_radial_ring(z, lines, charges):
 
 def potential_radial(point, vertices, charges):
     point = _vec_2d_to_3d(point)
-    assert vertices.shape == (len(charges), 3, 3)
+    assert vertices.shape == (len(charges), 4, 3)
     assert charges.shape == (len(vertices), N_QUAD_2D)
     return backend_lib.potential_radial(point, vertices, charges, len(charges))
 
@@ -287,7 +287,7 @@ def potential_radial_derivs(point, z, coeffs):
 
 def field_radial(point, vertices, charges):
     point = _vec_2d_to_3d(point)
-    assert vertices.shape == (len(charges), 3, 3)
+    assert vertices.shape == (len(charges), 4, 3)
     assert charges.shape == (len(charges), N_QUAD_2D)
      
     field = np.zeros( (3,) )
@@ -351,7 +351,7 @@ def fill_matrix_radial(matrix, lines, excitation_types, excitation_values, start
     
     # Due to floating conductor constraints the matrix might actually be bigger than NxN
     assert matrix.shape[0] == N_quad and matrix.shape[1] == N_quad and matrix.shape[0] == matrix.shape[1]
-    assert lines.shape == (N, 3, 3)
+    assert lines.shape == (N, 4, 3)
     assert excitation_types.shape == (N,)
     assert excitation_values.shape == (N,)
     assert 0 <= start_index < N and 0 <= end_index < N and start_index < end_index

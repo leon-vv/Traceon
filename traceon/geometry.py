@@ -144,7 +144,7 @@ class Geometry(occ.Geometry):
         dim = 2 if self.symmetry == Symmetry.THREE_D else 1
 
         if dim == 1:
-            gmsh.option.setNumber('Mesh.ElementOrder', 2)
+            gmsh.option.setNumber('Mesh.ElementOrder', 3)
         else:
             gmsh.option.setNumber('Mesh.ElementOrder', 1)
         
@@ -221,7 +221,7 @@ class Mesh(Saveable):
     def __str__(self):
         physicals = self.mesh.cell_sets_dict.keys()
         physical_names = ', '.join(physicals)
-        type_ = 'line3' if self.symmetry != Symmetry.THREE_D else 'triangle'
+        type_ = 'line4' if self.symmetry != Symmetry.THREE_D else 'triangle'
         physical_nums = ', '.join([str(len(self.mesh.cell_sets_dict[n][type_])) for n in physicals])
         
         cells_type = ['point'] + [str(c.type) for c in self.mesh.cells]

@@ -107,7 +107,7 @@ class Excitation:
         if self.mesh.symmetry == Symmetry.THREE_D:
             return 'triangle'
         else:
-            return 'line3'
+            return 'line4'
     
         
     def _split_for_superposition(self):

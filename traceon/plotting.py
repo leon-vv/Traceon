@@ -19,10 +19,10 @@ def _create_point_to_physical_dict(mesh):
                 a, b, c = p
                 d[a], d[b], d[c] = k, k, k
         
-        if 'line3' in v:
-            for l in mesh.cells_dict['line3'][v['line3']]:
-                a, b, c = l
-                d[a], d[b], d[c] = k, k, k
+        if 'line4' in v:
+            for l in mesh.cells_dict['line4'][v['line4']]:
+                a, b, c, e = l
+                d[a], d[b], d[c], d[e] = k, k, k, k
      
     return d
 
@@ -137,14 +137,14 @@ def plot_line_mesh(mesh, trajectory=None, show_legend=True, **colors):
     plt.gca().set_aspect('equal')
      
     dict_ = _create_point_to_physical_dict(mesh)
-    lines = mesh.cells_dict['line3']
+    lines = mesh.cells_dict['line4']
     
     to_plot_x = []
     to_plot_y = []
     colors_ = []
     
-    for (P1, P2, P3) in lines:
-        for A, B in [(P1, P3), (P3, P2)]:
+    for (P1, P2, P3, P4) in lines:
+        for A, B in [(P1, P3), (P3, P4), (P4, P2)]:
             color = '#CCC'
 
             if A in dict_ and B in dict_:
