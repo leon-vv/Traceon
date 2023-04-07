@@ -560,17 +560,14 @@ field_radial(double point[3], double result[3], double *vertices_p, double *char
 	for(int k = 0; k < N_QUAD_2D; k++) {
 			
 		double *v1 = &vertices[i][0][0];
-		double *v2 = &vertices[i][1][0];
+		double *v2 = &vertices[i][2][0]; // Strange ordering following from GMSH line3 element
+		double *v3 = &vertices[i][1][0];
 		
-		double length_factor = GAUSS_QUAD_POINTS[k]/2 + 1/2.;
-		double r = v1[0] + length_factor*(v2[0] - v1[0]);
-		double z = v1[1] + length_factor*(v2[1] - v1[1]);
+		double pos[2], jac;
+		position_and_jacobian_radial(GAUSS_QUAD_POINTS[k], v1, v2, v3, pos, &jac);
 		
-		double length = length_2d(v1, v2);
-		double weight = GAUSS_QUAD_WEIGHTS[k] * length/2.;
-		
-		Ex -= weight * charges[i][k] * dr1_potential_radial_ring(point[0], point[1], r, z, NULL);
-		Ey -= weight * charges[i][k] * dz1_potential_radial_ring(point[0], point[1], r, z, NULL);
+		Ex -= GAUSS_QUAD_WEIGHTS[k] * jac * charges[i][k] * dr1_potential_radial_ring(point[0], point[1], pos[0], pos[1], NULL);
+		Ey -= GAUSS_QUAD_WEIGHTS[k] * jac * charges[i][k] * dz1_potential_radial_ring(point[0], point[1], pos[0], pos[1], NULL);
 	}
 		
 	result[0] = Ex;
