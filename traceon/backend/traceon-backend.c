@@ -399,7 +399,7 @@ EXPORT void
 axial_derivatives_radial_ring(double *derivs_p, double *lines_p, double *charges_p, size_t N_lines, double *z, size_t N_z) {
 
 	double (*derivs)[9] = (double (*)[9]) derivs_p;	
-	double (*lines)[2][3] = (double (*)[2][3]) lines_p;
+	double (*lines)[3][3] = (double (*)[3][3]) lines_p;
 	double (*charges)[N_QUAD_2D] = (double (*)[N_QUAD_2D]) charges_p;
 	
 	for(int i = 0; i < N_z; i++) 
@@ -467,24 +467,38 @@ const double GAUSS_LOG_QUAD_WEIGHTS[N_LOG_QUAD_2D] =
 
 
 
+void inline position_and_jacobian_radial(double alpha, double *v1, double *v2, double *v3, double *pos_out, double *jac) {
+
+	double v1x = v1[0], v1y = v1[1];
+	double v2x = v2[0], v2y = v2[1];
+	double v3x = v3[0], v3y = v3[1];
+		
+	// Higher order line element parametrization. 
+	pos_out[0] = ((v3x-2*v2x+v1x)*pow(alpha,2)+(v3x-v1x)*alpha+2*v2x)/2;
+	pos_out[1] = ((v3y-2*v2y+v1y)*pow(alpha,2)+(v3y-v1y)*alpha+2*v2y)/2;
+	// Term following from the Jacobian
+		
+	*jac = sqrt(pow(2*(v3y-2*v2y+v1y)*alpha+v3y-v1y,2)/4+pow(2*(v3x-2*v2x+v1x)*alpha+v3x-v1x, 2)/4);
+}
+
+
 EXPORT double
 potential_radial(double point[3], double *vertices_p, double *charges_p, size_t N_vertices) {
 
-	double (*vertices)[2][3] = (double (*)[2][3]) vertices_p;	
+	double (*vertices)[3][3] = (double (*)[3][3]) vertices_p;	
 	double (*charges)[N_QUAD_2D] = (double (*)[N_QUAD_2D]) charges_p;	
 	
 	double sum_ = 0.0;
 	
 	for(int i = 0; i < N_vertices; i++) {
 		double *v1 = &vertices[i][0][0];
-		double *v2 = &vertices[i][1][0];
-		double length = length_2d(v1, v2);
-		
+		double *v2 = &vertices[i][2][0]; // Strange ordering following from GMSH line3 element
+		double *v3 = &vertices[i][1][0];
+			
 		for(int j = 0; j < N_QUAD_2D; j++) {
-			double sample_factor = GAUSS_QUAD_POINTS[j]/2 + 1/2.;
-			double sample_x = v1[0] + sample_factor*(v2[0] - v1[0]);
-			double sample_y = v1[1] + sample_factor*(v2[1] - v1[1]);
-			sum_ += length/2*GAUSS_QUAD_WEIGHTS[j] * charges[i][j] * potential_radial_ring(point[0], point[1], sample_x, sample_y, NULL);
+			double pos[2], jac;
+			position_and_jacobian_radial(GAUSS_QUAD_POINTS[j], v1, v2, v3, pos, &jac);
+			sum_ += jac*GAUSS_QUAD_WEIGHTS[j] * charges[i][j] * potential_radial_ring(point[0], point[1], pos[0], pos[1], NULL);
 		}
 	}
 
@@ -537,7 +551,7 @@ field_dot_normal_radial(double r0, double z0, double r, double z, void* normal_p
 EXPORT void
 field_radial(double point[3], double result[3], double *vertices_p, double *charges_p, size_t N_vertices) {
 
-	double (*vertices)[2][3] = (double (*)[2][3]) vertices_p;	
+	double (*vertices)[3][3] = (double (*)[3][3]) vertices_p;	
 	double (*charges)[N_QUAD_2D] = (double (*)[N_QUAD_2D]) charges_p;
 	
 	double Ex = 0.0, Ey = 0.0;
@@ -1005,7 +1019,7 @@ void fill_self_voltages(double *matrix,
                         int lines_range_start, 
                         int lines_range_end) {
 	 
-	double (*line_points)[2][3] = (double (*)[2][3]) line_points_p;
+	double (*line_points)[3][3] = (double (*)[3][3]) line_points_p;
 	
 	for(int i = lines_range_start; i <= lines_range_end; i++) {
 		
@@ -1032,7 +1046,7 @@ EXPORT void fill_matrix_radial(double *matrix,
     
 	assert(lines_range_start < N_lines && lines_range_end < N_lines);
 	assert(N_matrix == N_QUAD_2D*N_lines);
-	double (*line_points)[2][3] = (double (*)[2][3]) line_points_p;
+	double (*line_points)[3][3] = (double (*)[3][3]) line_points_p;
 		
     for (int i = lines_range_start; i <= lines_range_end; i++) {
 		
@@ -1047,21 +1061,20 @@ EXPORT void fill_matrix_radial(double *matrix,
 				if (i == j) continue;
 					
 				double *v1 = &line_points[j][0][0];
-				double *v2 = &line_points[j][1][0];
-				double source_length = length_2d(v1, v2);
-				
+				double *v2 = &line_points[j][2][0]; // Strange ordering following from GMSH line3 element
+				double *v3 = &line_points[j][1][0];
+					
 				for(int l = 0; l < N_QUAD_2D; l++) {
 					double target_length_factor = GAUSS_QUAD_POINTS[l]/2 + 1/2.;
 					double target_x = target_v1[0] + target_length_factor*(target_v2[0]-target_v1[0]);
 					double target_y = target_v1[1] + target_length_factor*(target_v2[1]-target_v1[1]);
 						
 					for(int k = 0; k < N_QUAD_2D; k++) {
-						double length_factor = GAUSS_QUAD_POINTS[k]/2 + 1/2.;
-						double source_x = v1[0] + length_factor*(v2[0] - v1[0]);
-						double source_y = v1[1] + length_factor*(v2[1] - v1[1]);
-						double weight = GAUSS_QUAD_WEIGHTS[k] * source_length/2.;
-							
-						matrix[(N_QUAD_2D*i + l)*N_matrix + N_QUAD_2D*j + k] = weight*potential_radial_ring(target_x, target_y, source_x, source_y, NULL);
+						
+						double pos[2], jac;
+						position_and_jacobian_radial(GAUSS_QUAD_POINTS[k], v1, v2, v3, pos, &jac);
+						
+						matrix[(N_QUAD_2D*i + l)*N_matrix + N_QUAD_2D*j + k] = GAUSS_QUAD_WEIGHTS[k]*jac*potential_radial_ring(target_x, target_y, pos[0], pos[1], NULL);
 					}
 				}
 			} 
