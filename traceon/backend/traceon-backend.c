@@ -159,6 +159,44 @@ normal_2d(double *p1, double *p2, double *normal) {
 	normal[1] = normal_y/length;
 }
 
+void
+higher_order_normal_radial(double alpha, double *v1, double *v2, double *v3, double *v4, double *normal) {
+
+	double v1x = v1[0], v1y = v1[1];
+	double v2x = v2[0], v2y = v2[1];
+	double v3x = v3[0], v3y = v3[1];
+	double v4x = v4[0], v4y = v4[1];
+		
+	double a2 = pow(alpha, 2);
+	double a3 = pow(alpha, 3);
+	
+	double dx = (2*alpha*(9*v4x-9*v3x-9*v2x+9*v1x)+3*a2*(9*v4x-27*v3x+27*v2x-9*v1x)-v4x+27*v3x-27*v2x+v1x)/16;
+	double dy = (2*alpha*(9*v4y-9*v3y-9*v2y+9*v1y)+3*a2*(9*v4y-27*v3y+27*v2y-9*v1y)-v4y+27*v3y-27*v2y+v1y)/16;
+
+	double zero[2] = {0., 0.};
+	double vec[2] = {dx, dy};
+	normal_2d(zero, vec, normal);
+}
+
+
+EXPORT void inline position_and_jacobian_radial(double alpha, double *v1, double *v2, double *v3, double *v4, double *pos_out, double *jac) {
+
+	double v1x = v1[0], v1y = v1[1];
+	double v2x = v2[0], v2y = v2[1];
+	double v3x = v3[0], v3y = v3[1];
+	double v4x = v4[0], v4y = v4[1];
+		
+	double a2 = pow(alpha, 2);
+	double a3 = pow(alpha, 3);
+	
+	// Higher order line element parametrization. 
+	pos_out[0] = (a2*(9*v4x-9*v3x-9*v2x+9*v1x)+a3*(9*v4x-27*v3x+27*v2x-9*v1x)-v4x+alpha*(-v4x+27*v3x-27*v2x+v1x)+9*v3x+9*v2x-v1x)/16;
+	pos_out[1] = (a2*(9*v4y-9*v3y-9*v2y+9*v1y)+a3*(9*v4y-27*v3y+27*v2y-9*v1y)-v4y+alpha*(-v4y+27*v3y-27*v2y+v1y)+9*v3y+9*v2y-v1y)/16;
+	
+	// Term following from the Jacobian
+	*jac = 1/16. * sqrt(pow(2*alpha*(9*v4y-9*v3y-9*v2y+9*v1y)+3*a2*(9*v4y-27*v3y+27*v2y-9*v1y)-v4y+27*v3y-27*v2y+v1y, 2) +pow(2*alpha*(9*v4x-9*v3x-9*v2x+9*v1x)+3*a2*(9*v4x-27*v3x+27*v2x-9*v1x)-v4x+27*v3x-27*v2x+v1x, 2));
+}
+
 //////////////////////////////// UTILITIES 3D
 
 
@@ -398,7 +436,7 @@ EXPORT void
 axial_derivatives_radial_ring(double *derivs_p, double *lines_p, double *charges_p, size_t N_lines, double *z, size_t N_z) {
 
 	double (*derivs)[9] = (double (*)[9]) derivs_p;	
-	double (*lines)[3][3] = (double (*)[3][3]) lines_p;
+	double (*lines)[4][3] = (double (*)[4][3]) lines_p;
 	double (*charges)[N_QUAD_2D] = (double (*)[N_QUAD_2D]) charges_p;
 	
 	for(int i = 0; i < N_z; i++) 
@@ -407,15 +445,16 @@ axial_derivatives_radial_ring(double *derivs_p, double *lines_p, double *charges
 		double z0 = z[i];
 
 		double *v1 = &lines[j][0][0];
-		double *v2 = &lines[j][1][0];
+		double *v2 = &lines[j][2][0];
+		double *v3 = &lines[j][3][0];
+		double *v4 = &lines[j][1][0];
 			
-		double length_factor = GAUSS_QUAD_POINTS[k]/2 + 1/2.;
-		double r = v1[0] + length_factor*(v2[0] - v1[0]);
-		double z = v1[1] + length_factor*(v2[1] - v1[1]);
+		double pos[2], jac;
+		position_and_jacobian_radial(GAUSS_QUAD_POINTS[k], v1, v2, v3, v4, pos, &jac);
+		double r = pos[0], z = pos[1];
 		
-		double length = length_2d(v1, v2);
-		double weight = GAUSS_QUAD_WEIGHTS[k] * length/2.;
-		
+		double weight = GAUSS_QUAD_WEIGHTS[k] * jac;
+			
 		double R = norm_2d(z0-z, r);
 		
 		double D[9] = {0.}; // Derivatives of the currently considered line element.
@@ -464,43 +503,7 @@ const double GAUSS_LOG_QUAD_WEIGHTS[N_LOG_QUAD_2D] =
 					0.09819669547418950067876642091789781881144955,
 					0.04496525739359079510387572470817192142199618};
 
-void
-higher_order_normal_radial(double alpha, double *v1, double *v2, double *v3, double *v4, double *normal) {
 
-	double v1x = v1[0], v1y = v1[1];
-	double v2x = v2[0], v2y = v2[1];
-	double v3x = v3[0], v3y = v3[1];
-	double v4x = v4[0], v4y = v4[1];
-		
-	double a2 = pow(alpha, 2);
-	double a3 = pow(alpha, 3);
-	
-	double dx = (2*alpha*(9*v4x-9*v3x-9*v2x+9*v1x)+3*a2*(9*v4x-27*v3x+27*v2x-9*v1x)-v4x+27*v3x-27*v2x+v1x)/16;
-	double dy = (2*alpha*(9*v4y-9*v3y-9*v2y+9*v1y)+3*a2*(9*v4y-27*v3y+27*v2y-9*v1y)-v4y+27*v3y-27*v2y+v1y)/16;
-
-	double zero[2] = {0., 0.};
-	double vec[2] = {dx, dy};
-	normal_2d(zero, vec, normal);
-}
-
-
-EXPORT void inline position_and_jacobian_radial(double alpha, double *v1, double *v2, double *v3, double *v4, double *pos_out, double *jac) {
-
-	double v1x = v1[0], v1y = v1[1];
-	double v2x = v2[0], v2y = v2[1];
-	double v3x = v3[0], v3y = v3[1];
-	double v4x = v4[0], v4y = v4[1];
-		
-	double a2 = pow(alpha, 2);
-	double a3 = pow(alpha, 3);
-	
-	// Higher order line element parametrization. 
-	pos_out[0] = (a2*(9*v4x-9*v3x-9*v2x+9*v1x)+a3*(9*v4x-27*v3x+27*v2x-9*v1x)-v4x+alpha*(-v4x+27*v3x-27*v2x+v1x)+9*v3x+9*v2x-v1x)/16;
-	pos_out[1] = (a2*(9*v4y-9*v3y-9*v2y+9*v1y)+a3*(9*v4y-27*v3y+27*v2y-9*v1y)-v4y+alpha*(-v4y+27*v3y-27*v2y+v1y)+9*v3y+9*v2y-v1y)/16;
-	
-	// Term following from the Jacobian
-	*jac = 1/16. * sqrt(pow(2*alpha*(9*v4y-9*v3y-9*v2y+9*v1y)+3*a2*(9*v4y-27*v3y+27*v2y-9*v1y)-v4y+27*v3y-27*v2y+v1y, 2) +pow(2*alpha*(9*v4x-9*v3x-9*v2x+9*v1x)+3*a2*(9*v4x-27*v3x+27*v2x-9*v1x)-v4x+27*v3x-27*v2x+v1x, 2));
-}
 
 EXPORT double
 potential_radial(double point[3], double *vertices_p, double *charges_p, size_t N_vertices) {
