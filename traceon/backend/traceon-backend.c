@@ -464,6 +464,24 @@ const double GAUSS_LOG_QUAD_WEIGHTS[N_LOG_QUAD_2D] =
 					0.09819669547418950067876642091789781881144955,
 					0.04496525739359079510387572470817192142199618};
 
+void
+higher_order_normal_radial(double alpha, double *v1, double *v2, double *v3, double *v4, double *normal) {
+
+	double v1x = v1[0], v1y = v1[1];
+	double v2x = v2[0], v2y = v2[1];
+	double v3x = v3[0], v3y = v3[1];
+	double v4x = v4[0], v4y = v4[1];
+		
+	double a2 = pow(alpha, 2);
+	double a3 = pow(alpha, 3);
+	
+	double dx = (2*alpha*(9*v4x-9*v3x-9*v2x+9*v1x)+3*a2*(9*v4x-27*v3x+27*v2x-9*v1x)-v4x+27*v3x-27*v2x+v1x)/16;
+	double dy = (2*alpha*(9*v4y-9*v3y-9*v2y+9*v1y)+3*a2*(9*v4y-27*v3y+27*v2y-9*v1y)-v4y+27*v3y-27*v2y+v1y)/16;
+
+	double zero[2] = {0., 0.};
+	double vec[2] = {dx, dy};
+	normal_2d(zero, vec, normal);
+}
 
 
 EXPORT void inline position_and_jacobian_radial(double alpha, double *v1, double *v2, double *v3, double *v4, double *pos_out, double *jac) {
@@ -575,6 +593,10 @@ charge_radial(double *vertices_p, double *charges_p) {
 		double pos[2], jac;
 		position_and_jacobian_radial(GAUSS_QUAD_POINTS[k], v1, v2, v3, v4, pos, &jac);
 		
+		// Surface area is 2pi*r * charge_integral
+		// charge_integral is charge integrated over line element
+		// charge_integral is weight*dl*charge
+		// where dl is the jacobian
 		sum_ += 2*M_PI*pos[0]*GAUSS_QUAD_WEIGHTS[k]*jac*charges[k];
 	}
 
@@ -1121,7 +1143,9 @@ EXPORT void fill_matrix_radial(double *matrix,
     for (int i = lines_range_start; i <= lines_range_end; i++) {
 		
 		double *target_v1 = &line_points[i][0][0];
-		double *target_v2 = &line_points[i][1][0];
+		double *target_v2 = &line_points[i][2][0];
+		double *target_v3 = &line_points[i][3][0];
+		double *target_v4 = &line_points[i][1][0];
 		
 		enum ExcitationType type_ = excitation_types[i];
 			
@@ -1136,9 +1160,10 @@ EXPORT void fill_matrix_radial(double *matrix,
 				double *v4 = &line_points[j][1][0];
 					
 				for(int l = 0; l < N_QUAD_2D; l++) {
+					// Todo: higher order
 					double target_length_factor = GAUSS_QUAD_POINTS[l]/2 + 1/2.;
-					double target_x = target_v1[0] + target_length_factor*(target_v2[0]-target_v1[0]);
-					double target_y = target_v1[1] + target_length_factor*(target_v2[1]-target_v1[1]);
+					double target_x = target_v1[0] + target_length_factor*(target_v4[0]-target_v1[0]);
+					double target_y = target_v1[1] + target_length_factor*(target_v4[1]-target_v1[1]);
 						
 					for(int k = 0; k < N_QUAD_2D; k++) {
 						
@@ -1151,18 +1176,20 @@ EXPORT void fill_matrix_radial(double *matrix,
 			} 
 		}
 		else if(type_ == DIELECTRIC) {
-			// TODO: use higher order normals?
-			double normal[2];
-            normal_2d(target_v1, target_v2, normal);
-            double K = excitation_values[i];
-
-			struct {double *normal; double K;} args = {normal, K};
-            
+			            
             for (int j = 0; j < N_lines; j++) {
 
 				if(i == j) {
 					continue;
 				}
+				
+				double normal[2];
+				higher_order_normal_radial(GAUSS_QUAD_POINTS[j], target_v1, target_v2, target_v3, target_v3, normal);
+				normal_2d(target_v1, target_v2, normal);
+				double K = excitation_values[i];
+				
+				struct {double *normal; double K;} args = {normal, K};
+
 
 				double *v1 = &line_points[j][0][0];
 				double *v2 = &line_points[j][2][0]; // Strange ordering following from GMSH line4 element
