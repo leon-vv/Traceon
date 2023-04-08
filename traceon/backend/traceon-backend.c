@@ -1107,7 +1107,7 @@ void fill_self_voltages(double *matrix,
 				for(int k = 0; k < N_QUAD_2D; k++) {
 
 					double normal[2];
-					normal_2d(v1, v4, normal);
+					higher_order_normal_radial(GAUSS_QUAD_POINTS[l], v1, v2, v3, v4, normal);
 					double K = excitation_values[i];
 
 					struct {double *normal; double K;} args = {normal, K};
@@ -1118,8 +1118,6 @@ void fill_self_voltages(double *matrix,
 				// the electric field normal must sum to the surface charge.
 				// The constraint is satisfied by subtracting the integral
 				// over the charge from the line element.
-				double pos[2], jac;
-				position_and_jacobian_radial(GAUSS_QUAD_POINTS[l], v1, v2, v3, v4, pos, &jac);
 				matrix[(N_QUAD_2D*i + l)*N_matrix + N_QUAD_2D*i + l] -= 1;
 			}
 		}
@@ -1189,8 +1187,7 @@ EXPORT void fill_matrix_radial(double *matrix,
 				double K = excitation_values[i];
 				
 				struct {double *normal; double K;} args = {normal, K};
-
-
+				
 				double *v1 = &line_points[j][0][0];
 				double *v2 = &line_points[j][2][0]; // Strange ordering following from GMSH line4 element
 				double *v3 = &line_points[j][3][0];
