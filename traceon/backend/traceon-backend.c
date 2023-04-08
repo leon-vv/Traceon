@@ -1185,8 +1185,7 @@ EXPORT void fill_matrix_radial(double *matrix,
 				for(int l = 0; l < N_QUAD_2D; l++) {
 					
 					double normal[2];
-					higher_order_normal_radial(GAUSS_QUAD_POINTS[l], target_v1, target_v2, target_v3, target_v3, normal);
-					normal_2d(target_v1, target_v2, normal);
+					higher_order_normal_radial(GAUSS_QUAD_POINTS[l], target_v1, target_v2, target_v3, target_v4, normal);
 					double K = excitation_values[i];
 					
 					struct {double *normal; double K;} args = {normal, K};

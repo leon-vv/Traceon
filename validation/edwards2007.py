@@ -62,9 +62,7 @@ def compute_error(geometry):
     
     excitation = E.Excitation(geometry)
     excitation.add_voltage(boundary=0, inner=10)
-
-    Nlines = excitation.get_number_of_active_elements()
-      
+    
     field = S.solve_bem(excitation)
 
     st = time.time()
@@ -77,7 +75,7 @@ def compute_error(geometry):
     correct = 6.69099430708
     print('Potential: ', pot)
     print('Correct: ', correct)
-    return Nlines, abs(pot/correct - 1)
+    return excitation, abs(pot/correct - 1)
 
 util.parser.description = '''Compute the potential at point (12, 4) inside two coaxial cylinders. See paper:
 
