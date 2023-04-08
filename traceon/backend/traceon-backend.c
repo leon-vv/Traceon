@@ -134,7 +134,6 @@ EXPORT double ellipe(double k) {
 
 //////////////////////////////// UTILITIES 2D
 
-typedef double (*integration_cb_2d)(double, double, double, double, void*);
 
 
 EXPORT inline double
@@ -541,15 +540,45 @@ potential_radial_derivs(double point[2], double *z_inter, double *coeff_p, size_
 
 
 double
-field_dot_normal_radial(double r0, double z0, double r, double z, void* normal_p) {
+field_dot_normal_radial(double r0, double z0, double r, double z, void* args_p) {
+
+	struct {double *normal; double K;} *args = args_p;
+	
+	// This factor is hard to derive. It takes into account that the field
+	// calculated at the edge of the dielectric is basically the average of the
+	// field at either side of the surface of the dielecric (the field makes a jump).
+	double K = args->K;
+	double factor = (2*K - 2) / (M_PI*(1 + K));
 	
 	double Er = -dr1_potential_radial_ring(r0, z0, r, z, NULL);
 	double Ez = -dz1_potential_radial_ring(r0, z0, r, z, NULL);
 	
-	double *normal = (double *)normal_p;
-		
-	return normal[0]*Er + normal[1]*Ez;
+	return factor*(args->normal[0]*Er + args->normal[1]*Ez);
 
+}
+
+EXPORT double
+charge_radial(double *vertices_p, double *charges_p) {
+
+	double (*vertices)[3] = (double (*)[3]) vertices_p;
+	double (*charges) = (double (*)) charges_p;
+	
+	double *v1 = &vertices[0][0];
+	double *v2 = &vertices[2][0]; // Strange ordering following from GMSH line4 element
+	double *v3 = &vertices[3][0];
+	double *v4 = &vertices[1][0];
+		
+	double sum_ = 0.0;
+	
+	for(int k = 0; k < N_QUAD_2D; k++) {
+				
+		double pos[2], jac;
+		position_and_jacobian_radial(GAUSS_QUAD_POINTS[k], v1, v2, v3, v4, pos, &jac);
+		
+		sum_ += 2*M_PI*pos[0]*GAUSS_QUAD_WEIGHTS[k]*jac*charges[k];
+	}
+
+	return sum_;
 }
 
 EXPORT void
@@ -966,12 +995,15 @@ double legendre_log_weight(int k, int l, double legendre_arg) {
 	return sum_;
 }
 
+typedef double (*integration_cb_2d)(double, double, double, double, void*);
+
 double log_integral(
 	double *v1,
 	double *v2,
 	double *v3,
 	double *v4,
-	int row, int k) {
+	int row, int k,
+	integration_cb_2d callback, void *args) {
 	
 	double s = GAUSS_QUAD_POINTS[row];
 	
@@ -1005,7 +1037,7 @@ double log_integral(
 		
 		double pos[2], jac;
 		position_and_jacobian_radial(local_alpha, spos, spos_left1, spos_left2, v1, pos, &jac);
-		double pot_ring = potential_radial_ring(spos[0], spos[1], pos[0], pos[1], NULL);
+		double pot_ring = callback(spos[0], spos[1], pos[0], pos[1], args);
 		integration_sum += 2*jac * legendre_log_weight(k, l, global_alpha) * pot_ring;
 		// To right direction
 		global_alpha = s + GAUSS_LOG_QUAD_POINTS[l]*(1-s);
@@ -1014,7 +1046,7 @@ double log_integral(
 		assert( (-1<global_alpha) && (global_alpha<1) );
 		
 		position_and_jacobian_radial(local_alpha, spos, spos_right1, spos_right2, v4, pos, &jac);
-		pot_ring = potential_radial_ring(spos[0], spos[1], pos[0], pos[1], NULL);
+		pot_ring = callback(spos[0], spos[1], pos[0], pos[1], args);
 		integration_sum += 2*jac * legendre_log_weight(k, l, global_alpha) * pot_ring;
 	}
 	
@@ -1023,6 +1055,8 @@ double log_integral(
 
 void fill_self_voltages(double *matrix, 
                         double *line_points_p, 
+						uint8_t *excitation_types,
+						double *excitation_values,
 						size_t N_lines,
 						size_t N_matrix,
                         int lines_range_start, 
@@ -1036,11 +1070,36 @@ void fill_self_voltages(double *matrix,
 		double *v2 = &line_points[i][2][0];
 		double *v3 = &line_points[i][3][0];
 		double *v4 = &line_points[i][1][0];
+		
+		enum ExcitationType type_ = excitation_types[i];
 			
-		for(int l = 0; l < N_QUAD_2D; l++) 
-		for(int k = 0; k < N_QUAD_2D; k++) {
+		if (type_ == VOLTAGE_FIXED || type_ == VOLTAGE_FUN || type_ == FLOATING_CONDUCTOR) {
+			for(int l = 0; l < N_QUAD_2D; l++) 
+			for(int k = 0; k < N_QUAD_2D; k++) {
 
-			matrix[(N_QUAD_2D*i + l)*N_matrix + N_QUAD_2D*i + k] = log_integral(v1, v2, v3, v4, l, k);
+				matrix[(N_QUAD_2D*i + l)*N_matrix + N_QUAD_2D*i + k] = log_integral(v1, v2, v3, v4, l, k, potential_radial_ring, NULL);
+			}
+		}
+		else if(type_ == DIELECTRIC) {
+			for(int l = 0; l < N_QUAD_2D; l++)  {
+				for(int k = 0; k < N_QUAD_2D; k++) {
+
+					double normal[2];
+					normal_2d(v1, v4, normal);
+					double K = excitation_values[i];
+
+					struct {double *normal; double K;} args = {normal, K};
+
+					matrix[(N_QUAD_2D*i + l)*N_matrix + N_QUAD_2D*i + k] = log_integral(v1, v2, v3, v4, l, k, field_dot_normal_radial, &args);
+				}
+				// When working with dielectrics, the constraint is that
+				// the electric field normal must sum to the surface charge.
+				// The constraint is satisfied by subtracting the integral
+				// over the charge from the line element.
+				double pos[2], jac;
+				position_and_jacobian_radial(GAUSS_QUAD_POINTS[l], v1, v2, v3, v4, pos, &jac);
+				matrix[(N_QUAD_2D*i + l)*N_matrix + N_QUAD_2D*i + l] -= 1;
+			}
 		}
 	}
 }
@@ -1091,37 +1150,46 @@ EXPORT void fill_matrix_radial(double *matrix,
 				}
 			} 
 		}
-	}
-	
-	fill_self_voltages(matrix, line_points_p, N_lines, N_matrix, lines_range_start, lines_range_end);
-		
-		/*
-        else if (type_ == DIELECTRIC) {
-            double normal[2];
-            normal_2d(p1, p2, normal);
+		else if(type_ == DIELECTRIC) {
+			// TODO: use higher order normals?
+			double normal[2];
+            normal_2d(target_v1, target_v2, normal);
             double K = excitation_values[i];
+
+			struct {double *normal; double K;} args = {normal, K};
             
             for (int j = 0; j < N_lines; j++) {
+
+				if(i == j) {
+					continue;
+				}
+
 				double *v1 = &line_points[j][0][0];
-                double *v2 = &line_points[j][1][0];
-				// This factor is hard to derive. It takes into account that the field
-                // calculated at the edge of the dielectric is basically the average of the
-                // field at either side of the surface of the dielecric (the field makes a jump).
-                double factor = (2*K - 2) / (M_PI*(1 + K));
-                matrix[i*N_matrix + j] = factor * line_integral(target, v1, v2, field_dot_normal_radial, normal);
-                 
-				// When working with dielectrics, the constraint is that
-				// the electric field normal must sum to the surface charge.
-				// The constraint is satisfied by subtracting 1.0 from
-				// the diagonal of the matrix.
-                if (i == j) matrix[i*N_matrix + j] -= 1.0;
+				double *v2 = &line_points[j][2][0]; // Strange ordering following from GMSH line4 element
+				double *v3 = &line_points[j][3][0];
+				double *v4 = &line_points[j][1][0];
+				
+				for(int l = 0; l < N_QUAD_2D; l++) {
+					double target_length_factor = GAUSS_QUAD_POINTS[l]/2 + 1/2.;
+					double target_x = target_v1[0] + target_length_factor*(target_v2[0]-target_v1[0]);
+					double target_y = target_v1[1] + target_length_factor*(target_v2[1]-target_v1[1]);
+						
+					for(int k = 0; k < N_QUAD_2D; k++) {
+						
+						double pos[2], jac;
+						position_and_jacobian_radial(GAUSS_QUAD_POINTS[k], v1, v2, v3, v4, pos, &jac);
+						matrix[(N_QUAD_2D*i + l)*N_matrix + N_QUAD_2D*j + k] = GAUSS_QUAD_WEIGHTS[k]*jac*field_dot_normal_radial(target_x, target_y, pos[0], pos[1], &args);
+					}
+				}
             }
-        }
-        else {
-            printf("ExcitationType unknown");
+		}
+		else {
+		    printf("ExcitationType unknown");
             exit(1);
-        }
-    }*/
+		}
+	}
+	
+	fill_self_voltages(matrix, line_points_p, excitation_types, excitation_values, N_lines, N_matrix, lines_range_start, lines_range_end);
 }
 
 EXPORT void fill_matrix_3d(double *matrix, 

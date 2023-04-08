@@ -81,14 +81,22 @@ def compute_error(geom):
     for n, v in names.items():
         Q[n] = 0
         
-        for vs, charge in zip(vertices[v], charges[v]):
+        # TODO: really we need a backend function to
+        # compute couloumb charges.
+        for index, vs, charge in zip(v, vertices[v], charges[v]):
+
             
             if geom.symmetry == G.Symmetry.RADIAL:
-                v1, v2 = vs
+                v1, v2, _, _ = vs
                 length = np.linalg.norm(v1 - v2)
+                C = length/2*sum(w*c_ for c_, w in zip(charge, [0.6521451548625461, 0.6521451548625461, 0.3478548451374538, 0.3478548451374538]));
                 middle = (v1 + v2)/2
                 # Take into account surface area of entire ring
-                Q[n] += charge * length*2*np.pi*middle[0]
+                #Q[n] += C*length*2*np.pi*middle[0]
+                Q[n] += field.charge_on_element(index)
+                #print('----')
+                #print('Approx charge: ', C*length*2*np.pi*middle[0])
+                #print('Backend charge: ', field.charge_on_element(index))
             elif geom.symmetry == G.Symmetry.THREE_D:
                 v1, v2, v3 = vs
                 area = 1/2*np.linalg.norm(np.cross(v2-v1, v3-v1))
@@ -96,10 +104,10 @@ def compute_error(geom):
     
     expected = 4/( (1/r1 - 1/r3) + (1/r3 - 1/r4)/K + (1/r4 - 1/r2))
     capacitance = (abs(Q['outer']) + abs(Q['inner']))/2
-    print('Capacitance found: %.4f' % capacitance)
-    print('Capacitance expected: %.4f' % expected)
+    print('Capacitance found: \t%.6f' % capacitance)
+    print('Capacitance expected: \t%.6f' % expected)
     error = abs(capacitance/expected - 1)
-    return len(vertices), error
+    return exc, error
 
 util.parser.description = '''Compute the capacitance of two concentric spheres with a layer of dielectric material in between.'''
 util.parse_validation_args(create_geometry, compute_error, inner='blue', outer='darkblue', dielectric='green')

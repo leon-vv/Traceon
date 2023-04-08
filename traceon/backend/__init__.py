@@ -86,6 +86,7 @@ backend_functions = {
     'axial_derivatives_radial_ring': (None, arr(ndim=2), lines, charges_2d, sz, z_values, sz),
     'potential_radial': (dbl, v3, vertices, charges_2d, sz),
     'potential_radial_derivs': (dbl, v2, z_values, arr(ndim=3), sz),
+    'charge_radial': (dbl, arr(ndim=2), arr(ndim=1)),
     'field_radial': (None, v3, v3, vertices, charges_2d, sz),
     'trace_particle_radial': (sz, times_block, tracing_block, bounds, dbl, vertices, charges_2d, sz),
     'field_radial_derivs': (None, v3, v3, z_values, arr(ndim=3), sz),
@@ -284,6 +285,12 @@ def potential_radial(point, vertices, charges):
 def potential_radial_derivs(point, z, coeffs):
     assert coeffs.shape == (len(z)-1, DERIV_2D_MAX, 6)
     return backend_lib.potential_radial_derivs(point, z, coeffs, len(z))
+
+def charge_radial(vertices, charges):
+    assert vertices.shape == (len(charges), 3)
+    assert charges.shape == (len(vertices),)
+
+    return backend_lib.charge_radial(vertices, charges)
 
 def field_radial(point, vertices, charges):
     point = _vec_2d_to_3d(point)

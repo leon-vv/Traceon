@@ -93,20 +93,21 @@ def _excitation_to_right_hand_side(excitation, vertices, names):
      
     for name, indices in names.items():
         type_, value  = excitation.excitation_types[name]
+
+        all_indices = np.concatenate( [N_quad*indices + i for i in range(N_quad)] )
          
         if type_ == E.ExcitationType.VOLTAGE_FIXED:
-            for i in range(N_quad):
-                F[N_quad*indices+i] = value
-        '''
+            F[all_indices] = value
         elif type_ == E.ExcitationType.VOLTAGE_FUN:
             for i in indices:
                 points = vertices[i]
                 middle = np.average(points, axis=0)
-                F[i] = value(*middle)
+                for q in range(N_quad):
+                    # TODO: use higher order BEM?
+                    F[N_quad*i + q] = value(*middle)
         elif type_ == E.ExcitationType.DIELECTRIC or \
                 type_ == E.ExcitationType.FLOATING_CONDUCTOR:
-            F[indices] = 0
-        '''
+            F[all_indices] = 0
     
     # See comments in _add_floating_conductor_constraints_to_matrix
     for i, f in enumerate(floating_names):
@@ -420,6 +421,10 @@ class FieldRadialBEM(FieldBEM):
         print(f'Computing derivative interpolation took {(time.time()-st)*1000:.2f} ms ({len(z)} items)')
         
         return FieldRadialAxial(z, coeffs)
+
+    def charge_on_element(self, i):
+        return backend.charge_radial(self.vertices[i], self.charges[i])
+
 
 class Field3D_BEM(FieldBEM):
     """An electrostatic field resulting from a general 3D geometry. The field is a result of the surface charges as computed by the
