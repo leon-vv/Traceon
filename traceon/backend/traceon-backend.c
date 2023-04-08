@@ -1158,17 +1158,15 @@ EXPORT void fill_matrix_radial(double *matrix,
 				double *v4 = &line_points[j][1][0];
 					
 				for(int l = 0; l < N_QUAD_2D; l++) {
-					// Todo: higher order
-					double target_length_factor = GAUSS_QUAD_POINTS[l]/2 + 1/2.;
-					double target_x = target_v1[0] + target_length_factor*(target_v4[0]-target_v1[0]);
-					double target_y = target_v1[1] + target_length_factor*(target_v4[1]-target_v1[1]);
+					double target[2], jac_t;
+					position_and_jacobian_radial(GAUSS_QUAD_POINTS[l], target_v1, target_v2, target_v3, target_v4, target, &jac_t);
 						
 					for(int k = 0; k < N_QUAD_2D; k++) {
 						
 						double pos[2], jac;
 						position_and_jacobian_radial(GAUSS_QUAD_POINTS[k], v1, v2, v3, v4, pos, &jac);
 						
-						matrix[(N_QUAD_2D*i + l)*N_matrix + N_QUAD_2D*j + k] = GAUSS_QUAD_WEIGHTS[k]*jac*potential_radial_ring(target_x, target_y, pos[0], pos[1], NULL);
+						matrix[(N_QUAD_2D*i + l)*N_matrix + N_QUAD_2D*j + k] = GAUSS_QUAD_WEIGHTS[k]*jac*potential_radial_ring(target[0], target[1], pos[0], pos[1], NULL);
 					}
 				}
 			} 
@@ -1177,32 +1175,30 @@ EXPORT void fill_matrix_radial(double *matrix,
 			            
             for (int j = 0; j < N_lines; j++) {
 
-				if(i == j) {
-					continue;
-				}
-				
-				double normal[2];
-				higher_order_normal_radial(GAUSS_QUAD_POINTS[j], target_v1, target_v2, target_v3, target_v3, normal);
-				normal_2d(target_v1, target_v2, normal);
-				double K = excitation_values[i];
-				
-				struct {double *normal; double K;} args = {normal, K};
-				
+				if(i == j) continue;
+					
 				double *v1 = &line_points[j][0][0];
 				double *v2 = &line_points[j][2][0]; // Strange ordering following from GMSH line4 element
 				double *v3 = &line_points[j][3][0];
 				double *v4 = &line_points[j][1][0];
 				
 				for(int l = 0; l < N_QUAD_2D; l++) {
-					double target_length_factor = GAUSS_QUAD_POINTS[l]/2 + 1/2.;
-					double target_x = target_v1[0] + target_length_factor*(target_v2[0]-target_v1[0]);
-					double target_y = target_v1[1] + target_length_factor*(target_v2[1]-target_v1[1]);
-						
+					
+					double normal[2];
+					higher_order_normal_radial(GAUSS_QUAD_POINTS[l], target_v1, target_v2, target_v3, target_v3, normal);
+					normal_2d(target_v1, target_v2, normal);
+					double K = excitation_values[i];
+					
+					struct {double *normal; double K;} args = {normal, K};
+
+					double target[2], jac_t;
+					position_and_jacobian_radial(GAUSS_QUAD_POINTS[l], target_v1, target_v2, target_v3, target_v4, target, &jac_t);
+					
 					for(int k = 0; k < N_QUAD_2D; k++) {
 						
 						double pos[2], jac;
 						position_and_jacobian_radial(GAUSS_QUAD_POINTS[k], v1, v2, v3, v4, pos, &jac);
-						matrix[(N_QUAD_2D*i + l)*N_matrix + N_QUAD_2D*j + k] = GAUSS_QUAD_WEIGHTS[k]*jac*field_dot_normal_radial(target_x, target_y, pos[0], pos[1], &args);
+						matrix[(N_QUAD_2D*i + l)*N_matrix + N_QUAD_2D*j + k] = GAUSS_QUAD_WEIGHTS[k]*jac*field_dot_normal_radial(target[0], target[1], pos[0], pos[1], &args);
 					}
 				}
             }
