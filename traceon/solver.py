@@ -132,17 +132,22 @@ def _add_floating_conductor_constraints_to_matrix(matrix, vertices, names, excit
     assert matrix.shape == (N_matrix, N_matrix)
      
     for i, f in enumerate(floating):
-        for index in names[f]:
-            # An extra unknown voltage is added to the matrix for every floating conductor.
-            # The column related to this unknown voltage is positioned at the rightmost edge of the matrix.
-            # If multiple floating conductors are present the column lives at -len(floating) + i
-            matrix[ index, -len(floating) + i] = -1
-            # The unknown voltage is determined by the constraint on the total charge of the conductor.
-            # This constraint lives at the bottom edge of the matrix.
-            # The surface area of the respective line element (or triangle) is multiplied by the surface charge (unknown)
-            # to arrive at the total specified charge (right hand side).
-            element = vertices[index]
-            matrix[ -len(floating) + i, index] = _area(excitation.mesh.symmetry, element)
+        if excitation.mesh.symmetry == G.Symmetry.THREE_D: 
+            for index in names[f]:
+                # An extra unknown voltage is added to the matrix for every floating conductor.
+                # The column related to this unknown voltage is positioned at the rightmost edge of the matrix.
+                # If multiple floating conductors are present the column lives at -len(floating) + i
+                matrix[ index, -len(floating) + i] = -1
+                # The unknown voltage is determined by the constraint on the total charge of the conductor.
+                # This constraint lives at the bottom edge of the matrix.
+                # The surface area of the respective line element (or triangle) is multiplied by the surface charge (unknown)
+                # to arrive at the total specified charge (right hand side).
+                element = vertices[index]
+                matrix[ -len(floating) + i, index] = _area(excitation.mesh.symmetry, element)
+        elif excitation.mesh.symmetry == G.Symmetry.RADIAL:
+            indices = names[f]
+            backend.add_floating_conductor_constraints_radial(matrix, vertices, indices, i)
+                
 
 def _excitation_to_matrix(excitation, vertices, names):
     floating_names = _get_floating_conductor_names(excitation)

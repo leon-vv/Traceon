@@ -102,6 +102,7 @@ backend_functions = {
     'trace_particle_3d': (sz, times_block, tracing_block, bounds, dbl, vertices, charges_3d, sz),
     'field_3d_derivs': (None, v3, v3, z_values, arr(ndim=5), sz),
     'trace_particle_3d_derivs': (sz, times_block, tracing_block, bounds, dbl, z_values, arr(ndim=5), sz),
+    'add_floating_conductor_constraints_radial': (None, arr(ndim=2), lines, sz, arr(dtype=int), sz, sz),
     'fill_matrix_radial': (None, arr(ndim=2), lines, arr(dtype=C.c_uint8, ndim=1), arr(ndim=1), sz, sz, C.c_int, C.c_int),
     'fill_matrix_3d': (None, arr(ndim=2), vertices, arr(dtype=C.c_uint8, ndim=1), arr(ndim=1), sz, sz, C.c_int, C.c_int),
     'xy_plane_intersection_2d': (C.c_bool, arr(ndim=2), sz, arr(shape=(4,)), dbl),
@@ -352,12 +353,20 @@ def field_3d_derivs(point, z, coeffs):
     field = np.zeros( (3,) )
     backend_lib.field_3d_derivs(point, field, z, coeffs, len(z))
 
+def add_floating_conductor_constraints_radial(matrix, vertices, indices, row):
+    N_matrix = matrix.shape[0]
+    assert all(N_QUAD_2D*i < N_matrix for i in indices)
+    assert matrix.shape[0] == matrix.shape[1]
+
+    return backend_lib.add_floating_conductor_constraints_radial(matrix, vertices, N_matrix, indices, len(indices), row)
+
+
 def fill_matrix_radial(matrix, lines, excitation_types, excitation_values, start_index, end_index):
     N = len(lines)
     N_quad = N_QUAD_2D*N
     
     # Due to floating conductor constraints the matrix might actually be bigger than NxN
-    assert matrix.shape[0] == N_quad and matrix.shape[1] == N_quad and matrix.shape[0] == matrix.shape[1]
+    assert matrix.shape[0] >= N_quad and matrix.shape[1] >= N_quad and matrix.shape[0] == matrix.shape[1]
     assert lines.shape == (N, 4, 3)
     assert excitation_types.shape == (N,)
     assert excitation_values.shape == (N,)

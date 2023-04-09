@@ -1122,6 +1122,30 @@ void fill_self_voltages(double *matrix,
 	}
 }
 
+EXPORT void add_floating_conductor_constraints_radial(double *matrix, vertices_2d vertices, size_t N_matrix, size_t *indices, size_t N_indices, int row) {
+	for(int j = 0; j < N_indices; j++) {
+		int i = indices[j];
+			
+		double *v1 = &vertices[i][0][0];
+		double *v2 = &vertices[i][2][0]; // Strange ordering following from GMSH line4 element
+		double *v3 = &vertices[i][3][0];
+		double *v4 = &vertices[i][1][0];
+			
+		// An extra unknown voltage is added to the matrix for every floating conductor.
+		// The column related to this unknown voltage is positioned at the rightmost edge of the matrix.
+		// If multiple floating conductors are present the column lives at -len(floating) + i
+		for(int k = 0; k < N_QUAD_2D; k++) {
+			double pos[2], jac;
+			position_and_jacobian_radial(GAUSS_QUAD_POINTS[k], v1, v2, v3, v4, pos, &jac);
+			
+			matrix[(N_QUAD_2D*i + k)*N_matrix + N_matrix - row - 1] = -1;
+			// See charge_radial function
+			matrix[(N_matrix - row - 1)*N_matrix + N_QUAD_2D*i + k] = 2*M_PI*pos[0]*GAUSS_QUAD_WEIGHTS[k]*jac;
+		}
+	}
+}
+
+
 
 EXPORT void fill_matrix_radial(double *matrix, 
 						vertices_2d line_points,
@@ -1133,7 +1157,7 @@ EXPORT void fill_matrix_radial(double *matrix,
                         int lines_range_end) {
     
 	assert(lines_range_start < N_lines && lines_range_end < N_lines);
-	assert(N_matrix == N_QUAD_2D*N_lines);
+	assert(N_matrix >= N_QUAD_2D*N_lines);
 		
     for (int i = lines_range_start; i <= lines_range_end; i++) {
 		
@@ -1207,6 +1231,7 @@ EXPORT void fill_matrix_radial(double *matrix,
 	
 	fill_self_voltages(matrix, line_points, excitation_types, excitation_values, N_lines, N_matrix, lines_range_start, lines_range_end);
 }
+
 
 EXPORT void fill_matrix_3d(double *matrix, 
                     double *triangle_points_p, 
