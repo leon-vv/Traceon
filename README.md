@@ -15,7 +15,7 @@ Traceon is completely free to use and open source. The source code is distribute
 Please cite the software as follows:
 
 ```
-L.B. van Velzen. Traceon software (version 0.1.3). 2023. https://doi.org/10.5281/zenodo.7773697
+L.B. van Velzen. Traceon software (version 0.2.0). 2023. https://doi.org/10.5281/zenodo.7812232
 ```
 
 ## Installation
@@ -55,6 +55,12 @@ Don't worry. You can reach me.
 
 ## Features
 
+v0.2.0:
+- Use higher order charge distribution on line elements in radial symmetry
+- Use higher order line elements (polynomials) in radial symmetry
+- Better integration techniques, especially with regards to the logarithmic singularities
+
+v0.1.0:
 - Uses the powerful [GMSH library](https://gmsh.info/) for meshing
 - Solve for surface charge distribution using BEM
 - General 3D geometries and radially symmetric geometries
