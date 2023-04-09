@@ -358,7 +358,7 @@ def add_floating_conductor_constraints_radial(matrix, vertices, indices, row):
     assert all(N_QUAD_2D*i < N_matrix for i in indices)
     assert matrix.shape[0] == matrix.shape[1]
 
-    return backend_lib.add_floating_conductor_constraints_radial(matrix, vertices, N_matrix, indices, len(indices), row)
+    return backend_lib.add_floating_conductor_constraints_radial(matrix, vertices, N_matrix, indices.astype(np.int64), len(indices), row)
 
 
 def fill_matrix_radial(matrix, lines, excitation_types, excitation_values, start_index, end_index):
