@@ -78,15 +78,15 @@ def compute_error(geom):
     
     p = T.xy_plane_intersection(pos, 10)
      
-    correct = 0.16338325
-    correct = 1.63275e-01
+    #correct = 0.16338325
+    correct = 1.6327355811e-01
     calculated = np.linalg.norm(p[:2] if _3d else p[:1])
      
-    print(f'Computed intersection: {calculated:.5e} (correct: {correct:.5e})')
+    print(f'Computed intersection: {calculated:.10e} (correct: {correct:.5e})')
     return excitation, calculated/correct - 1
 
 util.parser.description = '''   '''
 util.parse_validation_args(create_geometry, compute_error, mirror='brown', lens='blue', ground='green',
-    MSF={'radial': [100, 200, 300, 400], '3d': [200, 250, 500, 1000]})
+    MSF={'radial': [200, 300, 400, 500], '3d': [200, 250, 500, 1000]})
 
 

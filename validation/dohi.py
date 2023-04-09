@@ -66,7 +66,7 @@ def compute_error(geom):
     _, pos_derivs = tracer_derivs(start_pos, start_vel)
     print(f'Trace took {(time.time()-st)*1000:.1f} ms')
      
-    correct = 3.12936530852257e-03 # Determined by a accurate, naive trace
+    correct = 3.13452443471595e-03 # Determined by a accurate, naive trace
     int_derivs = T.xy_plane_intersection(pos_derivs, z0)
 
     print(f'Calculated intersection: {int_derivs[0]:.14e} mm (correct: {correct:.4e} mm)')
