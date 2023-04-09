@@ -52,7 +52,7 @@ EXPORT const int M_MAX_SYM = M_MAX;
 EXPORT const size_t TRACING_BLOCK_SIZE = (size_t) 1e5;
 
 #define N_QUAD_2D 4
-const int N_QUAD_2D_SYM = N_QUAD_2D;
+EXPORT const int N_QUAD_2D_SYM = N_QUAD_2D;
 const double GAUSS_QUAD_POINTS[N_QUAD_2D] = {-0.3399810435848563, 0.3399810435848563, -0.8611363115940526, 0.8611363115940526};
 const double GAUSS_QUAD_WEIGHTS[N_QUAD_2D] = {0.6521451548625461, 0.6521451548625461, 0.3478548451374538, 0.3478548451374538};
 
@@ -1122,7 +1122,7 @@ void fill_self_voltages(double *matrix,
 	}
 }
 
-EXPORT void add_floating_conductor_constraints_radial(double *matrix, vertices_2d vertices, size_t N_matrix, size_t *indices, size_t N_indices, int row) {
+EXPORT void add_floating_conductor_constraints_radial(double *matrix, vertices_2d vertices, size_t N_matrix, int64_t *indices, size_t N_indices, int row) {
 	for(int j = 0; j < N_indices; j++) {
 		int i = indices[j];
 			
