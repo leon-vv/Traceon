@@ -60,6 +60,7 @@ from enum import Enum
 import pickle
 
 from .util import Saveable
+from .backend import N_QUAD_2D
 
 
 def revolve_around_optical_axis(geom, elements, factor=1.0):
@@ -109,12 +110,12 @@ class Symmetry(Enum):
         elif self == Symmetry.THREE_D:
             return &#39;3d&#39;
 
-class Geometry(occ.Geometry):
+class Geometry(geo.Geometry):
     &#34;&#34;&#34;
-    Small wrapper class around pygmsh.occ.Geometry which itself is a small wrapper around the powerful GMSH library.
+    Small wrapper class around pygmsh.geo.Geometry which itself is a small wrapper around the powerful GMSH library.
     See the GMSH and pygmsh documentation to learn how to build any 2D or 3D geometry. This class makes it easier to control
     the mesh size (using the _mesh size factor_) and optionally allows to scale the mesh size with the distance from the optical
-    axis. It also add support for multiple calls to the `_add_physical` method with the same name.
+    axis. It also add support for multiple calls to the `add_physical` method with the same name.
     
     Parameters
     ---------
@@ -145,19 +146,18 @@ class Geometry(occ.Geometry):
         else:
             return f&#39;&lt;Traceon Geometry {self.symmetry}&gt;&#39;
         
-    def _add_physical(self, name, entities):
+    def add_physical(self, entities, name):
         &#34;&#34;&#34;
 
         Parameters
         ----------
+        entities : list of GMSH elements or GMSH element
+            Geometric entities to assign the given name (the given _physical group_ in GMSH terminology).
         name : string
             Name of the physical group.
-            
-        entities : GMSH elements
-            Geometric entities to assign the given name (the given _physical group_ in GMSH terminology).
-
         &#34;&#34;&#34;
-        assert isinstance(entities, list)
+        if not isinstance(entities, list):
+            entities = [entities]
         
         if name in self._physical_queue:
             self._physical_queue[name].extend(entities)
@@ -167,7 +167,7 @@ class Geometry(occ.Geometry):
     def generate_mesh(self, *args, **kwargs):
         &#34;&#34;&#34;
         Generate the mesh, determining the mesh dimension (line elements or triangles) from the
-        supplied symmetry. The arguments are passed directly to `pygmsh.occ.Geometry.generate_mesh`.
+        supplied symmetry. The arguments are passed directly to `pygmsh.geo.Geometry.generate_mesh`.
         
         Returns
         -------
@@ -175,12 +175,17 @@ class Geometry(occ.Geometry):
 
         &#34;&#34;&#34;
         for label, entities in self._physical_queue.items():
-            self.add_physical(entities, label)
+            super().add_physical(entities, label)
           
         if self.size_from_distance:
             self.set_mesh_size_callback(self._mesh_size_callback)
         
         dim = 2 if self.symmetry == Symmetry.THREE_D else 1
+
+        if dim == 1:
+            gmsh.option.setNumber(&#39;Mesh.ElementOrder&#39;, 3)
+        else:
+            gmsh.option.setNumber(&#39;Mesh.ElementOrder&#39;, 1)
         
         return Mesh(super().generate_mesh(dim=dim, *args, **kwargs), self.symmetry)
 
@@ -195,7 +200,7 @@ class Geometry(occ.Geometry):
         
         &#34;&#34;&#34;
         if self.symmetry == Symmetry.RADIAL:
-            gmsh.option.setNumber(&#39;Mesh.MeshSizeFactor&#39;, 1/factor)
+            gmsh.option.setNumber(&#39;Mesh.MeshSizeFactor&#39;, 1/factor * N_QUAD_2D)
         elif self.symmetry == Symmetry.THREE_D:
             # GMSH seems to produce meshes which contain way more elements for 3D geometries
             # with the same mesh factor. This is confusing for users and therefore we arbtrarily
@@ -215,7 +220,7 @@ class Geometry(occ.Geometry):
         &#34;&#34;&#34;
         gmsh.option.setNumber(&#39;Mesh.MeshSizeMin&#39;, size)
      
-    def _mesh_size_callback(self, dim, tag, x, y, z):
+    def _mesh_size_callback(self, dim, tag, x, y, z, _):
         # Scale mesh size with distance to optical axis, but only the part of the optical
         # axis that lies between zmin and zmax
         
@@ -255,7 +260,7 @@ class Mesh(Saveable):
     def __str__(self):
         physicals = self.mesh.cell_sets_dict.keys()
         physical_names = &#39;, &#39;.join(physicals)
-        type_ = &#39;line&#39; if self.symmetry != Symmetry.THREE_D else &#39;triangle&#39;
+        type_ = &#39;line4&#39; if self.symmetry != Symmetry.THREE_D else &#39;triangle&#39;
         physical_nums = &#39;, &#39;.join([str(len(self.mesh.cell_sets_dict[n][type_])) for n in physicals])
         
         cells_type = [&#39;point&#39;] + [str(c.type) for c in self.mesh.cells]
@@ -267,6 +272,9 @@ class Mesh(Saveable):
             f&#39;\tNumber of.. \n\t    &#39; \
             + &#39;\n\t    &#39;.join([f&#39;{t}: \t{c}&#39; for t, c in zip(cells_type, cells_count)]) \
             + &#39;&gt;&#39;
+
+    def write_gmsh(self, filename):
+        self.mesh.write(filename)
 
 
         #return f&#39;&lt;Traceon Mesh with {len(self.mesh.points)} points, &#39;, &#39;.join(self.mesh.cell_sets_dict.keys()))
@@ -348,9 +356,9 @@ class MEMSStack(Geometry):
         
         if self._3d:
             revolved = revolve_around_optical_axis(self, lines, self.revolve_factor)
-            self._add_physical(name, revolved)
+            self.add_physical(revolved, name)
         else:
-            self._add_physical(name, lines)
+            self.add_physical(lines, name)
         
         self._last_name = name
          
@@ -361,7 +369,7 @@ class MEMSStack(Geometry):
     def generate_mesh(self, *args, **kwargs):
         &#34;&#34;&#34;
         Generate the mesh, determining the mesh dimension (line elements or triangles) from the
-        supplied `revolve_factor`. The arguments are passed directly to `pygmsh.occ.Geometry.generate_mesh`.
+        supplied `revolve_factor`. The arguments are passed directly to `pygmsh.geo.Geometry.generate_mesh`.
         
         Returns
         -------
@@ -377,10 +385,10 @@ class MEMSStack(Geometry):
                 points = [[p[0], 0.0, p[1]] for p in points]
                 lines = [self.add_line(self.add_point(p1), self.add_point(p2)) for p1, p2 in zip(points[1:], points)]
                 revolved = revolve_around_optical_axis(self, lines, self.revolve_factor)
-                self._add_physical(self._last_name, revolved)
+                self.add_physical(revolved, self._last_name)
             else:
                 lines = [self.add_line(self.add_point(p1), self.add_point(p2)) for p1, p2 in zip(points[1:], points)]
-                self._add_physical(self._last_name, lines)
+                self.add_physical(lines, self._last_name)
         
         return super().generate_mesh(*args, **kwargs)        
 
@@ -463,10 +471,10 @@ corresponds to a revolution of only <span><span class="MathJax_Preview">\pi</spa
 <span>(</span><span>symmetry, size_from_distance=False, zmin=None, zmax=None, *args, **kwargs)</span>
 </code></dt>
 <dd>
-<div class="desc"><p>Small wrapper class around pygmsh.occ.Geometry which itself is a small wrapper around the powerful GMSH library.
+<div class="desc"><p>Small wrapper class around pygmsh.geo.Geometry which itself is a small wrapper around the powerful GMSH library.
 See the GMSH and pygmsh documentation to learn how to build any 2D or 3D geometry. This class makes it easier to control
 the mesh size (using the <em>mesh size factor</em>) and optionally allows to scale the mesh size with the distance from the optical
-axis. It also add support for multiple calls to the <code>_add_physical</code> method with the same name.</p>
+axis. It also add support for multiple calls to the <code>add_physical</code> method with the same name.</p>
 <h2 id="parameters">Parameters</h2>
 <dl>
 <dt><strong><code>symmetry</code></strong> :&ensp;<code><a title="traceon.geometry.Symmetry" href="#traceon.geometry.Symmetry">Symmetry</a></code></dt>
@@ -486,12 +494,12 @@ This prevents singularities.</dd>
 <summary>
 <span>Expand source code</span>
 </summary>
-<pre><code class="python">class Geometry(occ.Geometry):
+<pre><code class="python">class Geometry(geo.Geometry):
     &#34;&#34;&#34;
-    Small wrapper class around pygmsh.occ.Geometry which itself is a small wrapper around the powerful GMSH library.
+    Small wrapper class around pygmsh.geo.Geometry which itself is a small wrapper around the powerful GMSH library.
     See the GMSH and pygmsh documentation to learn how to build any 2D or 3D geometry. This class makes it easier to control
     the mesh size (using the _mesh size factor_) and optionally allows to scale the mesh size with the distance from the optical
-    axis. It also add support for multiple calls to the `_add_physical` method with the same name.
+    axis. It also add support for multiple calls to the `add_physical` method with the same name.
     
     Parameters
     ---------
@@ -522,19 +530,18 @@ This prevents singularities.</dd>
         else:
             return f&#39;&lt;Traceon Geometry {self.symmetry}&gt;&#39;
         
-    def _add_physical(self, name, entities):
+    def add_physical(self, entities, name):
         &#34;&#34;&#34;
 
         Parameters
         ----------
+        entities : list of GMSH elements or GMSH element
+            Geometric entities to assign the given name (the given _physical group_ in GMSH terminology).
         name : string
             Name of the physical group.
-            
-        entities : GMSH elements
-            Geometric entities to assign the given name (the given _physical group_ in GMSH terminology).
-
         &#34;&#34;&#34;
-        assert isinstance(entities, list)
+        if not isinstance(entities, list):
+            entities = [entities]
         
         if name in self._physical_queue:
             self._physical_queue[name].extend(entities)
@@ -544,7 +551,7 @@ This prevents singularities.</dd>
     def generate_mesh(self, *args, **kwargs):
         &#34;&#34;&#34;
         Generate the mesh, determining the mesh dimension (line elements or triangles) from the
-        supplied symmetry. The arguments are passed directly to `pygmsh.occ.Geometry.generate_mesh`.
+        supplied symmetry. The arguments are passed directly to `pygmsh.geo.Geometry.generate_mesh`.
         
         Returns
         -------
@@ -552,12 +559,17 @@ This prevents singularities.</dd>
 
         &#34;&#34;&#34;
         for label, entities in self._physical_queue.items():
-            self.add_physical(entities, label)
+            super().add_physical(entities, label)
           
         if self.size_from_distance:
             self.set_mesh_size_callback(self._mesh_size_callback)
         
         dim = 2 if self.symmetry == Symmetry.THREE_D else 1
+
+        if dim == 1:
+            gmsh.option.setNumber(&#39;Mesh.ElementOrder&#39;, 3)
+        else:
+            gmsh.option.setNumber(&#39;Mesh.ElementOrder&#39;, 1)
         
         return Mesh(super().generate_mesh(dim=dim, *args, **kwargs), self.symmetry)
 
@@ -572,7 +584,7 @@ This prevents singularities.</dd>
         
         &#34;&#34;&#34;
         if self.symmetry == Symmetry.RADIAL:
-            gmsh.option.setNumber(&#39;Mesh.MeshSizeFactor&#39;, 1/factor)
+            gmsh.option.setNumber(&#39;Mesh.MeshSizeFactor&#39;, 1/factor * N_QUAD_2D)
         elif self.symmetry == Symmetry.THREE_D:
             # GMSH seems to produce meshes which contain way more elements for 3D geometries
             # with the same mesh factor. This is confusing for users and therefore we arbtrarily
@@ -592,7 +604,7 @@ This prevents singularities.</dd>
         &#34;&#34;&#34;
         gmsh.option.setNumber(&#39;Mesh.MeshSizeMin&#39;, size)
      
-    def _mesh_size_callback(self, dim, tag, x, y, z):
+    def _mesh_size_callback(self, dim, tag, x, y, z, _):
         # Scale mesh size with distance to optical axis, but only the part of the optical
         # axis that lies between zmin and zmax
         
@@ -610,7 +622,7 @@ This prevents singularities.</dd>
 </details>
 <h3>Ancestors</h3>
 <ul class="hlist">
-<li>pygmsh.occ.geometry.Geometry</li>
+<li>pygmsh.geo.geometry.Geometry</li>
 <li>pygmsh.common.geometry.CommonGeometry</li>
 </ul>
 <h3>Subclasses</h3>
@@ -619,12 +631,46 @@ This prevents singularities.</dd>
 </ul>
 <h3>Methods</h3>
 <dl>
+<dt id="traceon.geometry.Geometry.add_physical"><code class="name flex">
+<span>def <span class="ident">add_physical</span></span>(<span>self, entities, name)</span>
+</code></dt>
+<dd>
+<div class="desc"><h2 id="parameters">Parameters</h2>
+<dl>
+<dt><strong><code>entities</code></strong> :&ensp;<code>list</code> of <code>GMSH elements</code> or <code>GMSH element</code></dt>
+<dd>Geometric entities to assign the given name (the given <em>physical group</em> in GMSH terminology).</dd>
+<dt><strong><code>name</code></strong> :&ensp;<code>string</code></dt>
+<dd>Name of the physical group.</dd>
+</dl></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def add_physical(self, entities, name):
+    &#34;&#34;&#34;
+
+    Parameters
+    ----------
+    entities : list of GMSH elements or GMSH element
+        Geometric entities to assign the given name (the given _physical group_ in GMSH terminology).
+    name : string
+        Name of the physical group.
+    &#34;&#34;&#34;
+    if not isinstance(entities, list):
+        entities = [entities]
+    
+    if name in self._physical_queue:
+        self._physical_queue[name].extend(entities)
+    else:
+        self._physical_queue[name] = entities</code></pre>
+</details>
+</dd>
 <dt id="traceon.geometry.Geometry.generate_mesh"><code class="name flex">
 <span>def <span class="ident">generate_mesh</span></span>(<span>self, *args, **kwargs)</span>
 </code></dt>
 <dd>
 <div class="desc"><p>Generate the mesh, determining the mesh dimension (line elements or triangles) from the
-supplied symmetry. The arguments are passed directly to <code>pygmsh.occ.Geometry.generate_mesh</code>.</p>
+supplied symmetry. The arguments are passed directly to <code>pygmsh.geo.Geometry.generate_mesh</code>.</p>
 <h2 id="returns">Returns</h2>
 <p><code><a title="traceon.geometry.Mesh" href="#traceon.geometry.Mesh">Mesh</a></code></p></div>
 <details class="source">
@@ -634,7 +680,7 @@ supplied symmetry. The arguments are passed directly to <code>pygmsh.occ.Geometr
 <pre><code class="python">def generate_mesh(self, *args, **kwargs):
     &#34;&#34;&#34;
     Generate the mesh, determining the mesh dimension (line elements or triangles) from the
-    supplied symmetry. The arguments are passed directly to `pygmsh.occ.Geometry.generate_mesh`.
+    supplied symmetry. The arguments are passed directly to `pygmsh.geo.Geometry.generate_mesh`.
     
     Returns
     -------
@@ -642,12 +688,17 @@ supplied symmetry. The arguments are passed directly to <code>pygmsh.occ.Geometr
 
     &#34;&#34;&#34;
     for label, entities in self._physical_queue.items():
-        self.add_physical(entities, label)
+        super().add_physical(entities, label)
       
     if self.size_from_distance:
         self.set_mesh_size_callback(self._mesh_size_callback)
     
     dim = 2 if self.symmetry == Symmetry.THREE_D else 1
+
+    if dim == 1:
+        gmsh.option.setNumber(&#39;Mesh.ElementOrder&#39;, 3)
+    else:
+        gmsh.option.setNumber(&#39;Mesh.ElementOrder&#39;, 1)
     
     return Mesh(super().generate_mesh(dim=dim, *args, **kwargs), self.symmetry)</code></pre>
 </details>
@@ -677,7 +728,7 @@ supplied symmetry. The arguments are passed directly to <code>pygmsh.occ.Geometr
     
     &#34;&#34;&#34;
     if self.symmetry == Symmetry.RADIAL:
-        gmsh.option.setNumber(&#39;Mesh.MeshSizeFactor&#39;, 1/factor)
+        gmsh.option.setNumber(&#39;Mesh.MeshSizeFactor&#39;, 1/factor * N_QUAD_2D)
     elif self.symmetry == Symmetry.THREE_D:
         # GMSH seems to produce meshes which contain way more elements for 3D geometries
         # with the same mesh factor. This is confusing for users and therefore we arbtrarily
@@ -821,9 +872,9 @@ side of the stack.</dd>
         
         if self._3d:
             revolved = revolve_around_optical_axis(self, lines, self.revolve_factor)
-            self._add_physical(name, revolved)
+            self.add_physical(revolved, name)
         else:
-            self._add_physical(name, lines)
+            self.add_physical(lines, name)
         
         self._last_name = name
          
@@ -834,7 +885,7 @@ side of the stack.</dd>
     def generate_mesh(self, *args, **kwargs):
         &#34;&#34;&#34;
         Generate the mesh, determining the mesh dimension (line elements or triangles) from the
-        supplied `revolve_factor`. The arguments are passed directly to `pygmsh.occ.Geometry.generate_mesh`.
+        supplied `revolve_factor`. The arguments are passed directly to `pygmsh.geo.Geometry.generate_mesh`.
         
         Returns
         -------
@@ -850,17 +901,17 @@ side of the stack.</dd>
                 points = [[p[0], 0.0, p[1]] for p in points]
                 lines = [self.add_line(self.add_point(p1), self.add_point(p2)) for p1, p2 in zip(points[1:], points)]
                 revolved = revolve_around_optical_axis(self, lines, self.revolve_factor)
-                self._add_physical(self._last_name, revolved)
+                self.add_physical(revolved, self._last_name)
             else:
                 lines = [self.add_line(self.add_point(p1), self.add_point(p2)) for p1, p2 in zip(points[1:], points)]
-                self._add_physical(self._last_name, lines)
+                self.add_physical(lines, self._last_name)
         
         return super().generate_mesh(*args, **kwargs)        </code></pre>
 </details>
 <h3>Ancestors</h3>
 <ul class="hlist">
 <li><a title="traceon.geometry.Geometry" href="#traceon.geometry.Geometry">Geometry</a></li>
-<li>pygmsh.occ.geometry.Geometry</li>
+<li>pygmsh.geo.geometry.Geometry</li>
 <li>pygmsh.common.geometry.CommonGeometry</li>
 </ul>
 <h3>Methods</h3>
@@ -910,9 +961,9 @@ side of the stack.</dd>
     
     if self._3d:
         revolved = revolve_around_optical_axis(self, lines, self.revolve_factor)
-        self._add_physical(name, revolved)
+        self.add_physical(revolved, name)
     else:
-        self._add_physical(name, lines)
+        self.add_physical(lines, name)
     
     self._last_name = name
      
@@ -951,7 +1002,7 @@ side of the stack.</dd>
 </code></dt>
 <dd>
 <div class="desc"><p>Generate the mesh, determining the mesh dimension (line elements or triangles) from the
-supplied <code>revolve_factor</code>. The arguments are passed directly to <code>pygmsh.occ.Geometry.generate_mesh</code>.</p>
+supplied <code>revolve_factor</code>. The arguments are passed directly to <code>pygmsh.geo.Geometry.generate_mesh</code>.</p>
 <h2 id="returns">Returns</h2>
 <p><code><a title="traceon.geometry.Mesh" href="#traceon.geometry.Mesh">Mesh</a></code></p></div>
 <details class="source">
@@ -961,7 +1012,7 @@ supplied <code>revolve_factor</code>. The arguments are passed directly to <code
 <pre><code class="python">def generate_mesh(self, *args, **kwargs):
     &#34;&#34;&#34;
     Generate the mesh, determining the mesh dimension (line elements or triangles) from the
-    supplied `revolve_factor`. The arguments are passed directly to `pygmsh.occ.Geometry.generate_mesh`.
+    supplied `revolve_factor`. The arguments are passed directly to `pygmsh.geo.Geometry.generate_mesh`.
     
     Returns
     -------
@@ -977,10 +1028,10 @@ supplied <code>revolve_factor</code>. The arguments are passed directly to <code
             points = [[p[0], 0.0, p[1]] for p in points]
             lines = [self.add_line(self.add_point(p1), self.add_point(p2)) for p1, p2 in zip(points[1:], points)]
             revolved = revolve_around_optical_axis(self, lines, self.revolve_factor)
-            self._add_physical(self._last_name, revolved)
+            self.add_physical(revolved, self._last_name)
         else:
             lines = [self.add_line(self.add_point(p1), self.add_point(p2)) for p1, p2 in zip(points[1:], points)]
-            self._add_physical(self._last_name, lines)
+            self.add_physical(lines, self._last_name)
     
     return super().generate_mesh(*args, **kwargs)        </code></pre>
 </details>
@@ -990,6 +1041,7 @@ supplied <code>revolve_factor</code>. The arguments are passed directly to <code
 <ul class="hlist">
 <li><code><b><a title="traceon.geometry.Geometry" href="#traceon.geometry.Geometry">Geometry</a></b></code>:
 <ul class="hlist">
+<li><code><a title="traceon.geometry.Geometry.add_physical" href="#traceon.geometry.Geometry.add_physical">add_physical</a></code></li>
 <li><code><a title="traceon.geometry.Geometry.set_mesh_size_factor" href="#traceon.geometry.Geometry.set_mesh_size_factor">set_mesh_size_factor</a></code></li>
 <li><code><a title="traceon.geometry.Geometry.set_minimum_mesh_size" href="#traceon.geometry.Geometry.set_minimum_mesh_size">set_minimum_mesh_size</a></code></li>
 </ul>
@@ -1028,7 +1080,7 @@ supplied <code>revolve_factor</code>. The arguments are passed directly to <code
     def __str__(self):
         physicals = self.mesh.cell_sets_dict.keys()
         physical_names = &#39;, &#39;.join(physicals)
-        type_ = &#39;line&#39; if self.symmetry != Symmetry.THREE_D else &#39;triangle&#39;
+        type_ = &#39;line4&#39; if self.symmetry != Symmetry.THREE_D else &#39;triangle&#39;
         physical_nums = &#39;, &#39;.join([str(len(self.mesh.cell_sets_dict[n][type_])) for n in physicals])
         
         cells_type = [&#39;point&#39;] + [str(c.type) for c in self.mesh.cells]
@@ -1040,6 +1092,9 @@ supplied <code>revolve_factor</code>. The arguments are passed directly to <code
             f&#39;\tNumber of.. \n\t    &#39; \
             + &#39;\n\t    &#39;.join([f&#39;{t}: \t{c}&#39; for t, c in zip(cells_type, cells_count)]) \
             + &#39;&gt;&#39;
+
+    def write_gmsh(self, filename):
+        self.mesh.write(filename)
 
 
         #return f&#39;&lt;Traceon Mesh with {len(self.mesh.points)} points, &#39;, &#39;.join(self.mesh.cell_sets_dict.keys()))
@@ -1074,6 +1129,23 @@ supplied <code>revolve_factor</code>. The arguments are passed directly to <code
 
     &#34;&#34;&#34;
     return list(self.mesh.cell_sets_dict.keys())</code></pre>
+</details>
+</dd>
+<dt id="traceon.geometry.Mesh.write_gmsh"><code class="name flex">
+<span>def <span class="ident">write_gmsh</span></span>(<span>self, filename)</span>
+</code></dt>
+<dd>
+<div class="desc"></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def write_gmsh(self, filename):
+    self.mesh.write(filename)
+
+
+    #return f&#39;&lt;Traceon Mesh with {len(self.mesh.points)} points, &#39;, &#39;.join(self.mesh.cell_sets_dict.keys()))
+    #return str(self.mesh) + &#39; (metadata: &#39; + str(self.metadata) + &#39;)&#39;</code></pre>
 </details>
 </dd>
 </dl>
@@ -1143,6 +1215,7 @@ supported symmetries are radial symmetry (also called cylindrical symmetry) and 
 <li>
 <h4><code><a title="traceon.geometry.Geometry" href="#traceon.geometry.Geometry">Geometry</a></code></h4>
 <ul class="">
+<li><code><a title="traceon.geometry.Geometry.add_physical" href="#traceon.geometry.Geometry.add_physical">add_physical</a></code></li>
 <li><code><a title="traceon.geometry.Geometry.generate_mesh" href="#traceon.geometry.Geometry.generate_mesh">generate_mesh</a></code></li>
 <li><code><a title="traceon.geometry.Geometry.set_mesh_size_factor" href="#traceon.geometry.Geometry.set_mesh_size_factor">set_mesh_size_factor</a></code></li>
 <li><code><a title="traceon.geometry.Geometry.set_minimum_mesh_size" href="#traceon.geometry.Geometry.set_minimum_mesh_size">set_minimum_mesh_size</a></code></li>
@@ -1160,6 +1233,7 @@ supported symmetries are radial symmetry (also called cylindrical symmetry) and 
 <h4><code><a title="traceon.geometry.Mesh" href="#traceon.geometry.Mesh">Mesh</a></code></h4>
 <ul class="">
 <li><code><a title="traceon.geometry.Mesh.get_electrodes" href="#traceon.geometry.Mesh.get_electrodes">get_electrodes</a></code></li>
+<li><code><a title="traceon.geometry.Mesh.write_gmsh" href="#traceon.geometry.Mesh.write_gmsh">write_gmsh</a></code></li>
 </ul>
 </li>
 <li>

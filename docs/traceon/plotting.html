@@ -51,10 +51,10 @@ def _create_point_to_physical_dict(mesh):
                 a, b, c = p
                 d[a], d[b], d[c] = k, k, k
         
-        if &#39;line&#39; in v:
-            for l in mesh.cells_dict[&#39;line&#39;][v[&#39;line&#39;]]:
-                a, b = l
-                d[a], d[b] = k, k
+        if &#39;line4&#39; in v:
+            for l in mesh.cells_dict[&#39;line4&#39;][v[&#39;line4&#39;]]:
+                a, b, c, e = l
+                d[a], d[b], d[c], d[e] = k, k, k, k
      
     return d
 
@@ -169,24 +169,25 @@ def plot_line_mesh(mesh, trajectory=None, show_legend=True, **colors):
     plt.gca().set_aspect(&#39;equal&#39;)
      
     dict_ = _create_point_to_physical_dict(mesh)
-    lines = mesh.cells_dict[&#39;line&#39;]
-
+    lines = mesh.cells_dict[&#39;line4&#39;]
+    
     to_plot_x = []
     to_plot_y = []
     colors_ = []
     
-    for (A, B) in lines:
-        color = &#39;#CCC&#39;
+    for (P1, P2, P3, P4) in lines:
+        for A, B in [(P1, P3), (P3, P4), (P4, P2)]:
+            color = &#39;#CCC&#39;
 
-        if A in dict_ and B in dict_:
-            phys1, phys2 = dict_[A], dict_[B]
-            if phys1 == phys2 and phys1 in colors:
-                color = colors[phys1]
-         
-        p1, p2 = mesh.points[A], mesh.points[B]
-        to_plot_x.append( [p1[0], p2[0]] )
-        to_plot_y.append( [p1[1], p2[1]] )
-        colors_.append(color)
+            if A in dict_ and B in dict_:
+                phys1, phys2 = dict_[A], dict_[B]
+                if phys1 == phys2 and phys1 in colors:
+                    color = colors[phys1]
+            
+            p1, p2 = mesh.points[A], mesh.points[B]
+            to_plot_x.append( [p1[0], p2[0]] )
+            to_plot_y.append( [p1[1], p2[1]] )
+            colors_.append(color)
      
     colors_ = np.array(colors_)
      
@@ -284,24 +285,25 @@ physical group names, while the values can be any color understood by matplotlib
     plt.gca().set_aspect(&#39;equal&#39;)
      
     dict_ = _create_point_to_physical_dict(mesh)
-    lines = mesh.cells_dict[&#39;line&#39;]
-
+    lines = mesh.cells_dict[&#39;line4&#39;]
+    
     to_plot_x = []
     to_plot_y = []
     colors_ = []
     
-    for (A, B) in lines:
-        color = &#39;#CCC&#39;
+    for (P1, P2, P3, P4) in lines:
+        for A, B in [(P1, P3), (P3, P4), (P4, P2)]:
+            color = &#39;#CCC&#39;
 
-        if A in dict_ and B in dict_:
-            phys1, phys2 = dict_[A], dict_[B]
-            if phys1 == phys2 and phys1 in colors:
-                color = colors[phys1]
-         
-        p1, p2 = mesh.points[A], mesh.points[B]
-        to_plot_x.append( [p1[0], p2[0]] )
-        to_plot_y.append( [p1[1], p2[1]] )
-        colors_.append(color)
+            if A in dict_ and B in dict_:
+                phys1, phys2 = dict_[A], dict_[B]
+                if phys1 == phys2 and phys1 in colors:
+                    color = colors[phys1]
+            
+            p1, p2 = mesh.points[A], mesh.points[B]
+            to_plot_x.append( [p1[0], p2[0]] )
+            to_plot_y.append( [p1[1], p2[1]] )
+            colors_.append(color)
      
     colors_ = np.array(colors_)
      

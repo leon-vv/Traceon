@@ -146,8 +146,10 @@ class Excitation:
     
         Returns
         --------
-        A tuple of two elements: (points, names). points is a Numpy array of shape (N, 2, 3) in the case of 2D and (N, 3, 3) in the case of 3D. \
+        A tuple of two elements: (points, names). points is a Numpy array of shape (N, 4, 3) in the case of 2D and (N, 3, 3) in the case of 3D. \
         This array contains the vertices of the line elements or the triangles. \
+        Multiple points per line elements are used in the case of 2D since higher order BEM is employed, in which the true position on the line \
+        element is given by a polynomial interpolation of the points. \
         names is a dictionary, the keys being the names of the physical groups mentioned by this excitation, \
         while the values are Numpy arrays of indices that can be used to index the points array.
         """

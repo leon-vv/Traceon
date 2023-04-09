@@ -1,11 +1,9 @@
 """Welcome!
 
-Traceon is a general software package for numerical
-charged particle optics. The heart of the package is an implementation of the Boundary Element
-Method (BEM) to efficiently compute electrostatic fields. Currently radial symmetry and general
-three dimensional geometries are supported. In both symmetries very accuracute and efficient radial
-series interpolation can be used to make electron tracing very fast. The resulting electron trajectories
-can be used to determine the aberrations of optical components under study.
+Traceon is a general software package used for numerical electron optics. Its main feature is the implementation of the Boundary Element Method (BEM) to quickly calculate the surface charge distribution.
+The program supports both radial symmetry and general three-dimensional geometries. 
+Electron tracing can be done very quickly using accurate radial series interpolation in both geometries.
+The electron trajectories obtained can help determine the aberrations of the optical components under study.
 
 If you have any issues using the package, please open an issue on the [Traceon Github page](https://github.com/leon-vv/Traceon).
 
@@ -54,6 +52,7 @@ in the formulas for the potential (and thus also in the formulas for the electri
 __pdoc__ = {}
 __pdoc__['traceon.util'] = False
 __pdoc__['traceon.backend'] = False
+__pdoc__['traceon.data'] = False
 __pdoc__['traceon.tracing.Tracer.__call__'] = True
 
 

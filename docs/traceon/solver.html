@@ -106,11 +106,13 @@ import os.path as path
 
 import numpy as np
 from scipy.interpolate import CubicSpline, BPoly, PPoly
-import findiff
+from scipy.special import legendre
+from scipy.integrate import quad
 
 from . import geometry as G
 from . import excitation as E
 from . import backend
+from . import util
 
 FACTOR_AXIAL_DERIV_SAMPLING_2D = 0.2
 FACTOR_AXIAL_DERIV_SAMPLING_3D = 0.06
@@ -128,7 +130,13 @@ dtheta = thetas[1]-thetas[0]
 
 thetas_interpolation_coefficients = np.load(coefficients_file)
 
-assert thetas_interpolation_coefficients.shape == (thetas.size-1, backend.DERIV_3D_MAX//2, backend.DERIV_3D_MAX, 4)
+assert thetas_interpolation_coefficients.shape == (thetas.size-1, backend.NU_MAX, backend.M_MAX, 4)
+
+def _get_N_quad(exc):
+    if exc.mesh.symmetry == G.Symmetry.RADIAL:
+        return backend.N_QUAD_2D
+    elif exc.mesh.symmetry == G.Symmetry.THREE_D:
+        return 1
 
 def _get_floating_conductor_names(exc):
     return [n for n, (t, v) in exc.excitation_types.items() if t == E.ExcitationType.FLOATING_CONDUCTOR]
@@ -138,23 +146,28 @@ def _excitation_to_right_hand_side(excitation, vertices, names):
      
     N_floating = len(floating_names)
     N_lines = len(vertices)
-    N_matrix = N_lines + N_floating # Every floating conductor adds one constraint
+    N_quad = _get_N_quad(excitation)
+    N_matrix = N_quad*N_lines + N_floating # Every floating conductor adds one constraint
 
     F = np.zeros( (N_matrix) )
      
     for name, indices in names.items():
         type_, value  = excitation.excitation_types[name]
+
+        all_indices = np.concatenate( [N_quad*indices + i for i in range(N_quad)] )
          
         if type_ == E.ExcitationType.VOLTAGE_FIXED:
-            F[indices] = value
+            F[all_indices] = value
         elif type_ == E.ExcitationType.VOLTAGE_FUN:
             for i in indices:
                 points = vertices[i]
                 middle = np.average(points, axis=0)
-                F[i] = value(*middle)
+                for q in range(N_quad):
+                    # TODO: use higher order BEM?
+                    F[N_quad*i + q] = value(*middle)
         elif type_ == E.ExcitationType.DIELECTRIC or \
                 type_ == E.ExcitationType.FLOATING_CONDUCTOR:
-            F[indices] = 0
+            F[all_indices] = 0
     
     # See comments in _add_floating_conductor_constraints_to_matrix
     for i, f in enumerate(floating_names):
@@ -179,24 +192,30 @@ def _add_floating_conductor_constraints_to_matrix(matrix, vertices, names, excit
     assert matrix.shape == (N_matrix, N_matrix)
      
     for i, f in enumerate(floating):
-        for index in names[f]:
-            # An extra unknown voltage is added to the matrix for every floating conductor.
-            # The column related to this unknown voltage is positioned at the rightmost edge of the matrix.
-            # If multiple floating conductors are present the column lives at -len(floating) + i
-            matrix[ index, -len(floating) + i] = -1
-            # The unknown voltage is determined by the constraint on the total charge of the conductor.
-            # This constraint lives at the bottom edge of the matrix.
-            # The surface area of the respective line element (or triangle) is multiplied by the surface charge (unknown)
-            # to arrive at the total specified charge (right hand side).
-            element = vertices[index]
-            matrix[ -len(floating) + i, index] = _area(excitation.mesh.symmetry, element)
+        if excitation.mesh.symmetry == G.Symmetry.THREE_D: 
+            for index in names[f]:
+                # An extra unknown voltage is added to the matrix for every floating conductor.
+                # The column related to this unknown voltage is positioned at the rightmost edge of the matrix.
+                # If multiple floating conductors are present the column lives at -len(floating) + i
+                matrix[ index, -len(floating) + i] = -1
+                # The unknown voltage is determined by the constraint on the total charge of the conductor.
+                # This constraint lives at the bottom edge of the matrix.
+                # The surface area of the respective line element (or triangle) is multiplied by the surface charge (unknown)
+                # to arrive at the total specified charge (right hand side).
+                element = vertices[index]
+                matrix[ -len(floating) + i, index] = _area(excitation.mesh.symmetry, element)
+        elif excitation.mesh.symmetry == G.Symmetry.RADIAL:
+            indices = names[f]
+            backend.add_floating_conductor_constraints_radial(matrix, vertices, indices, i)
+                
 
 def _excitation_to_matrix(excitation, vertices, names):
     floating_names = _get_floating_conductor_names(excitation)
     
     N_floating = len(floating_names)
     N_lines = len(vertices)
-    N_matrix = N_lines + N_floating # Every floating conductor adds one constraint
+    N_quad = _get_N_quad(excitation)
+    N_matrix = N_quad*N_lines + N_floating # Every floating conductor adds one constraint
      
     excitation_types = np.zeros(N_lines, dtype=np.uint8)
     excitation_values = np.zeros(N_lines)
@@ -209,25 +228,23 @@ def _excitation_to_matrix(excitation, vertices, names):
      
     assert np.all(excitation_types != 0)
      
-    print(f&#39;Total number of elements: {N_lines}, symmetry: {excitation.mesh.symmetry}&#39;)
-     
     st = time.time()
-    THREADS = 2
-    
     matrix = np.zeros( (N_matrix, N_matrix) )
-    split = np.array_split(np.arange(N_lines), THREADS)
+    print(f&#39;Number of elements: {N_lines}, size of matrix: {N_matrix} ({matrix.nbytes/1e6:.0f} MB), symmetry: {excitation.mesh.symmetry}&#39;)
      
     fill_fun = backend.fill_matrix_radial if excitation.mesh.symmetry != G.Symmetry.THREE_D else backend.fill_matrix_3d
-    threads = [Thread(target=fill_fun, args=(matrix, vertices, excitation_types, excitation_values, r[0], r[-1])) for r in split]
-     
-    for t in threads:
-        t.start()
-    for t in threads:
-        t.join()
+    
+    def fill_matrix_rows(rows):
+        fill_fun(matrix, vertices, excitation_types, excitation_values, rows[0], rows[-1])
+    
+    util.split_collect(fill_matrix_rows, np.arange(N_lines))    
+
+    # Fill the difficult self voltages
+    print(f&#39;Time for building matrix: {(time.time()-st)*1000:.0f} ms&#39;)
      
     assert np.all(np.isfinite(matrix))
+    
     _add_floating_conductor_constraints_to_matrix(matrix, vertices, names, excitation)
-    print(f&#39;Time for building matrix: {(time.time()-st)*1000:.0f} ms&#39;)
         
     return matrix
 
@@ -235,14 +252,19 @@ def _excitation_to_matrix(excitation, vertices, names):
 def _charges_to_field(excitation, charges, vertices, names):
     floating_names = _get_floating_conductor_names(excitation)
     N_floating = len(floating_names)
-    assert len(charges) == len(vertices) + N_floating
+    N_quad = _get_N_quad(excitation)
+     
+    assert len(charges) == N_quad*len(vertices) + N_floating
     
     floating_voltages = {n:charges[-N_floating+i] for i, n in enumerate(floating_names)}
     if N_floating &gt; 0:
         charges = charges[:-N_floating]
      
-    assert len(charges) == len(vertices)
-      
+    assert len(charges) == N_quad*len(vertices)
+
+    if N_quad &gt; 1:
+        charges = np.reshape(charges, (len(vertices), N_quad))
+     
     field_class = FieldRadialBEM if excitation.mesh.symmetry != G.Symmetry.THREE_D else Field3D_BEM
     return field_class(vertices, charges, floating_voltages=floating_voltages)
     
@@ -278,7 +300,6 @@ def solve_bem(excitation, superposition=False):
     if not superposition:
         matrix = _excitation_to_matrix(excitation, vertices, names)
         F = _excitation_to_right_hand_side(excitation, vertices, names)
-        
         st = time.time()
         charges = np.linalg.solve(matrix, F)
         assert np.all(np.isfinite(charges))
@@ -380,7 +401,7 @@ class FieldRadialBEM(FieldBEM):
     
     def __init__(self, vertices, charges, floating_voltages={}):
         super().__init__(vertices, charges, floating_voltages)
-        assert vertices.shape == (len(charges), 2, 3)
+        assert vertices.shape == (len(charges), 4, 3)
         
     def field_at_point(self, point):
         &#34;&#34;&#34;
@@ -420,16 +441,16 @@ class FieldRadialBEM(FieldBEM):
          
         Parameters
         ----------
-        z : float
-            Position on the optical axis at which to compute the derivatives.
+        z : (N,) np.ndarray of float64
+            Positions on the optical axis at which to compute the derivatives.
         
 
         Returns
         ------- 
-        Numpy array containing the derivatives. At index i one finds the i-th derivative (so
+        Numpy array of shape (N, 9) containing the derivatives. At index i one finds the i-th derivative (so
         at position 0 the potential itself is returned). The highest derivative returned is a 
         constant currently set to 9.&#34;&#34;&#34;
-        return backend.axial_derivatives_radial_ring(z, self.vertices, self.charges).T
+        return backend.axial_derivatives_radial_ring(z, self.vertices, self.charges)
      
     def axial_derivative_interpolation(self, zmin, zmax, N=None):
         &#34;&#34;&#34;
@@ -459,11 +480,29 @@ class FieldRadialBEM(FieldBEM):
         z = np.linspace(zmin, zmax, N)
         
         st = time.time()
-        derivs = self.get_axial_potential_derivatives(z)
-        coeffs = _quintic_spline_coefficients(z, derivs)
+        derivs = np.concatenate(util.split_collect(self.get_axial_potential_derivatives, z), axis=0)
+        coeffs = _quintic_spline_coefficients(z, derivs.T)
         print(f&#39;Computing derivative interpolation took {(time.time()-st)*1000:.2f} ms ({len(z)} items)&#39;)
         
         return FieldRadialAxial(z, coeffs)
+
+    def _charge_on_index(self, i):
+        return backend.charge_radial(self.vertices[i], self.charges[i])
+
+    def charge_on_elements(self, indices):
+        &#34;&#34;&#34;Compute the sum of the charges present on the elements with the given indices. To
+        get the total charge of a physical group use `names[&#39;name&#39;]` for indices where `names` 
+        is returned by `traceon.excitation.Excitation.get_active_elements()`.
+
+        Parameters
+        ----------
+        indices: (N,) array of int
+            indices of the elements contributing to the charge sum. 
+         
+        Returns
+        -------
+        The sum of the charge. See the note about units on the front page.&#34;&#34;&#34;
+        return sum(self._charge_on_index(i) for i in indices)
 
 class Field3D_BEM(FieldBEM):
     &#34;&#34;&#34;An electrostatic field resulting from a general 3D geometry. The field is a result of the surface charges as computed by the
@@ -535,7 +574,8 @@ class Field3D_BEM(FieldBEM):
         
         print(f&#39;Number of points on z-axis: {len(z)}&#39;)
         st = time.time()
-        coeffs = backend.axial_coefficients_3d(self.vertices, self.charges, z, thetas, thetas_interpolation_coefficients)
+        coeffs = util.split_collect(lambda z: backend.axial_coefficients_3d(self.vertices, self.charges, z, thetas, thetas_interpolation_coefficients), z)
+        coeffs = np.concatenate(coeffs, axis=0)
         interpolated_coeffs = CubicSpline(z, coeffs).c
         interpolated_coeffs = np.moveaxis(interpolated_coeffs, 0, -1)
         interpolated_coeffs = np.require(interpolated_coeffs, requirements=(&#39;C_CONTIGUOUS&#39;, &#39;ALIGNED&#39;))
@@ -734,7 +774,6 @@ are the physical groups with unity excitation, and the values are the resulting 
     if not superposition:
         matrix = _excitation_to_matrix(excitation, vertices, names)
         F = _excitation_to_right_hand_side(excitation, vertices, names)
-        
         st = time.time()
         charges = np.linalg.solve(matrix, F)
         assert np.all(np.isfinite(charges))
@@ -986,7 +1025,8 @@ are the physical groups with unity excitation, and the values are the resulting 
         
         print(f&#39;Number of points on z-axis: {len(z)}&#39;)
         st = time.time()
-        coeffs = backend.axial_coefficients_3d(self.vertices, self.charges, z, thetas, thetas_interpolation_coefficients)
+        coeffs = util.split_collect(lambda z: backend.axial_coefficients_3d(self.vertices, self.charges, z, thetas, thetas_interpolation_coefficients), z)
+        coeffs = np.concatenate(coeffs, axis=0)
         interpolated_coeffs = CubicSpline(z, coeffs).c
         interpolated_coeffs = np.moveaxis(interpolated_coeffs, 0, -1)
         interpolated_coeffs = np.require(interpolated_coeffs, requirements=(&#39;C_CONTIGUOUS&#39;, &#39;ALIGNED&#39;))
@@ -1055,7 +1095,8 @@ is determined by taking into account the number of elements in the mesh.</dd>
     
     print(f&#39;Number of points on z-axis: {len(z)}&#39;)
     st = time.time()
-    coeffs = backend.axial_coefficients_3d(self.vertices, self.charges, z, thetas, thetas_interpolation_coefficients)
+    coeffs = util.split_collect(lambda z: backend.axial_coefficients_3d(self.vertices, self.charges, z, thetas, thetas_interpolation_coefficients), z)
+    coeffs = np.concatenate(coeffs, axis=0)
     interpolated_coeffs = CubicSpline(z, coeffs).c
     interpolated_coeffs = np.moveaxis(interpolated_coeffs, 0, -1)
     interpolated_coeffs = np.require(interpolated_coeffs, requirements=(&#39;C_CONTIGUOUS&#39;, &#39;ALIGNED&#39;))
@@ -1401,7 +1442,7 @@ This base class overloads the +,*,- operators so it is very easy to take a super
     
     def __init__(self, vertices, charges, floating_voltages={}):
         super().__init__(vertices, charges, floating_voltages)
-        assert vertices.shape == (len(charges), 2, 3)
+        assert vertices.shape == (len(charges), 4, 3)
         
     def field_at_point(self, point):
         &#34;&#34;&#34;
@@ -1441,16 +1482,16 @@ This base class overloads the +,*,- operators so it is very easy to take a super
          
         Parameters
         ----------
-        z : float
-            Position on the optical axis at which to compute the derivatives.
+        z : (N,) np.ndarray of float64
+            Positions on the optical axis at which to compute the derivatives.
         
 
         Returns
         ------- 
-        Numpy array containing the derivatives. At index i one finds the i-th derivative (so
+        Numpy array of shape (N, 9) containing the derivatives. At index i one finds the i-th derivative (so
         at position 0 the potential itself is returned). The highest derivative returned is a 
         constant currently set to 9.&#34;&#34;&#34;
-        return backend.axial_derivatives_radial_ring(z, self.vertices, self.charges).T
+        return backend.axial_derivatives_radial_ring(z, self.vertices, self.charges)
      
     def axial_derivative_interpolation(self, zmin, zmax, N=None):
         &#34;&#34;&#34;
@@ -1480,11 +1521,29 @@ This base class overloads the +,*,- operators so it is very easy to take a super
         z = np.linspace(zmin, zmax, N)
         
         st = time.time()
-        derivs = self.get_axial_potential_derivatives(z)
-        coeffs = _quintic_spline_coefficients(z, derivs)
+        derivs = np.concatenate(util.split_collect(self.get_axial_potential_derivatives, z), axis=0)
+        coeffs = _quintic_spline_coefficients(z, derivs.T)
         print(f&#39;Computing derivative interpolation took {(time.time()-st)*1000:.2f} ms ({len(z)} items)&#39;)
         
-        return FieldRadialAxial(z, coeffs)</code></pre>
+        return FieldRadialAxial(z, coeffs)
+
+    def _charge_on_index(self, i):
+        return backend.charge_radial(self.vertices[i], self.charges[i])
+
+    def charge_on_elements(self, indices):
+        &#34;&#34;&#34;Compute the sum of the charges present on the elements with the given indices. To
+        get the total charge of a physical group use `names[&#39;name&#39;]` for indices where `names` 
+        is returned by `traceon.excitation.Excitation.get_active_elements()`.
+
+        Parameters
+        ----------
+        indices: (N,) array of int
+            indices of the elements contributing to the charge sum. 
+         
+        Returns
+        -------
+        The sum of the charge. See the note about units on the front page.&#34;&#34;&#34;
+        return sum(self._charge_on_index(i) for i in indices)</code></pre>
 </details>
 <h3>Ancestors</h3>
 <ul class="hlist">
@@ -1544,11 +1603,45 @@ is determined by taking into account the number of elements in the mesh.</dd>
     z = np.linspace(zmin, zmax, N)
     
     st = time.time()
-    derivs = self.get_axial_potential_derivatives(z)
-    coeffs = _quintic_spline_coefficients(z, derivs)
+    derivs = np.concatenate(util.split_collect(self.get_axial_potential_derivatives, z), axis=0)
+    coeffs = _quintic_spline_coefficients(z, derivs.T)
     print(f&#39;Computing derivative interpolation took {(time.time()-st)*1000:.2f} ms ({len(z)} items)&#39;)
     
     return FieldRadialAxial(z, coeffs)</code></pre>
+</details>
+</dd>
+<dt id="traceon.solver.FieldRadialBEM.charge_on_elements"><code class="name flex">
+<span>def <span class="ident">charge_on_elements</span></span>(<span>self, indices)</span>
+</code></dt>
+<dd>
+<div class="desc"><p>Compute the sum of the charges present on the elements with the given indices. To
+get the total charge of a physical group use <code>names['name']</code> for indices where <code>names</code>
+is returned by <code><a title="traceon.excitation.Excitation.get_active_elements" href="excitation.html#traceon.excitation.Excitation.get_active_elements">Excitation.get_active_elements()</a></code>.</p>
+<h2 id="parameters">Parameters</h2>
+<dl>
+<dt><strong><code>indices</code></strong> :&ensp;<code>(N,) array</code> of <code>int</code></dt>
+<dd>indices of the elements contributing to the charge sum.</dd>
+</dl>
+<h2 id="returns">Returns</h2>
+<p>The sum of the charge. See the note about units on the front page.</p></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def charge_on_elements(self, indices):
+    &#34;&#34;&#34;Compute the sum of the charges present on the elements with the given indices. To
+    get the total charge of a physical group use `names[&#39;name&#39;]` for indices where `names` 
+    is returned by `traceon.excitation.Excitation.get_active_elements()`.
+
+    Parameters
+    ----------
+    indices: (N,) array of int
+        indices of the elements contributing to the charge sum. 
+     
+    Returns
+    -------
+    The sum of the charge. See the note about units on the front page.&#34;&#34;&#34;
+    return sum(self._charge_on_index(i) for i in indices)</code></pre>
 </details>
 </dd>
 <dt id="traceon.solver.FieldRadialBEM.field_at_point"><code class="name flex">
@@ -1591,11 +1684,11 @@ is determined by taking into account the number of elements in the mesh.</dd>
 <div class="desc"><p>Compute the derivatives of the potential at a point on the optical axis (z-axis). </p>
 <h2 id="parameters">Parameters</h2>
 <dl>
-<dt><strong><code>z</code></strong> :&ensp;<code>float</code></dt>
-<dd>Position on the optical axis at which to compute the derivatives.</dd>
+<dt><strong><code>z</code></strong> :&ensp;<code>(N,) np.ndarray</code> of <code>float64</code></dt>
+<dd>Positions on the optical axis at which to compute the derivatives.</dd>
 </dl>
 <h2 id="returns">Returns</h2>
-<p>Numpy array containing the derivatives. At index i one finds the i-th derivative (so
+<p>Numpy array of shape (N, 9) containing the derivatives. At index i one finds the i-th derivative (so
 at position 0 the potential itself is returned). The highest derivative returned is a
 constant currently set to 9.</p></div>
 <details class="source">
@@ -1608,16 +1701,16 @@ constant currently set to 9.</p></div>
      
     Parameters
     ----------
-    z : float
-        Position on the optical axis at which to compute the derivatives.
+    z : (N,) np.ndarray of float64
+        Positions on the optical axis at which to compute the derivatives.
     
 
     Returns
     ------- 
-    Numpy array containing the derivatives. At index i one finds the i-th derivative (so
+    Numpy array of shape (N, 9) containing the derivatives. At index i one finds the i-th derivative (so
     at position 0 the potential itself is returned). The highest derivative returned is a 
     constant currently set to 9.&#34;&#34;&#34;
-    return backend.axial_derivatives_radial_ring(z, self.vertices, self.charges).T</code></pre>
+    return backend.axial_derivatives_radial_ring(z, self.vertices, self.charges)</code></pre>
 </details>
 </dd>
 <dt id="traceon.solver.FieldRadialBEM.potential_at_point"><code class="name flex">
@@ -1717,6 +1810,7 @@ constant currently set to 9.</p></div>
 <h4><code><a title="traceon.solver.FieldRadialBEM" href="#traceon.solver.FieldRadialBEM">FieldRadialBEM</a></code></h4>
 <ul class="">
 <li><code><a title="traceon.solver.FieldRadialBEM.axial_derivative_interpolation" href="#traceon.solver.FieldRadialBEM.axial_derivative_interpolation">axial_derivative_interpolation</a></code></li>
+<li><code><a title="traceon.solver.FieldRadialBEM.charge_on_elements" href="#traceon.solver.FieldRadialBEM.charge_on_elements">charge_on_elements</a></code></li>
 <li><code><a title="traceon.solver.FieldRadialBEM.field_at_point" href="#traceon.solver.FieldRadialBEM.field_at_point">field_at_point</a></code></li>
 <li><code><a title="traceon.solver.FieldRadialBEM.get_axial_potential_derivatives" href="#traceon.solver.FieldRadialBEM.get_axial_potential_derivatives">get_axial_potential_derivatives</a></code></li>
 <li><code><a title="traceon.solver.FieldRadialBEM.potential_at_point" href="#traceon.solver.FieldRadialBEM.potential_at_point">potential_at_point</a></code></li>

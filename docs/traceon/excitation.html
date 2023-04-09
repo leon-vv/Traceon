@@ -57,6 +57,7 @@ from enum import IntEnum
 import numpy as np
 
 from .geometry import Symmetry
+from .backend import N_QUAD_2D
 
 class ExcitationType(IntEnum):
     &#34;&#34;&#34;Possible excitation that can be applied to elements of the geometry. See the methods of `Excitation` for documentation.&#34;&#34;&#34;
@@ -146,7 +147,7 @@ class Excitation:
         if self.mesh.symmetry == Symmetry.THREE_D:
             return &#39;triangle&#39;
         else:
-            return &#39;line&#39;
+            return &#39;line4&#39;
     
         
     def _split_for_superposition(self):
@@ -185,8 +186,10 @@ class Excitation:
     
         Returns
         --------
-        A tuple of two elements: (points, names). points is a Numpy array of shape (N, 2, 3) in the case of 2D and (N, 3, 3) in the case of 3D. \
+        A tuple of two elements: (points, names). points is a Numpy array of shape (N, 4, 3) in the case of 2D and (N, 3, 3) in the case of 3D. \
         This array contains the vertices of the line elements or the triangles. \
+        Multiple points per line elements are used in the case of 2D since higher order BEM is employed, in which the true position on the line \
+        element is given by a polynomial interpolation of the points. \
         names is a dictionary, the keys being the names of the physical groups mentioned by this excitation, \
         while the values are Numpy arrays of indices that can be used to index the points array.
         &#34;&#34;&#34;
@@ -218,6 +221,17 @@ class Excitation:
         mesh = self.mesh.mesh
         
         return sum(len(mesh.cell_sets_dict[n][type_]) for n in self.excitation_types.keys())
+
+    def get_number_of_matrix_elements(self):
+        
+        Nfloating = len([name for name, (type_, _) in self.excitation_types.items() if type_ == ExcitationType.FLOATING_CONDUCTOR])
+        Nelem = self.get_number_of_active_elements()
+         
+        if self.mesh.symmetry == Symmetry.RADIAL:
+            return Nelem*N_QUAD_2D + Nfloating
+        elif self.mesh.symmetry == Symmetry.THREE_D:
+            return Nelem + Nfloating
+
 
 
         </code></pre>
@@ -312,7 +326,7 @@ class Excitation:
         if self.mesh.symmetry == Symmetry.THREE_D:
             return &#39;triangle&#39;
         else:
-            return &#39;line&#39;
+            return &#39;line4&#39;
     
         
     def _split_for_superposition(self):
@@ -351,8 +365,10 @@ class Excitation:
     
         Returns
         --------
-        A tuple of two elements: (points, names). points is a Numpy array of shape (N, 2, 3) in the case of 2D and (N, 3, 3) in the case of 3D. \
+        A tuple of two elements: (points, names). points is a Numpy array of shape (N, 4, 3) in the case of 2D and (N, 3, 3) in the case of 3D. \
         This array contains the vertices of the line elements or the triangles. \
+        Multiple points per line elements are used in the case of 2D since higher order BEM is employed, in which the true position on the line \
+        element is given by a polynomial interpolation of the points. \
         names is a dictionary, the keys being the names of the physical groups mentioned by this excitation, \
         while the values are Numpy arrays of indices that can be used to index the points array.
         &#34;&#34;&#34;
@@ -383,7 +399,17 @@ class Excitation:
         type_ = self._get_element_type()
         mesh = self.mesh.mesh
         
-        return sum(len(mesh.cell_sets_dict[n][type_]) for n in self.excitation_types.keys())</code></pre>
+        return sum(len(mesh.cell_sets_dict[n][type_]) for n in self.excitation_types.keys())
+
+    def get_number_of_matrix_elements(self):
+        
+        Nfloating = len([name for name, (type_, _) in self.excitation_types.items() if type_ == ExcitationType.FLOATING_CONDUCTOR])
+        Nelem = self.get_number_of_active_elements()
+         
+        if self.mesh.symmetry == Symmetry.RADIAL:
+            return Nelem*N_QUAD_2D + Nfloating
+        elif self.mesh.symmetry == Symmetry.THREE_D:
+            return Nelem + Nfloating</code></pre>
 </details>
 <h3>Methods</h3>
 <dl>
@@ -498,8 +524,10 @@ Note that in 2D symmetries (such as radial symmetry) the z value for this functi
 <div class="desc"><p>Get elements in the mesh that are active, in the sense that
 an excitation to them has been applied. </p>
 <h2 id="returns">Returns</h2>
-<p>A tuple of two elements: (points, names). points is a Numpy array of shape (N, 2, 3) in the case of 2D and (N, 3, 3) in the case of 3D.
+<p>A tuple of two elements: (points, names). points is a Numpy array of shape (N, 4, 3) in the case of 2D and (N, 3, 3) in the case of 3D.
 This array contains the vertices of the line elements or the triangles.
+Multiple points per line elements are used in the case of 2D since higher order BEM is employed, in which the true position on the line
+element is given by a polynomial interpolation of the points.
 names is a dictionary, the keys being the names of the physical groups mentioned by this excitation,
 while the values are Numpy arrays of indices that can be used to index the points array.</p></div>
 <details class="source">
@@ -512,8 +540,10 @@ while the values are Numpy arrays of indices that can be used to index the point
 
     Returns
     --------
-    A tuple of two elements: (points, names). points is a Numpy array of shape (N, 2, 3) in the case of 2D and (N, 3, 3) in the case of 3D. \
+    A tuple of two elements: (points, names). points is a Numpy array of shape (N, 4, 3) in the case of 2D and (N, 3, 3) in the case of 3D. \
     This array contains the vertices of the line elements or the triangles. \
+    Multiple points per line elements are used in the case of 2D since higher order BEM is employed, in which the true position on the line \
+    element is given by a polynomial interpolation of the points. \
     names is a dictionary, the keys being the names of the physical groups mentioned by this excitation, \
     while the values are Numpy arrays of indices that can be used to index the points array.
     &#34;&#34;&#34;
@@ -559,6 +589,26 @@ array returned by the <code><a title="traceon.excitation.Excitation.get_active_e
     mesh = self.mesh.mesh
     
     return sum(len(mesh.cell_sets_dict[n][type_]) for n in self.excitation_types.keys())</code></pre>
+</details>
+</dd>
+<dt id="traceon.excitation.Excitation.get_number_of_matrix_elements"><code class="name flex">
+<span>def <span class="ident">get_number_of_matrix_elements</span></span>(<span>self)</span>
+</code></dt>
+<dd>
+<div class="desc"></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def get_number_of_matrix_elements(self):
+    
+    Nfloating = len([name for name, (type_, _) in self.excitation_types.items() if type_ == ExcitationType.FLOATING_CONDUCTOR])
+    Nelem = self.get_number_of_active_elements()
+     
+    if self.mesh.symmetry == Symmetry.RADIAL:
+        return Nelem*N_QUAD_2D + Nfloating
+    elif self.mesh.symmetry == Symmetry.THREE_D:
+        return Nelem + Nfloating</code></pre>
 </details>
 </dd>
 </dl>
@@ -640,6 +690,7 @@ array returned by the <code><a title="traceon.excitation.Excitation.get_active_e
 <li><code><a title="traceon.excitation.Excitation.add_voltage" href="#traceon.excitation.Excitation.add_voltage">add_voltage</a></code></li>
 <li><code><a title="traceon.excitation.Excitation.get_active_elements" href="#traceon.excitation.Excitation.get_active_elements">get_active_elements</a></code></li>
 <li><code><a title="traceon.excitation.Excitation.get_number_of_active_elements" href="#traceon.excitation.Excitation.get_number_of_active_elements">get_number_of_active_elements</a></code></li>
+<li><code><a title="traceon.excitation.Excitation.get_number_of_matrix_elements" href="#traceon.excitation.Excitation.get_number_of_matrix_elements">get_number_of_matrix_elements</a></code></li>
 </ul>
 </li>
 <li>
