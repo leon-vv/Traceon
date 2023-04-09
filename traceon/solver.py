@@ -426,9 +426,23 @@ class FieldRadialBEM(FieldBEM):
         
         return FieldRadialAxial(z, coeffs)
 
-    def charge_on_element(self, i):
+    def _charge_on_index(self, i):
         return backend.charge_radial(self.vertices[i], self.charges[i])
 
+    def charge_on_elements(self, indices):
+        """Compute the sum of the charges present on the elements with the given indices. To
+        get the total charge of a physical group use `names['name']` for indices where `names` 
+        is returned by `traceon.excitation.Excitation.get_active_elements()`.
+
+        Parameters
+        ----------
+        indices: (N,) array of int
+            indices of the elements contributing to the charge sum. 
+         
+        Returns
+        -------
+        The sum of the charge. See the note about units on the front page."""
+        return sum(self._charge_on_index(i) for i in indices)
 
 class Field3D_BEM(FieldBEM):
     """An electrostatic field resulting from a general 3D geometry. The field is a result of the surface charges as computed by the

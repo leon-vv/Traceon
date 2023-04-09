@@ -77,17 +77,14 @@ def compute_error(geom):
     Q = {}
 
     _, names = exc.get_active_elements()
-     
-    for n, v in names.items():
-        Q[n] = 0
-        
-        # TODO: really we need a backend function to
-        # compute couloumb charges.
-        for index, vs, charge in zip(v, vertices[v], charges[v]):
+    
+    if geom.symmetry == G.Symmetry.RADIAL:
+        Q = {n:field.charge_on_elements(i) for n, i in names.items()}
+    else:
+        for n, v in names.items():
+            Q[n] = 0
              
-            if geom.symmetry == G.Symmetry.RADIAL:
-                Q[n] += field.charge_on_element(index)
-            elif geom.symmetry == G.Symmetry.THREE_D:
+            for index, vs, charge in zip(v, vertices[v], charges[v]):
                 v1, v2, v3 = vs
                 area = 1/2*np.linalg.norm(np.cross(v2-v1, v3-v1))
                 Q[n] += charge * area
