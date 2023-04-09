@@ -82,6 +82,7 @@ electron has at z0=15mm after reflection of the Dohi mirror, see:
 H. Dohi, P. Kruit. Design for an aberration corrected scanning electron microscope using
 miniature electron mirrors. 2018.
 '''
-util.parse_validation_args(create_geometry, compute_error, mirror='brown', lens='blue', ground='green')
+util.parse_validation_args(create_geometry, compute_error, mirror='brown', lens='blue', ground='green',
+    MSF={'radial': [100, 150, 200, 250], '3d': [50, 100, 200, 300]})
 
 
