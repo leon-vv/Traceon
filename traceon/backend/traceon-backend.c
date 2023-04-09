@@ -197,6 +197,9 @@ EXPORT void inline position_and_jacobian_radial(double alpha, double *v1, double
 	*jac = 1/16. * sqrt(pow(2*alpha*(9*v4y-9*v3y-9*v2y+9*v1y)+3*a2*(9*v4y-27*v3y+27*v2y-9*v1y)-v4y+27*v3y-27*v2y+v1y, 2) +pow(2*alpha*(9*v4x-9*v3x-9*v2x+9*v1x)+3*a2*(9*v4x-27*v3x+27*v2x-9*v1x)-v4x+27*v3x-27*v2x+v1x, 2));
 }
 
+typedef double (*integration_cb_2d)(double, double, double, double, void*);
+typedef double (*vertices_2d)[4][3];
+
 //////////////////////////////// UTILITIES 3D
 
 
@@ -433,10 +436,9 @@ const double GAUSS_QUAD_WEIGHTS[N_QUAD_2D] = {0.6521451548625461, 0.652145154862
 
 
 EXPORT void
-axial_derivatives_radial_ring(double *derivs_p, double *lines_p, double *charges_p, size_t N_lines, double *z, size_t N_z) {
+axial_derivatives_radial_ring(double *derivs_p, vertices_2d lines, double *charges_p, size_t N_lines, double *z, size_t N_z) {
 
 	double (*derivs)[9] = (double (*)[9]) derivs_p;	
-	double (*lines)[4][3] = (double (*)[4][3]) lines_p;
 	double (*charges)[N_QUAD_2D] = (double (*)[N_QUAD_2D]) charges_p;
 	
 	for(int i = 0; i < N_z; i++) 
@@ -506,10 +508,9 @@ const double GAUSS_LOG_QUAD_WEIGHTS[N_LOG_QUAD_2D] =
 
 
 EXPORT double
-potential_radial(double point[3], double *vertices_p, double *charges_p, size_t N_vertices) {
+potential_radial(double point[3], vertices_2d vertices, double *charges_p, size_t N_vertices) {
 
 	double (*charges)[N_QUAD_2D] = (double (*)[N_QUAD_2D]) charges_p;	
-	double (*vertices)[4][3] = (double (*)[4][3]) vertices_p;
 	
 	double sum_ = 0.0;
 	
@@ -607,9 +608,8 @@ charge_radial(double *vertices_p, double *charges_p) {
 }
 
 EXPORT void
-field_radial(double point[3], double result[3], double *vertices_p, double *charges_p, size_t N_vertices) {
-
-	double (*vertices)[4][3] = (double (*)[4][3]) vertices_p;	
+field_radial(double point[3], double result[3], vertices_2d vertices, double *charges_p, size_t N_vertices) {
+	
 	double (*charges)[N_QUAD_2D] = (double (*)[N_QUAD_2D]) charges_p;
 	
 	double Ex = 0.0, Ey = 0.0;
@@ -644,7 +644,7 @@ void
 field_radial_traceable(double point[3], double result[3], void *args_p) {
 
 	struct field_evaluation_args *args = (struct field_evaluation_args*)args_p;
-	field_radial(point, result, args->vertices, args->charges, args->N_vertices);
+	field_radial(point, result, (vertices_2d) args->vertices, args->charges, args->N_vertices);
 }
 
 EXPORT size_t
@@ -1020,7 +1020,6 @@ double legendre_log_weight(int k, int l, double legendre_arg) {
 	return sum_;
 }
 
-typedef double (*integration_cb_2d)(double, double, double, double, void*);
 
 double log_integral(
 	double *v1,
@@ -1079,7 +1078,7 @@ double log_integral(
 }
 
 void fill_self_voltages(double *matrix, 
-                        double *line_points_p, 
+                        vertices_2d line_points,
 						uint8_t *excitation_types,
 						double *excitation_values,
 						size_t N_lines,
@@ -1087,8 +1086,6 @@ void fill_self_voltages(double *matrix,
                         int lines_range_start, 
                         int lines_range_end) {
 	 
-	double (*line_points)[4][3] = (double (*)[4][3]) line_points_p;
-	
 	for(int i = lines_range_start; i <= lines_range_end; i++) {
 		
 		double *v1 = &line_points[i][0][0];
@@ -1129,7 +1126,7 @@ void fill_self_voltages(double *matrix,
 
 
 EXPORT void fill_matrix_radial(double *matrix, 
-                        double *line_points_p, 
+						vertices_2d line_points,
                         uint8_t *excitation_types, 
                         double *excitation_values, 
 						size_t N_lines,
@@ -1139,7 +1136,6 @@ EXPORT void fill_matrix_radial(double *matrix,
     
 	assert(lines_range_start < N_lines && lines_range_end < N_lines);
 	assert(N_matrix == N_QUAD_2D*N_lines);
-	double (*line_points)[4][3] = (double (*)[4][3]) line_points_p;
 		
     for (int i = lines_range_start; i <= lines_range_end; i++) {
 		
@@ -1211,7 +1207,7 @@ EXPORT void fill_matrix_radial(double *matrix,
 		}
 	}
 	
-	fill_self_voltages(matrix, line_points_p, excitation_types, excitation_values, N_lines, N_matrix, lines_range_start, lines_range_end);
+	fill_self_voltages(matrix, line_points, excitation_types, excitation_values, N_lines, N_matrix, lines_range_start, lines_range_end);
 }
 
 EXPORT void fill_matrix_3d(double *matrix, 
