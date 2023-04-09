@@ -17,6 +17,7 @@ from enum import IntEnum
 import numpy as np
 
 from .geometry import Symmetry
+from .backend import N_QUAD_2D
 
 class ExcitationType(IntEnum):
     """Possible excitation that can be applied to elements of the geometry. See the methods of `Excitation` for documentation."""
@@ -106,7 +107,7 @@ class Excitation:
         if self.mesh.symmetry == Symmetry.THREE_D:
             return 'triangle'
         else:
-            return 'line'
+            return 'line4'
     
         
     def _split_for_superposition(self):
@@ -178,6 +179,17 @@ class Excitation:
         mesh = self.mesh.mesh
         
         return sum(len(mesh.cell_sets_dict[n][type_]) for n in self.excitation_types.keys())
+
+    def get_number_of_matrix_elements(self):
+        
+        Nfloating = len([name for name, (type_, _) in self.excitation_types.items() if type_ == ExcitationType.FLOATING_CONDUCTOR])
+        Nelem = self.get_number_of_active_elements()
+         
+        if self.mesh.symmetry == Symmetry.RADIAL:
+            return Nelem*N_QUAD_2D + Nfloating
+        elif self.mesh.symmetry == Symmetry.THREE_D:
+            return Nelem + Nfloating
+
 
 
         

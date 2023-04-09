@@ -43,8 +43,8 @@ def create_geometry(MSF, symmetry, for_plot):
                 return arcs
         
         l1 = add_shell(r1)
-        d1 = add_shell(r3, reorient=False, factor=0.7 if for_plot else 1.0)
-        d2 = add_shell(r4, reorient=True, factor=0.5 if for_plot else 1.0)
+        d1 = add_shell(r3, reorient=symmetry == G.Symmetry.RADIAL, factor=0.7 if for_plot else 1.0)
+        d2 = add_shell(r4, reorient=symmetry != G.Symmetry.RADIAL, factor=0.5 if for_plot else 1.0)
         l2 = add_shell(r2, factor=0.3 if for_plot else 1.0)
         
         geom.add_physical(l1, 'inner')
@@ -81,14 +81,12 @@ def compute_error(geom):
     for n, v in names.items():
         Q[n] = 0
         
-        for vs, charge in zip(vertices[v], charges[v]):
-            
+        # TODO: really we need a backend function to
+        # compute couloumb charges.
+        for index, vs, charge in zip(v, vertices[v], charges[v]):
+             
             if geom.symmetry == G.Symmetry.RADIAL:
-                v1, v2 = vs
-                length = np.linalg.norm(v1 - v2)
-                middle = (v1 + v2)/2
-                # Take into account surface area of entire ring
-                Q[n] += charge * length*2*np.pi*middle[0]
+                Q[n] += field.charge_on_element(index)
             elif geom.symmetry == G.Symmetry.THREE_D:
                 v1, v2, v3 = vs
                 area = 1/2*np.linalg.norm(np.cross(v2-v1, v3-v1))
@@ -96,10 +94,10 @@ def compute_error(geom):
     
     expected = 4/( (1/r1 - 1/r3) + (1/r3 - 1/r4)/K + (1/r4 - 1/r2))
     capacitance = (abs(Q['outer']) + abs(Q['inner']))/2
-    print('Capacitance found: %.4f' % capacitance)
-    print('Capacitance expected: %.4f' % expected)
+    print('Capacitance found: \t%.6f' % capacitance)
+    print('Capacitance expected: \t%.6f' % expected)
     error = abs(capacitance/expected - 1)
-    return len(vertices), error
+    return exc, error
 
 util.parser.description = '''Compute the capacitance of two concentric spheres with a layer of dielectric material in between.'''
 util.parse_validation_args(create_geometry, compute_error, inner='blue', outer='darkblue', dielectric='green')

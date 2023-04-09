@@ -46,6 +46,8 @@ import os.path as path
 
 import numpy as np
 from scipy.interpolate import CubicSpline, BPoly, PPoly
+from scipy.special import legendre
+from scipy.integrate import quad
 
 from . import geometry as G
 from . import excitation as E
@@ -70,6 +72,12 @@ thetas_interpolation_coefficients = np.load(coefficients_file)
 
 assert thetas_interpolation_coefficients.shape == (thetas.size-1, backend.NU_MAX, backend.M_MAX, 4)
 
+def _get_N_quad(exc):
+    if exc.mesh.symmetry == G.Symmetry.RADIAL:
+        return backend.N_QUAD_2D
+    elif exc.mesh.symmetry == G.Symmetry.THREE_D:
+        return 1
+
 def _get_floating_conductor_names(exc):
     return [n for n, (t, v) in exc.excitation_types.items() if t == E.ExcitationType.FLOATING_CONDUCTOR]
 
@@ -78,23 +86,28 @@ def _excitation_to_right_hand_side(excitation, vertices, names):
      
     N_floating = len(floating_names)
     N_lines = len(vertices)
-    N_matrix = N_lines + N_floating # Every floating conductor adds one constraint
+    N_quad = _get_N_quad(excitation)
+    N_matrix = N_quad*N_lines + N_floating # Every floating conductor adds one constraint
 
     F = np.zeros( (N_matrix) )
      
     for name, indices in names.items():
         type_, value  = excitation.excitation_types[name]
+
+        all_indices = np.concatenate( [N_quad*indices + i for i in range(N_quad)] )
          
         if type_ == E.ExcitationType.VOLTAGE_FIXED:
-            F[indices] = value
+            F[all_indices] = value
         elif type_ == E.ExcitationType.VOLTAGE_FUN:
             for i in indices:
                 points = vertices[i]
                 middle = np.average(points, axis=0)
-                F[i] = value(*middle)
+                for q in range(N_quad):
+                    # TODO: use higher order BEM?
+                    F[N_quad*i + q] = value(*middle)
         elif type_ == E.ExcitationType.DIELECTRIC or \
                 type_ == E.ExcitationType.FLOATING_CONDUCTOR:
-            F[indices] = 0
+            F[all_indices] = 0
     
     # See comments in _add_floating_conductor_constraints_to_matrix
     for i, f in enumerate(floating_names):
@@ -119,24 +132,30 @@ def _add_floating_conductor_constraints_to_matrix(matrix, vertices, names, excit
     assert matrix.shape == (N_matrix, N_matrix)
      
     for i, f in enumerate(floating):
-        for index in names[f]:
-            # An extra unknown voltage is added to the matrix for every floating conductor.
-            # The column related to this unknown voltage is positioned at the rightmost edge of the matrix.
-            # If multiple floating conductors are present the column lives at -len(floating) + i
-            matrix[ index, -len(floating) + i] = -1
-            # The unknown voltage is determined by the constraint on the total charge of the conductor.
-            # This constraint lives at the bottom edge of the matrix.
-            # The surface area of the respective line element (or triangle) is multiplied by the surface charge (unknown)
-            # to arrive at the total specified charge (right hand side).
-            element = vertices[index]
-            matrix[ -len(floating) + i, index] = _area(excitation.mesh.symmetry, element)
+        if excitation.mesh.symmetry == G.Symmetry.THREE_D: 
+            for index in names[f]:
+                # An extra unknown voltage is added to the matrix for every floating conductor.
+                # The column related to this unknown voltage is positioned at the rightmost edge of the matrix.
+                # If multiple floating conductors are present the column lives at -len(floating) + i
+                matrix[ index, -len(floating) + i] = -1
+                # The unknown voltage is determined by the constraint on the total charge of the conductor.
+                # This constraint lives at the bottom edge of the matrix.
+                # The surface area of the respective line element (or triangle) is multiplied by the surface charge (unknown)
+                # to arrive at the total specified charge (right hand side).
+                element = vertices[index]
+                matrix[ -len(floating) + i, index] = _area(excitation.mesh.symmetry, element)
+        elif excitation.mesh.symmetry == G.Symmetry.RADIAL:
+            indices = names[f]
+            backend.add_floating_conductor_constraints_radial(matrix, vertices, indices, i)
+                
 
 def _excitation_to_matrix(excitation, vertices, names):
     floating_names = _get_floating_conductor_names(excitation)
     
     N_floating = len(floating_names)
     N_lines = len(vertices)
-    N_matrix = N_lines + N_floating # Every floating conductor adds one constraint
+    N_quad = _get_N_quad(excitation)
+    N_matrix = N_quad*N_lines + N_floating # Every floating conductor adds one constraint
      
     excitation_types = np.zeros(N_lines, dtype=np.uint8)
     excitation_values = np.zeros(N_lines)
@@ -149,22 +168,23 @@ def _excitation_to_matrix(excitation, vertices, names):
      
     assert np.all(excitation_types != 0)
      
-    print(f'Total number of elements: {N_lines}, symmetry: {excitation.mesh.symmetry}')
-     
     st = time.time()
-    
     matrix = np.zeros( (N_matrix, N_matrix) )
+    print(f'Number of elements: {N_lines}, size of matrix: {N_matrix} ({matrix.nbytes/1e6:.0f} MB), symmetry: {excitation.mesh.symmetry}')
+     
     fill_fun = backend.fill_matrix_radial if excitation.mesh.symmetry != G.Symmetry.THREE_D else backend.fill_matrix_3d
-
+    
     def fill_matrix_rows(rows):
         fill_fun(matrix, vertices, excitation_types, excitation_values, rows[0], rows[-1])
     
     util.split_collect(fill_matrix_rows, np.arange(N_lines))    
-      
+
+    # Fill the difficult self voltages
+    print(f'Time for building matrix: {(time.time()-st)*1000:.0f} ms')
+     
     assert np.all(np.isfinite(matrix))
     
     _add_floating_conductor_constraints_to_matrix(matrix, vertices, names, excitation)
-    print(f'Time for building matrix: {(time.time()-st)*1000:.0f} ms')
         
     return matrix
 
@@ -172,14 +192,19 @@ def _excitation_to_matrix(excitation, vertices, names):
 def _charges_to_field(excitation, charges, vertices, names):
     floating_names = _get_floating_conductor_names(excitation)
     N_floating = len(floating_names)
-    assert len(charges) == len(vertices) + N_floating
+    N_quad = _get_N_quad(excitation)
+     
+    assert len(charges) == N_quad*len(vertices) + N_floating
     
     floating_voltages = {n:charges[-N_floating+i] for i, n in enumerate(floating_names)}
     if N_floating > 0:
         charges = charges[:-N_floating]
      
-    assert len(charges) == len(vertices)
-      
+    assert len(charges) == N_quad*len(vertices)
+
+    if N_quad > 1:
+        charges = np.reshape(charges, (len(vertices), N_quad))
+     
     field_class = FieldRadialBEM if excitation.mesh.symmetry != G.Symmetry.THREE_D else Field3D_BEM
     return field_class(vertices, charges, floating_voltages=floating_voltages)
     
@@ -215,7 +240,6 @@ def solve_bem(excitation, superposition=False):
     if not superposition:
         matrix = _excitation_to_matrix(excitation, vertices, names)
         F = _excitation_to_right_hand_side(excitation, vertices, names)
-        
         st = time.time()
         charges = np.linalg.solve(matrix, F)
         assert np.all(np.isfinite(charges))
@@ -317,7 +341,7 @@ class FieldRadialBEM(FieldBEM):
     
     def __init__(self, vertices, charges, floating_voltages={}):
         super().__init__(vertices, charges, floating_voltages)
-        assert vertices.shape == (len(charges), 2, 3)
+        assert vertices.shape == (len(charges), 4, 3)
         
     def field_at_point(self, point):
         """
@@ -401,6 +425,10 @@ class FieldRadialBEM(FieldBEM):
         print(f'Computing derivative interpolation took {(time.time()-st)*1000:.2f} ms ({len(z)} items)')
         
         return FieldRadialAxial(z, coeffs)
+
+    def charge_on_element(self, i):
+        return backend.charge_radial(self.vertices[i], self.charges[i])
+
 
 class Field3D_BEM(FieldBEM):
     """An electrostatic field resulting from a general 3D geometry. The field is a result of the surface charges as computed by the

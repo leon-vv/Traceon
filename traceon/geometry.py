@@ -21,6 +21,7 @@ from enum import Enum
 import pickle
 
 from .util import Saveable
+from .backend import N_QUAD_2D
 
 
 def revolve_around_optical_axis(geom, elements, factor=1.0):
@@ -141,6 +142,11 @@ class Geometry(geo.Geometry):
             self.set_mesh_size_callback(self._mesh_size_callback)
         
         dim = 2 if self.symmetry == Symmetry.THREE_D else 1
+
+        if dim == 1:
+            gmsh.option.setNumber('Mesh.ElementOrder', 3)
+        else:
+            gmsh.option.setNumber('Mesh.ElementOrder', 1)
         
         return Mesh(super().generate_mesh(dim=dim, *args, **kwargs), self.symmetry)
 
@@ -155,7 +161,7 @@ class Geometry(geo.Geometry):
         
         """
         if self.symmetry == Symmetry.RADIAL:
-            gmsh.option.setNumber('Mesh.MeshSizeFactor', 1/factor)
+            gmsh.option.setNumber('Mesh.MeshSizeFactor', 1/factor * N_QUAD_2D)
         elif self.symmetry == Symmetry.THREE_D:
             # GMSH seems to produce meshes which contain way more elements for 3D geometries
             # with the same mesh factor. This is confusing for users and therefore we arbtrarily
@@ -215,7 +221,7 @@ class Mesh(Saveable):
     def __str__(self):
         physicals = self.mesh.cell_sets_dict.keys()
         physical_names = ', '.join(physicals)
-        type_ = 'line' if self.symmetry != Symmetry.THREE_D else 'triangle'
+        type_ = 'line4' if self.symmetry != Symmetry.THREE_D else 'triangle'
         physical_nums = ', '.join([str(len(self.mesh.cell_sets_dict[n][type_])) for n in physicals])
         
         cells_type = ['point'] + [str(c.type) for c in self.mesh.cells]
@@ -227,6 +233,9 @@ class Mesh(Saveable):
             f'\tNumber of.. \n\t    ' \
             + '\n\t    '.join([f'{t}: \t{c}' for t, c in zip(cells_type, cells_count)]) \
             + '>'
+
+    def write_gmsh(self, filename):
+        self.mesh.write(filename)
 
 
         #return f'<Traceon Mesh with {len(self.mesh.points)} points, ', '.join(self.mesh.cell_sets_dict.keys()))

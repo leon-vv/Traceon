@@ -46,8 +46,8 @@ def parse_validation_args(create_geometry, compute_error, MSF={'radial':default_
             print('-'*75, f' MSF={n}')
             st = time.time()
             geom = create_geometry(n, symmetry, False)
-            N, err = compute_error(geom)
-            num_lines.append(N)
+            exc, err = compute_error(geom)
+            num_lines.append(exc.get_number_of_matrix_elements())
             times.append( (time.time() - st)*1000)
             errors.append(abs(err))
         
@@ -79,9 +79,9 @@ def parse_validation_args(create_geometry, compute_error, MSF={'radial':default_
     else:
         st = time.time()
         geom = create_geometry(MSFdefault, symmetry, False)
-        N, err = compute_error(geom)
+        exc, err = compute_error(geom)
         duration = (time.time() - st)*1000
-        print_info([N], [duration], [err])
+        print_info([exc.get_number_of_matrix_elements()], [duration], [err])
 
 
 

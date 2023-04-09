@@ -51,6 +51,18 @@ EXPORT const int M_MAX_SYM = M_MAX;
 
 EXPORT const size_t TRACING_BLOCK_SIZE = (size_t) 1e5;
 
+#define N_QUAD_2D 4
+const int N_QUAD_2D_SYM = N_QUAD_2D;
+const double GAUSS_QUAD_POINTS[N_QUAD_2D] = {-0.3399810435848563, 0.3399810435848563, -0.8611363115940526, 0.8611363115940526};
+const double GAUSS_QUAD_WEIGHTS[N_QUAD_2D] = {0.6521451548625461, 0.6521451548625461, 0.3478548451374538, 0.3478548451374538};
+
+
+//////////////////////////////// TYPEDEFS
+
+typedef double (*integration_cb_2d)(double, double, double, double, void*);
+typedef double (*vertices_2d)[4][3];
+typedef double (*charges_2d)[N_QUAD_2D];
+
 //////////////////////////////// ELLIPTIC FUNCTIONS
 
 // Chebyshev Approximations for the Complete Elliptic Integrals K and E.
@@ -134,12 +146,16 @@ EXPORT double ellipe(double k) {
 
 //////////////////////////////// UTILITIES 2D
 
-typedef double (*integration_cb_2d)(double, double, double, double, void*);
 
 
 EXPORT inline double
 norm_2d(double x, double y) {
 	return sqrt(x*x + y*y);
+}
+
+EXPORT inline double
+length_2d(double *v1, double *v2) {
+	return norm_2d(v2[0]-v1[0], v2[1]-v1[1]);
 }
 
 EXPORT void
@@ -155,54 +171,42 @@ normal_2d(double *p1, double *p2, double *normal) {
 	normal[1] = normal_y/length;
 }
 
-EXPORT double
-line_integral(double target[2], double v1[2], double v2[2], integration_cb_2d function, void* args) {
-    
-    double target_x = target[0], target_y = target[1];
-    double source_x1 = v1[0], source_y1 = v1[1];
-    double source_x2 = v2[0], source_y2 = v2[1];
-     
-    double middle_x = (source_x2 + source_x1)/2.;
-    double middle_y = (source_y1 + source_y2)/2.;
-    double length = norm_2d(source_x2 - source_x1, source_y2 - source_y1);
-    double distance = norm_2d(middle_x - target_x, middle_y - target_y);
-     
-    if(distance > 20*length) {
-        // Speedup, just consider middle point
-        return function(target_x, target_y, middle_x, middle_y, args) * length;
-	}
-    else {
-        size_t N_int = 256;
-		assert((N_int-1)%3 == 0);
+void
+higher_order_normal_radial(double alpha, double *v1, double *v2, double *v3, double *v4, double *normal) {
+
+	double v1x = v1[0], v1y = v1[1];
+	double v2x = v2[0], v2y = v2[1];
+	double v3x = v3[0], v3y = v3[1];
+	double v4x = v4[0], v4y = v4[1];
 		
-		double dx = (source_x2 - source_x1)/(N_int-1);
-		double dy = (source_y2 - source_y1)/(N_int-1);
+	double a2 = pow(alpha, 2);
+	double a3 = pow(alpha, 3);
+	
+	double dx = (2*alpha*(9*v4x-9*v3x-9*v2x+9*v1x)+3*a2*(9*v4x-27*v3x+27*v2x-9*v1x)-v4x+27*v3x-27*v2x+v1x)/16;
+	double dy = (2*alpha*(9*v4y-9*v3y-9*v2y+9*v1y)+3*a2*(9*v4y-27*v3y+27*v2y-9*v1y)-v4y+27*v3y-27*v2y+v1y)/16;
+
+	double zero[2] = {0., 0.};
+	double vec[2] = {dx, dy};
+	normal_2d(zero, vec, normal);
+}
+
+
+EXPORT void inline position_and_jacobian_radial(double alpha, double *v1, double *v2, double *v3, double *v4, double *pos_out, double *jac) {
+
+	double v1x = v1[0], v1y = v1[1];
+	double v2x = v2[0], v2y = v2[1];
+	double v3x = v3[0], v3y = v3[1];
+	double v4x = v4[0], v4y = v4[1];
 		
-		int i = 1;
-		double sum_ = function(target_x, target_y, source_x1, source_y1, args);
-		while(i < N_int-1) {
-			double xi = source_x1 + dx*i, yi = source_y1 + dy*i;
-			double xi1 = source_x1 + dx*(i+1), yi1 = source_y1 + dy*(i+1);
-			double xi2 = source_x1 + dx*(i+2), yi2 = source_y1 + dy*(i+2);
-			
-			double fi = function(target_x, target_y, xi, yi, args);
-			double fi1 = function(target_x, target_y, xi1, yi1, args);
-			double fi2 = function(target_x, target_y, xi2, yi2, args);
-			
-			sum_ += 3*fi + 3*fi1 + 2*fi2;
-			i += 3;
-		}
-		
-		assert(i == N_int);
-		
-		// Last one is counted double in the previous iteration
-		sum_ -= function(target_x, target_y, source_x1 + dx*(i-1), source_y1 + dy*(i-1), args);
-		
-		double dline = norm_2d(dx, dy);
-		sum_ *= dline*3/8;
-		
-		return sum_;
-	}
+	double a2 = pow(alpha, 2);
+	double a3 = pow(alpha, 3);
+	
+	// Higher order line element parametrization. 
+	pos_out[0] = (a2*(9*v4x-9*v3x-9*v2x+9*v1x)+a3*(9*v4x-27*v3x+27*v2x-9*v1x)-v4x+alpha*(-v4x+27*v3x-27*v2x+v1x)+9*v3x+9*v2x-v1x)/16;
+	pos_out[1] = (a2*(9*v4y-9*v3y-9*v2y+9*v1y)+a3*(9*v4y-27*v3y+27*v2y-9*v1y)-v4y+alpha*(-v4y+27*v3y-27*v2y+v1y)+9*v3y+9*v2y-v1y)/16;
+	
+	// Term following from the Jacobian
+	*jac = 1/16. * sqrt(pow(2*alpha*(9*v4y-9*v3y-9*v2y+9*v1y)+3*a2*(9*v4y-27*v3y+27*v2y-9*v1y)-v4y+27*v3y-27*v2y+v1y, 2) +pow(2*alpha*(9*v4x-9*v3x-9*v2x+9*v1x)+3*a2*(9*v4x-27*v3x+27*v2x-9*v1x)-v4x+27*v3x-27*v2x+v1x, 2));
 }
 
 //////////////////////////////// UTILITIES 3D
@@ -434,45 +438,94 @@ EXPORT double dz1_potential_radial_ring(double r_0, double z_0, double r, double
     return numerator / denominator;
 }
 
+
 EXPORT void
-axial_derivatives_radial_ring(double *derivs_p, double *lines_p, double *charges, size_t N_lines, double *z, size_t N_z) {
+axial_derivatives_radial_ring(double *derivs_p, vertices_2d lines, charges_2d charges, size_t N_lines, double *z, size_t N_z) {
 
 	double (*derivs)[9] = (double (*)[9]) derivs_p;	
-	double (*lines)[2][3] = (double (*)[2][3]) lines_p;
+		
+	for(int i = 0; i < N_z; i++) 
+	for(int j = 0; j < N_lines; j++)
+	for(int k = 0; k < N_QUAD_2D; k++) {
+		double z0 = z[i];
 
-	for(int i = 0; i < N_z; i++) {
-		for(int j = 0; j < N_lines; j++) {
-			double z0 = z[i];
-			double r = (lines[j][0][0]+lines[j][1][0])/2;
-			double z = (lines[j][0][1]+lines[j][1][1])/2;
-
-			double length = norm_2d( lines[j][0][0] - lines[j][1][0], lines[j][0][1] - lines[j][1][1] );
-				
-			double R = norm_2d(z0-z, r);
+		double *v1 = &lines[j][0][0];
+		double *v2 = &lines[j][2][0];
+		double *v3 = &lines[j][3][0];
+		double *v4 = &lines[j][1][0];
 			
-			double D[9] = {0.}; // Derivatives of the currently considered line element.
-			D[0] = 1/R;
-			D[1] = -(z0-z)/pow(R, 3);
-				
-			for(int n = 1; n+1 < DERIV_2D_MAX; n++)
-				D[n+1] = -1./pow(R,2) *( (2*n + 1)*(z0-z)*D[n] + pow(n,2)*D[n-1]);
+		double pos[2], jac;
+		position_and_jacobian_radial(GAUSS_QUAD_POINTS[k], v1, v2, v3, v4, pos, &jac);
+		double r = pos[0], z = pos[1];
+		
+		double weight = GAUSS_QUAD_WEIGHTS[k] * jac;
 			
-			for(int k = 0; k < 9; k++) derivs[i][k] += M_PI*r/2 * charges[j]*D[k] * length;
-		}
+		double R = norm_2d(z0-z, r);
+		
+		double D[9] = {0.}; // Derivatives of the currently considered line element.
+		D[0] = 1/R;
+		D[1] = -(z0-z)/pow(R, 3);
+			
+		for(int n = 1; n+1 < DERIV_2D_MAX; n++)
+			D[n+1] = -1./pow(R,2) *( (2*n + 1)*(z0-z)*D[n] + pow(n,2)*D[n-1]);
+		
+		for(int l = 0; l < 9; l++) derivs[i][l] += weight * M_PI*r/2 * charges[j][k]*D[l];
 	}
 }
 
 //////////////////////////////// RADIAL SYMMETRY POTENTIAL EVALUATION
 
-EXPORT double
-potential_radial(double point[3], double *vertices_p, double *charges, size_t N_vertices) {
 
-	double (*vertices)[2][3] = (double (*)[2][3]) vertices_p;	
+
+// John A. Crow. Quadrature of Integrands with a Logarithmic Singularity. 1993.
+// Computed higher order points and weights with own Python code..
+#define N_LOG_QUAD_2D 12
+const double GAUSS_LOG_QUAD_POINTS[N_LOG_QUAD_2D] =
+					{0.000245284264977222214486999757349594712755863,
+					0.003593698020213691584953180874184458866517133,
+					0.01712292595159614370417434799786314278267083,
+					0.05020561232318819384573670241984682206686949,
+					0.1115235855573625644218104518656856812018872,
+					0.2060030029051239758752495945505766309866304,
+					0.3324626975136065400973675503604997045074356,
+					0.4826067009659319425485030383099190543511725,
+					0.6416794701239928589863342367708391692838668,
+					0.7907090871833554068663998987642233419999952,
+					0.9098838287655625921196627463680156613773641,
+					0.9823479377157619510221418912858930542857947};
+
+const double GAUSS_LOG_QUAD_WEIGHTS[N_LOG_QUAD_2D] =
+					{0.0009331998830671428063097434941623766739840873,
+					0.006977495915143715985530451759041482867494198,
+					0.02169468902199853397715717421909584842021132,
+					0.04597069439559112469266362311262695693833166,
+					0.07752703869583178458842135310107317470803586,
+					0.1112525181837396068263131383589812009329696,
+					0.1402731060085833332292272698216837072064324,
+					0.1575171300868296275541516485738687199310457,
+					0.1574083422236489759715520802610080785790687,
+					0.1372838327177858585860313716723887135089706,
+					0.09819669547418950067876642091789781881144955,
+					0.04496525739359079510387572470817192142199618};
+
+
+
+EXPORT double
+potential_radial(double point[3], vertices_2d vertices, charges_2d charges, size_t N_vertices) {
 
 	double sum_ = 0.0;
 	
 	for(int i = 0; i < N_vertices; i++) {
-		sum_ += charges[i] * line_integral(point, vertices[i][0], vertices[i][1], potential_radial_ring, NULL);
+		double *v1 = &vertices[i][0][0];
+		double *v2 = &vertices[i][2][0]; // Strange ordering following from GMSH line4 element
+		double *v3 = &vertices[i][3][0]; // Strange ordering following from GMSH line4 element
+		double *v4 = &vertices[i][1][0];
+		
+		for(int j = 0; j < N_QUAD_2D; j++) {
+			double pos[2], jac;
+			position_and_jacobian_radial(GAUSS_QUAD_POINTS[j], v1, v2, v3, v4, pos, &jac);
+			sum_ += jac*GAUSS_QUAD_WEIGHTS[j] * charges[i][j] * potential_radial_ring(point[0], point[1], pos[0], pos[1], NULL);
+		}
 	}
 
 	return sum_;
@@ -508,29 +561,72 @@ potential_radial_derivs(double point[2], double *z_inter, double *coeff_p, size_
 
 //////////////////////////////// RADIAL SYMMETRY FIELD EVALUATION
 
+
 double
-field_dot_normal_radial(double r0, double z0, double r, double z, void* normal_p) {
+field_dot_normal_radial(double r0, double z0, double r, double z, void* args_p) {
+
+	struct {double *normal; double K;} *args = args_p;
+	
+	// This factor is hard to derive. It takes into account that the field
+	// calculated at the edge of the dielectric is basically the average of the
+	// field at either side of the surface of the dielecric (the field makes a jump).
+	double K = args->K;
+	double factor = (2*K - 2) / (M_PI*(1 + K));
 	
 	double Er = -dr1_potential_radial_ring(r0, z0, r, z, NULL);
 	double Ez = -dz1_potential_radial_ring(r0, z0, r, z, NULL);
 	
-	double *normal = (double *)normal_p;
-		
-	return normal[0]*Er + normal[1]*Ez;
+	return factor*(args->normal[0]*Er + args->normal[1]*Ez);
 
 }
 
-EXPORT void
-field_radial(double point[3], double result[3], double *vertices_p, double *charges, size_t N_vertices) {
+EXPORT double
+charge_radial(double *vertices_p, double *charges) {
 
-	double (*vertices)[2][3] = (double (*)[2][3]) vertices_p;	
-	double Ex = 0.0, Ey = 0.0;
+	double (*vertices)[3] = (double (*)[3]) vertices_p;
+		
+	double *v1 = &vertices[0][0];
+	double *v2 = &vertices[2][0]; // Strange ordering following from GMSH line4 element
+	double *v3 = &vertices[3][0];
+	double *v4 = &vertices[1][0];
+		
+	double sum_ = 0.0;
 	
-	for(int i = 0; i < N_vertices; i++) {
-		Ex -= charges[i] * line_integral(point, vertices[i][0], vertices[i][1], dr1_potential_radial_ring, NULL);
-		Ey -= charges[i] * line_integral(point, vertices[i][0], vertices[i][1], dz1_potential_radial_ring, NULL);
+	for(int k = 0; k < N_QUAD_2D; k++) {
+				
+		double pos[2], jac;
+		position_and_jacobian_radial(GAUSS_QUAD_POINTS[k], v1, v2, v3, v4, pos, &jac);
+		
+		// Surface area is 2pi*r * charge_integral
+		// charge_integral is charge integrated over line element
+		// charge_integral is weight*dl*charge
+		// where dl is the jacobian
+		sum_ += 2*M_PI*pos[0]*GAUSS_QUAD_WEIGHTS[k]*jac*charges[k];
 	}
 
+	return sum_;
+}
+
+EXPORT void
+field_radial(double point[3], double result[3], vertices_2d vertices, charges_2d charges, size_t N_vertices) {
+		
+	double Ex = 0.0, Ey = 0.0;
+	
+	for(int i = 0; i < N_vertices; i++) 
+	for(int k = 0; k < N_QUAD_2D; k++) {
+			
+		double *v1 = &vertices[i][0][0];
+		double *v2 = &vertices[i][2][0]; // Strange ordering following from GMSH line4 element
+		double *v3 = &vertices[i][3][0];
+		double *v4 = &vertices[i][1][0];
+		
+		double pos[2], jac;
+		position_and_jacobian_radial(GAUSS_QUAD_POINTS[k], v1, v2, v3, v4, pos, &jac);
+		
+		Ex -= GAUSS_QUAD_WEIGHTS[k] * jac * charges[i][k] * dr1_potential_radial_ring(point[0], point[1], pos[0], pos[1], NULL);
+		Ey -= GAUSS_QUAD_WEIGHTS[k] * jac * charges[i][k] * dz1_potential_radial_ring(point[0], point[1], pos[0], pos[1], NULL);
+	}
+		
 	result[0] = Ex;
 	result[1] = Ey;
 	result[2] = 0.0;
@@ -546,7 +642,7 @@ void
 field_radial_traceable(double point[3], double result[3], void *args_p) {
 
 	struct field_evaluation_args *args = (struct field_evaluation_args*)args_p;
-	field_radial(point, result, args->vertices, args->charges, args->N_vertices);
+	field_radial(point, result, (vertices_2d) args->vertices, (charges_2d) args->charges, args->N_vertices);
 }
 
 EXPORT size_t
@@ -868,8 +964,191 @@ enum ExcitationType{
     DIELECTRIC = 3,
     FLOATING_CONDUCTOR = 4};
 
+
+double legendre(int N, double x) {
+	switch(N) {
+		case 0:
+			return 1;
+		case 1:
+			return x;
+		case 2:
+			return (3*pow(x,2)-1)/2.;
+		case 3:
+			return (5*pow(x,3) -3*x)/2.;
+		case 4:
+			return (35*pow(x,4)-30*pow(x,2)+3)/8.;
+		case 5:
+			return (63*pow(x,5)-70*pow(x,3)+15*x)/8.;
+		case 6:
+			return (231*pow(x,6)-315*pow(x,4)+105*pow(x,2)-5)/16.;
+		case 7:
+			return (429*pow(x,7)-693*pow(x,5)+315*pow(x,3)-35*x)/16.;
+		case 8:
+			return (6435*pow(x,8) - 12012*pow(x,6) + 6930*pow(x,4) - 1260*pow(x,2) + 35) / 128;
+		/*case 9:
+			return (12155*pow(x,9) - 25740*pow(x,7) + 18018*pow(x,5) - 4620*pow(x,3) + 315*x) / 128;
+		case 10:
+			return (46189*pow(x,10) - 109395*pow(x,8) + 90090*pow(x,6) - 30030*pow(x,4) + 3465*pow(x,2) - 63) / 256;
+		case 11:
+			return (88179*pow(x,11) - 230945*pow(x,9) + 218790*pow(x,7) - 90090*pow(x,5) + 15015*pow(x,3) - 693*x) / 256;
+		case 12:
+			return (676039*pow(x,12) - 1939938*pow(x,10) + 2078505*pow(x,8) - 1021020*pow(x,6) + 225225*pow(x,4) - 18018*pow(x,2) + 231) / 1024;
+		case 13:
+			return (1300075*pow(x,13) - 4056234*pow(x,11) + 4849845*pow(x,9) - 2771340*pow(x,7) + 765765*pow(x,5) - 90090*pow(x,3) + 3003*x) / 1024;
+		case 14:
+			return (5014575*pow(x,14) - 16900975*pow(x,12) + 22309287*pow(x,10) - 14549535*pow(x,8) + 4849845*pow(x,6) - 765765*pow(x,4) + 45045*pow(x,2) - 429) / 2048;
+		case 15:
+			return (9694845*pow(x,15) - 35102025*pow(x,13) + 50702925*pow(x,11) - 37182145*pow(x,9) + 14549535*pow(x,7) - 2909907*pow(x,5) + 255255*pow(x,3) - 6435*x) / 2048;
+		case 16:
+			return (300540195*pow(x,16) - 1163381400*pow(x,14) + 1825305300*pow(x,12) - 1487285800*pow(x,10) + 669278610*pow(x,8) - 162954792*pow(x,6) + 19399380*pow(x,4) - 875160*pow(x,2) + 6435) / 32768;*/
+	}
+	exit(1);
+}
+
+
+// Modified weight taking into account that the charge contribution
+// is a sum of Legendre polynomials.
+double legendre_log_weight(int k, int l, double legendre_arg) {
+
+	double sum_ = 0.0;
+
+	for(int i = 0; i < N_QUAD_2D; i++)
+		sum_ += GAUSS_QUAD_WEIGHTS[k] * GAUSS_LOG_QUAD_WEIGHTS[l] * (2*i + 1)/2. * legendre(i, GAUSS_QUAD_POINTS[k]) * legendre(i, legendre_arg);
+	
+	return sum_;
+}
+
+
+double log_integral(
+	double *v1,
+	double *v2,
+	double *v3,
+	double *v4,
+	int row, int k,
+	integration_cb_2d callback, void *args) {
+	
+	double s = GAUSS_QUAD_POINTS[row];
+	
+	double spos[2], jac;
+	position_and_jacobian_radial(s, v1, v2, v3, v4, spos, &jac);
+	
+	double spos_left1[2];
+	position_and_jacobian_radial( -1 + 2*(s+1)/3., v1, v2, v3, v4, spos_left1, &jac);
+	
+	double spos_left2[2];
+	position_and_jacobian_radial( -1 + (s+1)/3., v1, v2, v3, v4, spos_left2, &jac);
+	
+	double spos_right1[2];
+	position_and_jacobian_radial( s + (1-s)/3, v1, v2, v3, v4, spos_right1, &jac);
+	
+	double spos_right2[2];
+	position_and_jacobian_radial( s + 2*(1-s)/3, v1, v2, v3, v4, spos_right2, &jac);
+
+	double integration_sum = 0.0;
+	
+	// Logarithmic integration using improved quadrature weights
+	// split the integration around the singularity
+	for(int l = 0; l < N_LOG_QUAD_2D; l++) {
+		
+		// To left direction
+		double local_alpha = 2*GAUSS_LOG_QUAD_POINTS[l] - 1;
+		double global_alpha = s + GAUSS_LOG_QUAD_POINTS[l]*(-s-1);
+		
+		assert( (-1<local_alpha) && (local_alpha<1) );
+		assert( (-1<global_alpha) && (global_alpha<1) );
+		
+		double pos[2], jac;
+		position_and_jacobian_radial(local_alpha, spos, spos_left1, spos_left2, v1, pos, &jac);
+		double pot_ring = callback(spos[0], spos[1], pos[0], pos[1], args);
+		integration_sum += 2*jac * legendre_log_weight(k, l, global_alpha) * pot_ring;
+		// To right direction
+		global_alpha = s + GAUSS_LOG_QUAD_POINTS[l]*(1-s);
+			
+		assert( (-1<local_alpha) && (local_alpha<1) );
+		assert( (-1<global_alpha) && (global_alpha<1) );
+		
+		position_and_jacobian_radial(local_alpha, spos, spos_right1, spos_right2, v4, pos, &jac);
+		pot_ring = callback(spos[0], spos[1], pos[0], pos[1], args);
+		integration_sum += 2*jac * legendre_log_weight(k, l, global_alpha) * pot_ring;
+	}
+	
+	return integration_sum;
+}
+
+void fill_self_voltages(double *matrix, 
+                        vertices_2d line_points,
+						uint8_t *excitation_types,
+						double *excitation_values,
+						size_t N_lines,
+						size_t N_matrix,
+                        int lines_range_start, 
+                        int lines_range_end) {
+	 
+	for(int i = lines_range_start; i <= lines_range_end; i++) {
+		
+		double *v1 = &line_points[i][0][0];
+		double *v2 = &line_points[i][2][0];
+		double *v3 = &line_points[i][3][0];
+		double *v4 = &line_points[i][1][0];
+		
+		enum ExcitationType type_ = excitation_types[i];
+			
+		if (type_ == VOLTAGE_FIXED || type_ == VOLTAGE_FUN || type_ == FLOATING_CONDUCTOR) {
+			for(int l = 0; l < N_QUAD_2D; l++) 
+			for(int k = 0; k < N_QUAD_2D; k++) {
+
+				matrix[(N_QUAD_2D*i + l)*N_matrix + N_QUAD_2D*i + k] = log_integral(v1, v2, v3, v4, l, k, potential_radial_ring, NULL);
+			}
+		}
+		else if(type_ == DIELECTRIC) {
+			for(int l = 0; l < N_QUAD_2D; l++)  {
+				for(int k = 0; k < N_QUAD_2D; k++) {
+
+					double normal[2];
+					higher_order_normal_radial(GAUSS_QUAD_POINTS[l], v1, v2, v3, v4, normal);
+					double K = excitation_values[i];
+
+					struct {double *normal; double K;} args = {normal, K};
+
+					matrix[(N_QUAD_2D*i + l)*N_matrix + N_QUAD_2D*i + k] = log_integral(v1, v2, v3, v4, l, k, field_dot_normal_radial, &args);
+				}
+				// When working with dielectrics, the constraint is that
+				// the electric field normal must sum to the surface charge.
+				// The constraint is satisfied by subtracting the integral
+				// over the charge from the line element.
+				matrix[(N_QUAD_2D*i + l)*N_matrix + N_QUAD_2D*i + l] -= 1;
+			}
+		}
+	}
+}
+
+EXPORT void add_floating_conductor_constraints_radial(double *matrix, vertices_2d vertices, size_t N_matrix, size_t *indices, size_t N_indices, int row) {
+	for(int j = 0; j < N_indices; j++) {
+		int i = indices[j];
+			
+		double *v1 = &vertices[i][0][0];
+		double *v2 = &vertices[i][2][0]; // Strange ordering following from GMSH line4 element
+		double *v3 = &vertices[i][3][0];
+		double *v4 = &vertices[i][1][0];
+			
+		// An extra unknown voltage is added to the matrix for every floating conductor.
+		// The column related to this unknown voltage is positioned at the rightmost edge of the matrix.
+		// If multiple floating conductors are present the column lives at -len(floating) + i
+		for(int k = 0; k < N_QUAD_2D; k++) {
+			double pos[2], jac;
+			position_and_jacobian_radial(GAUSS_QUAD_POINTS[k], v1, v2, v3, v4, pos, &jac);
+			
+			matrix[(N_QUAD_2D*i + k)*N_matrix + N_matrix - row - 1] = -1;
+			// See charge_radial function
+			matrix[(N_matrix - row - 1)*N_matrix + N_QUAD_2D*i + k] = 2*M_PI*pos[0]*GAUSS_QUAD_WEIGHTS[k]*jac;
+		}
+	}
+}
+
+
+
 EXPORT void fill_matrix_radial(double *matrix, 
-                        double *line_points_p, 
+						vertices_2d line_points,
                         uint8_t *excitation_types, 
                         double *excitation_values, 
 						size_t N_lines,
@@ -878,49 +1157,81 @@ EXPORT void fill_matrix_radial(double *matrix,
                         int lines_range_end) {
     
 	assert(lines_range_start < N_lines && lines_range_end < N_lines);
-	double (*line_points)[2][3] = (double (*)[2][3]) line_points_p;
+	assert(N_matrix >= N_QUAD_2D*N_lines);
 		
     for (int i = lines_range_start; i <= lines_range_end; i++) {
-		double *p1 = &line_points[i][0][0];
-		double *p2 = &line_points[i][1][0];
 		
-		double target[2] = {(p1[0] + p2[0]) / 2, (p1[1] + p2[1]) / 2};
-        enum ExcitationType type_ = excitation_types[i];
-		 
-        if (type_ == VOLTAGE_FIXED || type_ == VOLTAGE_FUN || type_ == FLOATING_CONDUCTOR) {
-            for (int j = 0; j < N_lines; j++) {
-                double *v1 = &line_points[j][0][0];
-                double *v2 = &line_points[j][1][0];
-                matrix[i*N_matrix + j] = line_integral(target, v1, v2, potential_radial_ring, NULL);
-            }
-        } 
-        else if (type_ == DIELECTRIC) {
-            double normal[2];
-            normal_2d(p1, p2, normal);
-            double K = excitation_values[i];
-            
-            for (int j = 0; j < N_lines; j++) {
+		double *target_v1 = &line_points[i][0][0];
+		double *target_v2 = &line_points[i][2][0];
+		double *target_v3 = &line_points[i][3][0];
+		double *target_v4 = &line_points[i][1][0];
+		
+		enum ExcitationType type_ = excitation_types[i];
+			
+		if (type_ == VOLTAGE_FIXED || type_ == VOLTAGE_FUN || type_ == FLOATING_CONDUCTOR) {
+			for (int j = 0; j < N_lines; j++) {
+				
+				if (i == j) continue;
+					
 				double *v1 = &line_points[j][0][0];
-                double *v2 = &line_points[j][1][0];
-				// This factor is hard to derive. It takes into account that the field
-                // calculated at the edge of the dielectric is basically the average of the
-                // field at either side of the surface of the dielecric (the field makes a jump).
-                double factor = (2*K - 2) / (M_PI*(1 + K));
-                matrix[i*N_matrix + j] = factor * line_integral(target, v1, v2, field_dot_normal_radial, normal);
-                 
-				// When working with dielectrics, the constraint is that
-				// the electric field normal must sum to the surface charge.
-				// The constraint is satisfied by subtracting 1.0 from
-				// the diagonal of the matrix.
-                if (i == j) matrix[i*N_matrix + j] -= 1.0;
+				double *v2 = &line_points[j][2][0]; // Strange ordering following from GMSH line4 element
+				double *v3 = &line_points[j][3][0];
+				double *v4 = &line_points[j][1][0];
+					
+				for(int l = 0; l < N_QUAD_2D; l++) {
+					double target[2], jac_t;
+					position_and_jacobian_radial(GAUSS_QUAD_POINTS[l], target_v1, target_v2, target_v3, target_v4, target, &jac_t);
+						
+					for(int k = 0; k < N_QUAD_2D; k++) {
+						
+						double pos[2], jac;
+						position_and_jacobian_radial(GAUSS_QUAD_POINTS[k], v1, v2, v3, v4, pos, &jac);
+						
+						matrix[(N_QUAD_2D*i + l)*N_matrix + N_QUAD_2D*j + k] = GAUSS_QUAD_WEIGHTS[k]*jac*potential_radial_ring(target[0], target[1], pos[0], pos[1], NULL);
+					}
+				}
+			} 
+		}
+		else if(type_ == DIELECTRIC) {
+			            
+            for (int j = 0; j < N_lines; j++) {
+
+				if(i == j) continue;
+					
+				double *v1 = &line_points[j][0][0];
+				double *v2 = &line_points[j][2][0]; // Strange ordering following from GMSH line4 element
+				double *v3 = &line_points[j][3][0];
+				double *v4 = &line_points[j][1][0];
+				
+				for(int l = 0; l < N_QUAD_2D; l++) {
+					
+					double normal[2];
+					higher_order_normal_radial(GAUSS_QUAD_POINTS[l], target_v1, target_v2, target_v3, target_v4, normal);
+					double K = excitation_values[i];
+					
+					struct {double *normal; double K;} args = {normal, K};
+
+					double target[2], jac_t;
+					position_and_jacobian_radial(GAUSS_QUAD_POINTS[l], target_v1, target_v2, target_v3, target_v4, target, &jac_t);
+					
+					for(int k = 0; k < N_QUAD_2D; k++) {
+						
+						double pos[2], jac;
+						position_and_jacobian_radial(GAUSS_QUAD_POINTS[k], v1, v2, v3, v4, pos, &jac);
+						matrix[(N_QUAD_2D*i + l)*N_matrix + N_QUAD_2D*j + k] = GAUSS_QUAD_WEIGHTS[k]*jac*field_dot_normal_radial(target[0], target[1], pos[0], pos[1], &args);
+					}
+				}
             }
-        }
-        else {
-            printf("ExcitationType unknown");
+		}
+		else {
+		    printf("ExcitationType unknown");
             exit(1);
-        }
-    }
+		}
+	}
+	
+	fill_self_voltages(matrix, line_points, excitation_types, excitation_values, N_lines, N_matrix, lines_range_start, lines_range_end);
 }
+
 
 EXPORT void fill_matrix_3d(double *matrix, 
                     double *triangle_points_p, 

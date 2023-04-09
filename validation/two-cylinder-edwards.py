@@ -68,7 +68,7 @@ def compute_error(geom):
     pot = field.potential_at_point(point)
      
     accuracy = abs(pot/edwards[1] - 1)
-    return exc.get_number_of_active_elements(), accuracy
+    return exc, accuracy
 
 util.parser.description = '''
 Compute the potential inside a two cylinder lens.  The correct values for the potential are taken from the paper:\n
