@@ -168,13 +168,12 @@ def _excitation_to_matrix(excitation, vertices, names):
      
     assert np.all(excitation_types != 0)
      
-    print(f'Total number of elements: {N_lines}, symmetry: {excitation.mesh.symmetry}')
-     
     st = time.time()
-    
     matrix = np.zeros( (N_matrix, N_matrix) )
+    print(f'Number of elements: {N_lines}, size of matrix: {N_matrix} ({matrix.nbytes/1e6:.0f} MB), symmetry: {excitation.mesh.symmetry}')
+     
     fill_fun = backend.fill_matrix_radial if excitation.mesh.symmetry != G.Symmetry.THREE_D else backend.fill_matrix_3d
-
+    
     def fill_matrix_rows(rows):
         fill_fun(matrix, vertices, excitation_types, excitation_values, rows[0], rows[-1])
     
