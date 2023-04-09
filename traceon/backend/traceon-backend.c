@@ -51,6 +51,18 @@ EXPORT const int M_MAX_SYM = M_MAX;
 
 EXPORT const size_t TRACING_BLOCK_SIZE = (size_t) 1e5;
 
+#define N_QUAD_2D 4
+const int N_QUAD_2D_SYM = N_QUAD_2D;
+const double GAUSS_QUAD_POINTS[N_QUAD_2D] = {-0.3399810435848563, 0.3399810435848563, -0.8611363115940526, 0.8611363115940526};
+const double GAUSS_QUAD_WEIGHTS[N_QUAD_2D] = {0.6521451548625461, 0.6521451548625461, 0.3478548451374538, 0.3478548451374538};
+
+
+//////////////////////////////// TYPEDEFS
+
+typedef double (*integration_cb_2d)(double, double, double, double, void*);
+typedef double (*vertices_2d)[4][3];
+typedef double (*charges_2d)[N_QUAD_2D];
+
 //////////////////////////////// ELLIPTIC FUNCTIONS
 
 // Chebyshev Approximations for the Complete Elliptic Integrals K and E.
@@ -196,9 +208,6 @@ EXPORT void inline position_and_jacobian_radial(double alpha, double *v1, double
 	// Term following from the Jacobian
 	*jac = 1/16. * sqrt(pow(2*alpha*(9*v4y-9*v3y-9*v2y+9*v1y)+3*a2*(9*v4y-27*v3y+27*v2y-9*v1y)-v4y+27*v3y-27*v2y+v1y, 2) +pow(2*alpha*(9*v4x-9*v3x-9*v2x+9*v1x)+3*a2*(9*v4x-27*v3x+27*v2x-9*v1x)-v4x+27*v3x-27*v2x+v1x, 2));
 }
-
-typedef double (*integration_cb_2d)(double, double, double, double, void*);
-typedef double (*vertices_2d)[4][3];
 
 //////////////////////////////// UTILITIES 3D
 
@@ -429,18 +438,12 @@ EXPORT double dz1_potential_radial_ring(double r_0, double z_0, double r, double
     return numerator / denominator;
 }
 
-#define N_QUAD_2D 4
-const int N_QUAD_2D_SYM = N_QUAD_2D;
-const double GAUSS_QUAD_POINTS[N_QUAD_2D] = {-0.3399810435848563, 0.3399810435848563, -0.8611363115940526, 0.8611363115940526};
-const double GAUSS_QUAD_WEIGHTS[N_QUAD_2D] = {0.6521451548625461, 0.6521451548625461, 0.3478548451374538, 0.3478548451374538};
-
 
 EXPORT void
-axial_derivatives_radial_ring(double *derivs_p, vertices_2d lines, double *charges_p, size_t N_lines, double *z, size_t N_z) {
+axial_derivatives_radial_ring(double *derivs_p, vertices_2d lines, charges_2d charges, size_t N_lines, double *z, size_t N_z) {
 
 	double (*derivs)[9] = (double (*)[9]) derivs_p;	
-	double (*charges)[N_QUAD_2D] = (double (*)[N_QUAD_2D]) charges_p;
-	
+		
 	for(int i = 0; i < N_z; i++) 
 	for(int j = 0; j < N_lines; j++)
 	for(int k = 0; k < N_QUAD_2D; k++) {
@@ -508,10 +511,8 @@ const double GAUSS_LOG_QUAD_WEIGHTS[N_LOG_QUAD_2D] =
 
 
 EXPORT double
-potential_radial(double point[3], vertices_2d vertices, double *charges_p, size_t N_vertices) {
+potential_radial(double point[3], vertices_2d vertices, charges_2d charges, size_t N_vertices) {
 
-	double (*charges)[N_QUAD_2D] = (double (*)[N_QUAD_2D]) charges_p;	
-	
 	double sum_ = 0.0;
 	
 	for(int i = 0; i < N_vertices; i++) {
@@ -580,11 +581,10 @@ field_dot_normal_radial(double r0, double z0, double r, double z, void* args_p) 
 }
 
 EXPORT double
-charge_radial(double *vertices_p, double *charges_p) {
+charge_radial(double *vertices_p, double *charges) {
 
 	double (*vertices)[3] = (double (*)[3]) vertices_p;
-	double (*charges) = (double (*)) charges_p;
-	
+		
 	double *v1 = &vertices[0][0];
 	double *v2 = &vertices[2][0]; // Strange ordering following from GMSH line4 element
 	double *v3 = &vertices[3][0];
@@ -608,10 +608,8 @@ charge_radial(double *vertices_p, double *charges_p) {
 }
 
 EXPORT void
-field_radial(double point[3], double result[3], vertices_2d vertices, double *charges_p, size_t N_vertices) {
-	
-	double (*charges)[N_QUAD_2D] = (double (*)[N_QUAD_2D]) charges_p;
-	
+field_radial(double point[3], double result[3], vertices_2d vertices, charges_2d charges, size_t N_vertices) {
+		
 	double Ex = 0.0, Ey = 0.0;
 	
 	for(int i = 0; i < N_vertices; i++) 
@@ -644,7 +642,7 @@ void
 field_radial_traceable(double point[3], double result[3], void *args_p) {
 
 	struct field_evaluation_args *args = (struct field_evaluation_args*)args_p;
-	field_radial(point, result, (vertices_2d) args->vertices, args->charges, args->N_vertices);
+	field_radial(point, result, (vertices_2d) args->vertices, (charges_2d) args->charges, args->N_vertices);
 }
 
 EXPORT size_t
