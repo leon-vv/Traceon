@@ -43,8 +43,8 @@ def create_geometry(MSF, symmetry, for_plot):
                 return arcs
         
         l1 = add_shell(r1)
-        d1 = add_shell(r3, reorient=False, factor=0.7 if for_plot else 1.0)
-        d2 = add_shell(r4, reorient=True, factor=0.5 if for_plot else 1.0)
+        d1 = add_shell(r3, reorient=symmetry == G.Symmetry.RADIAL, factor=0.7 if for_plot else 1.0)
+        d2 = add_shell(r4, reorient=symmetry != G.Symmetry.RADIAL, factor=0.5 if for_plot else 1.0)
         l2 = add_shell(r2, factor=0.3 if for_plot else 1.0)
         
         geom.add_physical(l1, 'inner')
