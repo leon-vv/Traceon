@@ -70,9 +70,9 @@ class Symmetry(Enum):
         elif self == Symmetry.THREE_D:
             return '3d'
 
-class Geometry(occ.Geometry):
+class Geometry(geo.Geometry):
     """
-    Small wrapper class around pygmsh.occ.Geometry which itself is a small wrapper around the powerful GMSH library.
+    Small wrapper class around pygmsh.geo.Geometry which itself is a small wrapper around the powerful GMSH library.
     See the GMSH and pygmsh documentation to learn how to build any 2D or 3D geometry. This class makes it easier to control
     the mesh size (using the _mesh size factor_) and optionally allows to scale the mesh size with the distance from the optical
     axis. It also add support for multiple calls to the `add_physical` method with the same name.
@@ -127,7 +127,7 @@ class Geometry(occ.Geometry):
     def generate_mesh(self, *args, **kwargs):
         """
         Generate the mesh, determining the mesh dimension (line elements or triangles) from the
-        supplied symmetry. The arguments are passed directly to `pygmsh.occ.Geometry.generate_mesh`.
+        supplied symmetry. The arguments are passed directly to `pygmsh.geo.Geometry.generate_mesh`.
         
         Returns
         -------
@@ -321,7 +321,7 @@ class MEMSStack(Geometry):
     def generate_mesh(self, *args, **kwargs):
         """
         Generate the mesh, determining the mesh dimension (line elements or triangles) from the
-        supplied `revolve_factor`. The arguments are passed directly to `pygmsh.occ.Geometry.generate_mesh`.
+        supplied `revolve_factor`. The arguments are passed directly to `pygmsh.geo.Geometry.generate_mesh`.
         
         Returns
         -------
