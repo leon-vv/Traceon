@@ -14,11 +14,10 @@ def _create_point_to_physical_dict(mesh):
     
     for k, v in mesh.cell_sets_dict.items():
         
-        if 'triangle' in v: 
-            for p in mesh.cells_dict['triangle'][v['triangle']]:
-                a, b, c = p
-                d[a], d[b], d[c] = k, k, k
-        
+        if 'triangle6' in v: 
+            for p in mesh.cells_dict['triangle6'][v['triangle6']]:
+                for p_ in p:
+                    d[p_] = k
         if 'line4' in v:
             for l in mesh.cells_dict['line4'][v['line4']]:
                 a, b, c, e = l
@@ -70,21 +69,22 @@ def plot_triangle_mesh(mesh, show_legend=True, **colors):
     plt.rcParams.update({'font.size': 17})
     
     dict_ = _create_point_to_physical_dict(mesh)
-    triangles = mesh.cells_dict['triangle']
+    triangles = mesh.cells_dict['triangle6']
      
     triangles_to_plot = []
     colors_ = []
     
-    for (A, B, C) in triangles:
-        color = '#CCC'
-        
-        if A in dict_ and B in dict_ and C in dict_:
-            phys1, phys2, phys3 = dict_[A], dict_[B], dict_[C]
-            if phys1 == phys2 and phys2 == phys3 and phys1 in colors:
-                color = colors[phys1]
-         
-        triangles_to_plot.append( [A, B, C] )
-        colors_.append(color)
+    for (v0, v1, v2, v3, v4, v5) in triangles:
+        for A, B, C in [(v0, v3, v5), (v3, v4, v5), (v3, v1, v4), (v5, v4, v2)]:
+            color = '#CCC'
+            
+            if A in dict_ and B in dict_ and C in dict_:
+                phys1, phys2, phys3 = dict_[A], dict_[B], dict_[C]
+                if phys1 == phys2 and phys2 == phys3 and phys1 in colors:
+                    color = colors[phys1]
+            
+            triangles_to_plot.append( [A, B, C] )
+            colors_.append(color)
      
     colors_, triangles_to_plot = np.array(colors_), np.array(triangles_to_plot)
      
