@@ -146,7 +146,7 @@ class Geometry(geo.Geometry):
         if dim == 1:
             gmsh.option.setNumber('Mesh.ElementOrder', 3)
         else:
-            gmsh.option.setNumber('Mesh.ElementOrder', 1)
+            gmsh.option.setNumber('Mesh.ElementOrder', 2)
         
         return Mesh(super().generate_mesh(dim=dim, *args, **kwargs), self.symmetry)
 

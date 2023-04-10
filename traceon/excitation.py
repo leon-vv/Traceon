@@ -105,7 +105,7 @@ class Excitation:
      
     def _get_element_type(self):
         if self.mesh.symmetry == Symmetry.THREE_D:
-            return 'triangle'
+            return 'triangle6'
         else:
             return 'line4'
     

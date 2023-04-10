@@ -249,7 +249,7 @@ def trace_particle_radial_derivs(position, velocity, bounds, atol, z, coeffs):
 def trace_particle_3d(position, velocity, bounds, atol, vertices, charges):
     assert position.shape == (3,)
     assert velocity.shape == (3,)
-    assert vertices.shape == (len(charges), 3, 3)
+    assert vertices.shape == (len(charges), 6, 3)
     bounds = np.array(bounds)
     
     return trace_particle_wrapper(position, velocity,
@@ -315,7 +315,8 @@ dz1_potential_3d_point = remove_arg(backend_lib.dz1_potential_3d_point)
 potential_3d_point = remove_arg(backend_lib.potential_3d_point)
 
 def axial_coefficients_3d(vertices, charges, z, thetas, theta_interpolation):
-    assert vertices.shape == (len(charges), 3, 3)
+    raise NotImplementedError()
+    assert vertices.shape == (len(charges), 6, 3)
     assert theta_interpolation.shape == (len(thetas)-1, NU_MAX, M_MAX, 4)
 
     output_coeffs = np.zeros( (len(z), 2, NU_MAX, M_MAX) )
@@ -327,7 +328,7 @@ def axial_coefficients_3d(vertices, charges, z, thetas, theta_interpolation):
     return output_coeffs
 
 def potential_3d(point, vertices, charges):
-    assert vertices.shape == (len(charges), 3, 3)
+    assert vertices.shape == (len(charges), 6, 3)
     assert point.shape == (3,)
      
     return backend_lib.potential_3d(point, vertices, charges, len(charges))
@@ -339,7 +340,7 @@ def potential_3d_derivs(point, z, coeffs):
     return backend_lib.potential_3d_derivs(point, z, coeffs, len(z))
 
 def field_3d(point, vertices, charges):
-    assert vertices.shape == (len(charges), 3, 3)
+    assert vertices.shape == (len(charges), 6, 3)
     assert point.shape == (3,)
 
     field = np.zeros( (3,) )
@@ -378,7 +379,7 @@ def fill_matrix_3d(matrix, vertices, excitation_types, excitation_values, start_
     N = len(vertices)
     # Due to floating conductor constraints the matrix might actually be bigger than NxN
     assert matrix.shape[0] >= N and matrix.shape[1] >= N and matrix.shape[0] == matrix.shape[1]
-    assert vertices.shape == (N, 3, 3)
+    assert vertices.shape == (N, 6, 3)
     assert excitation_types.shape == (N,)
     assert excitation_values.shape == (N,)
     assert 0 <= start_index < N and 0 <= end_index < N and start_index < end_index

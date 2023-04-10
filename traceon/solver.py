@@ -450,7 +450,7 @@ class Field3D_BEM(FieldBEM):
      
     def __init__(self, vertices, charges, floating_voltages={}):
         super().__init__(vertices, charges, floating_voltages)
-        assert vertices.shape == (len(charges), 3, 3)
+        assert vertices.shape == (len(charges), 6, 3)
     
     def field_at_point(self, point):
         """

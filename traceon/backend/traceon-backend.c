@@ -39,7 +39,6 @@ EXPORT const int DERIV_2D_MAX_SYM = 9;
 EXPORT const int NU_MAX_SYM = NU_MAX;
 EXPORT const int M_MAX_SYM = M_MAX;
 
-#define N_TRIANGLE_QUAD 9
 
 #define TRACING_STEP_MAX 0.01
 #define MIN_DISTANCE_AXIS 1e-10
@@ -65,6 +64,7 @@ typedef double (*charges_2d)[N_QUAD_2D];
 
 // See GMSH documentation
 typedef double triangle6[6][3];
+typedef double (*vertices_3d)[6][3];
 
 //////////////////////////////// ELLIPTIC FUNCTIONS
 
@@ -291,26 +291,13 @@ EXPORT void position_and_jacobian_3d(double alpha, double beta, triangle6 v, dou
 }
 
 // Triangle quadrature constants
+#define N_TRIANGLE_QUAD 9
 const double QUAD_B1[N_TRIANGLE_QUAD] = {0.124949503233232, 0.437525248383384, 0.437525248383384, 0.797112651860071, 0.797112651860071, 0.165409927389841, 0.165409927389841, 0.037477420750088, 0.037477420750088};
 const double QUAD_B2[N_TRIANGLE_QUAD] = {0.437525248383384, 0.124949503233232, 0.437525248383384, 0.165409927389841, 0.037477420750088, 0.797112651860071, 0.037477420750088, 0.797112651860071, 0.165409927389841};
 const double QUAD_WEIGHTS[N_TRIANGLE_QUAD] = {0.205950504760887, 0.205950504760887, 0.205950504760887, 0.063691414286223, 0.063691414286223, 0.063691414286223, 0.063691414286223, 0.063691414286223, 0.063691414286223};
 
 EXPORT double
-triangle_integral(double target[3], double v1[3], double v2[3], double v3[3], integration_cb_3d function, void *args) {
-	double v1x = v1[0], v1y = v1[1], v1z = v1[2];
-	double v2x = v2[0], v2y = v2[1], v2z = v2[2];
-	double v3x = v3[0], v3y = v3[1], v3z = v3[2];
-
-	triangle6 vertices = {
-		{v1[0], v1[1], v1[2]},		
-		{v2[0], v2[1], v2[2]},		
-		{v3[0], v3[1], v3[2]},
-		{(v1[0]+v2[0])/2, (v1[1]+v2[1])/2, (v1[2]+v2[2])/2},
-		{(v2[0]+v3[0])/2, (v2[1]+v3[1])/2, (v2[2]+v3[2])/2},
-		{(v1[0]+v3[0])/2, (v1[1]+v3[1])/2, (v1[2]+v3[2])/2}
-	};
-		
-	//double area = 0.5*sqrt(pow((v2y-v1y)*(v3z-v1z)-(v2z-v1z)*(v3y-v1y), 2) + pow((v2z-v1z)*(v3x-v1x)-(v2x-v1x)*(v3z-v1z), 2) + pow((v2x-v1x)*(v3y-v1y)-(v2y-v1y)*(v3x-v1x), 2));
+triangle_integral(double target[3], triangle6 vertices, integration_cb_3d function, void *args) {
 	
 	double sum_ = 0.0;
 	
@@ -318,57 +305,20 @@ triangle_integral(double target[3], double v1[3], double v2[3], double v3[3], in
 		double b1_ = QUAD_B1[k];
 		double b2_ = QUAD_B2[k];
 		double w = QUAD_WEIGHTS[k];
-			
-        double x = v1x + b1_*(v2x-v1x) + b2_*(v3x-v1x);
-        double y = v1y + b1_*(v2y-v1y) + b2_*(v3y-v1y);
-        double z = v1z + b1_*(v2z-v1z) + b2_*(v3z-v1z);
-
+		
 		double pos[3], jac;
 		position_and_jacobian_3d(b1_, b2_, vertices, pos, &jac);
-			
-        sum_ += 0.5*w*jac*function(target[0], target[1], target[2], x, y, z, args);
+		
+        sum_ += 0.5*w*jac*function(target[0], target[1], target[2], pos[0], pos[1], pos[2], args);
 	}
 	      
     return sum_;
 }
 
-// This is a bit of a hack.. we supply a triangle_integral function which is exactly
-// the same as above, except we inline the 'potential_3d_point' function directly. Weirdly this
-// seem to trigger some kind of optimization within GCC that makes building the matrix much faster. I was not
-// able to reproduce this behaviour simply by extensive use of the 'inline' keyword.
 EXPORT inline double potential_3d_point(double x0, double y0, double z0, double x, double y, double z, void *_) {
 	double r = norm_3d(x-x0, y-y0, z-z0);
     return 1/(4*r);
 }
-
-double
-triangle_integral_potential_3d_point(double target[3], double v1[3], double v2[3], double v3[3]) {
-	double v1x = v1[0], v1y = v1[1], v1z = v1[2];
-	double v2x = v2[0], v2y = v2[1], v2z = v2[2];
-	double v3x = v3[0], v3y = v3[1], v3z = v3[2];
-		
-	double area = 0.5*sqrt(pow((v2y-v1y)*(v3z-v1z)-(v2z-v1z)*(v3y-v1y), 2) + pow((v2z-v1z)*(v3x-v1x)-(v2x-v1x)*(v3z-v1z), 2) + pow((v2x-v1x)*(v3y-v1y)-(v2y-v1y)*(v3x-v1x), 2));
-	
-	double sum_ = 0.0;
-	
-	for (int k=0; k < N_TRIANGLE_QUAD; k++) {
-		double b1_ = QUAD_B1[k];
-		double b2_ = QUAD_B2[k];
-		double w = QUAD_WEIGHTS[k];
-			
-        double x = v1x + b1_*(v2x-v1x) + b2_*(v3x-v1x);
-        double y = v1y + b1_*(v2y-v1y) + b2_*(v3y-v1y);
-        double z = v1z + b1_*(v2z-v1z) + b2_*(v3z-v1z);
-			
-        sum_ += w*potential_3d_point(target[0], target[1], target[2], x, y, z, NULL);
-	}
-	      
-    return area*sum_;
-}
-
-
-
-
 
 //////////////////////////////// PARTICLE TRACING
 
@@ -848,14 +798,12 @@ axial_coefficients_3d(double *restrict vertices_p, double *restrict charges, siz
 //////////////////////////////// 3D POINT POTENTIAL EVALUATION
 
 EXPORT double
-potential_3d(double point[3], double *vertices_p, double *charges, size_t N_vertices) {
-
-	double (*vertices)[3][3] = (double (*)[3][3]) vertices_p;	
-
-	double sum_ = 0.0;
+potential_3d(double point[3], vertices_3d vertices, double *charges, size_t N_vertices) {
 	
+	double sum_ = 0.0;
+		
 	for(int i = 0; i < N_vertices; i++) {
-		sum_ += charges[i] * triangle_integral(point, vertices[i][0], vertices[i][1], vertices[i][2], potential_3d_point, NULL);
+		sum_ += charges[i] * triangle_integral(point, &vertices[i][0], potential_3d_point, NULL);
 	}
 	
 	return sum_;
@@ -912,32 +860,26 @@ field_dot_normal_3d(double x0, double y0, double z0, double x, double y, double 
 
 
 EXPORT void
-field_3d(double point[3], double result[3], double *vertices_p, double *charges, size_t N_vertices) {
+field_3d(double point[3], double result[3], vertices_3d vertices, double *charges, size_t N_vertices) {
+		
+	double Ex = 0.0, Ey = 0.0, Ez = 0.0;
 	
-		double (*vertices)[3][3] = (double (*)[3][3]) vertices_p;
-		
-		double Ex = 0.0, Ey = 0.0, Ez = 0.0;
-		
-		for(int i = 0; i < N_vertices; i++) {
-			
-			double *v1, *v2, *v3;
-			v1 = &vertices[i][0][0], v2 = &vertices[i][1][0], v3 = &vertices[i][2][0];
-			
-			Ex -= charges[i]*triangle_integral(point, v1, v2, v3, dx1_potential_3d_point, NULL);
-			Ey -= charges[i]*triangle_integral(point, v1, v2, v3, dy1_potential_3d_point, NULL);
-			Ez -= charges[i]*triangle_integral(point, v1, v2, v3, dz1_potential_3d_point, NULL);
-		} 
+	for(int i = 0; i < N_vertices; i++) {
+		Ex -= charges[i]*triangle_integral(point, &vertices[i][0], dx1_potential_3d_point, NULL);
+		Ey -= charges[i]*triangle_integral(point, &vertices[i][0], dy1_potential_3d_point, NULL);
+		Ez -= charges[i]*triangle_integral(point, &vertices[i][0], dz1_potential_3d_point, NULL);
+	} 
 
-		result[0] = Ex;
-		result[1] = Ey;
-		result[2] = Ez;
+	result[0] = Ex;
+	result[1] = Ey;
+	result[2] = Ez;
 }
 
 void
 field_3d_traceable(double point[3], double result[3], void *args_p) {
 
 	struct field_evaluation_args *args = (struct field_evaluation_args*)args_p;
-	field_3d(point, result, args->vertices, args->charges, args->N_vertices);
+	field_3d(point, result, (vertices_3d) args->vertices, args->charges, args->N_vertices);
 }
 
 EXPORT size_t
@@ -1301,7 +1243,7 @@ EXPORT void fill_matrix_radial(double *matrix,
 
 
 EXPORT void fill_matrix_3d(double *matrix, 
-                    double *triangle_points_p, 
+                    vertices_3d triangle_points, 
                     uint8_t *excitation_types, 
                     double *excitation_values, 
 					size_t N_lines,
@@ -1310,7 +1252,6 @@ EXPORT void fill_matrix_3d(double *matrix,
                     int lines_range_end) {
     
 	assert(lines_range_start < N_lines && lines_range_end < N_lines);
-	double (*triangle_points)[3][3] = (double (*)[3][3]) triangle_points_p;
 		
     for (int i = lines_range_start; i <= lines_range_end; i++) {
 		double *p1 = &triangle_points[i][0][0];
@@ -1321,10 +1262,7 @@ EXPORT void fill_matrix_3d(double *matrix,
 		 
         if (type_ == VOLTAGE_FIXED || type_ == VOLTAGE_FUN || type_ == FLOATING_CONDUCTOR) {
             for (int j = 0; j < N_lines; j++) {
-                double *v1 = &triangle_points[j][0][0];
-                double *v2 = &triangle_points[j][1][0];
-                double *v3 = &triangle_points[j][2][0];
-                matrix[i*N_matrix + j] = triangle_integral_potential_3d_point(target, v1, v2, v3);
+                matrix[i*N_matrix + j] = triangle_integral(target, &triangle_points[j][0], potential_3d_point, NULL);
             }
         } 
         else if (type_ == DIELECTRIC) {
@@ -1333,12 +1271,9 @@ EXPORT void fill_matrix_3d(double *matrix,
             double K = excitation_values[i];
             
             for (int j = 0; j < N_lines; j++) {
-				double *v1 = &triangle_points[j][0][0];
-                double *v2 = &triangle_points[j][1][0];
-                double *v3 = &triangle_points[j][2][0];
 				// See comments in 'fill_matrix_2d'.
                 double factor = (2*K - 2) / (M_PI*(1 + K));
-                matrix[i*N_matrix + j] = factor * triangle_integral(target, v1, v2, v3, field_dot_normal_3d, normal);
+                matrix[i*N_matrix + j] = factor * triangle_integral(target, &triangle_points[j][0], field_dot_normal_3d, normal);
 				 
                 if (i == j) matrix[i*N_matrix + j] -= 1.0;
             }
