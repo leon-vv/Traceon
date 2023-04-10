@@ -63,6 +63,9 @@ typedef double (*integration_cb_2d)(double, double, double, double, void*);
 typedef double (*vertices_2d)[4][3];
 typedef double (*charges_2d)[N_QUAD_2D];
 
+// See GMSH documentation
+typedef double triangle6[6][3];
+
 //////////////////////////////// ELLIPTIC FUNCTIONS
 
 // Chebyshev Approximations for the Complete Elliptic Integrals K and E.
@@ -235,6 +238,58 @@ normal_3d(double *p1, double *p2, double *p3, double *normal) {
 	normal[2] = normal_z/length;
 }
 
+void barycentric_coefficients_higher_order_triangle_3d(double alpha, double beta,
+	double v0, double v1, double v2, double v3, double v4, double v5, double coeffs[6]) {
+    coeffs[0] = v0;
+	coeffs[1] = 4*v3-v1-3*v0;
+	coeffs[2] = 4*v5-v2-3*v0;
+	coeffs[3] = -4*v3+2*v1+2*v0;
+	coeffs[4] = -4*v5+4*v4-4*v3+4*v0;
+	coeffs[5] = -4*v5+2*v2+2*v0;
+}
+
+double dot6(double *v1, double *v2) {
+	double sum = 0.0;
+	for(int i = 0; i < 6; i++) sum += v1[i]*v2[i];
+	return sum;
+}
+
+double norm_cross_product_3d(double *v1, double *v2) {
+	double v1x = v1[0], v1y = v1[1], v1z = v1[2];
+	double v2x = v2[0], v2y = v2[1], v2z = v2[2];
+	return norm_3d(v1y*v2z-v1z*v2y,v1z*v2x-v1x*v2z,v1x*v2y-v1y*v2x);
+}
+
+EXPORT void position_and_jacobian_3d(double alpha, double beta, triangle6 v, double *pos_out, double *jac) {
+
+	double coeffs_x[6], coeffs_y[6], coeffs_z[6];
+	barycentric_coefficients_higher_order_triangle_3d(alpha, beta, v[0][0], v[1][0], v[2][0], v[3][0], v[4][0], v[5][0], coeffs_x);
+	barycentric_coefficients_higher_order_triangle_3d(alpha, beta, v[0][1], v[1][1], v[2][1], v[3][1], v[4][1], v[5][1], coeffs_y);
+	barycentric_coefficients_higher_order_triangle_3d(alpha, beta, v[0][2], v[1][2], v[2][2], v[3][2], v[4][2], v[5][2], coeffs_z);
+	
+	double monomials[6] = {1, alpha, beta, pow(alpha,2), alpha*beta, pow(beta,2)};
+	double monomials_da[6] = {0, 1, 0, 2*alpha, alpha, 0};
+	double monomials_db[6] = {0, 0, 1, 0, alpha, 2*beta};
+
+	pos_out[0] = dot6(coeffs_x, monomials);
+	pos_out[1] = dot6(coeffs_y, monomials);
+	pos_out[2] = dot6(coeffs_z, monomials);
+
+	double da[3] = {
+		dot6(coeffs_x, monomials_da),
+		dot6(coeffs_y, monomials_da),
+		dot6(coeffs_z, monomials_da),
+	};
+	
+	double db[3] = {
+		dot6(coeffs_x, monomials_db),
+		dot6(coeffs_y, monomials_db),
+		dot6(coeffs_z, monomials_db),
+	};
+	
+	*jac = norm_cross_product_3d(da, db);
+}
+
 // Triangle quadrature constants
 const double QUAD_B1[N_TRIANGLE_QUAD] = {0.124949503233232, 0.437525248383384, 0.437525248383384, 0.797112651860071, 0.797112651860071, 0.165409927389841, 0.165409927389841, 0.037477420750088, 0.037477420750088};
 const double QUAD_B2[N_TRIANGLE_QUAD] = {0.437525248383384, 0.124949503233232, 0.437525248383384, 0.165409927389841, 0.037477420750088, 0.797112651860071, 0.037477420750088, 0.797112651860071, 0.165409927389841};
@@ -245,8 +300,17 @@ triangle_integral(double target[3], double v1[3], double v2[3], double v3[3], in
 	double v1x = v1[0], v1y = v1[1], v1z = v1[2];
 	double v2x = v2[0], v2y = v2[1], v2z = v2[2];
 	double v3x = v3[0], v3y = v3[1], v3z = v3[2];
+
+	triangle6 vertices = {
+		{v1[0], v1[1], v1[2]},		
+		{v2[0], v2[1], v2[2]},		
+		{v3[0], v3[1], v3[2]},
+		{(v1[0]+v2[0])/2, (v1[1]+v2[1])/2, (v1[2]+v2[2])/2},
+		{(v2[0]+v3[0])/2, (v2[1]+v3[1])/2, (v2[2]+v3[2])/2},
+		{(v1[0]+v3[0])/2, (v1[1]+v3[1])/2, (v1[2]+v3[2])/2}
+	};
 		
-	double area = 0.5*sqrt(pow((v2y-v1y)*(v3z-v1z)-(v2z-v1z)*(v3y-v1y), 2) + pow((v2z-v1z)*(v3x-v1x)-(v2x-v1x)*(v3z-v1z), 2) + pow((v2x-v1x)*(v3y-v1y)-(v2y-v1y)*(v3x-v1x), 2));
+	//double area = 0.5*sqrt(pow((v2y-v1y)*(v3z-v1z)-(v2z-v1z)*(v3y-v1y), 2) + pow((v2z-v1z)*(v3x-v1x)-(v2x-v1x)*(v3z-v1z), 2) + pow((v2x-v1x)*(v3y-v1y)-(v2y-v1y)*(v3x-v1x), 2));
 	
 	double sum_ = 0.0;
 	
@@ -258,11 +322,14 @@ triangle_integral(double target[3], double v1[3], double v2[3], double v3[3], in
         double x = v1x + b1_*(v2x-v1x) + b2_*(v3x-v1x);
         double y = v1y + b1_*(v2y-v1y) + b2_*(v3y-v1y);
         double z = v1z + b1_*(v2z-v1z) + b2_*(v3z-v1z);
+
+		double pos[3], jac;
+		position_and_jacobian_3d(b1_, b2_, vertices, pos, &jac);
 			
-        sum_ += w*function(target[0], target[1], target[2], x, y, z, args);
+        sum_ += 0.5*w*jac*function(target[0], target[1], target[2], x, y, z, args);
 	}
 	      
-    return area*sum_;
+    return sum_;
 }
 
 // This is a bit of a hack.. we supply a triangle_integral function which is exactly
