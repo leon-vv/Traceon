@@ -1254,10 +1254,10 @@ EXPORT void fill_matrix_3d(double *matrix,
 	assert(lines_range_start < N_lines && lines_range_end < N_lines);
 		
     for (int i = lines_range_start; i <= lines_range_end; i++) {
-		double *p1 = &triangle_points[i][0][0];
-		double *p2 = &triangle_points[i][1][0];
-		double *p3 = &triangle_points[i][2][0];
-		double target[3] = {(p1[0] + p2[0] + p3[0])/3, (p1[1] + p2[1] + p3[1])/3, (p1[2] + p2[2] + p3[2])/3};
+		// TODO: higher order
+		double target[3], jac;
+		position_and_jacobian_3d(1/3., 1/3., &triangle_points[i][0], target, &jac);
+			
         enum ExcitationType type_ = excitation_types[i];
 		 
         if (type_ == VOLTAGE_FIXED || type_ == VOLTAGE_FUN || type_ == FLOATING_CONDUCTOR) {
@@ -1266,6 +1266,10 @@ EXPORT void fill_matrix_3d(double *matrix,
             }
         } 
         else if (type_ == DIELECTRIC) {
+			double *p1 = &triangle_points[i][0][0];
+			double *p2 = &triangle_points[i][1][0];
+			double *p3 = &triangle_points[i][2][0];
+
             double normal[3];
             normal_3d(p1, p2, p3, normal);
             double K = excitation_values[i];
