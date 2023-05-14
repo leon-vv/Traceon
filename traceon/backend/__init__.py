@@ -77,7 +77,7 @@ backend_functions = {
     'ellipk' : (dbl, dbl),
     'ellipe': (dbl, dbl),
     'normal_2d': (None, v2, v2, v2),
-    'normal_3d': (None, v3, v3, v3),
+    'normal_3d': (None, v3, v3, v3, v3),
     'triangle_integral': (dbl, v3, v3, v3, v3, integration_cb_3d, C.c_void_p),
     'trace_particle': (sz, times_block, tracing_block, field_fun, bounds, dbl, vp),
     'potential_radial_ring': (dbl, dbl, dbl, dbl, dbl, vp), 
@@ -150,7 +150,7 @@ def remove_arg(fun):
 
 def normal_3d(p1, p2, p3):
     normal = np.zeros( (3,) )
-    backend_lib.normal_2d(p1, p2, normal)
+    backend_lib.normal_3d(p1, p2, p3, normal)
     return normal
    
 def triangle_integral(point, v1, v2, v3, callback):
