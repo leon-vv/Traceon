@@ -13,7 +13,7 @@ import traceon.plotting as P
 import util
 
 
-def create_geometry(MSF, symmetry, for_plot):
+def create_geometry(MSF, symmetry):
     assert symmetry == G.Symmetry.RADIAL, 'Only radial symmetry supported'
     
     S = 0.2

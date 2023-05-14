@@ -16,7 +16,7 @@ angle = 0.05
 r1 = 7.5
 r2 = 12.5
 
-def create_geometry(MSF, symmetry, for_plot):
+def create_geometry(MSF, symmetry):
     """Create the spherical deflection analyzer from the following paper
 
     D. Cubric, B. Lencova, F.H. Read, J. Zlamal
@@ -48,7 +48,7 @@ def create_geometry(MSF, symmetry, for_plot):
             geom.add_physical([l5, l6], 'outer')
         elif symmetry == G.Symmetry.THREE_D:
             s1 = G.revolve_around_optical_axis(geom, [l2, l3])
-            s2 = G.revolve_around_optical_axis(geom, [l5, l6], factor=0.5 if for_plot else 1.0)
+            s2 = G.revolve_around_optical_axis(geom, [l5, l6])
             geom.add_physical(s1, 'inner')
             geom.add_physical(s2, 'outer')
 

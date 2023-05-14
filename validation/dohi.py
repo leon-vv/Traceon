@@ -10,12 +10,12 @@ import traceon.solver as S
 
 import util
 
-def create_geometry(MSF, symmetry, for_plot):
+def create_geometry(MSF, symmetry):
     
     revolve_factor = 0.0
 
     if symmetry == G.Symmetry.THREE_D:
-        revolve_factor = 1.0 if not for_plot else 0.6
+        revolve_factor = 1.0
         rmax = 1.25
     else:
         rmax = 1.25

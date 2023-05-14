@@ -14,6 +14,7 @@ parser.add_argument('-MSF', default=None, type=int, help='Mesh size factor')
 parser.add_argument('--symmetry', choices=['3d', 'radial'], default='radial', help='Choose the symmetry to use for the geometry (3d or radially symmetric)')
 parser.add_argument('--plot-accuracy', action='store_true', help='Plot the accuracy as a function of time and number of elements')
 parser.add_argument('--plot-geometry', action='store_true', help='Plot the geometry')
+parser.add_argument('--show-normals', action='store_true', help='When plotting geometry, show normals')
 
 def print_info(Nlines, duration, accuracy):
     print('Number of elements\t\tComputation time (ms)\t\tAccuracy')
@@ -31,12 +32,12 @@ def parse_validation_args(create_geometry, compute_error, MSF={'radial':default_
     symmetry = G.Symmetry.RADIAL if args.symmetry == 'radial' else G.Symmetry.THREE_D
     
     if args.plot_geometry:
-        geom = create_geometry(MSFdefault, symmetry, True)
+        geom = create_geometry(MSFdefault, symmetry)
         assert geom.symmetry == symmetry 
         if geom.symmetry != G.Symmetry.THREE_D:
             P.plot_line_mesh(geom.mesh, **colors) 
         else:
-            P.plot_triangle_mesh(geom.mesh, **colors)
+            P.plot_triangle_mesh(geom.mesh, show_normals=args.show_normals, **colors)
     elif args.plot_accuracy:
         num_lines = []
         times = []
@@ -45,7 +46,7 @@ def parse_validation_args(create_geometry, compute_error, MSF={'radial':default_
         for n in MSF[args.symmetry]:
             print('-'*75, f' MSF={n}')
             st = time.time()
-            geom = create_geometry(n, symmetry, False)
+            geom = create_geometry(n, symmetry)
             exc, err = compute_error(geom)
             num_lines.append(exc.get_number_of_matrix_elements())
             times.append( (time.time() - st)*1000)
@@ -78,7 +79,7 @@ def parse_validation_args(create_geometry, compute_error, MSF={'radial':default_
 
     else:
         st = time.time()
-        geom = create_geometry(MSFdefault, symmetry, False)
+        geom = create_geometry(MSFdefault, symmetry)
         exc, err = compute_error(geom)
         duration = (time.time() - st)*1000
         print_info([exc.get_number_of_matrix_elements()], [duration], [err])

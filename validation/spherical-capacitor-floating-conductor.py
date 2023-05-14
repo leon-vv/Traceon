@@ -18,7 +18,7 @@ r2 = 1.0
 r3 = 0.6
 r4 = 0.9
 
-def create_geometry(MSF, symmetry, for_plot):
+def create_geometry(MSF, symmetry):
      
     with G.Geometry(symmetry) as geom:
         center = geom.add_point([0.0, 0.0])
@@ -43,9 +43,9 @@ def create_geometry(MSF, symmetry, for_plot):
                 return arcs
         
         l1 = add_shell(r1)
-        d1 = add_shell(r3, reorient=True, factor=0.7 if for_plot else 1.0)
-        d2 = add_shell(r4, factor=0.5 if for_plot else 1.0)
-        l2 = add_shell(r2, factor=0.3 if for_plot else 1.0)
+        d1 = add_shell(r3, reorient=True)
+        d2 = add_shell(r4)
+        l2 = add_shell(r2)
         
         geom.add_physical(l1, 'inner')
         geom.add_physical(l2, 'outer')

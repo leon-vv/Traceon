@@ -12,7 +12,7 @@ import traceon.solver as S
 import util
 
 
-def create_geometry(MSF, symmetry, for_plot):
+def create_geometry(MSF, symmetry):
     """Create the geometry g5 (figure 2) from the following paper:
     D. Edwards. High precision electrostatic potential calculations for cylindrically
     symmetric lenses. 2007.
@@ -46,7 +46,7 @@ def create_geometry(MSF, symmetry, for_plot):
         
         if symmetry == G.Symmetry.THREE_D:
             inner = G.revolve_around_optical_axis(geom, [l1, l2, l3])
-            boundary = G.revolve_around_optical_axis(geom, [l4, l5, l6], factor=0.6 if for_plot else 1.0)
+            boundary = G.revolve_around_optical_axis(geom, [l4, l5, l6])
             
             geom.add_physical(inner, 'inner')
             geom.add_physical(boundary, 'boundary')
