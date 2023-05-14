@@ -35,7 +35,7 @@ def parse_validation_args(create_geometry, compute_error, MSF={'radial':default_
         geom = create_geometry(MSFdefault, symmetry)
         assert geom.symmetry == symmetry 
         if geom.symmetry != G.Symmetry.THREE_D:
-            P.plot_line_mesh(geom.mesh, **colors) 
+            P.plot_line_mesh(geom.mesh, show_normals=args.show_normals, **colors) 
         else:
             P.plot_triangle_mesh(geom.mesh, show_normals=args.show_normals, **colors)
     elif args.plot_accuracy:
