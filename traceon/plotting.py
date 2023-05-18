@@ -7,6 +7,7 @@ import numpy as np
 import vedo
 
 from . import backend
+from .geometry import Symmetry
 
 def _create_point_to_physical_dict(mesh):
     d = {}
@@ -24,6 +25,75 @@ def _create_point_to_physical_dict(mesh):
                 d[a], d[b], d[c], d[e] = k, k, k, k
      
     return d
+
+
+def plot_mesh(mesh, *args, **kwargs):
+     
+    if mesh.symmetry == Symmetry.RADIAL:
+        return plot_line_mesh(mesh.mesh, *args, **kwargs)
+    elif mesh.symmetry == Symmetry.THREE_D:
+        return plot_triangle_mesh(mesh.mesh, *args, **kwargs)
+
+def plot_charge_density(excitation, field, *args, **kwargs):
+    
+    mesh = excitation.mesh 
+    
+    if mesh.symmetry == Symmetry.RADIAL:
+        return _plot_charge_density_2d(excitation, field, *args, **kwargs)
+    elif mesh.symmetry == Symmetry.THREE_D:
+        return _plot_charge_density_3d(excitation, field, *args, **kwargs)
+
+def _plot_charge_density_3d(excitation, field, density=False):
+    
+    all_vertices, name = excitation.get_active_elements()
+    
+    if density:
+        all_charges = field.charges
+    else:
+        all_charges = np.array([field.charge_on_element(i) for i in range(len(all_vertices))])
+    
+    charge_min, charge_max = np.min(all_charges), np.max(all_charges)
+    
+    plotter = vedo.Plotter()
+
+    for _, indices in name.items():
+        vertices = all_vertices[indices]
+        
+        points = np.reshape(vertices, (3*len(vertices), 3))
+        p_indices = np.arange(3*len(vertices)).reshape( (len(vertices), 3) )
+        vm = vedo.Mesh([points, p_indices])
+        vm.linecolor('black').linewidth(2)
+        
+        vm.cellcolors = 255*vedo.colors.color_map(all_charges[indices], name='jet', vmin=charge_min, vmax=charge_max)
+        plotter.add(vm)
+    
+    plotter.show(viewup='z', axes={'xtitle': 'x (mm)', 'ytitle': 'y (mm)', 'ztitle': 'z (mm)'})
+
+def _plot_charge_density_2d(excitation, field, density=False):
+    all_vertices, name = excitation.get_active_elements()
+    all_charges = np.array([field.charge_on_element(i) for i in range(len(all_vertices))])
+    
+    if density:
+        lengths = np.linalg.norm(all_vertices[:, 1] - all_vertices[:, 0])
+        all_charges /= lengths
+    
+    assert len(all_vertices) == len(all_charges)
+    charge_min, charge_max = np.min(all_charges), np.max(all_charges)
+    
+    plotter = vedo.Plotter()
+    
+    for _, indices in name.items():
+        vertices = all_vertices[indices]
+        start_points = np.reshape(np.array( [(P1, P3, P4) for P1,_,P3,P4 in vertices] ), (len(vertices)*3, 3))
+        end_points = np.reshape(np.array([(P3, P4, P2) for _,P2,P3,P4 in vertices]), (len(vertices)*3, 3))
+        l = vedo.Lines(start_points, end_points, lw=3)
+        colors = np.repeat(all_charges[indices], 6)
+        l.cmap('jet', colors, vmin=charge_min, vmax=charge_max)
+        plotter.add(l)
+    
+    plotter.show(axes={'xtitle': 'x (mm)', 'ytitle': 'y (mm)'})
+    
+    
 
 def plot_triangle_mesh(mesh, show_legend=True, show_normals=False, **colors):
     
@@ -79,16 +149,13 @@ def plot_triangle_mesh(mesh, show_legend=True, show_normals=False, **colors):
     plotter.show(viewup='z', axes={'xtitle': 'x (mm)', 'ytitle': 'y (mm)', 'ztitle': 'z (mm)'})
 
 
-def plot_line_mesh(mesh, trajectory=None, show_legend=True, show_normals=False, **colors):
+def plot_line_mesh(mesh, show_legend=True, show_normals=False, **colors):
     """Show a 2D mesh (mesh consisting of many line elements).
     
     Parameters
     ---------
     mesh: meshio object
         The mesh to show.
-    trajectory: (N, 2) np.ndarray
-        Optionally also show a trajectory inside the geometry. The trajectory
-        can simply be the position values returned when calling `traceon.tracing.Tracer`.
     show_legend: bool
         Whether to show a legend. The colors in the legend will correspond to the different physical
         groups present in the geometry.
