@@ -58,13 +58,14 @@ def create_geometry(MSF, symmetry):
             
             return geom.generate_mesh()
 
-def compute_error(geometry):
-    
+def compute_field(geometry):
     excitation = E.Excitation(geometry)
     excitation.add_voltage(boundary=0, inner=10)
     
     field = S.solve_bem(excitation)
+    return excitation, field
 
+def compute_error(excitation, field, geometry):
     st = time.time()
     if excitation.mesh.symmetry == G.Symmetry.THREE_D:
         pot = field.potential_at_point(np.array([12, 0.0, 4]))
@@ -82,5 +83,5 @@ util.parser.description = '''Compute the potential at point (12, 4) inside two c
 High precision electrostatic potential calculations for cylindrically symmetric lenses. David Edwards. 2007.
 '''
 
-util.parse_validation_args(create_geometry, compute_error, boundary='blue', inner='orange')
+util.parse_validation_args(create_geometry, compute_field, compute_error, boundary='blue', inner='orange')
 

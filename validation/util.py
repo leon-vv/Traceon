@@ -15,6 +15,8 @@ parser.add_argument('--symmetry', choices=['3d', 'radial'], default='radial', he
 parser.add_argument('--plot-accuracy', action='store_true', help='Plot the accuracy as a function of time and number of elements')
 parser.add_argument('--plot-geometry', action='store_true', help='Plot the geometry')
 parser.add_argument('--show-normals', action='store_true', help='When plotting geometry, show normals')
+parser.add_argument('--show-charge-density', action='store_true', help='When plotting geometry, base the colors on the computed charge density')
+parser.add_argument('--show-charge', action='store_true', help='When plotting geometry, base the colors on the charge on each element')
 
 def print_info(Nlines, duration, accuracy):
     print('Number of elements\t\tComputation time (ms)\t\tAccuracy')
@@ -25,7 +27,7 @@ def print_info(Nlines, duration, accuracy):
 default_msf_radial = [10, 25, 50, 100, 150]
 default_msf_3d = [20, 50, 100, 200]
 
-def parse_validation_args(create_geometry, compute_error, MSF={'radial':default_msf_radial, '3d':default_msf_3d}, **colors):
+def parse_validation_args(create_geometry, compute_field, compute_error, MSF={'radial':default_msf_radial, '3d':default_msf_3d}, **colors):
      
     args = parser.parse_args()
     MSFdefault = args.MSF if args.MSF != None else MSF[args.symmetry][1]
@@ -34,10 +36,11 @@ def parse_validation_args(create_geometry, compute_error, MSF={'radial':default_
     if args.plot_geometry:
         geom = create_geometry(MSFdefault, symmetry)
         assert geom.symmetry == symmetry 
-        if geom.symmetry != G.Symmetry.THREE_D:
-            P.plot_line_mesh(geom.mesh, show_normals=args.show_normals, **colors) 
+        if args.show_charge or args.show_charge_density:
+            exc, field = compute_field(geom)
+            P.plot_charge_density(exc, field, density=args.show_charge_density)
         else:
-            P.plot_triangle_mesh(geom.mesh, show_normals=args.show_normals, **colors)
+            P.plot_mesh(geom, show_normals=args.show_normals, **colors) 
     elif args.plot_accuracy:
         num_lines = []
         times = []
@@ -47,7 +50,8 @@ def parse_validation_args(create_geometry, compute_error, MSF={'radial':default_
             print('-'*75, f' MSF={n}')
             st = time.time()
             geom = create_geometry(n, symmetry)
-            exc, err = compute_error(geom)
+            exc, field = compute_field(geom)
+            exc, err = compute_error(exc, field, geom)
             num_lines.append(exc.get_number_of_matrix_elements())
             times.append( (time.time() - st)*1000)
             errors.append(abs(err))
@@ -80,7 +84,8 @@ def parse_validation_args(create_geometry, compute_error, MSF={'radial':default_
     else:
         st = time.time()
         geom = create_geometry(MSFdefault, symmetry)
-        exc, err = compute_error(geom)
+        exc, field = compute_field(geom)
+        exc, err = compute_error(exc, field, geom)
         duration = (time.time() - st)*1000
         print_info([exc.get_number_of_matrix_elements()], [duration], [err])
 
