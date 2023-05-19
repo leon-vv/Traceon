@@ -9,5 +9,5 @@ sdist:
 	python3 ./setup.py sdist
 
 traceon/backend/traceon_backend.so: traceon/backend/traceon-backend.c
-	clang -O3 -shared -fPIC -ffast-math ./traceon/backend/traceon-backend.c -o traceon/backend/traceon_backend.so
+	clang -O3 -shared -fPIC -ffast-math -lgsl ./traceon/backend/traceon-backend.c -o traceon/backend/traceon_backend.so
 

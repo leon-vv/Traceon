@@ -5,6 +5,8 @@
 #include <stdint.h>
 #include <stdbool.h>
 
+#include <gsl/gsl_integration.h>
+
 #ifdef _MSC_VER
 #define EXPORT __declspec(dllexport)
 
@@ -273,7 +275,7 @@ double norm_cross_product_3d(double *v1, double *v2) {
 	return norm_3d(out[0], out[1], out[2]);
 }
 
-EXPORT void position_and_jacobian_3d(double alpha, double beta, triangle6 v, double *pos_out, double *jac) {
+EXPORT inline void position_and_jacobian_3d(double alpha, double beta, triangle6 v, double *pos_out, double *jac) {
 
 	double coeffs_x[6], coeffs_y[6], coeffs_z[6];
 	barycentric_coefficients_higher_order_triangle_3d(alpha, beta, v[0][0], v[1][0], v[2][0], v[3][0], v[4][0], v[5][0], coeffs_x);
@@ -598,6 +600,91 @@ triangle_integral_singular(double target[3], triangle6 vertices, integration_cb_
 	}
 	      
     return sum_;
+}
+
+
+struct self_voltage_3d_args {
+	double beta;
+	double *target;
+	double *vertices;
+	integration_cb_3d cb_fun;
+	void *cb_args;	
+	gsl_integration_workspace *inner_workspace;
+};
+
+double
+triangle_integral_alpha(double alpha, void *args_p) {
+
+	struct self_voltage_3d_args *args = args_p;
+	double *target = args->target;
+	double beta = args->beta;
+
+	// Telles transformation
+	double B = 1-beta;
+	const int order = 3;
+	double eta = B*pow(alpha, order);
+	double Jeta = order*B*pow(alpha, order-1);
+	
+	//assert( (0 <= alpha) && (alpha <= 1-beta) );
+	//assert( (0 <= beta) && (beta <= 1));
+		
+	double pos[3], jac;
+	double *v = args->vertices;
+	//printf("Vertices: %f, %f, %f\n", v[0], v[1], v[2]);
+	//printf("Vertices: %f, %f, %f\n", v[3], v[4], v[5]);
+	//printf("Vertices: %f, %f, %f\n", v[6], v[7], v[8]);
+	position_and_jacobian_3d(eta, beta, (double (*)[3]) args->vertices, pos, &jac);
+
+	return Jeta*jac*args->cb_fun(target[0], target[1], target[2], pos[0], pos[1], pos[2], args->cb_args);
+}
+
+double
+triangle_integral_beta(double beta, void *args_p) {
+
+	struct self_voltage_3d_args *args = args_p;
+
+	// Telles transformation
+	const int order = 3;
+	double eta = pow(beta,order);
+	double Jeta = order*pow(beta,order-1);
+	
+	args->beta = eta;
+		
+    gsl_function F;
+    F.function = &triangle_integral_alpha;
+	F.params = args;
+	
+    double result, error;
+    gsl_integration_qag(&F, 0, 1, 0, 1e-5, 1000, GSL_INTEG_GAUSS31, args->inner_workspace, &result, &error);
+		
+	return Jeta*result;
+}
+
+double
+triangle_integral_adaptive(double target[3], triangle6 vertices, integration_cb_3d function, void *args) {
+	
+	gsl_integration_workspace * w = gsl_integration_workspace_alloc(1000);
+	gsl_integration_workspace * w_inner = gsl_integration_workspace_alloc(1000);
+	
+	struct self_voltage_3d_args integration_args = {
+		.target = target,
+		.cb_fun = function,
+		.cb_args = args,
+		.vertices = (double*) vertices,
+		.inner_workspace = w_inner
+	};
+		
+    gsl_function F;
+    F.function = &triangle_integral_beta;
+	F.params = &integration_args;
+		
+    double result, error;
+    gsl_integration_qag(&F, 0, 1, 0, 1e-5, 1000, GSL_INTEG_GAUSS31, w, &result, &error);
+	
+    gsl_integration_workspace_free(w);
+    gsl_integration_workspace_free(w_inner);
+		
+	return result;
 }
 
 void
@@ -1605,52 +1692,6 @@ EXPORT void fill_matrix_radial(double *matrix,
 	fill_self_voltages_radial(matrix, line_points, excitation_types, excitation_values, N_lines, N_matrix, lines_range_start, lines_range_end);
 }
 
-
-double singular_voltage_3d(double target[3], triangle6 source) {
-
-	double (*v)[3] = &source[0];
-				
-	// Target
-	double t[3], jac;
-	position_and_jacobian_3d(1/3., 1/3., source, t, &jac);
-
-	double s0[3], s1[3], s2[3];
-	position_and_jacobian_3d(1/6., 1/6., source, s0, &jac);
-	position_and_jacobian_3d(4/6., 1/6., source, s1, &jac);
-	position_and_jacobian_3d(1/6., 4/6., source, s2, &jac);
-				
-	triangle6 triangle1 = {
-		{ t[0], t[1], t[2] },
-		{ v[0][0], v[0][1], v[0][2] },
-		{ v[1][0], v[1][1], v[1][2] },
-		{ s0[0], s0[1], s0[2] },
-		{ v[3][0], v[3][1], v[3][2] },
-		{ s1[0], s1[1], s1[2] } };
-	
-	triangle6 triangle2 = {
-		{ t[0], t[1], t[2] },
-		{ v[1][0], v[1][1], v[1][2] },
-		{ v[2][0], v[2][1], v[2][2] },
-		{ s1[0], s1[1], s1[2] },
-		{ v[4][0], v[4][1], v[4][2] },
-		{ s2[0], s2[1], s2[2] } };
-		
-	triangle6 triangle3 = {
-		{ t[0], t[1], t[2] },
-		{ v[2][0], v[2][1], v[2][2] },
-		{ v[0][0], v[0][1], v[0][2] },
-		{ s2[0], s2[1], s2[2] },
-		{ v[5][0], v[5][1], v[5][2] },
-		{ s0[0], s0[1], s0[2] } };
-
-		
-	double sum_ = 0.0;
-	sum_ += triangle_integral_singular(target, triangle1, potential_3d_point, NULL);
-	sum_ += triangle_integral_singular(target, triangle2, potential_3d_point, NULL);
-	sum_ += triangle_integral_singular(target, triangle3, potential_3d_point, NULL);
-	return sum_;
-}
-
 void fill_self_voltages_3d(double *matrix, 
                         vertices_3d line_points,
 						uint8_t *excitation_types,
@@ -1698,9 +1739,10 @@ void fill_self_voltages_3d(double *matrix,
 			{ s0[0], s0[1], s0[2] } };
 
 		matrix[i*N_matrix + i] = 0.0;
-		matrix[i*N_matrix + i] += triangle_integral_singular(t, triangle1, potential_3d_point, NULL);
-		matrix[i*N_matrix + i] += triangle_integral_singular(t, triangle2, potential_3d_point, NULL);
-		matrix[i*N_matrix + i] += triangle_integral_singular(t, triangle3, potential_3d_point, NULL);
+		matrix[i*N_matrix + i] += triangle_integral_adaptive(t, triangle1, potential_3d_point, NULL);
+		matrix[i*N_matrix + i] += triangle_integral_adaptive(t, triangle2, potential_3d_point, NULL);
+		matrix[i*N_matrix + i] += triangle_integral_adaptive(t, triangle3, potential_3d_point, NULL);
+		//printf("%d\n", i);
 	}
 }
 
