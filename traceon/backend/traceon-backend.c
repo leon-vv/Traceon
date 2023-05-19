@@ -19,6 +19,8 @@ PyMODINIT_FUNC PyInit_traceon_backend(void) {
 #define EXPORT extern
 #endif
 
+#define INLINE EXPORT inline
+
 #if defined(__clang__)
 	#define UNROLL _Pragma("clang loop unroll(full)")
 #elif defined(__GNUC__) || defined(__GNUG__)
@@ -240,7 +242,7 @@ normal_3d(double *p1, double *p2, double *p3, double *normal) {
 	normal[2] = normal_z/length;
 }
 
-void barycentric_coefficients_higher_order_triangle_3d(double alpha, double beta,
+INLINE void barycentric_coefficients_higher_order_triangle_3d(double alpha, double beta,
 	double v0, double v1, double v2, double v3, double v4, double v5, double coeffs[6]) {
 	//v3 = (v0+v1)/2.;
 	//v4 = (v1+v2)/2.;
@@ -253,13 +255,14 @@ void barycentric_coefficients_higher_order_triangle_3d(double alpha, double beta
 	coeffs[5] = -4*v5+2*v2+2*v0;
 }
 
-double dot6(double *v1, double *v2) {
+INLINE double dot6(double *v1, double *v2) {
 	double sum = 0.0;
+	UNROLL
 	for(int i = 0; i < 6; i++) sum += v1[i]*v2[i];
 	return sum;
 }
 
-void
+INLINE void
 cross_product_3d(double *v1, double *v2, double *out) {
 	double v1x = v1[0], v1y = v1[1], v1z = v1[2];
 	double v2x = v2[0], v2y = v2[1], v2z = v2[2];
@@ -269,13 +272,13 @@ cross_product_3d(double *v1, double *v2, double *out) {
 	out[2] = v1x*v2y-v1y*v2x;
 }
 
-double norm_cross_product_3d(double *v1, double *v2) {
+INLINE double norm_cross_product_3d(double *v1, double *v2) {
 	double out[3];
 	cross_product_3d(v1, v2, out);
 	return norm_3d(out[0], out[1], out[2]);
 }
 
-EXPORT inline void position_and_jacobian_3d(double alpha, double beta, triangle6 v, double *pos_out, double *jac) {
+INLINE void position_and_jacobian_3d(double alpha, double beta, triangle6 v, double *pos_out, double *jac) {
 
 	double coeffs_x[6], coeffs_y[6], coeffs_z[6];
 	barycentric_coefficients_higher_order_triangle_3d(alpha, beta, v[0][0], v[1][0], v[2][0], v[3][0], v[4][0], v[5][0], coeffs_x);
@@ -307,6 +310,7 @@ EXPORT inline void position_and_jacobian_3d(double alpha, double beta, triangle6
 
 // Triangle quadrature constants
 #define N_TRIANGLE_QUAD 33
+EXPORT const int N_TRIANGLE_QUAD_SYM = N_TRIANGLE_QUAD;
 const double QUAD_WEIGHTS[N_TRIANGLE_QUAD] = {0.03127061, 0.01424303, 0.02495917, 0.01213342, 0.00396582, 0.03127061, 0.01424303, 0.02495917, 0.01213342, 0.00396582, 0.03127061, 0.01424303, 0.02495917, 0.01213342, 0.00396582, 0.02161368, 0.00754184, 0.01089179, 0.02161368, 0.00754184, 0.01089179, 0.02161368, 0.00754184, 0.01089179, 0.02161368, 0.00754184, 0.01089179, 0.02161368, 0.00754184, 0.01089179, 0.02161368, 0.00754184, 0.01089179};
 const double QUAD_B1[N_TRIANGLE_QUAD] = {0.27146251, 0.10925783, 0.44011165, 0.48820375, 0.02464636, 0.27146251, 0.10925783, 0.44011165, 0.48820375, 0.02464636, 0.45707499, 0.78148434, 0.1197767 , 0.0235925 , 0.95070727, 0.11629602, 0.02138249, 0.02303416, 0.62824975, 0.85133779, 0.68531016, 0.25545423, 0.12727972, 0.29165568, 0.25545423, 0.12727972, 0.29165568, 0.62824975, 0.85133779, 0.68531016, 0.11629602, 0.02138249, 0.02303416};
 const double QUAD_B2[N_TRIANGLE_QUAD] = {0.27146251, 0.10925783, 0.44011165, 0.48820375, 0.02464636, 0.45707499, 0.78148434, 0.1197767 , 0.0235925 , 0.95070727, 0.27146251, 0.10925783, 0.44011165, 0.48820375, 0.02464636, 0.25545423, 0.12727972, 0.29165568, 0.11629602, 0.02138249, 0.02303416, 0.62824975, 0.85133779, 0.68531016, 0.11629602, 0.02138249, 0.02303416, 0.25545423, 0.12727972, 0.29165568, 0.62824975, 0.85133779, 0.68531016};
@@ -621,7 +625,7 @@ triangle_integral_alpha(double alpha, void *args_p) {
 
 	// Telles transformation
 	double B = 1-beta;
-	const int order = 3;
+	const int order = 5;
 	double eta = B*pow(alpha, order);
 	double Jeta = order*B*pow(alpha, order-1);
 	
@@ -1746,15 +1750,33 @@ void fill_self_voltages_3d(double *matrix,
 	}
 }
 
-EXPORT void fill_matrix_3d(double *matrix, 
+EXPORT void fill_matrix_3d(double *restrict matrix, 
                     vertices_3d triangle_points, 
                     uint8_t *excitation_types, 
                     double *excitation_values, 
+					double (* restrict jacobian_buffer)[N_TRIANGLE_QUAD],
+					double (* restrict pos_buffer)[N_TRIANGLE_QUAD][3],
 					size_t N_lines,
 					size_t N_matrix,
                     int lines_range_start, 
                     int lines_range_end) {
-    
+	
+	for(int i = 0; i < N_lines; i++) {
+		for (int k=0; k < N_TRIANGLE_QUAD; k++) {
+			double b1_ = QUAD_B1[k];
+			double b2_ = QUAD_B2[k];
+			double w = QUAD_WEIGHTS[k];
+				
+			double pos[3], jac;
+			position_and_jacobian_3d(b1_, b2_, &triangle_points[i][0], pos, &jac);
+				
+			jacobian_buffer[i][k] = w*jac;
+			pos_buffer[i][k][0] = pos[0];
+			pos_buffer[i][k][1] = pos[1];
+			pos_buffer[i][k][2] = pos[2];
+		}
+	}
+	
 	assert(lines_range_start < N_lines && lines_range_end < N_lines);
 		
     for (int i = lines_range_start; i <= lines_range_end; i++) {
@@ -1766,14 +1788,14 @@ EXPORT void fill_matrix_3d(double *matrix,
 		 
         if (type_ == VOLTAGE_FIXED || type_ == VOLTAGE_FUN || type_ == FLOATING_CONDUCTOR) {
             for (int j = 0; j < N_lines; j++) {
-
-				double *v0 = &triangle_points[j][0][0];
-				double *v1 = &triangle_points[j][0][1];
 				
-				double distance = norm_3d(target[0]-v0[0], target[1]-v0[1], target[2]-v0[2]);
-				double characteristic_length = norm_3d(v0[0]-v1[0], v0[1]-v1[1], v0[2]-v1[2]);
-
-				matrix[i*N_matrix + j] = triangle_integral(target, &triangle_points[j][0], potential_3d_point, NULL);
+				UNROLL
+				for(int k = 0; k < N_TRIANGLE_QUAD; k++) {
+						
+					double *pos = pos_buffer[j][k];
+					double jac = jacobian_buffer[j][k];
+					matrix[i*N_matrix + j] += jac * potential_3d_point(target[0], target[1], target[2], pos[0], pos[1], pos[2], NULL);
+				}
             }
         } 
         else if (type_ == DIELECTRIC) {

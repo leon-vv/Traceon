@@ -42,6 +42,7 @@ TRACING_BLOCK_SIZE = C.c_size_t.in_dll(backend_lib, 'TRACING_BLOCK_SIZE').value
 DERIV_2D_MAX = C.c_int.in_dll(backend_lib, 'DERIV_2D_MAX_SYM').value
 
 N_QUAD_2D = C.c_int.in_dll(backend_lib, 'N_QUAD_2D_SYM').value
+N_TRIANGLE_QUAD = C.c_int.in_dll(backend_lib, 'N_TRIANGLE_QUAD_SYM').value
 
 NU_MAX = C.c_int.in_dll(backend_lib, 'NU_MAX_SYM').value
 M_MAX = C.c_int.in_dll(backend_lib, 'M_MAX_SYM').value
@@ -104,7 +105,7 @@ backend_functions = {
     'trace_particle_3d_derivs': (sz, times_block, tracing_block, bounds, dbl, z_values, arr(ndim=5), sz),
     'add_floating_conductor_constraints_radial': (None, arr(ndim=2), lines, sz, arr(dtype=np.int64), sz, sz),
     'fill_matrix_radial': (None, arr(ndim=2), lines, arr(dtype=C.c_uint8, ndim=1), arr(ndim=1), sz, sz, C.c_int, C.c_int),
-    'fill_matrix_3d': (None, arr(ndim=2), vertices, arr(dtype=C.c_uint8, ndim=1), arr(ndim=1), sz, sz, C.c_int, C.c_int),
+    'fill_matrix_3d': (None, arr(ndim=2), vertices, arr(dtype=C.c_uint8, ndim=1), arr(ndim=1), arr(ndim=2), arr(ndim=3), sz, sz, C.c_int, C.c_int),
     'xy_plane_intersection_2d': (C.c_bool, arr(ndim=2), sz, arr(shape=(4,)), dbl),
     'xy_plane_intersection_3d': (C.c_bool, arr(ndim=2), sz, arr(shape=(6,)), dbl)
 }
@@ -339,10 +340,12 @@ def potential_3d_derivs(point, z, coeffs):
     
     return backend_lib.potential_3d_derivs(point, z, coeffs, len(z))
 
-def field_3d(point, vertices, charges):
+def field_3d(point, vertices, jacobian_buffer, position_buffer, charges):
     assert vertices.shape == (len(charges), 6, 3)
     assert point.shape == (3,)
-
+    assert jacobian_buffer.shape == (len(vertices), N_TRIANGLE_QUAD)
+    assert position_buffer.shape == (len(vertices), N_TRIANGLE_QUAD, 3)
+     
     field = np.zeros( (3,) )
     backend_lib.field_3d(point, field, vertices, charges, len(vertices))
     return field
@@ -384,7 +387,10 @@ def fill_matrix_3d(matrix, vertices, excitation_types, excitation_values, start_
     assert excitation_values.shape == (N,)
     assert 0 <= start_index < N and 0 <= end_index < N and start_index < end_index
     
-    backend_lib.fill_matrix_3d(matrix, vertices, excitation_types, excitation_values, N, matrix.shape[0], start_index, end_index)
+    jacobian_buffer = np.zeros( (N, N_TRIANGLE_QUAD) )
+    position_buffer = np.zeros( (N, N_TRIANGLE_QUAD, 3) )
+    
+    backend_lib.fill_matrix_3d(matrix, vertices, excitation_types, excitation_values, jacobian_buffer, position_buffer, N, matrix.shape[0], start_index, end_index)
 
 def xy_plane_intersection(positions, z):
     
