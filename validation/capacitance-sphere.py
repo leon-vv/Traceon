@@ -55,15 +55,19 @@ def create_geometry(MSF, symmetry):
          
         return geom.generate_mesh()
 
+K=2
 
-def compute_error(geom):
+def compute_field(geom):
     exc = E.Excitation(geom)
     exc.add_voltage(inner=1)
     exc.add_voltage(outer=0)
-    K=2
     exc.add_dielectric(dielectric=K)
-
+    
     field = S.solve_bem(exc)
+
+    return exc, field
+
+def compute_error(exc, field, geom):
     x = np.linspace(0.55, 0.95)
     f = [field.field_at_point(np.array([x_, 0.0, 0.0]))[0] for x_ in x]
     
@@ -97,5 +101,5 @@ def compute_error(geom):
     return exc, error
 
 util.parser.description = '''Compute the capacitance of two concentric spheres with a layer of dielectric material in between.'''
-util.parse_validation_args(create_geometry, compute_error, inner='blue', outer='darkblue', dielectric='green')
+util.parse_validation_args(create_geometry, compute_field, compute_error, inner='blue', outer='darkblue', dielectric='green')
 

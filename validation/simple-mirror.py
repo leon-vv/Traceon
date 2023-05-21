@@ -47,12 +47,13 @@ def create_geometry(MSF, symmetry):
         geom.set_mesh_size_factor(MSF)
         return geom.generate_mesh()
 
-def compute_error(geom):
+def compute_field(geom):
     excitation = E.Excitation(geom)
     excitation.add_voltage(mirror=-110, ground=0.0)
-
     field = S.solve_bem(excitation)
+    return excitation, field
 
+def compute_error(excitation, field, geom):
     _3d = geom.symmetry == G.Symmetry.THREE_D
 
     bounds = ((-0.22, 0.22), (0.02, 11))
@@ -80,7 +81,7 @@ def compute_error(geom):
     return excitation, calculated/correct - 1
 
 util.parser.description = '''   '''
-util.parse_validation_args(create_geometry, compute_error, mirror='brown', lens='blue', ground='green',
+util.parse_validation_args(create_geometry, compute_field, compute_error, mirror='brown', lens='blue', ground='green',
     MSF={'radial': [200, 300, 400, 500], '3d': [200, 250, 500, 1000]})
 
 

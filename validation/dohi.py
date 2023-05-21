@@ -50,7 +50,7 @@ def compute_field(geom):
     field = S.solve_bem(exc)
     return exc, field
 
-def compute_error(exc, field):
+def compute_error(exc, field, geom):
     axial_field = field.axial_derivative_interpolation(0.1, 5.0)
      
     bounds = ((-0.03, 0.03), (-0.03, 0.03), (0.05, 19.0)) if geom.symmetry == G.Symmetry.THREE_D else ((-0.03, 0.03), (0.05, 19.0))

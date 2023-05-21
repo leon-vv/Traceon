@@ -14,9 +14,9 @@ parser.add_argument('-MSF', default=None, type=int, help='Mesh size factor')
 parser.add_argument('--symmetry', choices=['3d', 'radial'], default='radial', help='Choose the symmetry to use for the geometry (3d or radially symmetric)')
 parser.add_argument('--plot-accuracy', action='store_true', help='Plot the accuracy as a function of time and number of elements')
 parser.add_argument('--plot-geometry', action='store_true', help='Plot the geometry')
-parser.add_argument('--show-normals', action='store_true', help='When plotting geometry, show normals')
-parser.add_argument('--show-charge-density', action='store_true', help='When plotting geometry, base the colors on the computed charge density')
-parser.add_argument('--show-charge', action='store_true', help='When plotting geometry, base the colors on the charge on each element')
+parser.add_argument('--plot-normals', action='store_true', help='When plotting geometry, show normals')
+parser.add_argument('--plot-charge-density', action='store_true', help='When plotting geometry, base the colors on the computed charge density')
+parser.add_argument('--plot-charges', action='store_true', help='When plotting geometry, base the colors on the charge on each element')
 
 def print_info(Nlines, duration, accuracy):
     print('Number of elements\t\tComputation time (ms)\t\tAccuracy')
@@ -32,15 +32,17 @@ def parse_validation_args(create_geometry, compute_field, compute_error, MSF={'r
     args = parser.parse_args()
     MSFdefault = args.MSF if args.MSF != None else MSF[args.symmetry][1]
     symmetry = G.Symmetry.RADIAL if args.symmetry == 'radial' else G.Symmetry.THREE_D
+
+    plot = args.plot_geometry or args.plot_normals or args.plot_charge_density or args.plot_charges
     
-    if args.plot_geometry:
+    if plot:
         geom = create_geometry(MSFdefault, symmetry)
         assert geom.symmetry == symmetry 
-        if args.show_charge or args.show_charge_density:
+        if args.plot_charges or args.plot_charge_density:
             exc, field = compute_field(geom)
-            P.plot_charge_density(exc, field, density=args.show_charge_density)
+            P.plot_charge_density(exc, field, density=args.plot_charge_density)
         else:
-            P.plot_mesh(geom, show_normals=args.show_normals, **colors) 
+            P.plot_mesh(geom, show_normals=args.plot_normals, **colors) 
     elif args.plot_accuracy:
         num_lines = []
         times = []
