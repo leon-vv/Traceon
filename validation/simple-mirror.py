@@ -12,13 +12,7 @@ import traceon.solver as S
 
 import util
 
-def create_geometry(MSF, symmetry, for_plot):
-    
-    if symmetry == G.Symmetry.THREE_D:
-        revolve_factor = 1.0
-        
-        if for_plot:
-            revolve_factor = 0.6
+def create_geometry(MSF, symmetry):
     
     with G.Geometry(symmetry, size_from_distance=True, zmin=0.1, zmax=2) as geom:
         
@@ -31,7 +25,7 @@ def create_geometry(MSF, symmetry, for_plot):
         ground_lines = [geom.add_line(p1, p2) for p1, p2 in zip(points, points[1:])]
             
         if symmetry == G.Symmetry.THREE_D:
-            revolved = G.revolve_around_optical_axis(geom, ground_lines, revolve_factor)
+            revolved = G.revolve_around_optical_axis(geom, ground_lines)
             geom.add_physical(revolved, 'ground')
         else:
             geom.add_physical(ground_lines, 'ground')
@@ -45,7 +39,7 @@ def create_geometry(MSF, symmetry, for_plot):
         mirror_line = geom.add_line(points[0], points[1])
 
         if symmetry == G.Symmetry.THREE_D:
-            revolved = G.revolve_around_optical_axis(geom, mirror_line, revolve_factor)
+            revolved = G.revolve_around_optical_axis(geom, mirror_line)
             geom.add_physical(revolved, 'mirror')
         else:
             geom.add_physical(mirror_line, 'mirror')
@@ -53,12 +47,13 @@ def create_geometry(MSF, symmetry, for_plot):
         geom.set_mesh_size_factor(MSF)
         return geom.generate_mesh()
 
-def compute_error(geom):
+def compute_field(geom):
     excitation = E.Excitation(geom)
     excitation.add_voltage(mirror=-110, ground=0.0)
-
     field = S.solve_bem(excitation)
+    return excitation, field
 
+def compute_error(excitation, field, geom):
     _3d = geom.symmetry == G.Symmetry.THREE_D
 
     bounds = ((-0.22, 0.22), (0.02, 11))
@@ -86,7 +81,7 @@ def compute_error(geom):
     return excitation, calculated/correct - 1
 
 util.parser.description = '''   '''
-util.parse_validation_args(create_geometry, compute_error, mirror='brown', lens='blue', ground='green',
+util.parse_validation_args(create_geometry, compute_field, compute_error, mirror='brown', lens='blue', ground='green',
     MSF={'radial': [200, 300, 400, 500], '3d': [200, 250, 500, 1000]})
 
 

@@ -18,7 +18,7 @@ r2 = 1.0
 r3 = 0.6
 r4 = 0.9
 
-def create_geometry(MSF, symmetry, for_plot):
+def create_geometry(MSF, symmetry):
      
     with G.Geometry(symmetry) as geom:
         center = geom.add_point([0.0, 0.0])
@@ -43,9 +43,9 @@ def create_geometry(MSF, symmetry, for_plot):
                 return arcs
         
         l1 = add_shell(r1)
-        d1 = add_shell(r3, reorient=symmetry == G.Symmetry.RADIAL, factor=0.7 if for_plot else 1.0)
-        d2 = add_shell(r4, reorient=symmetry != G.Symmetry.RADIAL, factor=0.5 if for_plot else 1.0)
-        l2 = add_shell(r2, factor=0.3 if for_plot else 1.0)
+        d1 = add_shell(r3, reorient=symmetry == G.Symmetry.RADIAL)
+        d2 = add_shell(r4, reorient=symmetry != G.Symmetry.RADIAL)
+        l2 = add_shell(r2)
         
         geom.add_physical(l1, 'inner')
         geom.add_physical(l2, 'outer')
@@ -55,15 +55,19 @@ def create_geometry(MSF, symmetry, for_plot):
          
         return geom.generate_mesh()
 
+K=2
 
-def compute_error(geom):
+def compute_field(geom):
     exc = E.Excitation(geom)
     exc.add_voltage(inner=1)
     exc.add_voltage(outer=0)
-    K=2
     exc.add_dielectric(dielectric=K)
-
+    
     field = S.solve_bem(exc)
+
+    return exc, field
+
+def compute_error(exc, field, geom):
     x = np.linspace(0.55, 0.95)
     f = [field.field_at_point(np.array([x_, 0.0, 0.0]))[0] for x_ in x]
     
@@ -97,5 +101,5 @@ def compute_error(geom):
     return exc, error
 
 util.parser.description = '''Compute the capacitance of two concentric spheres with a layer of dielectric material in between.'''
-util.parse_validation_args(create_geometry, compute_error, inner='blue', outer='darkblue', dielectric='green')
+util.parse_validation_args(create_geometry, compute_field, compute_error, inner='blue', outer='darkblue', dielectric='green')
 

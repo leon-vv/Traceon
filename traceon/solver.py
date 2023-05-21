@@ -426,9 +426,9 @@ class FieldRadialBEM(FieldBEM):
         
         return FieldRadialAxial(z, coeffs)
 
-    def _charge_on_index(self, i):
+    def charge_on_element(self, i):
         return backend.charge_radial(self.vertices[i], self.charges[i])
-
+    
     def charge_on_elements(self, indices):
         """Compute the sum of the charges present on the elements with the given indices. To
         get the total charge of a physical group use `names['name']` for indices where `names` 
@@ -442,7 +442,7 @@ class FieldRadialBEM(FieldBEM):
         Returns
         -------
         The sum of the charge. See the note about units on the front page."""
-        return sum(self._charge_on_index(i) for i in indices)
+        return sum(self.charge_on_element(i) for i in indices)
 
 class Field3D_BEM(FieldBEM):
     """An electrostatic field resulting from a general 3D geometry. The field is a result of the surface charges as computed by the
@@ -522,6 +522,29 @@ class Field3D_BEM(FieldBEM):
         print(f'Time for calculating radial series expansion coefficients: {(time.time()-st)*1000:.0f} ms ({len(z)} items)')
 
         return Field3DAxial(z, interpolated_coeffs)
+    
+    def charge_on_element(self, i):
+        v1, v2, v3 = self.vertices[i]
+        charge = self.charges[i]
+        
+        return 1/2*np.linalg.norm(np.cross(v2-v1, v3-v1)) * charge
+     
+    def charge_on_elements(self, indices):
+        """Compute the sum of the charges present on the elements with the given indices. To
+        get the total charge of a physical group use `names['name']` for indices where `names` 
+        is returned by `traceon.excitation.Excitation.get_active_elements()`.
+
+        Parameters
+        ----------
+        indices: (N,) array of int
+            indices of the elements contributing to the charge sum. 
+         
+        Returns
+        -------
+        The sum of the charge. See the note about units on the front page."""
+        return sum(self.charge_on_element(i) for i in indices)
+
+
 
 class FieldAxial(Field):
     """An electrostatic field resulting from a radial series expansion around the optical axis. You should

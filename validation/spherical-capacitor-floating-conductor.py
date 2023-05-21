@@ -18,7 +18,7 @@ r2 = 1.0
 r3 = 0.6
 r4 = 0.9
 
-def create_geometry(MSF, symmetry, for_plot):
+def create_geometry(MSF, symmetry):
      
     with G.Geometry(symmetry) as geom:
         center = geom.add_point([0.0, 0.0])
@@ -43,9 +43,9 @@ def create_geometry(MSF, symmetry, for_plot):
                 return arcs
         
         l1 = add_shell(r1)
-        d1 = add_shell(r3, reorient=True, factor=0.7 if for_plot else 1.0)
-        d2 = add_shell(r4, factor=0.5 if for_plot else 1.0)
-        l2 = add_shell(r2, factor=0.3 if for_plot else 1.0)
+        d1 = add_shell(r3, reorient=True)
+        d2 = add_shell(r4)
+        l2 = add_shell(r2)
         
         geom.add_physical(l1, 'inner')
         geom.add_physical(l2, 'outer')
@@ -54,13 +54,15 @@ def create_geometry(MSF, symmetry, for_plot):
         geom.set_mesh_size_factor(MSF)
         return geom.generate_mesh()
 
-def compute_error(geom):
+def compute_field(geom):
     exc = E.Excitation(geom)
     exc.add_voltage(inner=1)
     exc.add_voltage(outer=0)
     exc.add_floating_conductor(floating=0)
-
     field = S.solve_bem(exc)
+    return exc, field
+
+def compute_error(exc, field, geom):
     print('Floating voltages: ', field.floating_voltages)
     
     if geom.symmetry == G.Symmetry.RADIAL:
@@ -80,5 +82,5 @@ def compute_error(geom):
 
 util.parser.description = '''Compute the field of two concentric spheres with a layer of floating (voltage not fixed) neutrally charged conductor in between.
 The accuracy of the solution is determined by considering whether Er=0, as the field inside the floating conductor should be zero.'''
-util.parse_validation_args(create_geometry, compute_error, inner='blue', outer='darkblue', floating='green')
+util.parse_validation_args(create_geometry, compute_field, compute_error, inner='blue', outer='darkblue', floating='green')
 

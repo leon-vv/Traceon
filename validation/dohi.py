@@ -10,12 +10,12 @@ import traceon.solver as S
 
 import util
 
-def create_geometry(MSF, symmetry, for_plot):
+def create_geometry(MSF, symmetry):
     
     revolve_factor = 0.0
 
     if symmetry == G.Symmetry.THREE_D:
-        revolve_factor = 1.0 if not for_plot else 0.6
+        revolve_factor = 1.0
         rmax = 1.25
     else:
         rmax = 1.25
@@ -43,13 +43,14 @@ def create_geometry(MSF, symmetry, for_plot):
         
         return geom.generate_mesh()
 
-
-def compute_error(geom):
+def compute_field(geom):
     exc = E.Excitation(geom)
     exc.add_voltage(ground=0.0, mirror=-1250, lens=695)
     
     field = S.solve_bem(exc)
+    return exc, field
 
+def compute_error(exc, field, geom):
     axial_field = field.axial_derivative_interpolation(0.1, 5.0)
      
     bounds = ((-0.03, 0.03), (-0.03, 0.03), (0.05, 19.0)) if geom.symmetry == G.Symmetry.THREE_D else ((-0.03, 0.03), (0.05, 19.0))
@@ -82,7 +83,7 @@ electron has at z0=15mm after reflection of the Dohi mirror, see:
 H. Dohi, P. Kruit. Design for an aberration corrected scanning electron microscope using
 miniature electron mirrors. 2018.
 '''
-util.parse_validation_args(create_geometry, compute_error, mirror='brown', lens='blue', ground='green',
+util.parse_validation_args(create_geometry, compute_field, compute_error, mirror='brown', lens='blue', ground='green',
     MSF={'radial': [100, 150, 200, 250], '3d': [50, 100, 200, 300]})
 
 
