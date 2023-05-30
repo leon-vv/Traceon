@@ -59,8 +59,15 @@ EXPORT const int N_QUAD_2D_SYM = N_QUAD_2D;
 const double GAUSS_QUAD_POINTS[N_QUAD_2D] = {-0.3399810435848563, 0.3399810435848563, -0.8611363115940526, 0.8611363115940526};
 const double GAUSS_QUAD_WEIGHTS[N_QUAD_2D] = {0.6521451548625461, 0.6521451548625461, 0.3478548451374538, 0.3478548451374538};
 
+// Triangle quadrature constants
+#define N_TRIANGLE_QUAD 33
+EXPORT const int N_TRIANGLE_QUAD_SYM = N_TRIANGLE_QUAD;
+const double QUAD_WEIGHTS[N_TRIANGLE_QUAD] = {0.03127061, 0.01424303, 0.02495917, 0.01213342, 0.00396582, 0.03127061, 0.01424303, 0.02495917, 0.01213342, 0.00396582, 0.03127061, 0.01424303, 0.02495917, 0.01213342, 0.00396582, 0.02161368, 0.00754184, 0.01089179, 0.02161368, 0.00754184, 0.01089179, 0.02161368, 0.00754184, 0.01089179, 0.02161368, 0.00754184, 0.01089179, 0.02161368, 0.00754184, 0.01089179, 0.02161368, 0.00754184, 0.01089179};
+const double QUAD_B1[N_TRIANGLE_QUAD] = {0.27146251, 0.10925783, 0.44011165, 0.48820375, 0.02464636, 0.27146251, 0.10925783, 0.44011165, 0.48820375, 0.02464636, 0.45707499, 0.78148434, 0.1197767 , 0.0235925 , 0.95070727, 0.11629602, 0.02138249, 0.02303416, 0.62824975, 0.85133779, 0.68531016, 0.25545423, 0.12727972, 0.29165568, 0.25545423, 0.12727972, 0.29165568, 0.62824975, 0.85133779, 0.68531016, 0.11629602, 0.02138249, 0.02303416};
+const double QUAD_B2[N_TRIANGLE_QUAD] = {0.27146251, 0.10925783, 0.44011165, 0.48820375, 0.02464636, 0.45707499, 0.78148434, 0.1197767 , 0.0235925 , 0.95070727, 0.27146251, 0.10925783, 0.44011165, 0.48820375, 0.02464636, 0.25545423, 0.12727972, 0.29165568, 0.11629602, 0.02138249, 0.02303416, 0.62824975, 0.85133779, 0.68531016, 0.11629602, 0.02138249, 0.02303416, 0.25545423, 0.12727972, 0.29165568, 0.62824975, 0.85133779, 0.68531016};
 
 //////////////////////////////// TYPEDEFS
+
 
 typedef double (*integration_cb_2d)(double, double, double, double, void*);
 typedef double (*vertices_2d)[4][3];
@@ -69,6 +76,8 @@ typedef double (*charges_2d)[N_QUAD_2D];
 // See GMSH documentation
 typedef double triangle6[6][3];
 typedef double (*vertices_3d)[6][3];
+typedef double (*jacobian_buffer_3d)[N_TRIANGLE_QUAD];
+typedef double (*position_buffer_3d)[N_TRIANGLE_QUAD][3];
 
 //////////////////////////////// ELLIPTIC FUNCTIONS
 
@@ -307,13 +316,6 @@ INLINE void position_and_jacobian_3d(double alpha, double beta, triangle6 v, dou
 	
 	*jac = norm_cross_product_3d(da, db);
 }
-
-// Triangle quadrature constants
-#define N_TRIANGLE_QUAD 33
-EXPORT const int N_TRIANGLE_QUAD_SYM = N_TRIANGLE_QUAD;
-const double QUAD_WEIGHTS[N_TRIANGLE_QUAD] = {0.03127061, 0.01424303, 0.02495917, 0.01213342, 0.00396582, 0.03127061, 0.01424303, 0.02495917, 0.01213342, 0.00396582, 0.03127061, 0.01424303, 0.02495917, 0.01213342, 0.00396582, 0.02161368, 0.00754184, 0.01089179, 0.02161368, 0.00754184, 0.01089179, 0.02161368, 0.00754184, 0.01089179, 0.02161368, 0.00754184, 0.01089179, 0.02161368, 0.00754184, 0.01089179, 0.02161368, 0.00754184, 0.01089179};
-const double QUAD_B1[N_TRIANGLE_QUAD] = {0.27146251, 0.10925783, 0.44011165, 0.48820375, 0.02464636, 0.27146251, 0.10925783, 0.44011165, 0.48820375, 0.02464636, 0.45707499, 0.78148434, 0.1197767 , 0.0235925 , 0.95070727, 0.11629602, 0.02138249, 0.02303416, 0.62824975, 0.85133779, 0.68531016, 0.25545423, 0.12727972, 0.29165568, 0.25545423, 0.12727972, 0.29165568, 0.62824975, 0.85133779, 0.68531016, 0.11629602, 0.02138249, 0.02303416};
-const double QUAD_B2[N_TRIANGLE_QUAD] = {0.27146251, 0.10925783, 0.44011165, 0.48820375, 0.02464636, 0.45707499, 0.78148434, 0.1197767 , 0.0235925 , 0.95070727, 0.27146251, 0.10925783, 0.44011165, 0.48820375, 0.02464636, 0.25545423, 0.12727972, 0.29165568, 0.11629602, 0.02138249, 0.02303416, 0.62824975, 0.85133779, 0.68531016, 0.11629602, 0.02138249, 0.02303416, 0.25545423, 0.12727972, 0.29165568, 0.62824975, 0.85133779, 0.68531016};
 
 struct self_voltage_3d_args {
 	double beta;
@@ -736,6 +738,8 @@ field_radial(double point[3], double result[3], vertices_2d vertices, charges_2d
 struct field_evaluation_args {
 	double *vertices;
 	double *charges;
+	double *jacobian_buffer;
+	double *position_buffer;
 	size_t N_vertices;
 };
 
@@ -750,7 +754,7 @@ EXPORT size_t
 trace_particle_radial(double *times_array, double *pos_array, double bounds[3][2], double atol,
 	double *vertices, double *charges, size_t N_vertices) {
 
-	struct field_evaluation_args args = { vertices, charges, N_vertices };
+	struct field_evaluation_args args = { vertices, charges, NULL, NULL, N_vertices };
 				
 	return trace_particle(times_array, pos_array, field_radial_traceable, bounds, atol, (void*) &args);
 }
@@ -825,36 +829,28 @@ EXPORT double dz1_potential_3d_point(double x0, double y0, double z0, double x, 
 }
 
 EXPORT void
-axial_coefficients_3d(double *restrict vertices_p, double *restrict charges, size_t N_v,
+axial_coefficients_3d(double *restrict charges,
+	jacobian_buffer_3d jacobian_buffer,
+	position_buffer_3d position_buffer,
+	size_t N_v,
 	double *restrict zs, double *restrict output_coeffs_p, size_t N_z,
 	double *restrict thetas, double *restrict theta_coeffs_p, size_t N_t) {
-	
-	double (*vertices)[3][3] = (double (*)[3][3]) vertices_p;
+		
 	double (*theta_coeffs)[NU_MAX][M_MAX][4] = (double (*)[NU_MAX][M_MAX][4]) theta_coeffs_p;
 	double (*output_coeffs)[2][NU_MAX][M_MAX] = (double (*)[2][NU_MAX][M_MAX]) output_coeffs_p;
-
+	
 	double theta0 = thetas[0];
 	double dtheta = thetas[1] - thetas[0];
 	
 	for(int h = 0; h < N_v; h++) {
-
-		double v1x = vertices[h][0][0], v1y = vertices[h][0][1], v1z = vertices[h][0][2];
-		double v2x = vertices[h][1][0], v2y = vertices[h][1][1], v2z = vertices[h][1][2];
-		double v3x = vertices[h][2][0], v3y = vertices[h][2][1], v3z = vertices[h][2][2];
-			
-		double area = 0.5*sqrt(pow((v2y-v1y)*(v3z-v1z)-(v2z-v1z)*(v3y-v1y), 2) + pow((v2z-v1z)*(v3x-v1x)-(v2x-v1x)*(v3z-v1z), 2) + pow((v2x-v1x)*(v3y-v1y)-(v2y-v1y)*(v3x-v1x), 2));
-		
         for (int i=0; i < N_z; i++) 
+		
 		UNROLL
 		for (int k=0; k < N_TRIANGLE_QUAD; k++) {
-			double b1_ = QUAD_B1[k];
-			double b2_ = QUAD_B2[k];
-			double w = QUAD_WEIGHTS[k];
-
-			double x = v1x + b1_*(v2x-v1x) + b2_*(v3x-v1x);
-			double y = v1y + b1_*(v2y-v1y) + b2_*(v3y-v1y);
-			double z = v1z + b1_*(v2z-v1z) + b2_*(v3z-v1z);
-
+			double x = position_buffer[h][k][0];
+			double y = position_buffer[h][k][1];
+			double z = position_buffer[h][k][2];
+			
 			double r = norm_3d(x, y, z-zs[i]);
 			double theta = atan2((z-zs[i]), norm_2d(x, y));
 			double mu = atan2(y, x);
@@ -871,8 +867,10 @@ axial_coefficients_3d(double *restrict vertices_p, double *restrict charges, siz
 				double base = pow(t, 3)*C[nu][m][0] + pow(t, 2)*C[nu][m][1] + t*C[nu][m][2] + C[nu][m][3];
 				double r_dependence = pow(r, -2*nu - m - 1);
 					
-				output_coeffs[i][0][nu][m] += charges[h]*area*w*base*cos(m*mu)*r_dependence;
-				output_coeffs[i][1][nu][m] += charges[h]*area*w*base*sin(m*mu)*r_dependence;
+				double jac = jacobian_buffer[h][k];
+				
+				output_coeffs[i][0][nu][m] += charges[h]*jac*base*cos(m*mu)*r_dependence;
+				output_coeffs[i][1][nu][m] += charges[h]*jac*base*sin(m*mu)*r_dependence;
 			}
 		}
 	}
@@ -882,9 +880,8 @@ axial_coefficients_3d(double *restrict vertices_p, double *restrict charges, siz
 //////////////////////////////// 3D POINT POTENTIAL EVALUATION
 
 EXPORT double  
-potential_3d(double point[3], double *charges,
-			 double (*restrict jacobian_buffer)[N_TRIANGLE_QUAD], double (*restrict position_buffer)[N_TRIANGLE_QUAD][3], size_t N_vertices) {  
-
+potential_3d(double point[3], double *charges, jacobian_buffer_3d jacobian_buffer, position_buffer_3d position_buffer, size_t N_vertices) {  
+	
 	double sum_ = 0.0;  
 	
 	for(int i = 0; i < N_vertices; i++) {  
@@ -951,7 +948,7 @@ field_dot_normal_3d(double x0, double y0, double z0, double x, double y, double 
 
 EXPORT void
 field_3d(double point[3], double result[3], double *charges,
-	double (*restrict jacobian_buffer)[N_TRIANGLE_QUAD], double (*restrict position_buffer)[N_TRIANGLE_QUAD][3], size_t N_vertices) {
+	jacobian_buffer_3d jacobian_buffer, position_buffer_3d position_buffer, size_t N_vertices) {
 
 	double Ex = 0.0, Ey = 0.0, Ez = 0.0;
 
@@ -977,14 +974,14 @@ void
 field_3d_traceable(double point[3], double result[3], void *args_p) {
 
 	struct field_evaluation_args *args = (struct field_evaluation_args*)args_p;
-	field_3d(point, result, (vertices_3d) args->vertices, args->charges, args->N_vertices);
+	field_3d(point, result, args->charges, (jacobian_buffer_3d) args->jacobian_buffer, (position_buffer_3d) args->position_buffer, args->N_vertices);
 }
 
 EXPORT size_t
 trace_particle_3d(double *times_array, double *pos_array, double bounds[3][2], double atol,
-	double *vertices, double *charges, size_t N_vertices) {
+	jacobian_buffer_3d jacobian_buffer, position_buffer_3d position_buffer, double *charges, size_t N_vertices) {
 
-	struct field_evaluation_args args = { vertices, charges, N_vertices };
+	struct field_evaluation_args args = { NULL, charges, (double*) jacobian_buffer, (double*) position_buffer, N_vertices };
 				
 	return trace_particle(times_array, pos_array, field_3d_traceable, bounds, atol, (void*) &args);
 }
@@ -1255,13 +1252,19 @@ EXPORT void add_floating_conductor_constraints_radial(double *matrix, vertices_2
 EXPORT void fill_jacobian_buffer_radial(
     double (* restrict jacobian_buffer)[N_QUAD_2D],
     double (* restrict pos_buffer)[N_QUAD_2D][2],
-    vertices_2d triangle_points,
+    vertices_2d line_points,
     size_t N_lines) {
 	
     for(int i = 0; i < N_lines; i++) {  
         for (int k=0; k < N_QUAD_2D; k++) {  
+			double *v1 = &line_points[i][0][0];
+			double *v2 = &line_points[i][2][0];
+			double *v3 = &line_points[i][3][0];
+			double *v4 = &line_points[i][1][0];
+				
             double pos[2], jac;  
-            position_and_jacobian_radial(GAUSS_QUAD_POINTS[k], &triangle_points[i][0], pos, &jac);  
+			
+            position_and_jacobian_radial(GAUSS_QUAD_POINTS[k], v1, v2, v3, v4, pos, &jac);  
 			
             jacobian_buffer[i][k] = GAUSS_QUAD_WEIGHTS[k]*jac;  
             pos_buffer[i][k][0] = pos[0];  
@@ -1411,8 +1414,8 @@ void fill_self_voltages_3d(double *matrix,
 }
 
 EXPORT void fill_jacobian_buffer_3d(
-    double (* restrict jacobian_buffer)[N_TRIANGLE_QUAD],
-    double (* restrict pos_buffer)[N_TRIANGLE_QUAD][3],
+	jacobian_buffer_3d jacobian_buffer,
+	position_buffer_3d pos_buffer,
     vertices_3d triangle_points,
     size_t N_lines) {
 		
@@ -1437,8 +1440,8 @@ EXPORT void fill_matrix_3d(double *restrict matrix,
                     vertices_3d triangle_points, 
                     uint8_t *excitation_types, 
                     double *excitation_values, 
-					double (* restrict jacobian_buffer)[N_TRIANGLE_QUAD],
-					double (* restrict pos_buffer)[N_TRIANGLE_QUAD][3],
+					jacobian_buffer_3d jacobian_buffer,
+					position_buffer_3d pos_buffer,
 					size_t N_lines,
 					size_t N_matrix,
                     int lines_range_start, 
