@@ -76,8 +76,12 @@ typedef double (*charges_2d)[N_QUAD_2D];
 // See GMSH documentation
 typedef double triangle6[6][3];
 typedef double (*vertices_3d)[6][3];
+
 typedef double (*jacobian_buffer_3d)[N_TRIANGLE_QUAD];
 typedef double (*position_buffer_3d)[N_TRIANGLE_QUAD][3];
+
+typedef double (*jacobian_buffer_2d)[N_QUAD_2D];
+typedef double (*position_buffer_2d)[N_QUAD_2D][2];
 
 //////////////////////////////// ELLIPTIC FUNCTIONS
 
@@ -979,7 +983,7 @@ field_3d_traceable(double point[3], double result[3], void *args_p) {
 
 EXPORT size_t
 trace_particle_3d(double *times_array, double *pos_array, double bounds[3][2], double atol,
-	jacobian_buffer_3d jacobian_buffer, position_buffer_3d position_buffer, double *charges, size_t N_vertices) {
+	double* charges, jacobian_buffer_3d jacobian_buffer, position_buffer_3d position_buffer, size_t N_vertices) {
 
 	struct field_evaluation_args args = { NULL, charges, (double*) jacobian_buffer, (double*) position_buffer, N_vertices };
 				
@@ -1250,8 +1254,8 @@ EXPORT void add_floating_conductor_constraints_radial(double *matrix, vertices_2
 }
 
 EXPORT void fill_jacobian_buffer_radial(
-    double (* restrict jacobian_buffer)[N_QUAD_2D],
-    double (* restrict pos_buffer)[N_QUAD_2D][2],
+	jacobian_buffer_2d jacobian_buffer,
+	position_buffer_2d pos_buffer,
     vertices_2d line_points,
     size_t N_lines) {
 	
@@ -1278,6 +1282,8 @@ EXPORT void fill_matrix_radial(double *matrix,
 						vertices_2d line_points,
                         uint8_t *excitation_types, 
                         double *excitation_values, 
+						jacobian_buffer_2d jacobian_buffer,
+						position_buffer_2d pos_buffer,
 						size_t N_lines,
 						size_t N_matrix,
                         int lines_range_start, 
@@ -1300,21 +1306,12 @@ EXPORT void fill_matrix_radial(double *matrix,
 				
 				if (i == j) continue;
 					
-				double *v1 = &line_points[j][0][0];
-				double *v2 = &line_points[j][2][0]; // Strange ordering following from GMSH line4 element
-				double *v3 = &line_points[j][3][0];
-				double *v4 = &line_points[j][1][0];
-					
 				for(int l = 0; l < N_QUAD_2D; l++) {
-					double target[2], jac_t;
-					position_and_jacobian_radial(GAUSS_QUAD_POINTS[l], target_v1, target_v2, target_v3, target_v4, target, &jac_t);
+					double *target = &pos_buffer[i][l][0];
 						
 					for(int k = 0; k < N_QUAD_2D; k++) {
-						
-						double pos[2], jac;
-						position_and_jacobian_radial(GAUSS_QUAD_POINTS[k], v1, v2, v3, v4, pos, &jac);
-						
-						matrix[(N_QUAD_2D*i + l)*N_matrix + N_QUAD_2D*j + k] = GAUSS_QUAD_WEIGHTS[k]*jac*potential_radial_ring(target[0], target[1], pos[0], pos[1], NULL);
+						double *pos = &pos_buffer[j][k][0];
+						matrix[(N_QUAD_2D*i + l)*N_matrix + N_QUAD_2D*j + k] = jacobian_buffer[j][k]*potential_radial_ring(target[0], target[1], pos[0], pos[1], NULL);
 					}
 				}
 			} 
