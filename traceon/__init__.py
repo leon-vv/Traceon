@@ -49,11 +49,14 @@ in the formulas for the potential (and thus also in the formulas for the electri
 
 """
 
+import warnings
+
 __pdoc__ = {}
 __pdoc__['traceon.util'] = False
 __pdoc__['traceon.backend'] = False
 __pdoc__['traceon.data'] = False
 __pdoc__['traceon.tracing.Tracer.__call__'] = True
 
+warnings.filterwarnings('ignore', '.*The value of the smallest subnormal for.* type is zero.')
 
 
