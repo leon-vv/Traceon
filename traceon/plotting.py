@@ -11,27 +11,21 @@ from .geometry import Symmetry
 
 def _create_point_to_physical_dict(mesh):
     d = {}
+
+    for k, v in mesh.physical_to_elements.items():
+        for elm in v:
+            for p in mesh.elements[elm]:
+                d[p] = k
     
-    for k, v in mesh.cell_sets_dict.items():
-        
-        if 'triangle6' in v: 
-            for p in mesh.cells_dict['triangle6'][v['triangle6']]:
-                for p_ in p:
-                    d[p_] = k
-        if 'line4' in v:
-            for l in mesh.cells_dict['line4'][v['line4']]:
-                a, b, c, e = l
-                d[a], d[b], d[c], d[e] = k, k, k, k
-     
     return d
 
 
 def plot_mesh(mesh, *args, **kwargs):
      
     if mesh.symmetry == Symmetry.RADIAL:
-        return plot_line_mesh(mesh.mesh, *args, **kwargs)
+        return plot_line_mesh(mesh, *args, **kwargs)
     elif mesh.symmetry == Symmetry.THREE_D:
-        return plot_triangle_mesh(mesh.mesh, *args, **kwargs)
+        return plot_triangle_mesh(mesh, *args, **kwargs)
 
 def plot_charge_density(excitation, field, *args, **kwargs):
     
@@ -97,7 +91,7 @@ def _plot_charge_density_2d(excitation, field, density=False):
 def plot_triangle_mesh(mesh, show_legend=True, show_normals=False, **colors):
     
     dict_ = _create_point_to_physical_dict(mesh)
-    triangles = mesh.cells_dict['triangle6']
+    triangles = mesh.elements
      
     triangles_to_plot = []
     colors_ = []
@@ -164,15 +158,15 @@ def plot_line_mesh(mesh, show_legend=True, show_normals=False, **colors):
         physical group names, while the values can be any color understood by vedo.
     """
     dict_ = _create_point_to_physical_dict(mesh)
-    lines = mesh.cells_dict['line4']
-    
+    lines = mesh.elements
+     
     start = []
     end = []
     colors_ = []
     
     for (P1, P2, P3, P4) in lines:
         for A, B in [(P1, P3), (P3, P4), (P4, P2)]:
-            color = '#CCC'
+            color = '#CCCCC'
 
             if A in dict_ and B in dict_:
                 phys1, phys2 = dict_[A], dict_[B]
@@ -183,7 +177,7 @@ def plot_line_mesh(mesh, show_legend=True, show_normals=False, **colors):
             start.append(p1)
             end.append(p2)
             colors_.append(color)
-
+    
     start, end = np.array(start), np.array(end)
     colors_ = np.array(colors_)
     plotter = vedo.Plotter()

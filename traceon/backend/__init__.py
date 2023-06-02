@@ -56,6 +56,7 @@ v2 = arr(shape=(2,))
 v3 = arr(shape=(3,))
 
 dbl = C.c_double
+dbl_p = C.POINTER(dbl)
 vp = C.c_void_p
 sz = C.c_size_t
 
@@ -85,6 +86,7 @@ backend_functions = {
     'ellipe': (dbl, dbl),
     'normal_2d': (None, v2, v2, v2),
     'normal_3d': (None, v3, v3, v3, v3),
+    'position_and_jacobian_radial': (None, dbl, v2, v2, v2, v2, v2, dbl_p),
     'trace_particle': (sz, times_block, tracing_block, field_fun, bounds, dbl, vp),
     'potential_radial_ring': (dbl, dbl, dbl, dbl, dbl, vp), 
     'dr1_potential_radial_ring': (dbl, dbl, dbl, dbl, dbl, vp), 
@@ -218,6 +220,20 @@ def wrap_field_fun(ff):
         result[2] = field[2]
     
     return field_fun(wrapper)
+
+def position_and_jacobian_radial(alpha, v1, v2, v3, v4):
+    assert v1.shape == (2,) or v1.shape == (3,)
+    assert v2.shape == (2,) or v2.shape == (3,)
+    assert v3.shape == (2,) or v3.shape == (3,)
+    assert v4.shape == (2,) or v4.shape == (3,)
+    
+    pos = np.zeros(2)
+    jac = C.c_double(0.0)
+     
+    backend_lib.position_and_jacobian_radial(alpha, v1[:2], v2[:2], v3[:2], v4[:2], pos, C.pointer(jac))
+    
+    return jac.value, pos
+
 
 def trace_particle(position, velocity, field, bounds, atol):
     bounds = np.array(bounds)

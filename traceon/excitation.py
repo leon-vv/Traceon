@@ -103,13 +103,6 @@ class Excitation:
             assert name in self.electrodes
             self.excitation_types[name] = (ExcitationType.FLOATING_CONDUCTOR, charge)
      
-    def _get_element_type(self):
-        if self.mesh.symmetry == Symmetry.THREE_D:
-            return 'triangle6'
-        else:
-            return 'line4'
-    
-        
     def _split_for_superposition(self):
         
         # Names that have a fixed voltage excitation, not equal to 0.0
@@ -140,6 +133,15 @@ class Excitation:
         assert len(non_zero_fixed) == len(excitations)
         return {n:e for (n,e) in zip(non_zero_fixed, excitations)}
 
+    def get_active_element_mask(self):
+        inactive = np.full(len(self.mesh.elements), True)
+        names = {}
+         
+        for name in self.excitation_types.keys():
+            inactive[ self.mesh.physical_to_elements[name] ] = False
+        
+        return ~inactive
+     
     def get_active_elements(self):
         """Get elements in the mesh that are active, in the sense that
         an excitation to them has been applied. 
@@ -153,21 +155,12 @@ class Excitation:
         names is a dictionary, the keys being the names of the physical groups mentioned by this excitation, \
         while the values are Numpy arrays of indices that can be used to index the points array.
         """
-        type_ = self._get_element_type()
-        mesh = self.mesh.mesh
-        vertices = mesh.cells_dict[type_] # Indices making up the lines and triangles
-        inactive = np.full(len(vertices), True)
-        names = {}
-        
-        for name in self.excitation_types.keys():
-            inactive[ mesh.cell_sets_dict[name][type_] ] = False
-        
+        vertices = self.mesh.elements
+        inactive = ~self.get_active_element_mask() 
         map_index = np.arange(len(vertices)) - np.cumsum(inactive)
-        
-        for name in self.excitation_types.keys():
-            names[name] = map_index[mesh.cell_sets_dict[name][type_]]
-              
-        return mesh.points[ vertices[~inactive] ], names
+        names = {n:map_index[i] for n, i in self.mesh.physical_to_elements.items() if n in self.excitation_types}
+         
+        return self.mesh.points[ vertices[~inactive] ], names
     
     def get_number_of_active_elements(self):
         """Get elements in the mesh that are active, in the sense that
@@ -177,10 +170,7 @@ class Excitation:
         Returns
         --------
         int, giving the number of elements. """
-        type_ = self._get_element_type()
-        mesh = self.mesh.mesh
-        
-        return sum(len(mesh.cell_sets_dict[n][type_]) for n in self.excitation_types.keys())
+        return sum(len(self.mesh.physical_to_elements[n]) for n in self.excitation_types.keys())
 
     def get_number_of_matrix_elements(self):
         

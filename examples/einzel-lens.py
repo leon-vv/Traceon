@@ -33,7 +33,7 @@ with G.MEMSStack(z0=z0, size_from_distance=True) as geom:
     mesh = geom.generate_mesh()
 
 # Show the generated mesh, with the given electrode colors.
-P.plot_line_mesh(mesh.mesh, ground='green', lens='blue')
+P.plot_line_mesh(mesh, ground='green', lens='blue')
 
 excitation = E.Excitation(mesh)
 
