@@ -529,13 +529,10 @@ class Field3D_BEM(FieldBEM):
         print(f'Time for calculating radial series expansion coefficients: {(time.time()-st)*1000:.0f} ms ({len(z)} items)')
 
         return Field3DAxial(z, interpolated_coeffs)
-    
-    def charge_on_element(self, i):
-        v1, v2, v3 = self.vertices[i]
-        charge = self.charges[i]
-        
-        return 1/2*np.linalg.norm(np.cross(v2-v1, v3-v1)) * charge
      
+    def charge_on_element(self, i):
+        return np.sum(self.jac_buffer[i]) * self.charges[i]
+      
     def charge_on_elements(self, indices):
         """Compute the sum of the charges present on the elements with the given indices. To
         get the total charge of a physical group use `names['name']` for indices where `names` 

@@ -22,8 +22,7 @@ import copy
 import pickle
 
 from .util import Saveable
-from .backend import N_QUAD_2D, position_and_jacobian_radial
-
+from .backend import N_QUAD_2D, position_and_jacobian_radial, position_and_jacobian_3d
 
 def revolve_around_optical_axis(geom, elements, factor=1.0):
     """
@@ -277,6 +276,51 @@ class Mesh(Saveable):
         new_mesh = Mesh(new_points, new_elements, new_dict, self.symmetry, self.metadata)
         return new_mesh
          
+    def _split_indices_3d(self, indices):
+        assert self.symmetry == Symmetry.THREE_D
+         
+        elements = copy.deepcopy(self.elements)
+        N_elements = len(elements)
+         
+        N = len(self.points)
+        triangles_to_add = []
+        physicals = []
+        points_to_add = []
+         
+        physical_lookup = self._invert_physical_dict()
+        to_pos = lambda alpha, beta, triangle: position_and_jacobian_3d(alpha, beta, triangle)[1]
+        
+        for idx in indices:
+            pi = elements[idx]
+            triangle = self.points[pi]
+             
+            points_to_add.append(to_pos(1/3, 1/3, triangle)) # Middle
+            points_to_add.append(to_pos(1/6, 1/6, triangle)) # s0
+            points_to_add.append(to_pos(4/6, 1/6, triangle)) # s1
+            points_to_add.append(to_pos(1/6, 4/6, triangle)) # s2
+            l = len(points_to_add)
+            # Same ordering as in C backend function 'fill_self_voltages_3d'
+            t, s0, s1, s2 = N+l-4, N+l-3, N+l-2, N+l-1
+            triangles_to_add.append( (t, pi[1], pi[2], s1, pi[4], s2) )
+            triangles_to_add.append( (t, pi[2], pi[0], s2, pi[5], s0) )
+            elements[idx] = (t, pi[0], pi[1], s0, pi[3], s1)
+            
+            physicals.append(physical_lookup[idx])
+            physicals.append(physical_lookup[idx])
+        
+        # Now actually alter the mesh
+        new_points = np.concatenate( (self.points, points_to_add), axis=0)
+        new_elements = np.concatenate( (elements, np.array(triangles_to_add, dtype=np.uint64)), axis=0)
+        new_dict = copy.copy(self.physical_to_elements)
+        
+        for name in [p for p in np.unique(physicals) if p is not None]:   
+            old_indices = new_dict[name]
+            (added_indices,) = (np.array(physicals) == name).nonzero()
+            new_dict[name] = np.concatenate( (old_indices.astype(np.int64), N_elements + added_indices) )
+         
+        new_mesh = Mesh(new_points, new_elements, new_dict, self.symmetry, self.metadata)
+        return new_mesh
+     
     def split_indices(self, indices):
         if self.symmetry == Symmetry.RADIAL:
             return self._split_indices_radial(indices)
@@ -284,20 +328,22 @@ class Mesh(Saveable):
             return self._split_indices_3d(indices)
 
     def split_elements_based_on_charges(self, excitation, field, max_splits, mesh_factor):
-        assert self.symmetry == Symmetry.RADIAL
-        # TODO: take into account map_index used in Excitation
         active = excitation.get_active_element_mask()
         assert np.sum(active) == len(field.vertices), "Excitation did not produce the given field"
 
         map_index = active.nonzero()[0]
         
         charges = np.array([field.charge_on_element(i) for i in map_index])
+        charges = np.abs( np.array([field.charge_on_element(i) for i in range(len(field.vertices))]) )
+        #import matplotlib.pyplot as plt
+        #plt.hist(charges)
+        #plt.show()
         
         # In max_splits iterations, increase the number of elements in the
         # mesh by mesh_factor. The split_facotr then gives us the amount
         # of elements we need to split in every iteration.
         split_factor = mesh_factor**(1/max_splits) - 1
-
+        
         if self.symmetry == Symmetry.THREE_D:
             split_factor /= 2 # For triangles, a splitting gives two extra elements, instead of one
         
@@ -305,10 +351,11 @@ class Mesh(Saveable):
               
         for _ in range(max_splits):
             to_split = np.argsort(charges)[-round(split_factor*len(charges)):]
-            charges[to_split] /= 2 #TODO: incorrect for 3D
-            charges = np.concatenate( (charges, charges[to_split]), axis=0 )
+            print('Splitting ', len(to_split), ' elements')
+            charges[to_split] /= 2 if self.symmetry == Symmetry.RADIAL else 3
+            charges = np.concatenate( (charges, np.repeat(charges[to_split], 2)), axis=0 )
             new_mesh = new_mesh.split_indices(to_split)
-
+        
         return new_mesh
      
     def __str__(self):

@@ -86,6 +86,7 @@ backend_functions = {
     'ellipe': (dbl, dbl),
     'normal_2d': (None, v2, v2, v2),
     'normal_3d': (None, v3, v3, v3, v3),
+    'position_and_jacobian_3d': (None, dbl, dbl, arr(ndim=2), v3, dbl_p),
     'position_and_jacobian_radial': (None, dbl, v2, v2, v2, v2, v2, dbl_p),
     'trace_particle': (sz, times_block, tracing_block, field_fun, bounds, dbl, vp),
     'potential_radial_ring': (dbl, dbl, dbl, dbl, dbl, vp), 
@@ -220,6 +221,17 @@ def wrap_field_fun(ff):
         result[2] = field[2]
     
     return field_fun(wrapper)
+
+def position_and_jacobian_3d(alpha, beta, triangle):
+    assert triangle.shape == (6, 3)
+     
+    pos = np.zeros(3)
+    jac = C.c_double(0.0)
+     
+    backend_lib.position_and_jacobian_3d(alpha, beta, triangle, pos, C.pointer(jac))
+        
+    return jac.value, pos
+
 
 def position_and_jacobian_radial(alpha, v1, v2, v3, v4):
     assert v1.shape == (2,) or v1.shape == (3,)

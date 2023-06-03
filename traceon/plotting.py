@@ -50,7 +50,7 @@ def _plot_charge_density_3d(excitation, field, density=False):
     plotter = vedo.Plotter()
 
     for _, indices in name.items():
-        vertices = all_vertices[indices]
+        vertices = all_vertices[indices, :3]
         
         points = np.reshape(vertices, (3*len(vertices), 3))
         p_indices = np.arange(3*len(vertices)).reshape( (len(vertices), 3) )
@@ -98,7 +98,7 @@ def plot_triangle_mesh(mesh, show_legend=True, show_normals=False, **colors):
      
     for (v0, v1, v2, v3, v4, v5) in triangles:
         for A, B, C in [(v0, v3, v5), (v3, v4, v5), (v3, v1, v4), (v5, v4, v2)]:
-            color = '#CCC'
+            color = '#CCCCC'
             
             if A in dict_ and B in dict_ and C in dict_:
                 phys1, phys2, phys3 = dict_[A], dict_[B], dict_[C]

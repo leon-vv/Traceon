@@ -373,7 +373,7 @@ triangle_integral_beta(double beta, void *args_p) {
 	F.params = args;
 	
     double result, error;
-    gsl_integration_qag(&F, 0, 1, 0, 1e-5, 1000, GSL_INTEG_GAUSS31, args->inner_workspace, &result, &error);
+    gsl_integration_qags(&F, 0, 1, 0, 1e-5, 1000, args->inner_workspace, &result, &error);
 		
 	return Jeta*result;
 }
@@ -397,7 +397,7 @@ triangle_integral_adaptive(double target[3], triangle6 vertices, integration_cb_
 	F.params = &integration_args;
 		
     double result, error;
-    gsl_integration_qag(&F, 0, 1, 0, 1e-5, 1000, GSL_INTEG_GAUSS31, w, &result, &error);
+    gsl_integration_qags(&F, 0, 1, 0, 1e-5, 1000, w, &result, &error);
 	
     gsl_integration_workspace_free(w);
     gsl_integration_workspace_free(w_inner);
