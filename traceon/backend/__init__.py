@@ -42,6 +42,7 @@ TRACING_BLOCK_SIZE = C.c_size_t.in_dll(backend_lib, 'TRACING_BLOCK_SIZE').value
 DERIV_2D_MAX = C.c_int.in_dll(backend_lib, 'DERIV_2D_MAX_SYM').value
 
 N_QUAD_2D = C.c_int.in_dll(backend_lib, 'N_QUAD_2D_SYM').value
+N_TRIANGLE_QUAD = C.c_int.in_dll(backend_lib, 'N_TRIANGLE_QUAD_SYM').value
 
 NU_MAX = C.c_int.in_dll(backend_lib, 'NU_MAX_SYM').value
 M_MAX = C.c_int.in_dll(backend_lib, 'M_MAX_SYM').value
@@ -55,6 +56,7 @@ v2 = arr(shape=(2,))
 v3 = arr(shape=(3,))
 
 dbl = C.c_double
+dbl_p = C.POINTER(dbl)
 vp = C.c_void_p
 sz = C.c_size_t
 
@@ -68,6 +70,12 @@ charges_3d = arr(ndim=1)
 charges_2d = arr(ndim=2)
 z_values = arr(ndim=1)
 
+jac_buffer_3d = arr(ndim=2)
+pos_buffer_3d = arr(ndim=3)
+
+jac_buffer_2d = arr(ndim=2)
+pos_buffer_2d = arr(ndim=3)
+
 bounds = arr(shape=(3, 2))
 
 times_block = arr(shape=(TRACING_BLOCK_SIZE,))
@@ -78,7 +86,8 @@ backend_functions = {
     'ellipe': (dbl, dbl),
     'normal_2d': (None, v2, v2, v2),
     'normal_3d': (None, v3, v3, v3, v3),
-    'triangle_integral': (dbl, v3, v3, v3, v3, integration_cb_3d, C.c_void_p),
+    'position_and_jacobian_3d': (None, dbl, dbl, arr(ndim=2), v3, dbl_p),
+    'position_and_jacobian_radial': (None, dbl, v2, v2, v2, v2, v2, dbl_p),
     'trace_particle': (sz, times_block, tracing_block, field_fun, bounds, dbl, vp),
     'potential_radial_ring': (dbl, dbl, dbl, dbl, dbl, vp), 
     'dr1_potential_radial_ring': (dbl, dbl, dbl, dbl, dbl, vp), 
@@ -95,16 +104,18 @@ backend_functions = {
     'dy1_potential_3d_point': (dbl, dbl, dbl, dbl, dbl, dbl, dbl, vp),
     'dz1_potential_3d_point': (dbl, dbl, dbl, dbl, dbl, dbl, dbl, vp),
     'potential_3d_point': (dbl, dbl, dbl, dbl, dbl, dbl, dbl, vp),
-    'axial_coefficients_3d': (None, vertices, charges_3d, sz, z_values, arr(ndim=4), sz, arr(ndim=1), arr(ndim=4), sz),
-    'potential_3d': (dbl, v3, vertices, charges_3d, sz),
+    'axial_coefficients_3d': (None, vertices, charges_3d, jac_buffer_3d, pos_buffer_3d, sz, z_values, arr(ndim=4), sz, arr(ndim=1), arr(ndim=4), sz),
+    'potential_3d': (dbl, v3, charges_3d, jac_buffer_3d, pos_buffer_3d, sz),
     'potential_3d_derivs': (dbl, v3, z_values, arr(ndim=5), sz),
-    'field_3d': (None, v3, v3, vertices, charges_3d, sz),
-    'trace_particle_3d': (sz, times_block, tracing_block, bounds, dbl, vertices, charges_3d, sz),
+    'field_3d': (None, v3, v3, charges_3d, jac_buffer_3d, pos_buffer_3d, sz),
+    'trace_particle_3d': (sz, times_block, tracing_block, bounds, dbl, charges_3d, jac_buffer_3d, pos_buffer_3d, sz),
     'field_3d_derivs': (None, v3, v3, z_values, arr(ndim=5), sz),
     'trace_particle_3d_derivs': (sz, times_block, tracing_block, bounds, dbl, z_values, arr(ndim=5), sz),
     'add_floating_conductor_constraints_radial': (None, arr(ndim=2), lines, sz, arr(dtype=np.int64), sz, sz),
-    'fill_matrix_radial': (None, arr(ndim=2), lines, arr(dtype=C.c_uint8, ndim=1), arr(ndim=1), sz, sz, C.c_int, C.c_int),
-    'fill_matrix_3d': (None, arr(ndim=2), vertices, arr(dtype=C.c_uint8, ndim=1), arr(ndim=1), sz, sz, C.c_int, C.c_int),
+    'fill_jacobian_buffer_radial': (None, jac_buffer_2d, pos_buffer_2d, vertices, sz),
+    'fill_matrix_radial': (None, arr(ndim=2), lines, arr(dtype=C.c_uint8, ndim=1), arr(ndim=1), jac_buffer_2d, pos_buffer_2d, sz, sz, C.c_int, C.c_int),
+    'fill_jacobian_buffer_3d': (None, jac_buffer_3d, pos_buffer_3d, vertices, sz),
+    'fill_matrix_3d': (None, arr(ndim=2), vertices, arr(dtype=C.c_uint8, ndim=1), arr(ndim=1), jac_buffer_3d, pos_buffer_3d, sz, sz, C.c_int, C.c_int),
     'xy_plane_intersection_2d': (C.c_bool, arr(ndim=2), sz, arr(shape=(4,)), dbl),
     'xy_plane_intersection_3d': (C.c_bool, arr(ndim=2), sz, arr(shape=(6,)), dbl)
 }
@@ -153,10 +164,6 @@ def normal_3d(p1, p2, p3):
     backend_lib.normal_3d(p1, p2, p3, normal)
     return normal
    
-def triangle_integral(point, v1, v2, v3, callback):
-    assert point.shape == (3,) and v1.shape == (3,) and v2.shape == (3,) and v3.shape == (3,)
-    return backend_lib.triangle_integral(point, v1, v2, v3, integration_cb_3d(remove_arg(callback)), None)
-
 def _vec_2d_to_3d(vec):
     assert vec.shape == (2,) or vec.shape == (3,)
      
@@ -215,6 +222,31 @@ def wrap_field_fun(ff):
     
     return field_fun(wrapper)
 
+def position_and_jacobian_3d(alpha, beta, triangle):
+    assert triangle.shape == (6, 3)
+     
+    pos = np.zeros(3)
+    jac = C.c_double(0.0)
+     
+    backend_lib.position_and_jacobian_3d(alpha, beta, triangle, pos, C.pointer(jac))
+        
+    return jac.value, pos
+
+
+def position_and_jacobian_radial(alpha, v1, v2, v3, v4):
+    assert v1.shape == (2,) or v1.shape == (3,)
+    assert v2.shape == (2,) or v2.shape == (3,)
+    assert v3.shape == (2,) or v3.shape == (3,)
+    assert v4.shape == (2,) or v4.shape == (3,)
+    
+    pos = np.zeros(2)
+    jac = C.c_double(0.0)
+     
+    backend_lib.position_and_jacobian_radial(alpha, v1[:2], v2[:2], v3[:2], v4[:2], pos, C.pointer(jac))
+    
+    return jac.value, pos
+
+
 def trace_particle(position, velocity, field, bounds, atol):
     bounds = np.array(bounds)
     
@@ -246,14 +278,16 @@ def trace_particle_radial_derivs(position, velocity, bounds, atol, z, coeffs):
     
     return times, positions[:, [0,1,3,4]]
 
-def trace_particle_3d(position, velocity, bounds, atol, vertices, charges):
+def trace_particle_3d(position, velocity, bounds, atol, charges, jac_buffer, pos_buffer):
+    N = len(charges)
     assert position.shape == (3,)
     assert velocity.shape == (3,)
-    assert vertices.shape == (len(charges), 3, 3)
+    assert jac_buffer.shape == (N, N_TRIANGLE_QUAD)
+    assert pos_buffer.shape == (N, N_TRIANGLE_QUAD, 3)
     bounds = np.array(bounds)
-    
+     
     return trace_particle_wrapper(position, velocity,
-        lambda T, P: backend_lib.trace_particle_3d(T, P, bounds, atol, vertices, charges, len(charges)))
+        lambda T, P: backend_lib.trace_particle_3d(T, P, bounds, atol, charges, jac_buffer, pos_buffer, len(charges)))
 
 def trace_particle_3d_derivs(position, velocity, bounds, atol, z, coeffs):
     assert position.shape == (3,)
@@ -315,7 +349,8 @@ dz1_potential_3d_point = remove_arg(backend_lib.dz1_potential_3d_point)
 potential_3d_point = remove_arg(backend_lib.potential_3d_point)
 
 def axial_coefficients_3d(vertices, charges, z, thetas, theta_interpolation):
-    assert vertices.shape == (len(charges), 3, 3)
+    raise NotImplementedError()
+    assert vertices.shape == (len(charges), 6, 3)
     assert theta_interpolation.shape == (len(thetas)-1, NU_MAX, M_MAX, 4)
 
     output_coeffs = np.zeros( (len(z), 2, NU_MAX, M_MAX) )
@@ -326,11 +361,14 @@ def axial_coefficients_3d(vertices, charges, z, thetas, theta_interpolation):
     
     return output_coeffs
 
-def potential_3d(point, vertices, charges):
-    assert vertices.shape == (len(charges), 3, 3)
+def potential_3d(point, charges, jac_buffer, pos_buffer):
     assert point.shape == (3,)
-     
-    return backend_lib.potential_3d(point, vertices, charges, len(charges))
+    N = len(charges)
+    assert charges.shape == (N,)
+    assert jac_buffer.shape == (N, N_TRIANGLE_QUAD)
+    assert pos_buffer.shape == (N, N_TRIANGLE_QUAD, 3)
+    
+    return backend_lib.potential_3d(point, charges, jac_buffer, pos_buffer, N)
 
 def potential_3d_derivs(point, z, coeffs):
     assert coeffs.shape == (len(z)-1, NU_MAX, M_MAX, 4)
@@ -338,12 +376,14 @@ def potential_3d_derivs(point, z, coeffs):
     
     return backend_lib.potential_3d_derivs(point, z, coeffs, len(z))
 
-def field_3d(point, vertices, charges):
-    assert vertices.shape == (len(charges), 3, 3)
+def field_3d(point, charges, jacobian_buffer, position_buffer):
+    N = len(charges)
     assert point.shape == (3,)
-
+    assert jacobian_buffer.shape == (N, N_TRIANGLE_QUAD)
+    assert position_buffer.shape == (N, N_TRIANGLE_QUAD, 3)
+     
     field = np.zeros( (3,) )
-    backend_lib.field_3d(point, field, vertices, charges, len(vertices))
+    backend_lib.field_3d(point, field, charges, jacobian_buffer, position_buffer, N)
     return field
 
 def field_3d_derivs(point, z, coeffs):
@@ -360,8 +400,16 @@ def add_floating_conductor_constraints_radial(matrix, vertices, indices, row):
 
     return backend_lib.add_floating_conductor_constraints_radial(matrix, vertices, N_matrix, indices.astype(np.int64), len(indices), row)
 
+def fill_jacobian_buffer_radial(vertices):
+    N = len(vertices)
+    jac_buffer = np.zeros( (N, N_QUAD_2D) )
+    pos_buffer = np.zeros( (N, N_QUAD_2D, 2) )
+     
+    backend_lib.fill_jacobian_buffer_radial(jac_buffer, pos_buffer, vertices, N)
+    
+    return jac_buffer, pos_buffer
 
-def fill_matrix_radial(matrix, lines, excitation_types, excitation_values, start_index, end_index):
+def fill_matrix_radial(matrix, lines, excitation_types, excitation_values, jac_buffer, pos_buffer, start_index, end_index):
     N = len(lines)
     N_quad = N_QUAD_2D*N
     
@@ -370,20 +418,33 @@ def fill_matrix_radial(matrix, lines, excitation_types, excitation_values, start
     assert lines.shape == (N, 4, 3)
     assert excitation_types.shape == (N,)
     assert excitation_values.shape == (N,)
+    assert jac_buffer.shape == (N, N_QUAD_2D)
+    assert pos_buffer.shape == (N, N_QUAD_2D, 2)
     assert 0 <= start_index < N and 0 <= end_index < N and start_index < end_index
      
-    backend_lib.fill_matrix_radial(matrix, lines, excitation_types, excitation_values, N, matrix.shape[0], start_index, end_index)
+    backend_lib.fill_matrix_radial(matrix, lines, excitation_types, excitation_values, jac_buffer, pos_buffer, N, matrix.shape[0], start_index, end_index)
 
-def fill_matrix_3d(matrix, vertices, excitation_types, excitation_values, start_index, end_index):
+def fill_jacobian_buffer_3d(vertices):
+    N = len(vertices)
+    jac_buffer = np.zeros( (N, N_TRIANGLE_QUAD) )
+    pos_buffer = np.zeros( (N, N_TRIANGLE_QUAD, 3) )
+    
+    backend_lib.fill_jacobian_buffer_3d(jac_buffer, pos_buffer, vertices, N)
+
+    return jac_buffer, pos_buffer
+
+def fill_matrix_3d(matrix, vertices, excitation_types, excitation_values, jac_buffer, pos_buffer, start_index, end_index):
     N = len(vertices)
     # Due to floating conductor constraints the matrix might actually be bigger than NxN
     assert matrix.shape[0] >= N and matrix.shape[1] >= N and matrix.shape[0] == matrix.shape[1]
-    assert vertices.shape == (N, 3, 3)
+    assert vertices.shape == (N, 6, 3)
     assert excitation_types.shape == (N,)
     assert excitation_values.shape == (N,)
+    assert jac_buffer.shape == (N, N_TRIANGLE_QUAD)
+    assert pos_buffer.shape == (N, N_TRIANGLE_QUAD, 3)
     assert 0 <= start_index < N and 0 <= end_index < N and start_index < end_index
-    
-    backend_lib.fill_matrix_3d(matrix, vertices, excitation_types, excitation_values, N, matrix.shape[0], start_index, end_index)
+     
+    backend_lib.fill_matrix_3d(matrix, vertices, excitation_types, excitation_values, jac_buffer, pos_buffer, N, matrix.shape[0], start_index, end_index)
 
 def xy_plane_intersection(positions, z):
     

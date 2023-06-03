@@ -5,6 +5,8 @@
 #include <stdint.h>
 #include <stdbool.h>
 
+#include <gsl/gsl_integration.h>
+
 #ifdef _MSC_VER
 #define EXPORT __declspec(dllexport)
 
@@ -16,6 +18,8 @@ PyMODINIT_FUNC PyInit_traceon_backend(void) {
 #else
 #define EXPORT extern
 #endif
+
+#define INLINE EXPORT inline
 
 #if defined(__clang__)
 	#define UNROLL _Pragma("clang loop unroll(full)")
@@ -39,7 +43,6 @@ EXPORT const int DERIV_2D_MAX_SYM = 9;
 EXPORT const int NU_MAX_SYM = NU_MAX;
 EXPORT const int M_MAX_SYM = M_MAX;
 
-#define N_TRIANGLE_QUAD 9
 
 #define TRACING_STEP_MAX 0.01
 #define MIN_DISTANCE_AXIS 1e-10
@@ -56,12 +59,29 @@ EXPORT const int N_QUAD_2D_SYM = N_QUAD_2D;
 const double GAUSS_QUAD_POINTS[N_QUAD_2D] = {-0.3399810435848563, 0.3399810435848563, -0.8611363115940526, 0.8611363115940526};
 const double GAUSS_QUAD_WEIGHTS[N_QUAD_2D] = {0.6521451548625461, 0.6521451548625461, 0.3478548451374538, 0.3478548451374538};
 
+// Triangle quadrature constants
+#define N_TRIANGLE_QUAD 33
+EXPORT const int N_TRIANGLE_QUAD_SYM = N_TRIANGLE_QUAD;
+const double QUAD_WEIGHTS[N_TRIANGLE_QUAD] = {0.03127061, 0.01424303, 0.02495917, 0.01213342, 0.00396582, 0.03127061, 0.01424303, 0.02495917, 0.01213342, 0.00396582, 0.03127061, 0.01424303, 0.02495917, 0.01213342, 0.00396582, 0.02161368, 0.00754184, 0.01089179, 0.02161368, 0.00754184, 0.01089179, 0.02161368, 0.00754184, 0.01089179, 0.02161368, 0.00754184, 0.01089179, 0.02161368, 0.00754184, 0.01089179, 0.02161368, 0.00754184, 0.01089179};
+const double QUAD_B1[N_TRIANGLE_QUAD] = {0.27146251, 0.10925783, 0.44011165, 0.48820375, 0.02464636, 0.27146251, 0.10925783, 0.44011165, 0.48820375, 0.02464636, 0.45707499, 0.78148434, 0.1197767 , 0.0235925 , 0.95070727, 0.11629602, 0.02138249, 0.02303416, 0.62824975, 0.85133779, 0.68531016, 0.25545423, 0.12727972, 0.29165568, 0.25545423, 0.12727972, 0.29165568, 0.62824975, 0.85133779, 0.68531016, 0.11629602, 0.02138249, 0.02303416};
+const double QUAD_B2[N_TRIANGLE_QUAD] = {0.27146251, 0.10925783, 0.44011165, 0.48820375, 0.02464636, 0.45707499, 0.78148434, 0.1197767 , 0.0235925 , 0.95070727, 0.27146251, 0.10925783, 0.44011165, 0.48820375, 0.02464636, 0.25545423, 0.12727972, 0.29165568, 0.11629602, 0.02138249, 0.02303416, 0.62824975, 0.85133779, 0.68531016, 0.11629602, 0.02138249, 0.02303416, 0.25545423, 0.12727972, 0.29165568, 0.62824975, 0.85133779, 0.68531016};
 
 //////////////////////////////// TYPEDEFS
+
 
 typedef double (*integration_cb_2d)(double, double, double, double, void*);
 typedef double (*vertices_2d)[4][3];
 typedef double (*charges_2d)[N_QUAD_2D];
+
+// See GMSH documentation
+typedef double triangle6[6][3];
+typedef double (*vertices_3d)[6][3];
+
+typedef double (*jacobian_buffer_3d)[N_TRIANGLE_QUAD];
+typedef double (*position_buffer_3d)[N_TRIANGLE_QUAD][3];
+
+typedef double (*jacobian_buffer_2d)[N_QUAD_2D];
+typedef double (*position_buffer_2d)[N_QUAD_2D][2];
 
 //////////////////////////////// ELLIPTIC FUNCTIONS
 
@@ -235,73 +255,160 @@ normal_3d(double *p1, double *p2, double *p3, double *normal) {
 	normal[2] = normal_z/length;
 }
 
-// Triangle quadrature constants
-const double QUAD_B1[N_TRIANGLE_QUAD] = {0.124949503233232, 0.437525248383384, 0.437525248383384, 0.797112651860071, 0.797112651860071, 0.165409927389841, 0.165409927389841, 0.037477420750088, 0.037477420750088};
-const double QUAD_B2[N_TRIANGLE_QUAD] = {0.437525248383384, 0.124949503233232, 0.437525248383384, 0.165409927389841, 0.037477420750088, 0.797112651860071, 0.037477420750088, 0.797112651860071, 0.165409927389841};
-const double QUAD_WEIGHTS[N_TRIANGLE_QUAD] = {0.205950504760887, 0.205950504760887, 0.205950504760887, 0.063691414286223, 0.063691414286223, 0.063691414286223, 0.063691414286223, 0.063691414286223, 0.063691414286223};
-
-EXPORT double
-triangle_integral(double target[3], double v1[3], double v2[3], double v3[3], integration_cb_3d function, void *args) {
-	double v1x = v1[0], v1y = v1[1], v1z = v1[2];
-	double v2x = v2[0], v2y = v2[1], v2z = v2[2];
-	double v3x = v3[0], v3y = v3[1], v3z = v3[2];
-		
-	double area = 0.5*sqrt(pow((v2y-v1y)*(v3z-v1z)-(v2z-v1z)*(v3y-v1y), 2) + pow((v2z-v1z)*(v3x-v1x)-(v2x-v1x)*(v3z-v1z), 2) + pow((v2x-v1x)*(v3y-v1y)-(v2y-v1y)*(v3x-v1x), 2));
-	
-	double sum_ = 0.0;
-	
-	for (int k=0; k < N_TRIANGLE_QUAD; k++) {
-		double b1_ = QUAD_B1[k];
-		double b2_ = QUAD_B2[k];
-		double w = QUAD_WEIGHTS[k];
-			
-        double x = v1x + b1_*(v2x-v1x) + b2_*(v3x-v1x);
-        double y = v1y + b1_*(v2y-v1y) + b2_*(v3y-v1y);
-        double z = v1z + b1_*(v2z-v1z) + b2_*(v3z-v1z);
-			
-        sum_ += w*function(target[0], target[1], target[2], x, y, z, args);
-	}
-	      
-    return area*sum_;
+INLINE void barycentric_coefficients_higher_order_triangle_3d(double alpha, double beta,
+	double v0, double v1, double v2, double v3, double v4, double v5, double coeffs[6]) {
+	//v3 = (v0+v1)/2.;
+	//v4 = (v1+v2)/2.;
+	//v5 = (v0+v2)/2.;
+    coeffs[0] = v0;
+	coeffs[1] = 4*v3-v1-3*v0;
+	coeffs[2] = 4*v5-v2-3*v0;
+	coeffs[3] = -4*v3+2*v1+2*v0;
+	coeffs[4] = -4*v5+4*v4-4*v3+4*v0;
+	coeffs[5] = -4*v5+2*v2+2*v0;
 }
 
-// This is a bit of a hack.. we supply a triangle_integral function which is exactly
-// the same as above, except we inline the 'potential_3d_point' function directly. Weirdly this
-// seem to trigger some kind of optimization within GCC that makes building the matrix much faster. I was not
-// able to reproduce this behaviour simply by extensive use of the 'inline' keyword.
+INLINE double dot6(double *v1, double *v2) {
+	double sum = 0.0;
+	UNROLL
+	for(int i = 0; i < 6; i++) sum += v1[i]*v2[i];
+	return sum;
+}
+
+INLINE void
+cross_product_3d(double *v1, double *v2, double *out) {
+	double v1x = v1[0], v1y = v1[1], v1z = v1[2];
+	double v2x = v2[0], v2y = v2[1], v2z = v2[2];
+
+	out[0] = v1y*v2z-v1z*v2y;
+	out[1] = v1z*v2x-v1x*v2z;
+	out[2] = v1x*v2y-v1y*v2x;
+}
+
+INLINE double norm_cross_product_3d(double *v1, double *v2) {
+	double out[3];
+	cross_product_3d(v1, v2, out);
+	return norm_3d(out[0], out[1], out[2]);
+}
+
+INLINE void position_and_jacobian_3d(double alpha, double beta, triangle6 v, double *pos_out, double *jac) {
+
+	double coeffs_x[6], coeffs_y[6], coeffs_z[6];
+	barycentric_coefficients_higher_order_triangle_3d(alpha, beta, v[0][0], v[1][0], v[2][0], v[3][0], v[4][0], v[5][0], coeffs_x);
+	barycentric_coefficients_higher_order_triangle_3d(alpha, beta, v[0][1], v[1][1], v[2][1], v[3][1], v[4][1], v[5][1], coeffs_y);
+	barycentric_coefficients_higher_order_triangle_3d(alpha, beta, v[0][2], v[1][2], v[2][2], v[3][2], v[4][2], v[5][2], coeffs_z);
+	
+	double monomials[6] = {1, alpha, beta, pow(alpha,2), alpha*beta, pow(beta,2)};
+	double monomials_da[6] = {0, 1, 0, 2*alpha, beta, 0};
+	double monomials_db[6] = {0, 0, 1, 0, alpha, 2*beta};
+
+	pos_out[0] = dot6(coeffs_x, monomials);
+	pos_out[1] = dot6(coeffs_y, monomials);
+	pos_out[2] = dot6(coeffs_z, monomials);
+
+	double da[3] = {
+		dot6(coeffs_x, monomials_da),
+		dot6(coeffs_y, monomials_da),
+		dot6(coeffs_z, monomials_da),
+	};
+	
+	double db[3] = {
+		dot6(coeffs_x, monomials_db),
+		dot6(coeffs_y, monomials_db),
+		dot6(coeffs_z, monomials_db),
+	};
+	
+	*jac = norm_cross_product_3d(da, db);
+}
+
+struct self_voltage_3d_args {
+	double beta;
+	double *target;
+	double *vertices;
+	integration_cb_3d cb_fun;
+	void *cb_args;	
+	gsl_integration_workspace *inner_workspace;
+};
+
+double
+triangle_integral_alpha(double alpha, void *args_p) {
+
+	struct self_voltage_3d_args *args = args_p;
+	double *target = args->target;
+	double beta = args->beta;
+
+	// Telles transformation
+	double B = 1-beta;
+	const int order = 5;
+	double eta = B*pow(alpha, order);
+	double Jeta = order*B*pow(alpha, order-1);
+	
+	//assert( (0 <= alpha) && (alpha <= 1-beta) );
+	//assert( (0 <= beta) && (beta <= 1));
+		
+	double pos[3], jac;
+	double *v = args->vertices;
+	//printf("Vertices: %f, %f, %f\n", v[0], v[1], v[2]);
+	//printf("Vertices: %f, %f, %f\n", v[3], v[4], v[5]);
+	//printf("Vertices: %f, %f, %f\n", v[6], v[7], v[8]);
+	position_and_jacobian_3d(eta, beta, (double (*)[3]) args->vertices, pos, &jac);
+
+	return Jeta*jac*args->cb_fun(target[0], target[1], target[2], pos[0], pos[1], pos[2], args->cb_args);
+}
+
+double
+triangle_integral_beta(double beta, void *args_p) {
+
+	struct self_voltage_3d_args *args = args_p;
+
+	// Telles transformation
+	const int order = 3;
+	double eta = pow(beta,order);
+	double Jeta = order*pow(beta,order-1);
+	
+	args->beta = eta;
+		
+    gsl_function F;
+    F.function = &triangle_integral_alpha;
+	F.params = args;
+	
+    double result, error;
+    gsl_integration_qags(&F, 0, 1, 0, 1e-5, 1000, args->inner_workspace, &result, &error);
+		
+	return Jeta*result;
+}
+
+double
+triangle_integral_adaptive(double target[3], triangle6 vertices, integration_cb_3d function, void *args) {
+	
+	gsl_integration_workspace * w = gsl_integration_workspace_alloc(1000);
+	gsl_integration_workspace * w_inner = gsl_integration_workspace_alloc(1000);
+	
+	struct self_voltage_3d_args integration_args = {
+		.target = target,
+		.cb_fun = function,
+		.cb_args = args,
+		.vertices = (double*) vertices,
+		.inner_workspace = w_inner
+	};
+		
+    gsl_function F;
+    F.function = &triangle_integral_beta;
+	F.params = &integration_args;
+		
+    double result, error;
+    gsl_integration_qags(&F, 0, 1, 0, 1e-5, 1000, w, &result, &error);
+	
+    gsl_integration_workspace_free(w);
+    gsl_integration_workspace_free(w_inner);
+		
+	return result;
+}
+
 EXPORT inline double potential_3d_point(double x0, double y0, double z0, double x, double y, double z, void *_) {
 	double r = norm_3d(x-x0, y-y0, z-z0);
     return 1/(4*r);
 }
-
-double
-triangle_integral_potential_3d_point(double target[3], double v1[3], double v2[3], double v3[3]) {
-	double v1x = v1[0], v1y = v1[1], v1z = v1[2];
-	double v2x = v2[0], v2y = v2[1], v2z = v2[2];
-	double v3x = v3[0], v3y = v3[1], v3z = v3[2];
-		
-	double area = 0.5*sqrt(pow((v2y-v1y)*(v3z-v1z)-(v2z-v1z)*(v3y-v1y), 2) + pow((v2z-v1z)*(v3x-v1x)-(v2x-v1x)*(v3z-v1z), 2) + pow((v2x-v1x)*(v3y-v1y)-(v2y-v1y)*(v3x-v1x), 2));
-	
-	double sum_ = 0.0;
-	
-	for (int k=0; k < N_TRIANGLE_QUAD; k++) {
-		double b1_ = QUAD_B1[k];
-		double b2_ = QUAD_B2[k];
-		double w = QUAD_WEIGHTS[k];
-			
-        double x = v1x + b1_*(v2x-v1x) + b2_*(v3x-v1x);
-        double y = v1y + b1_*(v2y-v1y) + b2_*(v3y-v1y);
-        double z = v1z + b1_*(v2z-v1z) + b2_*(v3z-v1z);
-			
-        sum_ += w*potential_3d_point(target[0], target[1], target[2], x, y, z, NULL);
-	}
-	      
-    return area*sum_;
-}
-
-
-
-
 
 //////////////////////////////// PARTICLE TRACING
 
@@ -635,6 +742,8 @@ field_radial(double point[3], double result[3], vertices_2d vertices, charges_2d
 struct field_evaluation_args {
 	double *vertices;
 	double *charges;
+	double *jacobian_buffer;
+	double *position_buffer;
 	size_t N_vertices;
 };
 
@@ -649,7 +758,7 @@ EXPORT size_t
 trace_particle_radial(double *times_array, double *pos_array, double bounds[3][2], double atol,
 	double *vertices, double *charges, size_t N_vertices) {
 
-	struct field_evaluation_args args = { vertices, charges, N_vertices };
+	struct field_evaluation_args args = { vertices, charges, NULL, NULL, N_vertices };
 				
 	return trace_particle(times_array, pos_array, field_radial_traceable, bounds, atol, (void*) &args);
 }
@@ -724,36 +833,28 @@ EXPORT double dz1_potential_3d_point(double x0, double y0, double z0, double x, 
 }
 
 EXPORT void
-axial_coefficients_3d(double *restrict vertices_p, double *restrict charges, size_t N_v,
+axial_coefficients_3d(double *restrict charges,
+	jacobian_buffer_3d jacobian_buffer,
+	position_buffer_3d position_buffer,
+	size_t N_v,
 	double *restrict zs, double *restrict output_coeffs_p, size_t N_z,
 	double *restrict thetas, double *restrict theta_coeffs_p, size_t N_t) {
-	
-	double (*vertices)[3][3] = (double (*)[3][3]) vertices_p;
+		
 	double (*theta_coeffs)[NU_MAX][M_MAX][4] = (double (*)[NU_MAX][M_MAX][4]) theta_coeffs_p;
 	double (*output_coeffs)[2][NU_MAX][M_MAX] = (double (*)[2][NU_MAX][M_MAX]) output_coeffs_p;
-
+	
 	double theta0 = thetas[0];
 	double dtheta = thetas[1] - thetas[0];
 	
 	for(int h = 0; h < N_v; h++) {
-
-		double v1x = vertices[h][0][0], v1y = vertices[h][0][1], v1z = vertices[h][0][2];
-		double v2x = vertices[h][1][0], v2y = vertices[h][1][1], v2z = vertices[h][1][2];
-		double v3x = vertices[h][2][0], v3y = vertices[h][2][1], v3z = vertices[h][2][2];
-			
-		double area = 0.5*sqrt(pow((v2y-v1y)*(v3z-v1z)-(v2z-v1z)*(v3y-v1y), 2) + pow((v2z-v1z)*(v3x-v1x)-(v2x-v1x)*(v3z-v1z), 2) + pow((v2x-v1x)*(v3y-v1y)-(v2y-v1y)*(v3x-v1x), 2));
-		
         for (int i=0; i < N_z; i++) 
+		
 		UNROLL
 		for (int k=0; k < N_TRIANGLE_QUAD; k++) {
-			double b1_ = QUAD_B1[k];
-			double b2_ = QUAD_B2[k];
-			double w = QUAD_WEIGHTS[k];
-
-			double x = v1x + b1_*(v2x-v1x) + b2_*(v3x-v1x);
-			double y = v1y + b1_*(v2y-v1y) + b2_*(v3y-v1y);
-			double z = v1z + b1_*(v2z-v1z) + b2_*(v3z-v1z);
-
+			double x = position_buffer[h][k][0];
+			double y = position_buffer[h][k][1];
+			double z = position_buffer[h][k][2];
+			
 			double r = norm_3d(x, y, z-zs[i]);
 			double theta = atan2((z-zs[i]), norm_2d(x, y));
 			double mu = atan2(y, x);
@@ -770,8 +871,10 @@ axial_coefficients_3d(double *restrict vertices_p, double *restrict charges, siz
 				double base = pow(t, 3)*C[nu][m][0] + pow(t, 2)*C[nu][m][1] + t*C[nu][m][2] + C[nu][m][3];
 				double r_dependence = pow(r, -2*nu - m - 1);
 					
-				output_coeffs[i][0][nu][m] += charges[h]*area*w*base*cos(m*mu)*r_dependence;
-				output_coeffs[i][1][nu][m] += charges[h]*area*w*base*sin(m*mu)*r_dependence;
+				double jac = jacobian_buffer[h][k];
+				
+				output_coeffs[i][0][nu][m] += charges[h]*jac*base*cos(m*mu)*r_dependence;
+				output_coeffs[i][1][nu][m] += charges[h]*jac*base*sin(m*mu)*r_dependence;
 			}
 		}
 	}
@@ -780,19 +883,23 @@ axial_coefficients_3d(double *restrict vertices_p, double *restrict charges, siz
 
 //////////////////////////////// 3D POINT POTENTIAL EVALUATION
 
-EXPORT double
-potential_3d(double point[3], double *vertices_p, double *charges, size_t N_vertices) {
-
-	double (*vertices)[3][3] = (double (*)[3][3]) vertices_p;	
-
-	double sum_ = 0.0;
+EXPORT double  
+potential_3d(double point[3], double *charges, jacobian_buffer_3d jacobian_buffer, position_buffer_3d position_buffer, size_t N_vertices) {  
 	
-	for(int i = 0; i < N_vertices; i++) {
-		sum_ += charges[i] * triangle_integral(point, vertices[i][0], vertices[i][1], vertices[i][2], potential_3d_point, NULL);
-	}
+	double sum_ = 0.0;  
+	
+	for(int i = 0; i < N_vertices; i++) {  
+		for(int k = 0; k < N_TRIANGLE_QUAD; k++) {
+			double *pos = &position_buffer[i][k][0];
+			double potential = potential_3d_point(point[0], point[1], point[2], pos[0], pos[1], pos[2], NULL);
+			
+			sum_ += charges[i] * jacobian_buffer[i][k] * potential;
+		}
+	}  
 	
 	return sum_;
-}
+}  
+
 
 EXPORT double
 potential_3d_derivs(double point[3], double *zs, double *coeffs_p, size_t N_z) {
@@ -843,41 +950,42 @@ field_dot_normal_3d(double x0, double y0, double z0, double x, double y, double 
     return normal[0]*Ex + normal[1]*Ey + normal[2]*Ez;
 }
 
-
 EXPORT void
-field_3d(double point[3], double result[3], double *vertices_p, double *charges, size_t N_vertices) {
-	
-		double (*vertices)[3][3] = (double (*)[3][3]) vertices_p;
-		
-		double Ex = 0.0, Ey = 0.0, Ez = 0.0;
-		
-		for(int i = 0; i < N_vertices; i++) {
-			
-			double *v1, *v2, *v3;
-			v1 = &vertices[i][0][0], v2 = &vertices[i][1][0], v3 = &vertices[i][2][0];
-			
-			Ex -= charges[i]*triangle_integral(point, v1, v2, v3, dx1_potential_3d_point, NULL);
-			Ey -= charges[i]*triangle_integral(point, v1, v2, v3, dy1_potential_3d_point, NULL);
-			Ez -= charges[i]*triangle_integral(point, v1, v2, v3, dz1_potential_3d_point, NULL);
-		} 
+field_3d(double point[3], double result[3], double *charges,
+	jacobian_buffer_3d jacobian_buffer, position_buffer_3d position_buffer, size_t N_vertices) {
 
-		result[0] = Ex;
-		result[1] = Ey;
-		result[2] = Ez;
+	double Ex = 0.0, Ey = 0.0, Ez = 0.0;
+
+	for(int i = 0; i < N_vertices; i++) {
+		for(int k = 0; k < N_TRIANGLE_QUAD; k++) {
+			double *pos = &position_buffer[i][k][0];
+			double field_x = dx1_potential_3d_point(point[0], point[1], point[2], pos[0], pos[1], pos[2], NULL);
+			double field_y = dy1_potential_3d_point(point[0], point[1], point[2], pos[0], pos[1], pos[2], NULL);
+			double field_z = dz1_potential_3d_point(point[0], point[1], point[2], pos[0], pos[1], pos[2], NULL);
+		
+			Ex -= charges[i] * jacobian_buffer[i][k] * field_x;
+			Ey -= charges[i] * jacobian_buffer[i][k] * field_y;
+			Ez -= charges[i] * jacobian_buffer[i][k] * field_z;
+		}
+	}
+		
+	result[0] = Ex;
+	result[1] = Ey;
+	result[2] = Ez;
 }
 
 void
 field_3d_traceable(double point[3], double result[3], void *args_p) {
 
 	struct field_evaluation_args *args = (struct field_evaluation_args*)args_p;
-	field_3d(point, result, args->vertices, args->charges, args->N_vertices);
+	field_3d(point, result, args->charges, (jacobian_buffer_3d) args->jacobian_buffer, (position_buffer_3d) args->position_buffer, args->N_vertices);
 }
 
 EXPORT size_t
 trace_particle_3d(double *times_array, double *pos_array, double bounds[3][2], double atol,
-	double *vertices, double *charges, size_t N_vertices) {
+	double* charges, jacobian_buffer_3d jacobian_buffer, position_buffer_3d position_buffer, size_t N_vertices) {
 
-	struct field_evaluation_args args = { vertices, charges, N_vertices };
+	struct field_evaluation_args args = { NULL, charges, (double*) jacobian_buffer, (double*) position_buffer, N_vertices };
 				
 	return trace_particle(times_array, pos_array, field_3d_traceable, bounds, atol, (void*) &args);
 }
@@ -1075,7 +1183,7 @@ double log_integral(
 	return integration_sum;
 }
 
-void fill_self_voltages(double *matrix, 
+void fill_self_voltages_radial(double *matrix, 
                         vertices_2d line_points,
 						uint8_t *excitation_types,
 						double *excitation_values,
@@ -1145,12 +1253,37 @@ EXPORT void add_floating_conductor_constraints_radial(double *matrix, vertices_2
 	}
 }
 
+EXPORT void fill_jacobian_buffer_radial(
+	jacobian_buffer_2d jacobian_buffer,
+	position_buffer_2d pos_buffer,
+    vertices_2d line_points,
+    size_t N_lines) {
+	
+    for(int i = 0; i < N_lines; i++) {  
+        for (int k=0; k < N_QUAD_2D; k++) {  
+			double *v1 = &line_points[i][0][0];
+			double *v2 = &line_points[i][2][0];
+			double *v3 = &line_points[i][3][0];
+			double *v4 = &line_points[i][1][0];
+				
+            double pos[2], jac;  
+			
+            position_and_jacobian_radial(GAUSS_QUAD_POINTS[k], v1, v2, v3, v4, pos, &jac);  
+			
+            jacobian_buffer[i][k] = GAUSS_QUAD_WEIGHTS[k]*jac;  
+            pos_buffer[i][k][0] = pos[0];  
+            pos_buffer[i][k][1] = pos[1];  
+        }  
+    }  
+}
 
 
 EXPORT void fill_matrix_radial(double *matrix, 
 						vertices_2d line_points,
                         uint8_t *excitation_types, 
                         double *excitation_values, 
+						jacobian_buffer_2d jacobian_buffer,
+						position_buffer_2d pos_buffer,
 						size_t N_lines,
 						size_t N_matrix,
                         int lines_range_start, 
@@ -1173,21 +1306,12 @@ EXPORT void fill_matrix_radial(double *matrix,
 				
 				if (i == j) continue;
 					
-				double *v1 = &line_points[j][0][0];
-				double *v2 = &line_points[j][2][0]; // Strange ordering following from GMSH line4 element
-				double *v3 = &line_points[j][3][0];
-				double *v4 = &line_points[j][1][0];
-					
 				for(int l = 0; l < N_QUAD_2D; l++) {
-					double target[2], jac_t;
-					position_and_jacobian_radial(GAUSS_QUAD_POINTS[l], target_v1, target_v2, target_v3, target_v4, target, &jac_t);
+					double *target = &pos_buffer[i][l][0];
 						
 					for(int k = 0; k < N_QUAD_2D; k++) {
-						
-						double pos[2], jac;
-						position_and_jacobian_radial(GAUSS_QUAD_POINTS[k], v1, v2, v3, v4, pos, &jac);
-						
-						matrix[(N_QUAD_2D*i + l)*N_matrix + N_QUAD_2D*j + k] = GAUSS_QUAD_WEIGHTS[k]*jac*potential_radial_ring(target[0], target[1], pos[0], pos[1], NULL);
+						double *pos = &pos_buffer[j][k][0];
+						matrix[(N_QUAD_2D*i + l)*N_matrix + N_QUAD_2D*j + k] = jacobian_buffer[j][k]*potential_radial_ring(target[0], target[1], pos[0], pos[1], NULL);
 					}
 				}
 			} 
@@ -1229,58 +1353,149 @@ EXPORT void fill_matrix_radial(double *matrix,
 		}
 	}
 	
-	fill_self_voltages(matrix, line_points, excitation_types, excitation_values, N_lines, N_matrix, lines_range_start, lines_range_end);
+	fill_self_voltages_radial(matrix, line_points, excitation_types, excitation_values, N_lines, N_matrix, lines_range_start, lines_range_end);
 }
 
+void fill_self_voltages_3d(double *matrix, 
+                        vertices_3d line_points,
+						uint8_t *excitation_types,
+						double *excitation_values,
+						size_t N_lines,
+						size_t N_matrix,
+                        int lines_range_start, 
+                        int lines_range_end) {
 
-EXPORT void fill_matrix_3d(double *matrix, 
-                    double *triangle_points_p, 
+	for (int i = lines_range_start; i <= lines_range_end; i++) {
+		
+		double (*v)[3] = &line_points[i][0];
+				
+		// Target
+		double t[3], jac;
+		position_and_jacobian_3d(1/3., 1/3., &line_points[i][0], t, &jac);
+
+		double s0[3], s1[3], s2[3];
+		position_and_jacobian_3d(1/6., 1/6., &line_points[i][0], s0, &jac);
+		position_and_jacobian_3d(4/6., 1/6., &line_points[i][0], s1, &jac);
+		position_and_jacobian_3d(1/6., 4/6., &line_points[i][0], s2, &jac);
+					
+		triangle6 triangle1 = {
+			{ t[0], t[1], t[2] },
+			{ v[0][0], v[0][1], v[0][2] },
+			{ v[1][0], v[1][1], v[1][2] },
+			{ s0[0], s0[1], s0[2] },
+			{ v[3][0], v[3][1], v[3][2] },
+			{ s1[0], s1[1], s1[2] } };
+		
+		triangle6 triangle2 = {
+			{ t[0], t[1], t[2] },
+			{ v[1][0], v[1][1], v[1][2] },
+			{ v[2][0], v[2][1], v[2][2] },
+			{ s1[0], s1[1], s1[2] },
+			{ v[4][0], v[4][1], v[4][2] },
+			{ s2[0], s2[1], s2[2] } };
+			
+		triangle6 triangle3 = {
+			{ t[0], t[1], t[2] },
+			{ v[2][0], v[2][1], v[2][2] },
+			{ v[0][0], v[0][1], v[0][2] },
+			{ s2[0], s2[1], s2[2] },
+			{ v[5][0], v[5][1], v[5][2] },
+			{ s0[0], s0[1], s0[2] } };
+
+		matrix[i*N_matrix + i] = 0.0;
+		matrix[i*N_matrix + i] += triangle_integral_adaptive(t, triangle1, potential_3d_point, NULL);
+		matrix[i*N_matrix + i] += triangle_integral_adaptive(t, triangle2, potential_3d_point, NULL);
+		matrix[i*N_matrix + i] += triangle_integral_adaptive(t, triangle3, potential_3d_point, NULL);
+		//printf("%d\n", i);
+	}
+}
+
+EXPORT void fill_jacobian_buffer_3d(
+	jacobian_buffer_3d jacobian_buffer,
+	position_buffer_3d pos_buffer,
+    vertices_3d triangle_points,
+    size_t N_lines) {
+		
+    for(int i = 0; i < N_lines; i++) {  
+        for (int k=0; k < N_TRIANGLE_QUAD; k++) {  
+            double b1_ = QUAD_B1[k];  
+            double b2_ = QUAD_B2[k];  
+            double w = QUAD_WEIGHTS[k];  
+			
+            double pos[3], jac;  
+            position_and_jacobian_3d(b1_, b2_, &triangle_points[i][0], pos, &jac);  
+			
+            jacobian_buffer[i][k] = w*jac;  
+            pos_buffer[i][k][0] = pos[0];  
+            pos_buffer[i][k][1] = pos[1];  
+            pos_buffer[i][k][2] = pos[2];  
+        }
+    }
+}
+
+EXPORT void fill_matrix_3d(double *restrict matrix, 
+                    vertices_3d triangle_points, 
                     uint8_t *excitation_types, 
                     double *excitation_values, 
+					jacobian_buffer_3d jacobian_buffer,
+					position_buffer_3d pos_buffer,
 					size_t N_lines,
 					size_t N_matrix,
                     int lines_range_start, 
                     int lines_range_end) {
-    
+		
 	assert(lines_range_start < N_lines && lines_range_end < N_lines);
-	double (*triangle_points)[3][3] = (double (*)[3][3]) triangle_points_p;
 		
     for (int i = lines_range_start; i <= lines_range_end; i++) {
-		double *p1 = &triangle_points[i][0][0];
-		double *p2 = &triangle_points[i][1][0];
-		double *p3 = &triangle_points[i][2][0];
-		double target[3] = {(p1[0] + p2[0] + p3[0])/3, (p1[1] + p2[1] + p3[1])/3, (p1[2] + p2[2] + p3[2])/3};
+		// TODO: higher order
+		double target[3], jac;
+		position_and_jacobian_3d(1/3., 1/3., &triangle_points[i][0], target, &jac);
+			
         enum ExcitationType type_ = excitation_types[i];
 		 
         if (type_ == VOLTAGE_FIXED || type_ == VOLTAGE_FUN || type_ == FLOATING_CONDUCTOR) {
             for (int j = 0; j < N_lines; j++) {
-                double *v1 = &triangle_points[j][0][0];
-                double *v2 = &triangle_points[j][1][0];
-                double *v3 = &triangle_points[j][2][0];
-                matrix[i*N_matrix + j] = triangle_integral_potential_3d_point(target, v1, v2, v3);
+				
+				UNROLL
+				for(int k = 0; k < N_TRIANGLE_QUAD; k++) {
+						
+					double *pos = pos_buffer[j][k];
+					double jac = jacobian_buffer[j][k];
+					matrix[i*N_matrix + j] += jac * potential_3d_point(target[0], target[1], target[2], pos[0], pos[1], pos[2], NULL);
+				}
             }
         } 
-        else if (type_ == DIELECTRIC) {
-            double normal[3];
-            normal_3d(p1, p2, p3, normal);
-            double K = excitation_values[i];
-            
-            for (int j = 0; j < N_lines; j++) {
-				double *v1 = &triangle_points[j][0][0];
-                double *v2 = &triangle_points[j][1][0];
-                double *v3 = &triangle_points[j][2][0];
-				// See comments in 'fill_matrix_2d'.
-                double factor = (2*K - 2) / (M_PI*(1 + K));
-                matrix[i*N_matrix + j] = factor * triangle_integral(target, v1, v2, v3, field_dot_normal_3d, normal);
-				 
-                if (i == j) matrix[i*N_matrix + j] -= 1.0;
-            }
-        }
+		else if (type_ == DIELECTRIC) {  
+			double *p1 = &triangle_points[i][0][0];  
+			double *p2 = &triangle_points[i][1][0];  
+			double *p3 = &triangle_points[i][2][0];  
+
+			double normal[3];  
+			normal_3d(p1, p2, p3, normal);  
+			double K = excitation_values[i];  
+
+			double factor = (2*K - 2) / (M_PI*(1 + K));  
+
+			for (int j = 0; j < N_lines; j++) {  
+				
+				UNROLL  
+				for(int k = 0; k < N_TRIANGLE_QUAD; k++) {  
+					double *pos = pos_buffer[j][k];  
+					double jac = jacobian_buffer[j][k];  
+					
+					matrix[i*N_matrix + j] += factor * jac * field_dot_normal_3d(target[0], target[1], target[2], pos[0], pos[1], pos[2], normal);  
+				}  
+				
+				if (i == j) matrix[i*N_matrix + j] -= 1.0;  
+			}  
+		}  
         else {
             printf("ExcitationType unknown");
             exit(1);
         }
     }
+	
+	fill_self_voltages_3d(matrix, triangle_points, excitation_types, excitation_values, N_lines, N_matrix, lines_range_start, lines_range_end);
 }
 
 EXPORT bool

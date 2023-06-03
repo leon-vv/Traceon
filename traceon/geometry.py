@@ -17,12 +17,12 @@ from math import sqrt
 from pygmsh import *
 import gmsh
 from enum import Enum
+import copy
 
 import pickle
 
 from .util import Saveable
-from .backend import N_QUAD_2D
-
+from .backend import N_QUAD_2D, position_and_jacobian_radial, position_and_jacobian_3d
 
 def revolve_around_optical_axis(geom, elements, factor=1.0):
     """
@@ -146,9 +146,9 @@ class Geometry(geo.Geometry):
         if dim == 1:
             gmsh.option.setNumber('Mesh.ElementOrder', 3)
         else:
-            gmsh.option.setNumber('Mesh.ElementOrder', 1)
+            gmsh.option.setNumber('Mesh.ElementOrder', 2)
         
-        return Mesh(super().generate_mesh(dim=dim, *args, **kwargs), self.symmetry)
+        return Mesh.from_meshio(super().generate_mesh(dim=dim, *args, **kwargs), self.symmetry)
 
     def set_mesh_size_factor(self, factor):
         """
@@ -202,11 +202,22 @@ class Geometry(geo.Geometry):
 class Mesh(Saveable):
     """Class containing a mesh and related metadata."""
     
-    def __init__(self, mesh, symmetry, metadata={}):
+    def __init__(self, points, elements, physical_to_elements, symmetry, metadata={}):
         assert isinstance(symmetry, Symmetry)
-        self.mesh = mesh
-        self.metadata = metadata
+        self.points = points
+        self.elements = elements
+        self.physical_to_elements = physical_to_elements
         self.symmetry = symmetry
+        self.metadata = metadata
+            
+    def from_meshio(mesh, symmetry, metadata={}):
+        type_ = 'line4' if symmetry != Symmetry.THREE_D else 'triangle6'
+        
+        points = mesh.points
+        elements = mesh.cells_dict[type_]
+        physical_to_elements = {k:v[type_] for k, v in mesh.cell_sets_dict.items() if type_ in v}
+        
+        return Mesh(points, elements, physical_to_elements, symmetry, metadata)
      
     def get_electrodes(self):
         """Get the names of all the electrodes in the geometry.
@@ -216,12 +227,141 @@ class Mesh(Saveable):
         List of electrode names
 
         """
-        return list(self.mesh.cell_sets_dict.keys())
+        return list(self.physical_to_elements.keys())
     
+    def _invert_physical_dict(self):
+        lookup = np.full(len(self.elements), None)
+
+        for k, v in self.physical_to_elements.items():
+            lookup[v] = k
+        
+        return lookup
+     
+    def _split_indices_radial(self, indices):
+        assert self.symmetry == Symmetry.RADIAL
+         
+        elements = copy.deepcopy(self.elements)
+        N_elements = len(elements)
+         
+        N = len(self.points)
+        lines_to_add = []
+        physicals = []
+        points_to_add = []
+         
+        physical_lookup = self._invert_physical_dict()
+        to_pos = lambda alpha, line: [*position_and_jacobian_radial(alpha, line[0], line[2], line[3], line[1])[1], 0.0]
+        
+        for idx in indices:
+            pi = elements[idx]
+            line = self.points[pi]
+             
+            points_to_add.append(to_pos(-2/3, line))
+            points_to_add.append(to_pos(0.0, line))
+            points_to_add.append(to_pos(2/3, line))
+            l = len(points_to_add)
+            lines_to_add.append( (N+l-2, pi[1].item(), pi[3].item(), N+l-1) )
+            elements[idx] = (pi[0], N+l-2, N+l-3, pi[2])
+            physicals.append(physical_lookup[idx])
+        
+        # Now actually alter the mesh
+        new_points = np.concatenate( (self.points, points_to_add), axis=0)
+        new_elements = np.concatenate( (elements, np.array(lines_to_add, dtype=np.uint64)), axis=0)
+        new_dict = copy.copy(self.physical_to_elements)
+        
+        for name in [p for p in np.unique(physicals) if p is not None]:   
+            old_indices = new_dict[name]
+            (added_indices,) = (np.array(physicals) == name).nonzero()
+            new_dict[name] = np.concatenate( (old_indices.astype(np.int64), N_elements + added_indices) )
+         
+        new_mesh = Mesh(new_points, new_elements, new_dict, self.symmetry, self.metadata)
+        return new_mesh
+         
+    def _split_indices_3d(self, indices):
+        assert self.symmetry == Symmetry.THREE_D
+         
+        elements = copy.deepcopy(self.elements)
+        N_elements = len(elements)
+         
+        N = len(self.points)
+        triangles_to_add = []
+        physicals = []
+        points_to_add = []
+         
+        physical_lookup = self._invert_physical_dict()
+        to_pos = lambda alpha, beta, triangle: position_and_jacobian_3d(alpha, beta, triangle)[1]
+        
+        for idx in indices:
+            pi = elements[idx]
+            triangle = self.points[pi]
+             
+            points_to_add.append(to_pos(1/3, 1/3, triangle)) # Middle
+            points_to_add.append(to_pos(1/6, 1/6, triangle)) # s0
+            points_to_add.append(to_pos(4/6, 1/6, triangle)) # s1
+            points_to_add.append(to_pos(1/6, 4/6, triangle)) # s2
+            l = len(points_to_add)
+            # Same ordering as in C backend function 'fill_self_voltages_3d'
+            t, s0, s1, s2 = N+l-4, N+l-3, N+l-2, N+l-1
+            triangles_to_add.append( (t, pi[1], pi[2], s1, pi[4], s2) )
+            triangles_to_add.append( (t, pi[2], pi[0], s2, pi[5], s0) )
+            elements[idx] = (t, pi[0], pi[1], s0, pi[3], s1)
+            
+            physicals.append(physical_lookup[idx])
+            physicals.append(physical_lookup[idx])
+        
+        # Now actually alter the mesh
+        new_points = np.concatenate( (self.points, points_to_add), axis=0)
+        new_elements = np.concatenate( (elements, np.array(triangles_to_add, dtype=np.uint64)), axis=0)
+        new_dict = copy.copy(self.physical_to_elements)
+        
+        for name in [p for p in np.unique(physicals) if p is not None]:   
+            old_indices = new_dict[name]
+            (added_indices,) = (np.array(physicals) == name).nonzero()
+            new_dict[name] = np.concatenate( (old_indices.astype(np.int64), N_elements + added_indices) )
+         
+        new_mesh = Mesh(new_points, new_elements, new_dict, self.symmetry, self.metadata)
+        return new_mesh
+     
+    def split_indices(self, indices):
+        if self.symmetry == Symmetry.RADIAL:
+            return self._split_indices_radial(indices)
+        else:
+            return self._split_indices_3d(indices)
+
+    def split_elements_based_on_charges(self, excitation, field, max_splits, mesh_factor):
+        active = excitation.get_active_element_mask()
+        assert np.sum(active) == len(field.vertices), "Excitation did not produce the given field"
+
+        map_index = active.nonzero()[0]
+        
+        charges = np.array([field.charge_on_element(i) for i in map_index])
+        charges = np.abs( np.array([field.charge_on_element(i) for i in range(len(field.vertices))]) )
+        #import matplotlib.pyplot as plt
+        #plt.hist(charges)
+        #plt.show()
+        
+        # In max_splits iterations, increase the number of elements in the
+        # mesh by mesh_factor. The split_facotr then gives us the amount
+        # of elements we need to split in every iteration.
+        split_factor = mesh_factor**(1/max_splits) - 1
+        
+        if self.symmetry == Symmetry.THREE_D:
+            split_factor /= 2 # For triangles, a splitting gives two extra elements, instead of one
+        
+        new_mesh = self
+              
+        for _ in range(max_splits):
+            to_split = np.argsort(charges)[-round(split_factor*len(charges)):]
+            print('Splitting ', len(to_split), ' elements')
+            charges[to_split] /= 2 if self.symmetry == Symmetry.RADIAL else 3
+            charges = np.concatenate( (charges, np.repeat(charges[to_split], 2)), axis=0 )
+            new_mesh = new_mesh.split_indices(to_split)
+        
+        return new_mesh
+     
     def __str__(self):
         physicals = self.mesh.cell_sets_dict.keys()
         physical_names = ', '.join(physicals)
-        type_ = 'line4' if self.symmetry != Symmetry.THREE_D else 'triangle'
+        type_ = self.get_element_type()
         physical_nums = ', '.join([str(len(self.mesh.cell_sets_dict[n][type_])) for n in physicals])
         
         cells_type = ['point'] + [str(c.type) for c in self.mesh.cells]

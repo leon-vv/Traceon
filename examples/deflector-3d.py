@@ -67,7 +67,7 @@ with G.Geometry(G.Symmetry.THREE_D, size_from_distance=True) as geom:
     mesh = geom.generate_mesh()
 
 # Show the generated triangle mesh.
-P.plot_triangle_mesh(mesh.mesh, ground='green', deflector_positive='red', deflector_negative='blue')
+P.plot_triangle_mesh(mesh, ground='green', deflector_positive='red', deflector_negative='blue')
 
 excitation = E.Excitation(mesh)
 

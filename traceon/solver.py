@@ -171,25 +171,28 @@ def _excitation_to_matrix(excitation, vertices, names):
     st = time.time()
     matrix = np.zeros( (N_matrix, N_matrix) )
     print(f'Number of elements: {N_lines}, size of matrix: {N_matrix} ({matrix.nbytes/1e6:.0f} MB), symmetry: {excitation.mesh.symmetry}')
+
+    _3d = excitation.mesh.symmetry == G.Symmetry.THREE_D
+
+    jac_buffer, pos_buffer = backend.fill_jacobian_buffer_3d(vertices) if _3d else backend.fill_jacobian_buffer_radial(vertices)
+    fill_fun = backend.fill_matrix_3d if _3d else backend.fill_matrix_radial
      
-    fill_fun = backend.fill_matrix_radial if excitation.mesh.symmetry != G.Symmetry.THREE_D else backend.fill_matrix_3d
-    
     def fill_matrix_rows(rows):
-        fill_fun(matrix, vertices, excitation_types, excitation_values, rows[0], rows[-1])
-    
+        fill_fun(matrix, vertices, excitation_types, excitation_values, jac_buffer, pos_buffer, rows[0], rows[-1])
+     
     util.split_collect(fill_matrix_rows, np.arange(N_lines))    
 
     # Fill the difficult self voltages
     print(f'Time for building matrix: {(time.time()-st)*1000:.0f} ms')
-     
+
     assert np.all(np.isfinite(matrix))
     
     _add_floating_conductor_constraints_to_matrix(matrix, vertices, names, excitation)
         
-    return matrix
+    return matrix, jac_buffer, pos_buffer
 
 
-def _charges_to_field(excitation, charges, vertices, names):
+def _charges_to_field(excitation, charges, vertices, names, jac_buffer, pos_buffer):
     floating_names = _get_floating_conductor_names(excitation)
     N_floating = len(floating_names)
     N_quad = _get_N_quad(excitation)
@@ -206,9 +209,8 @@ def _charges_to_field(excitation, charges, vertices, names):
         charges = np.reshape(charges, (len(vertices), N_quad))
      
     field_class = FieldRadialBEM if excitation.mesh.symmetry != G.Symmetry.THREE_D else Field3D_BEM
-    return field_class(vertices, charges, floating_voltages=floating_voltages)
+    return field_class(vertices, charges, jac_buffer, pos_buffer, floating_voltages=floating_voltages)
     
-
 def solve_bem(excitation, superposition=False):
     """
     Solve for the charges on the surface of the geometry by using the Boundary Element Method (BEM) and taking
@@ -238,24 +240,24 @@ def solve_bem(excitation, superposition=False):
     vertices, names = excitation.get_active_elements()
      
     if not superposition:
-        matrix = _excitation_to_matrix(excitation, vertices, names)
+        matrix, jac_buffer, pos_buffer = _excitation_to_matrix(excitation, vertices, names)
         F = _excitation_to_right_hand_side(excitation, vertices, names)
         st = time.time()
         charges = np.linalg.solve(matrix, F)
         assert np.all(np.isfinite(charges))
         print(f'Time for solving matrix: {(time.time()-st)*1000:.0f} ms')
 
-        return _charges_to_field(excitation, charges, vertices, names)
+        return _charges_to_field(excitation, charges, vertices, names, jac_buffer, pos_buffer)
      
     excs = excitation._split_for_superposition()
     superposed_names = excs.keys()
-    matrix = _excitation_to_matrix(excitation, vertices, names)
+    matrix, jac_buffer, pos_buffer = _excitation_to_matrix(excitation, vertices, names)
     F = np.array([_excitation_to_right_hand_side(excs[n], vertices, names) for n in superposed_names]).T
     st = time.time()
     charges = np.linalg.solve(matrix, F)
     print(f'Time for solving matrix: {(time.time()-st)*1000:.0f} ms')
     assert np.all(np.isfinite(charges))
-    return {n:_charges_to_field(excs[n], charges[:, i], vertices, names) for i, n in enumerate(superposed_names)}
+    return {n:_charges_to_field(excs[n], charges[:, i], vertices, names, jac_buffer, pos_buffer) for i, n in enumerate(superposed_names)}
 
 
 def _get_one_dimensional_high_order_ppoly(z, y, dydz, dydz2):
@@ -295,11 +297,13 @@ class FieldBEM(Field):
     not initialize this class yourself, but it is used as a base class for the fields returned by the `solve_bem` function. 
     This base class overloads the +,*,- operators so it is very easy to take a superposition of different fields."""
     
-    def __init__(self, vertices, charges, floating_voltages={}):
+    def __init__(self, vertices, charges, jac_buffer, pos_buffer, floating_voltages={}):
         assert len(vertices) == len(charges)
         self.vertices = vertices
         self.charges = charges
         self.floating_voltages = floating_voltages
+        self.jac_buffer = jac_buffer
+        self.pos_buffer = pos_buffer
 
     def __str__(self):
         name = self.__class__.__name__
@@ -307,11 +311,14 @@ class FieldBEM(Field):
      
     def __add__(self, other):
         if isinstance(other, FieldBEM):
-            assert np.array_equal(self.vertices, other.vertices), "Cannot add Field3D_BEM if geometry is unequal."
-            assert self.charges.shape == other.charges.shape, "Cannot add Field3D_BEM if charges have not equal shape."
+            assert np.array_equal(self.vertices, other.vertices), "Cannot add FieldBEM if geometry is unequal."
+            assert np.array_equal(self.jac_buffer, other.jac_buffer), "Cannot add FieldBEM if geometry is unequal"
+            assert np.array_equal(self.pos_buffer, other.pos_buffer), "Cannot add FieldBEM if geometry is unequal"
+            assert self.charges.shape == other.charges.shape, "Cannot add FieldBEM if charges have not equal shape."
             assert set(self.floating_voltages.keys()) == set(other.floating_voltages.keys())
+            
             floating = {n:self.floating_voltages[n]+other.floating_voltages[n] for n in self.floating_voltages.keys()}
-            return self.__class__(self.vertices, self.charges+other.charges, floating)
+            return self.__class__(self.vertices, self.charges+other.charges, self.jac_buffer, self.pos_buffer, floating)
          
         return NotImpemented
     
@@ -324,8 +331,8 @@ class FieldBEM(Field):
     def __mul__(self, other):
         if isinstance(other, int) or isinstance(other, float):
             floating = {n:v*other for n, v in self.floating_voltages.items()}
-            return self.__class__(self.vertices, other*self.charges, floating)
-        
+            return self.__class__(self.vertices, other*self.charges, self.jac_buffer, self.pos_buffer, floating)
+         
         return NotImpemented
 
     def __neg__(self):
@@ -339,8 +346,8 @@ class FieldRadialBEM(FieldBEM):
     """A radially symmetric electrostatic field. The field is a result of the surface charges as computed by the
     `solve_bem` function. See the comments in `FieldBEM`."""
     
-    def __init__(self, vertices, charges, floating_voltages={}):
-        super().__init__(vertices, charges, floating_voltages)
+    def __init__(self, vertices, charges, jac_buffer, pos_buffer, floating_voltages={}):
+        super().__init__(vertices, charges, jac_buffer, pos_buffer, floating_voltages)
         assert vertices.shape == (len(charges), 4, 3)
         
     def field_at_point(self, point):
@@ -448,9 +455,9 @@ class Field3D_BEM(FieldBEM):
     """An electrostatic field resulting from a general 3D geometry. The field is a result of the surface charges as computed by the
     `solve_bem` function. See the comments in `FieldBEM`."""
      
-    def __init__(self, vertices, charges, floating_voltages={}):
-        super().__init__(vertices, charges, floating_voltages)
-        assert vertices.shape == (len(charges), 3, 3)
+    def __init__(self, vertices, charges, jac_buffer, pos_buffer, floating_voltages={}):
+        super().__init__(vertices, charges, jac_buffer, pos_buffer, floating_voltages)
+        assert vertices.shape == (len(charges), 6, 3)
     
     def field_at_point(self, point):
         """
@@ -466,7 +473,7 @@ class Field3D_BEM(FieldBEM):
         Numpy array containing the field strengths (in units of V/mm) in the x, y and z directions.
         """
         assert point.shape == (3,)
-        return backend.field_3d(point, self.vertices, self.charges)
+        return backend.field_3d(point, self.charges, self.jac_buffer, self.pos_buffer)
      
     def potential_at_point(self, point):
         """
@@ -482,7 +489,7 @@ class Field3D_BEM(FieldBEM):
         Potential as a float value (in units of V).
         """
         assert point.shape == (3,)
-        return backend.potential_3d(point, self.vertices, self.charges)
+        return backend.potential_3d(point, self.charges, self.jac_buffer, self.pos_buffer)
     
     def axial_derivative_interpolation(self, zmin, zmax, N=None):
         """
@@ -522,13 +529,10 @@ class Field3D_BEM(FieldBEM):
         print(f'Time for calculating radial series expansion coefficients: {(time.time()-st)*1000:.0f} ms ({len(z)} items)')
 
         return Field3DAxial(z, interpolated_coeffs)
-    
-    def charge_on_element(self, i):
-        v1, v2, v3 = self.vertices[i]
-        charge = self.charges[i]
-        
-        return 1/2*np.linalg.norm(np.cross(v2-v1, v3-v1)) * charge
      
+    def charge_on_element(self, i):
+        return np.sum(self.jac_buffer[i]) * self.charges[i]
+      
     def charge_on_elements(self, indices):
         """Compute the sum of the charges present on the elements with the given indices. To
         get the total charge of a physical group use `names['name']` for indices where `names` 
