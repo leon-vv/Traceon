@@ -356,6 +356,8 @@ triangle_integral_alpha(double alpha, void *args_p) {
 	return Jeta*jac*args->cb_fun(target[0], target[1], target[2], pos[0], pos[1], pos[2], args->cb_args);
 }
 
+#define ADAPTIVE_MAX_ITERATION 5000
+
 double
 triangle_integral_beta(double beta, void *args_p) {
 
@@ -373,7 +375,7 @@ triangle_integral_beta(double beta, void *args_p) {
 	F.params = args;
 	
     double result, error;
-    gsl_integration_qags(&F, 0, 1, 0, 1e-5, 1000, args->inner_workspace, &result, &error);
+    gsl_integration_qags(&F, 0, 1, 0, 1e-5, ADAPTIVE_MAX_ITERATION, args->inner_workspace, &result, &error);
 		
 	return Jeta*result;
 }
@@ -381,8 +383,8 @@ triangle_integral_beta(double beta, void *args_p) {
 double
 triangle_integral_adaptive(double target[3], triangle6 vertices, integration_cb_3d function, void *args) {
 	
-	gsl_integration_workspace * w = gsl_integration_workspace_alloc(1000);
-	gsl_integration_workspace * w_inner = gsl_integration_workspace_alloc(1000);
+	gsl_integration_workspace * w = gsl_integration_workspace_alloc(ADAPTIVE_MAX_ITERATION);
+	gsl_integration_workspace * w_inner = gsl_integration_workspace_alloc(ADAPTIVE_MAX_ITERATION);
 	
 	struct self_voltage_3d_args integration_args = {
 		.target = target,
@@ -397,7 +399,7 @@ triangle_integral_adaptive(double target[3], triangle6 vertices, integration_cb_
 	F.params = &integration_args;
 		
     double result, error;
-    gsl_integration_qags(&F, 0, 1, 0, 1e-5, 1000, w, &result, &error);
+    gsl_integration_qags(&F, 0, 1, 0, 1e-5, ADAPTIVE_MAX_ITERATION, w, &result, &error);
 	
     gsl_integration_workspace_free(w);
     gsl_integration_workspace_free(w_inner);
@@ -1215,7 +1217,7 @@ void fill_self_voltages_radial(double *matrix,
 					double normal[2];
 					higher_order_normal_radial(GAUSS_QUAD_POINTS[l], v1, v2, v3, v4, normal);
 					double K = excitation_values[i];
-
+					
 					struct {double *normal; double K;} args = {normal, K};
 
 					matrix[(N_QUAD_2D*i + l)*N_matrix + N_QUAD_2D*i + k] = log_integral(v1, v2, v3, v4, l, k, field_dot_normal_radial, &args);
@@ -1357,7 +1359,7 @@ EXPORT void fill_matrix_radial(double *matrix,
 }
 
 void fill_self_voltages_3d(double *matrix, 
-                        vertices_3d line_points,
+                        vertices_3d triangle_points,
 						uint8_t *excitation_types,
 						double *excitation_values,
 						size_t N_lines,
@@ -1367,16 +1369,16 @@ void fill_self_voltages_3d(double *matrix,
 
 	for (int i = lines_range_start; i <= lines_range_end; i++) {
 		
-		double (*v)[3] = &line_points[i][0];
+		double (*v)[3] = &triangle_points[i][0];
 				
 		// Target
 		double t[3], jac;
-		position_and_jacobian_3d(1/3., 1/3., &line_points[i][0], t, &jac);
+		position_and_jacobian_3d(1/3., 1/3., &triangle_points[i][0], t, &jac);
 
 		double s0[3], s1[3], s2[3];
-		position_and_jacobian_3d(1/6., 1/6., &line_points[i][0], s0, &jac);
-		position_and_jacobian_3d(4/6., 1/6., &line_points[i][0], s1, &jac);
-		position_and_jacobian_3d(1/6., 4/6., &line_points[i][0], s2, &jac);
+		position_and_jacobian_3d(1/6., 1/6., &triangle_points[i][0], s0, &jac);
+		position_and_jacobian_3d(4/6., 1/6., &triangle_points[i][0], s1, &jac);
+		position_and_jacobian_3d(1/6., 4/6., &triangle_points[i][0], s2, &jac);
 					
 		triangle6 triangle1 = {
 			{ t[0], t[1], t[2] },
@@ -1402,11 +1404,15 @@ void fill_self_voltages_3d(double *matrix,
 			{ v[5][0], v[5][1], v[5][2] },
 			{ s0[0], s0[1], s0[2] } };
 
-		matrix[i*N_matrix + i] = 0.0;
-		matrix[i*N_matrix + i] += triangle_integral_adaptive(t, triangle1, potential_3d_point, NULL);
-		matrix[i*N_matrix + i] += triangle_integral_adaptive(t, triangle2, potential_3d_point, NULL);
-		matrix[i*N_matrix + i] += triangle_integral_adaptive(t, triangle3, potential_3d_point, NULL);
-		//printf("%d\n", i);
+		if(excitation_types[i] != DIELECTRIC) {
+			matrix[i*N_matrix + i] = 0.0;
+			matrix[i*N_matrix + i] += triangle_integral_adaptive(t, triangle1, potential_3d_point, NULL);
+			matrix[i*N_matrix + i] += triangle_integral_adaptive(t, triangle2, potential_3d_point, NULL);
+			matrix[i*N_matrix + i] += triangle_integral_adaptive(t, triangle3, potential_3d_point, NULL);
+		}
+		else {
+			matrix[i*N_matrix + i] = -1.0;
+		}
 	}
 }
 
@@ -1477,7 +1483,7 @@ EXPORT void fill_matrix_3d(double *restrict matrix,
 			double factor = (2*K - 2) / (M_PI*(1 + K));  
 
 			for (int j = 0; j < N_lines; j++) {  
-				
+					
 				UNROLL  
 				for(int k = 0; k < N_TRIANGLE_QUAD; k++) {  
 					double *pos = pos_buffer[j][k];  
@@ -1485,8 +1491,6 @@ EXPORT void fill_matrix_3d(double *restrict matrix,
 					
 					matrix[i*N_matrix + j] += factor * jac * field_dot_normal_3d(target[0], target[1], target[2], pos[0], pos[1], pos[2], normal);  
 				}  
-				
-				if (i == j) matrix[i*N_matrix + j] -= 1.0;  
 			}  
 		}  
         else {

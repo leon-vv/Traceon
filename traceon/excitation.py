@@ -87,6 +87,9 @@ class Excitation:
             assert name in self.electrodes
             self.excitation_types[name] = (ExcitationType.DIELECTRIC, permittivity)
 
+    def add_boundary(self, *args):
+        self.add_dielectric(**{a:0 for a in args})
+
     def add_floating_conductor(self, **kwargs):
         """
         Specify geometric elements as floating conductors, and specify the total charge on the conductor.
