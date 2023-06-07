@@ -335,10 +335,7 @@ class Mesh(Saveable):
         
         charges = np.array([field.charge_on_element(i) for i in map_index])
         charges = np.abs( np.array([field.charge_on_element(i) for i in range(len(field.vertices))]) )
-        #import matplotlib.pyplot as plt
-        #plt.hist(charges)
-        #plt.show()
-        
+         
         # In max_splits iterations, increase the number of elements in the
         # mesh by mesh_factor. The split_facotr then gives us the amount
         # of elements we need to split in every iteration.
@@ -359,27 +356,19 @@ class Mesh(Saveable):
         return new_mesh
      
     def __str__(self):
-        physicals = self.mesh.cell_sets_dict.keys()
+        physicals = self.physical_to_elements.keys()
         physical_names = ', '.join(physicals)
-        type_ = self.get_element_type()
-        physical_nums = ', '.join([str(len(self.mesh.cell_sets_dict[n][type_])) for n in physicals])
-        
-        cells_type = ['point'] + [str(c.type) for c in self.mesh.cells]
-        cells_count = [len(self.mesh.points)] + [len(c) for c in self.mesh.cells]
+        physical_nums = ', '.join([str(len(self.physical_to_elements[n])) for n in physicals])
         
         return f'<Traceon Mesh {self.symmetry},\n' \
             f'\tPhysical groups: {physical_names}\n' \
             f'\tElements in physical groups: {physical_nums}\n' \
-            f'\tNumber of.. \n\t    ' \
-            + '\n\t    '.join([f'{t}: \t{c}' for t, c in zip(cells_type, cells_count)]) \
-            + '>'
+            f'\tNumber of points: {len(self.points)}>'
 
     def write_gmsh(self, filename):
         self.mesh.write(filename)
 
 
-        #return f'<Traceon Mesh with {len(self.mesh.points)} points, ', '.join(self.mesh.cell_sets_dict.keys()))
-        #return str(self.mesh) + ' (metadata: ' + str(self.metadata) + ')'
 
 class MEMSStack(Geometry):
     """Geometry consisting of a stack of MEMS fabricated elements. This geometry is modelled using a stack

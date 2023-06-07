@@ -521,7 +521,8 @@ class Field3D_BEM(FieldBEM):
         
         print(f'Number of points on z-axis: {len(z)}')
         st = time.time()
-        coeffs = util.split_collect(lambda z: backend.axial_coefficients_3d(self.vertices, self.charges, z, thetas, thetas_interpolation_coefficients), z)
+        jac_buffer, pos_buffer = self.jac_buffer, self.pos_buffer
+        coeffs = util.split_collect(lambda z: backend.axial_coefficients_3d(self.charges, jac_buffer, pos_buffer,  z, thetas, thetas_interpolation_coefficients), z)
         coeffs = np.concatenate(coeffs, axis=0)
         interpolated_coeffs = CubicSpline(z, coeffs).c
         interpolated_coeffs = np.moveaxis(interpolated_coeffs, 0, -1)

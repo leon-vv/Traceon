@@ -104,7 +104,7 @@ backend_functions = {
     'dy1_potential_3d_point': (dbl, dbl, dbl, dbl, dbl, dbl, dbl, vp),
     'dz1_potential_3d_point': (dbl, dbl, dbl, dbl, dbl, dbl, dbl, vp),
     'potential_3d_point': (dbl, dbl, dbl, dbl, dbl, dbl, dbl, vp),
-    'axial_coefficients_3d': (None, vertices, charges_3d, jac_buffer_3d, pos_buffer_3d, sz, z_values, arr(ndim=4), sz, arr(ndim=1), arr(ndim=4), sz),
+    'axial_coefficients_3d': (None, charges_3d, jac_buffer_3d, pos_buffer_3d, sz, z_values, arr(ndim=4), sz, arr(ndim=1), arr(ndim=4), sz),
     'potential_3d': (dbl, v3, charges_3d, jac_buffer_3d, pos_buffer_3d, sz),
     'potential_3d_derivs': (dbl, v3, z_values, arr(ndim=5), sz),
     'field_3d': (None, v3, v3, charges_3d, jac_buffer_3d, pos_buffer_3d, sz),
@@ -348,17 +348,19 @@ dy1_potential_3d_point = remove_arg(backend_lib.dy1_potential_3d_point)
 dz1_potential_3d_point = remove_arg(backend_lib.dz1_potential_3d_point)
 potential_3d_point = remove_arg(backend_lib.potential_3d_point)
 
-def axial_coefficients_3d(vertices, charges, z, thetas, theta_interpolation):
-    raise NotImplementedError()
-    assert vertices.shape == (len(charges), 6, 3)
+def axial_coefficients_3d(charges, jacobian_buffer, pos_buffer, z, thetas, theta_interpolation):
+    assert jacobian_buffer.shape == (len(charges), N_TRIANGLE_QUAD)
+    assert pos_buffer.shape == (len(charges), N_TRIANGLE_QUAD, 3)
     assert theta_interpolation.shape == (len(thetas)-1, NU_MAX, M_MAX, 4)
 
     output_coeffs = np.zeros( (len(z), 2, NU_MAX, M_MAX) )
     
-    backend_lib.axial_coefficients_3d(vertices, charges, len(vertices),
+    backend_lib.axial_coefficients_3d(charges, 
+        jacobian_buffer, pos_buffer,
+        len(charges),
         z, output_coeffs, len(z),
         thetas, theta_interpolation, len(thetas))
-    
+     
     return output_coeffs
 
 def potential_3d(point, charges, jac_buffer, pos_buffer):
@@ -371,7 +373,7 @@ def potential_3d(point, charges, jac_buffer, pos_buffer):
     return backend_lib.potential_3d(point, charges, jac_buffer, pos_buffer, N)
 
 def potential_3d_derivs(point, z, coeffs):
-    assert coeffs.shape == (len(z)-1, NU_MAX, M_MAX, 4)
+    assert coeffs.shape == (len(z)-1, 2, NU_MAX, M_MAX, 4)
     assert point.shape == (3,)
     
     return backend_lib.potential_3d_derivs(point, z, coeffs, len(z))
@@ -388,7 +390,7 @@ def field_3d(point, charges, jacobian_buffer, position_buffer):
 
 def field_3d_derivs(point, z, coeffs):
     assert point.shape == (3,)
-    assert coeffs.shape == (len(z)-1, NU_MAX, M_MAX, 4)
+    assert coeffs.shape == (len(z)-1, 2, NU_MAX, M_MAX, 4)
 
     field = np.zeros( (3,) )
     backend_lib.field_3d_derivs(point, field, z, coeffs, len(z))
