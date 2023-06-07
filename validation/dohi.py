@@ -11,16 +11,12 @@ import traceon.solver as S
 import util
 
 def create_geometry(MSF, symmetry):
-    
-    revolve_factor = 0.0
-
-    if symmetry == G.Symmetry.THREE_D:
-        revolve_factor = 1.0
-        rmax = 1.25
-    else:
-        rmax = 1.25
-    
-    with G.MEMSStack(z0=-0.3-0.15, zmin=0.1, zmax=5.0, size_from_distance=True, revolve_factor=revolve_factor, rmax=rmax) as geom:
+     
+    revolve_factor = 0.0 if symmetry == G.Symmetry.RADIAL else 1.0
+    rmax = 1.0
+    margin = 0.2
+     
+    with G.MEMSStack(z0=-margin, margin=margin, zmin=0.1, zmax=1.6, size_from_distance=True, revolve_factor=revolve_factor, rmax=rmax) as geom:
         
         # Close mirror at the bottom, like in the paper
         if symmetry == G.Symmetry.THREE_D:
@@ -31,14 +27,12 @@ def create_geometry(MSF, symmetry):
             mirror_line = geom.add_line(geom.add_point([0.0, 0.0]), geom.add_point([0.075, 0.0]))
             geom.add_physical(mirror_line, 'mirror')
         
-        geom.add_electrode(0.075, 0.150, 'ground')
-        geom.add_spacer(0.3)
         geom.add_electrode(0.075, 0.150, 'mirror')
         geom.add_spacer(0.5)
         geom.add_electrode(0.075, 0.150, 'lens')
         geom.add_spacer(0.5)
         geom.add_electrode(0.075, 0.150, 'ground')
-
+        
         geom.set_mesh_size_factor(MSF)
         
         return geom.generate_mesh()
@@ -46,14 +40,16 @@ def create_geometry(MSF, symmetry):
 def compute_field(geom):
     exc = E.Excitation(geom)
     exc.add_voltage(ground=0.0, mirror=-1250, lens=695)
+    exc.add_boundary('boundary')
     
     field = S.solve_bem(exc)
+    
     return exc, field
 
 def compute_error(exc, field, geom):
-    axial_field = field.axial_derivative_interpolation(0.1, 5.0)
+    axial_field = field.axial_derivative_interpolation(0.1, 5.0, 500)
      
-    bounds = ((-0.03, 0.03), (-0.03, 0.03), (0.05, 19.0)) if geom.symmetry == G.Symmetry.THREE_D else ((-0.03, 0.03), (0.05, 19.0))
+    bounds = ((-0.1, 0.1), (-0.03, 0.03), (0.05, 19.0)) if geom.symmetry == G.Symmetry.THREE_D else ((-0.03, 0.03), (0.05, 19.0))
     tracer_derivs = T.Tracer(axial_field, bounds)
     
     angle = 0.5e-3
@@ -83,7 +79,7 @@ electron has at z0=15mm after reflection of the Dohi mirror, see:
 H. Dohi, P. Kruit. Design for an aberration corrected scanning electron microscope using
 miniature electron mirrors. 2018.
 '''
-util.parse_validation_args(create_geometry, compute_field, compute_error, mirror='brown', lens='blue', ground='green',
+util.parse_validation_args(create_geometry, compute_field, compute_error, mirror='brown', lens='blue', ground='green', boundary='purple',
     MSF={'radial': [100, 150, 200, 250], '3d': [50, 100, 200, 300]})
 
 
