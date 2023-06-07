@@ -16,7 +16,7 @@ RADIUS = 0.15
 # lens is at z = 0mm.
 z0 = -THICKNESS - SPACING - THICKNESS/2
 
-with G.MEMSStack(z0=z0, size_from_distance=True) as geom:
+with G.MEMSStack(z0=z0, zmin=-1, zmax=2, size_from_distance=True) as geom:
     
     # Einzel lens consists of three electrodes: 
     # a lens electrode sandwiched between two ground electrodes.
@@ -26,19 +26,20 @@ with G.MEMSStack(z0=z0, size_from_distance=True) as geom:
     geom.add_spacer(THICKNESS)
     geom.add_electrode(RADIUS, THICKNESS, 'ground')
     
-    geom.set_mesh_size_factor(30)
+    geom.set_mesh_size_factor(80)
     
     # Actually generate the mesh, which takes the boundaries in the
     # geometry and produces many line elements.
     mesh = geom.generate_mesh()
 
 # Show the generated mesh, with the given electrode colors.
-P.plot_line_mesh(mesh, ground='green', lens='blue')
+P.plot_mesh(mesh, ground='green', lens='blue')
 
 excitation = E.Excitation(mesh)
 
 # Excite the geometry, put ground at 0V and the lens electrode at 1000V.
 excitation.add_voltage(ground=0.0, lens=1000)
+excitation.add_boundary('boundary')
 
 # Use the Boundary Element Method (BEM) to calculate the surface charges,
 # the surface charges gives rise to a electrostatic field.
@@ -48,12 +49,12 @@ field = S.solve_bem(excitation)
 # trajectories is inherently slow. Instead, use an interpolation technique
 # in which we use the derivatives of the potential along the potential axis.
 # The complicated mathematics are all abstracted away from the user.
-field_axial = field.axial_derivative_interpolation(-2, 2, 150)
+field_axial = field.axial_derivative_interpolation(-1, 2, 150)
 
 # Plot the potential along the optical axis to show that the interpolated
 # potential is very close to the potential found by an integration over the
 # surface charge.
-z = np.linspace(-2, 2, 150)
+z = np.linspace(-1, 2, 150)
 pot = [field.potential_at_point(np.array([0.0, z_])) for z_ in z]
 pot_axial = [field_axial.potential_at_point(np.array([0.0, z_])) for z_ in z]
 
