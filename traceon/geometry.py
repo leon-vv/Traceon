@@ -404,20 +404,20 @@ class MEMSStack(Geometry):
         Distance between the grounded enclosure on the right and the MEMS electrodes.
     """
     
-    def __init__(self, *args, z0=0.0, revolve_factor=0.0, rmax=2, enclose_right=True, margin_right=0.1, **kwargs):
+    def __init__(self, *args, z0=0.0, revolve_factor=0.0, rmax=2, margin=0.5, margin_right=0.1, **kwargs):
         self.symmetry = Symmetry.RADIAL if revolve_factor == 0.0 else Symmetry.THREE_D
         super().__init__(self.symmetry, *args, **kwargs)
         
         self.z0 = z0
         self.revolve_factor = revolve_factor
-        self._3d = self.revolve_factor != 0.0
         self.rmax = rmax
-        self.margin_right = margin_right
-        self.enclose_right = enclose_right
         
-        self._current_z = z0
+        self.margin = margin
+        self.margin_right = margin_right
+         
+        self._current_z = z0 + margin
         self._last_name = None
-     
+    
     def add_spacer(self, thickness):
         """
 
@@ -429,6 +429,30 @@ class MEMSStack(Geometry):
         """
         self._current_z += thickness
     
+    def _add_boundary(self):
+        points = [[0.0, self.z0],
+                  [self.rmax+self.margin_right, self.z0],
+                  [self.rmax+self.margin_right, self._current_z+self.margin],
+                  [0.0, self._current_z+self.margin]]
+        
+        self._add_lines_from_points(points, 'boundary')
+        self._current_z += self.margin
+     
+    def _add_lines_from_points(self, points, name):
+        if self.symmetry == Symmetry.THREE_D:
+            points = [self.add_point([p[0], 0.0, p[1]]) for p in points]
+        else:
+            points = [self.add_point(p) for p in points]
+        
+        Np = len(points)
+        lines = [self.add_line(points[i], points[j]) for i, j in zip(range(0,Np-1), range(1,Np))]
+         
+        if self.symmetry == Symmetry.THREE_D:
+            revolved = revolve_around_optical_axis(self, lines, self.revolve_factor)
+            self.add_physical(revolved, name)
+        else:
+            self.add_physical(lines, name)
+
     def add_electrode(self, radius, thickness, name):
         """
 
@@ -443,56 +467,14 @@ class MEMSStack(Geometry):
         name : str
             Name to assign to the electode. Needed to later specify the correct excitation.
         """
-        x0 = [radius, self._current_z]
-          
-        points = [x0, [x0[0], x0[1]+thickness], [self.rmax, x0[1]+thickness], [self.rmax, x0[1]]]
-        
-        if self._3d:
-            points = [self.add_point([p[0], 0.0, p[1]]) for p in points]
-        else:
-            points = [self.add_point(p) for p in points]
-        
-        lines = [self.add_line(points[i], points[j]) for i, j in zip([0, 1, 2, 3], [1, 2, 3, 0])]
-        cl = self.add_curve_loop(lines)
-        
-        if self._3d:
-            revolved = revolve_around_optical_axis(self, lines, self.revolve_factor)
-            self.add_physical(revolved, name)
-        else:
-            self.add_physical(lines, name)
-        
-        self._last_name = name
-         
+        cz = self._current_z
+        points = [[self.rmax, cz], [radius, cz], [radius, cz+thickness], [self.rmax, cz+thickness]]
+        self._add_lines_from_points(points, name)
         self._current_z += thickness
-        
-        return cl
-    
+
     def generate_mesh(self, *args, **kwargs):
-        """
-        Generate the mesh, determining the mesh dimension (line elements or triangles) from the
-        supplied `revolve_factor`. The arguments are passed directly to `pygmsh.geo.Geometry.generate_mesh`.
+        self._add_boundary()
+        return super().generate_mesh(*args, **kwargs)
         
-        Returns
-        -------
-        `Mesh`
-
-        """
-        # Enclose on right
-        
-        if self.enclose_right:
-            points = [[self.rmax, self.z0], [self.rmax + self.margin_right, self.z0], [self.rmax + self.margin_right, self._current_z], [self.rmax, self._current_z]]
-            
-            if self._3d:
-                points = [[p[0], 0.0, p[1]] for p in points]
-                lines = [self.add_line(self.add_point(p1), self.add_point(p2)) for p1, p2 in zip(points[1:], points)]
-                revolved = revolve_around_optical_axis(self, lines, self.revolve_factor)
-                self.add_physical(revolved, self._last_name)
-            else:
-                lines = [self.add_line(self.add_point(p1), self.add_point(p2)) for p1, p2 in zip(points[1:], points)]
-                self.add_physical(lines, self._last_name)
-        
-        return super().generate_mesh(*args, **kwargs)        
-
-    
         
 
