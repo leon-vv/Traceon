@@ -163,6 +163,7 @@ def plot_line_mesh(mesh, show_legend=True, show_normals=False, **colors):
     start = []
     end = []
     colors_ = []
+    normals = []
     
     for (P1, P2, P3, P4) in lines:
         for A, B in [(P1, P3), (P3, P4), (P4, P2)]:
@@ -176,6 +177,7 @@ def plot_line_mesh(mesh, show_legend=True, show_normals=False, **colors):
             p1, p2 = mesh.points[A], mesh.points[B]
             start.append(p1)
             end.append(p2)
+            normals.append(backend.higher_order_normal_radial(0.0, mesh.points[np.array([P1, P2, P3, P4])]))
             colors_.append(color)
     
     start, end = np.array(start), np.array(end)
@@ -198,17 +200,16 @@ def plot_line_mesh(mesh, show_legend=True, show_normals=False, **colors):
     plotter += lb
     
     if show_normals:
-        normals = np.zeros( (len(start), 4) )
+        arrows_to_plot = np.zeros( (len(normals), 4) )
         
         for i, (v1, v2) in enumerate(zip(start, end)):
             v1, v2 = v1[:2], v2[:2]
             middle = (v1 + v2)/2
-            normal = backend.normal_2d(v1, v2)
             length = np.linalg.norm(v2-v1)
-            normal = 3*length*backend.normal_2d(v1, v2)
-            normals[i] = [*middle, *(middle+normal)]
+            normal = 3*length*normals[i]
+            arrows_to_plot[i] = [*middle, *(middle+normal)]
         
-        arrows = vedo.shapes.Arrows(normals[:, :2], normals[:, 2:], c='black')
+        arrows = vedo.shapes.Arrows(arrows_to_plot[:, :2], arrows_to_plot[:, 2:], c='black')
         plotter.add(arrows)
     
     plotter.show(axes={'xtitle': 'x (mm)', 'ytitle': 'y (mm)'})
