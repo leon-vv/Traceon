@@ -90,10 +90,7 @@ typedef double (*position_buffer_2d)[N_QUAD_2D][2];
 //
 // Augmented with the tricks shown on the Scipy documentation for ellipe and ellipk.
 
-
-double ellipk_singularity(double k) {
-	double eta = 1 - k;
-	
+double ellipkm1(double p) {
 	double A[] = {log(4.0),
 			9.65736020516771e-2,
 			3.08909633861795e-2,
@@ -112,24 +109,22 @@ double ellipk_singularity(double k) {
 			5.81807961871996e-3,
 			3.42805719229748e-4};
 	
-	double L = log(1./eta);
+	double L = log(1./p);
 	double sum_ = 0.0;
 
 	for(int i = 0; i < 8; i++)
-		sum_ += (A[i] + L*B[i])*pow(eta, i);
+		sum_ += (A[i] + L*B[i])*pow(p, i);
 	
 	return sum_;
 }
 
 EXPORT double ellipk(double k) {
-	if(k > -1) return ellipk_singularity(k);
+	if(k > -1) return ellipkm1(1-k);
 	
-	return ellipk_singularity(1 - 1./(1-k))/sqrt(1-k);
+	return ellipkm1(1./(1-k))/sqrt(k);
 }
 
-double ellipe_01(double k) {
-	double eta = 1 - k;
-	
+double ellipem1(double p) {
 	double A[] = {1,
         4.43147193467733e-1,
         5.68115681053803e-2,
@@ -148,19 +143,19 @@ double ellipe_01(double k) {
         6.45682247315060e-3,
         3.78886487349367e-4};
 	
-	double L = log(1./eta);
+	double L = log(1./p);
 	double sum_ = 0.0;
 
 	for(int i = 0; i < 8; i++)
-		sum_ += (A[i] + L*B[i])*pow(eta, i);
+		sum_ += (A[i] + L*B[i])*pow(p, i);
 		
 	return sum_;
 }
 
 EXPORT double ellipe(double k) {
-	if (0 <= k && k <= 1) return ellipe_01(k);
+	if (0 <= k && k <= 1) return ellipem1(1-k);
 
-	return ellipe_01(k/(k-1.))*sqrt(1-k);
+	return ellipem1(-1/(k-1.))*sqrt(1-k);
 }
 
 

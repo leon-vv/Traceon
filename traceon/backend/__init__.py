@@ -82,7 +82,9 @@ times_block = arr(shape=(TRACING_BLOCK_SIZE,))
 tracing_block = arr(shape=(TRACING_BLOCK_SIZE, 6))
 
 backend_functions = {
+    'ellipkm1' : (dbl, dbl),
     'ellipk' : (dbl, dbl),
+    'ellipem1' : (dbl, dbl),
     'ellipe': (dbl, dbl),
     'normal_2d': (None, v2, v2, v2),
     'normal_3d': (None, v3, v3, v3, v3),
@@ -145,7 +147,9 @@ for (fun, (res, *args)) in backend_functions.items():
     libfun.restype = res
     libfun.argtypes = args
 
+ellipkm1 = np.frompyfunc(backend_lib.ellipkm1, 1, 1)
 ellipk = np.frompyfunc(backend_lib.ellipk, 1, 1)
+ellipem1 = np.frompyfunc(backend_lib.ellipem1, 1, 1)
 ellipe = np.frompyfunc(backend_lib.ellipe, 1, 1)
 
 def normal_2d(p1, p2):
