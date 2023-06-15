@@ -54,10 +54,11 @@ EXPORT const int M_MAX_SYM = M_MAX;
 
 EXPORT const size_t TRACING_BLOCK_SIZE = (size_t) 1e5;
 
-#define N_QUAD_2D 4
+#define N_QUAD_2D 16
 EXPORT const int N_QUAD_2D_SYM = N_QUAD_2D;
-const double GAUSS_QUAD_POINTS[N_QUAD_2D] = {-0.3399810435848563, 0.3399810435848563, -0.8611363115940526, 0.8611363115940526};
-const double GAUSS_QUAD_WEIGHTS[N_QUAD_2D] = {0.6521451548625461, 0.6521451548625461, 0.3478548451374538, 0.3478548451374538};
+const double GAUSS_QUAD_WEIGHTS[N_QUAD_2D] = {0.1894506104550685, 0.1894506104550685, 0.1826034150449236, 0.1826034150449236, 0.1691565193950025, 0.1691565193950025, 0.1495959888165767, 0.1495959888165767, 0.1246289712555339, 0.1246289712555339, 0.0951585116824928, 0.0951585116824928, 0.0622535239386479, 0.0622535239386479, 0.0271524594117541, 0.0271524594117541};
+const double GAUSS_QUAD_POINTS[N_QUAD_2D] = {-0.0950125098376374, 0.0950125098376374, -0.2816035507792589, 0.2816035507792589, -0.4580167776572274, 0.4580167776572274, -0.6178762444026438, 0.6178762444026438, -0.7554044083550030, 0.7554044083550030, -0.8656312023878318, 0.8656312023878318, -0.9445750230732326, 0.9445750230732326, -0.9894009349916499, 0.9894009349916499};
+
 
 // Triangle quadrature constants
 #define N_TRIANGLE_QUAD 33
@@ -89,6 +90,7 @@ typedef double (*position_buffer_2d)[N_QUAD_2D][2];
 // W. J. Cody. 1965.
 //
 // Augmented with the tricks shown on the Scipy documentation for ellipe and ellipk.
+// https://docs.scipy.org/doc/scipy/reference/generated/scipy.special.ellipkm1.html#scipy.special.ellipkm1
 
 double ellipkm1(double p) {
 	double A[] = {log(4.0),
@@ -377,7 +379,7 @@ triangle_integral_beta(double beta, void *args_p) {
 
 double
 triangle_integral_adaptive(double target[3], triangle6 vertices, integration_cb_3d function, void *args) {
-	
+	// TODO: optimize this, put outside the loop over the matrix diagonal
 	gsl_integration_workspace * w = gsl_integration_workspace_alloc(ADAPTIVE_MAX_ITERATION);
 	gsl_integration_workspace * w_inner = gsl_integration_workspace_alloc(ADAPTIVE_MAX_ITERATION);
 	
@@ -513,33 +515,32 @@ trace_particle(double *times_array, double *pos_array, field_fun field, double b
 //////////////////////////////// RADIAL RING POTENTIAL (DERIVATIVES)
 
 
-EXPORT double dr1_potential_radial_ring(double r_0, double z_0, double r, double z, void *_) {
-	
-	if (fabs(r_0) < MIN_DISTANCE_AXIS) return 0.0; // Prevent stepping into singularity
-	
-    double s = norm_2d(z-z_0, r+r_0);
-    double s1 = (r_0 + r) / s;
-    double t = 4.0 * r * r_0 / pow(s, 2);
-    double A = ellipe(t);
-    double B = ellipk(t);
-    double ellipe_term = -(2.0 * r * r_0 * s1 - r * s) / (2.0 * r_0 * pow(s, 2) - 8.0 * pow(r_0, 2) * r);
-    double ellipk_term = -r / (2.0 * r_0 * s);
-    return A * ellipe_term + B * ellipk_term;
+EXPORT double dr1_potential_radial_ring(double r0, double z0, double r, double z, void *_) {
+	double delta_r = r - r0;
+	double delta_z = z - z0;
+    double common_arg = (delta_z * delta_z + delta_r * delta_r) / (4 * r0 * r0 + 4 * delta_r * r0 + delta_z * delta_z + delta_r * delta_r);
+    double denominator = (2 * delta_z * delta_z + 2 * delta_r * delta_r) * sqrt(4 * r0 * r0 + 4 * delta_r * r0 + delta_z * delta_z + delta_r * delta_r);
+    double ellipkm1_term = (delta_z * delta_z + delta_r * delta_r) * ellipkm1(common_arg);
+    double ellipem1_term = ((-2 * delta_r * r0) + delta_z * delta_z - delta_r * delta_r) * ellipem1(common_arg);
+    double result = (ellipkm1_term + ellipem1_term) / denominator;
+	return result;
 }
 
 
-EXPORT double potential_radial_ring(double r_0, double z_0, double r, double z, void *_) {
-    double rz2 = pow(r + r_0, 2) + pow(z - z_0, 2);
-    double t = 4.0 * r * r_0 / rz2;
-    return ellipk(t) * r / sqrt(rz2);
+EXPORT double potential_radial_ring(double r0, double z0, double r, double z, void *_) {
+    double delta_z = z - z0;
+    double delta_r = r - r0;
+    double t = (pow(delta_z, 2) + pow(delta_r, 2)) / (pow(delta_z, 2) + pow(delta_r, 2) + 4 * r0 * delta_r + 4 * pow(r0, 2));
+    return ellipkm1(t) * (delta_r + r0) / sqrt(pow(delta_z, 2) + pow((delta_r + 2 * r0), 2));
 }
 
-EXPORT double dz1_potential_radial_ring(double r_0, double z_0, double r, double z, void *_) {
-    double rz2 = pow(r + r_0, 2) + pow(z - z_0, 2);
-    double t = 4.0 * r * r_0 / rz2;
-    double numerator = r * (z - z_0) * ellipe(t);
-    double denominator = ((pow(z - z_0, 2) + pow(r - r_0, 2)) * sqrt(rz2));
-    return numerator / denominator;
+EXPORT double dz1_potential_radial_ring(double r0, double z0, double r, double z, void *_) {
+	double delta_z = z - z0;
+    double delta_r = r - r0;
+    double common_arg = (delta_z * delta_z + delta_r * delta_r) / (4 * r0 * r0 + 4 * delta_r * r0 + delta_z * delta_z + delta_r * delta_r);
+    double denominator = (delta_z * delta_z + delta_r * delta_r) * sqrt(4 * r0 * r0 + 4 * delta_r * r0 + delta_z * delta_z + delta_r * delta_r);
+    double ellipem1_term = -delta_z * (r0 + delta_r) * ellipem1(common_arg);
+    return ellipem1_term / denominator;
 }
 
 
@@ -615,23 +616,18 @@ const double GAUSS_LOG_QUAD_WEIGHTS[N_LOG_QUAD_2D] =
 
 
 EXPORT double
-potential_radial(double point[3], vertices_2d vertices, charges_2d charges, size_t N_vertices) {
+potential_radial(double point[3], double* charges, jacobian_buffer_2d jacobian_buffer, position_buffer_2d position_buffer, size_t N_vertices) {
 
-	double sum_ = 0.0;
+	double sum_ = 0.0;  
 	
-	for(int i = 0; i < N_vertices; i++) {
-		double *v1 = &vertices[i][0][0];
-		double *v2 = &vertices[i][2][0]; // Strange ordering following from GMSH line4 element
-		double *v3 = &vertices[i][3][0]; // Strange ordering following from GMSH line4 element
-		double *v4 = &vertices[i][1][0];
-		
-		for(int j = 0; j < N_QUAD_2D; j++) {
-			double pos[2], jac;
-			position_and_jacobian_radial(GAUSS_QUAD_POINTS[j], v1, v2, v3, v4, pos, &jac);
-			sum_ += jac*GAUSS_QUAD_WEIGHTS[j] * charges[i][j] * potential_radial_ring(point[0], point[1], pos[0], pos[1], NULL);
+	for(int i = 0; i < N_vertices; i++) {  
+		for(int k = 0; k < N_QUAD_2D; k++) {
+			double *pos = &position_buffer[i][k][0];
+			double potential = potential_radial_ring(point[0], point[1], pos[0], pos[1], NULL);
+			sum_ += charges[i] * jacobian_buffer[i][k] * potential;
 		}
-	}
-
+	}  
+	
 	return sum_;
 }
 
@@ -685,7 +681,7 @@ field_dot_normal_radial(double r0, double z0, double r, double z, void* args_p) 
 }
 
 EXPORT double
-charge_radial(double *vertices_p, double *charges) {
+charge_radial(double *vertices_p, double charge) {
 
 	double (*vertices)[3] = (double (*)[3]) vertices_p;
 		
@@ -705,7 +701,7 @@ charge_radial(double *vertices_p, double *charges) {
 		// charge_integral is charge integrated over line element
 		// charge_integral is weight*dl*charge
 		// where dl is the jacobian
-		sum_ += 2*M_PI*pos[0]*GAUSS_QUAD_WEIGHTS[k]*jac*charges[k];
+		sum_ += 2*M_PI*pos[0]*GAUSS_QUAD_WEIGHTS[k]*jac*charge;
 	}
 
 	return sum_;
@@ -1180,6 +1176,32 @@ double log_integral(
 	return integration_sum;
 }
 
+struct self_voltage_radial_args {
+	double (*line_points)[3];
+	double *target;
+	integration_cb_2d cb_fun;
+	double *normal;
+	double K;
+};
+
+double self_voltage_radial(double alpha, void *args_p) {
+	
+	struct self_voltage_radial_args* args = (struct self_voltage_radial_args*) args_p;
+	
+	double *v1 = args->line_points[0];
+	double *v2 = args->line_points[2];
+	double *v3 = args->line_points[3];
+	double *v4 = args->line_points[1];
+	
+	double pos[2], jac;
+	position_and_jacobian_radial(alpha, v1, v2, v3, v4, pos, &jac);
+	
+	struct {double *normal; double K;} cb_args = {args->normal, args->K};
+	
+	//printf("normal: %f, %f\n", args->normal[0], args->normal[1]);	
+	return jac * args->cb_fun(args->target[0], args->target[1], pos[0], pos[1], &cb_args);
+}
+
 void fill_self_voltages_radial(double *matrix, 
                         vertices_2d line_points,
 						uint8_t *excitation_types,
@@ -1189,42 +1211,43 @@ void fill_self_voltages_radial(double *matrix,
                         int lines_range_start, 
                         int lines_range_end) {
 	 
+	gsl_integration_workspace * w = gsl_integration_workspace_alloc(ADAPTIVE_MAX_ITERATION);
+	
 	for(int i = lines_range_start; i <= lines_range_end; i++) {
-		
 		double *v1 = &line_points[i][0][0];
 		double *v2 = &line_points[i][2][0];
 		double *v3 = &line_points[i][3][0];
 		double *v4 = &line_points[i][1][0];
 		
+		double target[2], jac;
+		position_and_jacobian_radial(0.0, v1, v2, v3, v4, target, &jac);
+		
+		double normal[2];
+		higher_order_normal_radial(0.0, v1, v2, v3, v4, normal);
+		//normal_2d(v1, v2, normal);
+			
 		enum ExcitationType type_ = excitation_types[i];
 			
-		if (type_ == VOLTAGE_FIXED || type_ == VOLTAGE_FUN || type_ == FLOATING_CONDUCTOR) {
-			for(int l = 0; l < N_QUAD_2D; l++) 
-			for(int k = 0; k < N_QUAD_2D; k++) {
-
-				matrix[(N_QUAD_2D*i + l)*N_matrix + N_QUAD_2D*i + k] = log_integral(v1, v2, v3, v4, l, k, potential_radial_ring, NULL);
-			}
-		}
-		else if(type_ == DIELECTRIC) {
-			for(int l = 0; l < N_QUAD_2D; l++)  {
-				for(int k = 0; k < N_QUAD_2D; k++) {
-
-					double normal[2];
-					higher_order_normal_radial(GAUSS_QUAD_POINTS[l], v1, v2, v3, v4, normal);
-					double K = excitation_values[i];
-					
-					struct {double *normal; double K;} args = {normal, K};
-
-					matrix[(N_QUAD_2D*i + l)*N_matrix + N_QUAD_2D*i + k] = log_integral(v1, v2, v3, v4, l, k, field_dot_normal_radial, &args);
-				}
-				// When working with dielectrics, the constraint is that
-				// the electric field normal must sum to the surface charge.
-				// The constraint is satisfied by subtracting the integral
-				// over the charge from the line element.
-				matrix[(N_QUAD_2D*i + l)*N_matrix + N_QUAD_2D*i + l] -= 1;
-			}
-		}
+		//printf("Type: %d\n", type_);
+		struct self_voltage_radial_args integration_args = {
+			.target = target,
+			.line_points = &line_points[i][0],
+			.normal = normal,
+			.K = excitation_values[i],
+			.cb_fun = (type_ != DIELECTRIC) ? potential_radial_ring : field_dot_normal_radial
+		};
+			
+		gsl_function F;
+		F.function = &self_voltage_radial;
+		F.params = &integration_args;
+			
+		double result, error;
+		double singular_points[3] = {-1, 0, 1};
+		gsl_integration_qagp(&F, singular_points, 3, 1e-9, 5e-5, ADAPTIVE_MAX_ITERATION, w, &result, &error);
+		matrix[N_matrix*i + i] = result;
 	}
+	
+	gsl_integration_workspace_free(w);
 }
 
 EXPORT void add_floating_conductor_constraints_radial(double *matrix, vertices_2d vertices, size_t N_matrix, int64_t *indices, size_t N_indices, int row) {
@@ -1287,7 +1310,7 @@ EXPORT void fill_matrix_radial(double *matrix,
                         int lines_range_end) {
     
 	assert(lines_range_start < N_lines && lines_range_end < N_lines);
-	assert(N_matrix >= N_QUAD_2D*N_lines);
+	assert(N_matrix == N_lines);
 		
     for (int i = lines_range_start; i <= lines_range_end; i++) {
 		
@@ -1296,53 +1319,40 @@ EXPORT void fill_matrix_radial(double *matrix,
 		double *target_v3 = &line_points[i][3][0];
 		double *target_v4 = &line_points[i][1][0];
 		
+		double target[2], jac;
+		position_and_jacobian_radial(0.0, target_v1, target_v2, target_v3, target_v4, target, &jac);
+		
 		enum ExcitationType type_ = excitation_types[i];
 			
 		if (type_ == VOLTAGE_FIXED || type_ == VOLTAGE_FUN || type_ == FLOATING_CONDUCTOR) {
 			for (int j = 0; j < N_lines; j++) {
 				
-				if (i == j) continue;
-					
-				for(int l = 0; l < N_QUAD_2D; l++) {
-					double *target = &pos_buffer[i][l][0];
+				UNROLL
+				for(int k = 0; k < N_QUAD_2D; k++) {
 						
-					for(int k = 0; k < N_QUAD_2D; k++) {
-						double *pos = &pos_buffer[j][k][0];
-						matrix[(N_QUAD_2D*i + l)*N_matrix + N_QUAD_2D*j + k] = jacobian_buffer[j][k]*potential_radial_ring(target[0], target[1], pos[0], pos[1], NULL);
-					}
-				}
-			} 
-		}
-		else if(type_ == DIELECTRIC) {
-			            
-            for (int j = 0; j < N_lines; j++) {
-
-				if(i == j) continue;
-					
-				double *v1 = &line_points[j][0][0];
-				double *v2 = &line_points[j][2][0]; // Strange ordering following from GMSH line4 element
-				double *v3 = &line_points[j][3][0];
-				double *v4 = &line_points[j][1][0];
-				
-				for(int l = 0; l < N_QUAD_2D; l++) {
-					
-					double normal[2];
-					higher_order_normal_radial(GAUSS_QUAD_POINTS[l], target_v1, target_v2, target_v3, target_v4, normal);
-					double K = excitation_values[i];
-					
-					struct {double *normal; double K;} args = {normal, K};
-
-					double target[2], jac_t;
-					position_and_jacobian_radial(GAUSS_QUAD_POINTS[l], target_v1, target_v2, target_v3, target_v4, target, &jac_t);
-					
-					for(int k = 0; k < N_QUAD_2D; k++) {
-						
-						double pos[2], jac;
-						position_and_jacobian_radial(GAUSS_QUAD_POINTS[k], v1, v2, v3, v4, pos, &jac);
-						matrix[(N_QUAD_2D*i + l)*N_matrix + N_QUAD_2D*j + k] = GAUSS_QUAD_WEIGHTS[k]*jac*field_dot_normal_radial(target[0], target[1], pos[0], pos[1], &args);
-					}
+					double *pos = pos_buffer[j][k];
+					double jac = jacobian_buffer[j][k];
+					matrix[i*N_matrix + j] += jac * potential_radial_ring(target[0], target[1], pos[0], pos[1], NULL);
 				}
             }
+		}
+		else if(type_ == DIELECTRIC) {
+			for (int j = 0; j < N_lines; j++) {
+
+				double normal[2];
+				//normal_2d(target_v1, target_v2, normal);
+				higher_order_normal_radial(0.0, target_v1, target_v2, target_v3, target_v4, normal);
+					
+				struct {double *normal; double K;} args = {normal, excitation_values[i]};
+					
+				UNROLL
+				for(int k = 0; k < N_QUAD_2D; k++) {
+						
+					double *pos = pos_buffer[j][k];
+					double jac = jacobian_buffer[j][k];
+					matrix[i*N_matrix + j] += jac * field_dot_normal_radial(target[0], target[1], pos[0], pos[1], &args);
+				}
+			}
 		}
 		else {
 		    printf("ExcitationType unknown");
