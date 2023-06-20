@@ -732,7 +732,6 @@ field_radial(double point[3], double result[3], double* charges, jacobian_buffer
 }
 
 struct field_evaluation_args {
-	double *vertices;
 	double *charges;
 	double *jacobian_buffer;
 	double *position_buffer;
@@ -743,15 +742,16 @@ void
 field_radial_traceable(double point[3], double result[3], void *args_p) {
 
 	struct field_evaluation_args *args = (struct field_evaluation_args*)args_p;
-	field_radial(point, result, args->charges,
-		(jacobian_buffer_2d) args->jacobian_buffer, (position_buffer_2d) args->position_buffer, args->N_vertices);
+	
+	
+	field_radial(point, result, args->charges, (jacobian_buffer_2d) args->jacobian_buffer, (position_buffer_2d) args->position_buffer, args->N_vertices);
 }
 
 EXPORT size_t
 trace_particle_radial(double *times_array, double *pos_array, double bounds[3][2], double atol,
-	double *vertices, double *charges, size_t N_vertices) {
+	double *charges, jacobian_buffer_2d jac_buffer, position_buffer_2d pos_buffer, size_t N_vertices) {
 
-	struct field_evaluation_args args = { vertices, charges, NULL, NULL, N_vertices };
+	struct field_evaluation_args args = {charges, (double*)jac_buffer, (double*)pos_buffer, N_vertices };
 				
 	return trace_particle(times_array, pos_array, field_radial_traceable, bounds, atol, (void*) &args);
 }
@@ -978,7 +978,7 @@ EXPORT size_t
 trace_particle_3d(double *times_array, double *pos_array, double bounds[3][2], double atol,
 	double* charges, jacobian_buffer_3d jacobian_buffer, position_buffer_3d position_buffer, size_t N_vertices) {
 
-	struct field_evaluation_args args = { NULL, charges, (double*) jacobian_buffer, (double*) position_buffer, N_vertices };
+	struct field_evaluation_args args = {charges, (double*) jacobian_buffer, (double*) position_buffer, N_vertices };
 				
 	return trace_particle(times_array, pos_array, field_3d_traceable, bounds, atol, (void*) &args);
 }

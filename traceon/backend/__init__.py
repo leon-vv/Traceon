@@ -100,7 +100,7 @@ backend_functions = {
     'potential_radial_derivs': (dbl, v2, z_values, arr(ndim=3), sz),
     'charge_radial': (dbl, arr(ndim=2), dbl),
     'field_radial': (None, v3, v3, charges_2d, jac_buffer_2d, pos_buffer_2d, sz),
-    'trace_particle_radial': (sz, times_block, tracing_block, bounds, dbl, vertices, charges_2d, sz),
+    'trace_particle_radial': (sz, times_block, tracing_block, bounds, dbl, charges_2d, jac_buffer_2d, pos_buffer_2d, sz),
     'field_radial_derivs': (None, v3, v3, z_values, arr(ndim=3), sz),
     'trace_particle_radial_derivs': (sz, times_block, tracing_block, bounds, dbl, z_values, arr(ndim=3), sz),
     'dx1_potential_3d_point': (dbl, dbl, dbl, dbl, dbl, dbl, dbl, vp),
@@ -264,16 +264,18 @@ def trace_particle(position, velocity, field, bounds, atol):
     return trace_particle_wrapper(position, velocity,
         lambda T, P: backend_lib.trace_particle(T, P, wrap_field_fun(field), bounds, atol, None))
 
-def trace_particle_radial(position, velocity, bounds, atol, vertices, charges):
-    assert vertices.shape == (len(charges), 4, 3)
-    assert charges.shape == (len(charges), N_QUAD_2D)
-    bounds = np.array(bounds)
+def trace_particle_radial(position, velocity, bounds, atol, charges, jac_buffer, pos_buffer):
+    assert jac_buffer.shape == (len(charges), N_QUAD_2D)
+    assert pos_buffer.shape == (len(charges), N_QUAD_2D, 2)
+    assert charges.shape == (len(charges),)
     
+    bounds = np.array(bounds)
+     
     if bounds.shape[0] == 2:
         bounds = np.array([bounds[0], bounds[1], [-1.0, 0.0]])
      
     times, positions = trace_particle_wrapper(position, velocity,
-        lambda T, P: backend_lib.trace_particle_radial(T, P, bounds, atol, vertices, charges, len(charges)))
+        lambda T, P: backend_lib.trace_particle_radial(T, P, bounds, atol, charges, jac_buffer, pos_buffer, len(charges)))
     
     return times, positions[:, [0,1,3,4]]
 

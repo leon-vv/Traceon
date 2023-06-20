@@ -147,7 +147,7 @@ class Tracer:
         """
 
         if isinstance(self.field, S.FieldRadialBEM):
-            return backend.trace_particle_radial(position, velocity, self.bounds, self.atol, self.field.vertices, self.field.charges)
+            return backend.trace_particle_radial(position, velocity, self.bounds, self.atol, self.field.charges, self.field.jac_buffer, self.field.pos_buffer)
         elif isinstance(self.field, S.FieldRadialAxial):
             return backend.trace_particle_radial_derivs(position, velocity, self.bounds, self.atol, self.field.z, self.field.coeffs)
         elif isinstance(self.field, S.Field3D_BEM):
