@@ -353,8 +353,8 @@ class FieldRadialBEM(FieldBEM):
         Numpy array containing the field strengths (in units of V/mm) in the r and z directions.   
         """
         assert point.shape == (2,) or point.shape == (3,)
-        return backend.field_radial(point, self.vertices, self.charges)
-    
+        return backend.field_radial(point, self.charges, self.jac_buffer, self.pos_buffer)
+     
     def potential_at_point(self, point):
         """
         Compute the potential.
@@ -424,7 +424,7 @@ class FieldRadialBEM(FieldBEM):
 
     def charge_on_element(self, i):
         #return backend.charge_radial(self.vertices[i], self.charges[i])
-        return np.sum(self.jac_buffer[i]) * self.charges[i]
+        return 2*np.pi*np.sum(self.jac_buffer[i] * self.pos_buffer[i, :, 0]) * self.charges[i]
      
     def charge_on_elements(self, indices):
         """Compute the sum of the charges present on the elements with the given indices. To

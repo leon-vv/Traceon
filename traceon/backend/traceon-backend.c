@@ -518,14 +518,12 @@ trace_particle(double *times_array, double *pos_array, field_fun field, double b
 EXPORT double dr1_potential_radial_ring(double r0, double z0, double r, double z, void *_) {
 	double delta_r = r - r0;
 	double delta_z = z - z0;
-    double common_arg = (delta_z * delta_z + delta_r * delta_r) / (4 * r0 * r0 + 4 * delta_r * r0 + delta_z * delta_z + delta_r * delta_r);
-    double denominator = (2 * delta_z * delta_z + 2 * delta_r * delta_r) * sqrt(4 * r0 * r0 + 4 * delta_r * r0 + delta_z * delta_z + delta_r * delta_r);
-    double ellipkm1_term = (delta_z * delta_z + delta_r * delta_r) * ellipkm1(common_arg);
-    double ellipem1_term = ((-2 * delta_r * r0) + delta_z * delta_z - delta_r * delta_r) * ellipem1(common_arg);
-    double result = (ellipkm1_term + ellipem1_term) / denominator;
-	return result;
+    double common_arg = (delta_z * delta_z + delta_r * delta_r) / (4 * r * r - 4 * delta_r * r + delta_z * delta_z + delta_r * delta_r);
+    double denominator = ((-2 * delta_r * delta_r * r) + delta_z * delta_z * (2 * delta_r - 2 * r) + 2 * delta_r * delta_r * delta_r) * sqrt(4 * r * r - 4 * delta_r * r + delta_z * delta_z + delta_r * delta_r);
+    double ellipkm1_term = (delta_z * delta_z * r + delta_r * delta_r * r) * ellipkm1(common_arg);
+    double ellipem1_term = ((-2 * delta_r * r * r) - delta_z * delta_z * r + delta_r * delta_r * r) * ellipem1(common_arg);
+    return (ellipkm1_term + ellipem1_term) / denominator;
 }
-
 
 EXPORT double potential_radial_ring(double r0, double z0, double r, double z, void *_) {
     double delta_z = z - z0;
@@ -540,7 +538,7 @@ EXPORT double dz1_potential_radial_ring(double r0, double z0, double r, double z
     double common_arg = (delta_z * delta_z + delta_r * delta_r) / (4 * r0 * r0 + 4 * delta_r * r0 + delta_z * delta_z + delta_r * delta_r);
     double denominator = (delta_z * delta_z + delta_r * delta_r) * sqrt(4 * r0 * r0 + 4 * delta_r * r0 + delta_z * delta_z + delta_r * delta_r);
     double ellipem1_term = -delta_z * (r0 + delta_r) * ellipem1(common_arg);
-    return ellipem1_term / denominator;
+    return -ellipem1_term / denominator;
 }
 
 
@@ -708,25 +706,18 @@ charge_radial(double *vertices_p, double charge) {
 }
 
 EXPORT void
-field_radial(double point[3], double result[3], vertices_2d vertices, charges_2d charges, size_t N_vertices) {
-		
+field_radial(double point[3], double result[3], double* charges, jacobian_buffer_2d jacobian_buffer, position_buffer_2d position_buffer, size_t N_vertices) {
+	
 	double Ex = 0.0, Ey = 0.0;
 	
-	for(int i = 0; i < N_vertices; i++) 
-	for(int k = 0; k < N_QUAD_2D; k++) {
-			
-		double *v1 = &vertices[i][0][0];
-		double *v2 = &vertices[i][2][0]; // Strange ordering following from GMSH line4 element
-		double *v3 = &vertices[i][3][0];
-		double *v4 = &vertices[i][1][0];
-		
-		double pos[2], jac;
-		position_and_jacobian_radial(GAUSS_QUAD_POINTS[k], v1, v2, v3, v4, pos, &jac);
-		
-		Ex -= GAUSS_QUAD_WEIGHTS[k] * jac * charges[i][k] * dr1_potential_radial_ring(point[0], point[1], pos[0], pos[1], NULL);
-		Ey -= GAUSS_QUAD_WEIGHTS[k] * jac * charges[i][k] * dz1_potential_radial_ring(point[0], point[1], pos[0], pos[1], NULL);
+	for(int i = 0; i < N_vertices; i++) {  
+		for(int k = 0; k < N_QUAD_2D; k++) {
+			double *pos = &position_buffer[i][k][0];
+			Ex -= charges[i] * jacobian_buffer[i][k] * dr1_potential_radial_ring(point[0], point[1], pos[0], pos[1], NULL);
+			Ey -= charges[i] * jacobian_buffer[i][k] * dz1_potential_radial_ring(point[0], point[1], pos[0], pos[1], NULL);
+		}
 	}
-		
+			
 	result[0] = Ex;
 	result[1] = Ey;
 	result[2] = 0.0;
@@ -744,7 +735,8 @@ void
 field_radial_traceable(double point[3], double result[3], void *args_p) {
 
 	struct field_evaluation_args *args = (struct field_evaluation_args*)args_p;
-	field_radial(point, result, (vertices_2d) args->vertices, (charges_2d) args->charges, args->N_vertices);
+	field_radial(point, result, args->charges,
+		(jacobian_buffer_2d) args->jacobian_buffer, (position_buffer_2d) args->position_buffer, args->N_vertices);
 }
 
 EXPORT size_t
@@ -1244,7 +1236,13 @@ void fill_self_voltages_radial(double *matrix,
 		double result, error;
 		double singular_points[3] = {-1, 0, 1};
 		gsl_integration_qagp(&F, singular_points, 3, 1e-9, 5e-5, ADAPTIVE_MAX_ITERATION, w, &result, &error);
-		matrix[N_matrix*i + i] = result;
+
+		if(type_ == DIELECTRIC) {
+			matrix[N_matrix*i + i] = result - 1;
+		}
+		else {
+			matrix[N_matrix*i + i] = result;
+		}
 	}
 	
 	gsl_integration_workspace_free(w);

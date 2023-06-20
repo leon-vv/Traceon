@@ -99,7 +99,7 @@ backend_functions = {
     'potential_radial': (dbl, v3, charges_2d, jac_buffer_2d, pos_buffer_2d, sz),
     'potential_radial_derivs': (dbl, v2, z_values, arr(ndim=3), sz),
     'charge_radial': (dbl, arr(ndim=2), dbl),
-    'field_radial': (None, v3, v3, vertices, charges_2d, sz),
+    'field_radial': (None, v3, v3, charges_2d, jac_buffer_2d, pos_buffer_2d, sz),
     'trace_particle_radial': (sz, times_block, tracing_block, bounds, dbl, vertices, charges_2d, sz),
     'field_radial_derivs': (None, v3, v3, z_values, arr(ndim=3), sz),
     'trace_particle_radial_derivs': (sz, times_block, tracing_block, bounds, dbl, z_values, arr(ndim=3), sz),
@@ -336,12 +336,13 @@ def charge_radial(vertices, charge):
     assert vertices.shape == (len(vertices), 3)
     return backend_lib.charge_radial(vertices, charge)
 
-def field_radial(point, vertices, charges):
+def field_radial(point, charges, jac_buffer, pos_buffer):
     point = _vec_2d_to_3d(point)
-    assert vertices.shape == (len(charges), 4, 3)
-     
+    assert jac_buffer.shape == (len(charges), N_QUAD_2D)
+    assert pos_buffer.shape == (len(charges), N_QUAD_2D, 2)
+    assert charges.shape == (len(charges),)
     field = np.zeros( (3,) )
-    backend_lib.field_radial(point, field, vertices, charges, len(charges))
+    backend_lib.field_radial(point, field, charges, jac_buffer, pos_buffer, len(charges))
     return field[:2]
 
 def field_radial_derivs(point, z, coeffs):
