@@ -516,6 +516,11 @@ trace_particle(double *times_array, double *pos_array, field_fun field, double b
 
 
 EXPORT double dr1_potential_radial_ring(double r0, double z0, double r, double z, void *_) {
+	
+	if(r0 < MIN_DISTANCE_AXIS) {
+		return 0.0;
+	}
+	
 	double delta_r = r - r0;
 	double delta_z = z - z0;
     double common_arg = (delta_z * delta_z + delta_r * delta_r) / (4 * r * r - 4 * delta_r * r + delta_z * delta_z + delta_r * delta_r);
@@ -718,6 +723,9 @@ field_radial(double point[3], double result[3], double* charges, jacobian_buffer
 		}
 	}
 			
+	assert(!isnan(Ex));
+	assert(!isnan(Ey));
+	
 	result[0] = Ex;
 	result[1] = Ey;
 	result[2] = 0.0;
