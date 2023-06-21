@@ -90,12 +90,8 @@ def _excitation_to_right_hand_side(excitation, vertices, names):
         if type_ == E.ExcitationType.VOLTAGE_FIXED:
             F[indices] = value
         elif type_ == E.ExcitationType.VOLTAGE_FUN:
-            for i in indices:
-                points = vertices[i]
-                middle = np.average(points, axis=0)
-                for q in range(N_quad):
-                    # TODO: use higher order BEM?
-                    F[N_quad*i + q] = value(*middle)
+            positions = [backend.position_and_jacobian_radial(0.5, vertices[i, 0], vertices[i, 2], vertices[i, 3], vertices[i, 1])[1] for i in indices]
+            F[indices] = [value(*p) for p in positions]
         elif type_ == E.ExcitationType.DIELECTRIC or \
                 type_ == E.ExcitationType.FLOATING_CONDUCTOR:
             F[indices] = 0
@@ -386,7 +382,7 @@ class FieldRadialBEM(FieldBEM):
         Numpy array of shape (N, 9) containing the derivatives. At index i one finds the i-th derivative (so
         at position 0 the potential itself is returned). The highest derivative returned is a 
         constant currently set to 9."""
-        return backend.axial_derivatives_radial_ring(z, self.vertices, self.charges)
+        return backend.axial_derivatives_radial_ring(z, self.charges, self.jac_buffer, self.pos_buffer)
      
     def axial_derivative_interpolation(self, zmin, zmax, N=None):
         """

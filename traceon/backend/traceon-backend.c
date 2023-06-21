@@ -548,7 +548,7 @@ EXPORT double dz1_potential_radial_ring(double r0, double z0, double r, double z
 
 
 EXPORT void
-axial_derivatives_radial_ring(double *derivs_p, vertices_2d lines, charges_2d charges, size_t N_lines, double *z, size_t N_z) {
+axial_derivatives_radial_ring(double *derivs_p, double *charges, jacobian_buffer_2d jac_buffer, position_buffer_2d pos_buffer, size_t N_lines, double *z, size_t N_z) {
 
 	double (*derivs)[9] = (double (*)[9]) derivs_p;	
 		
@@ -556,18 +556,8 @@ axial_derivatives_radial_ring(double *derivs_p, vertices_2d lines, charges_2d ch
 	for(int j = 0; j < N_lines; j++)
 	for(int k = 0; k < N_QUAD_2D; k++) {
 		double z0 = z[i];
-
-		double *v1 = &lines[j][0][0];
-		double *v2 = &lines[j][2][0];
-		double *v3 = &lines[j][3][0];
-		double *v4 = &lines[j][1][0];
-			
-		double pos[2], jac;
-		position_and_jacobian_radial(GAUSS_QUAD_POINTS[k], v1, v2, v3, v4, pos, &jac);
-		double r = pos[0], z = pos[1];
+		double r = pos_buffer[j][k][0], z = pos_buffer[j][k][1];
 		
-		double weight = GAUSS_QUAD_WEIGHTS[k] * jac;
-			
 		double R = norm_2d(z0-z, r);
 		
 		double D[9] = {0.}; // Derivatives of the currently considered line element.
@@ -577,7 +567,7 @@ axial_derivatives_radial_ring(double *derivs_p, vertices_2d lines, charges_2d ch
 		for(int n = 1; n+1 < DERIV_2D_MAX; n++)
 			D[n+1] = -1./pow(R,2) *( (2*n + 1)*(z0-z)*D[n] + pow(n,2)*D[n-1]);
 		
-		for(int l = 0; l < 9; l++) derivs[i][l] += weight * M_PI*r/2 * charges[j][k]*D[l];
+		for(int l = 0; l < 9; l++) derivs[i][l] += jac_buffer[j][k] * charges[j] * M_PI*r/2 * D[l];
 	}
 }
 
