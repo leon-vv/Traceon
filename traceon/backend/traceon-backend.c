@@ -726,24 +726,47 @@ struct field_evaluation_args {
 	double *jacobian_buffer;
 	double *position_buffer;
 	size_t N_vertices;
+	double *bounds;
 };
 
 void
-field_radial_traceable(double point[3], double result[3], void *args_p) {
+field_radial_traceable_bounds(double point[3], double result[3], void *args_p) {
 
 	struct field_evaluation_args *args = (struct field_evaluation_args*)args_p;
+
+	double (*bounds)[2] = (double (*)[2]) args->bounds;
+		
+	if( (bounds[0][0] < point[0]) && (point[0] < bounds[0][1])
+		&& (bounds[1][0] < point[1]) && (point[1] < bounds[1][1]) ) {
+		field_radial(point, result, args->charges, (jacobian_buffer_2d) args->jacobian_buffer, (position_buffer_2d) args->position_buffer, args->N_vertices);
+	}
+	else {
+		result[0] = 0.0;
+		result[1] = 0.0;
+		result[2] = 0.0;
+	}
+}
+
+void
+field_radial_traceable(double point[3], double result[3], void *args_p) {
 	
+	struct field_evaluation_args *args = (struct field_evaluation_args*)args_p;
 	
 	field_radial(point, result, args->charges, (jacobian_buffer_2d) args->jacobian_buffer, (position_buffer_2d) args->position_buffer, args->N_vertices);
 }
 
 EXPORT size_t
-trace_particle_radial(double *times_array, double *pos_array, double bounds[3][2], double atol,
-	double *charges, jacobian_buffer_2d jac_buffer, position_buffer_2d pos_buffer, size_t N_vertices) {
+trace_particle_radial(double *times_array, double *pos_array, double tracer_bounds[3][2], double atol,
+	double *charges, jacobian_buffer_2d jac_buffer, position_buffer_2d pos_buffer, size_t N_vertices, double *field_bounds) {
 
-	struct field_evaluation_args args = {charges, (double*)jac_buffer, (double*)pos_buffer, N_vertices };
-				
-	return trace_particle(times_array, pos_array, field_radial_traceable, bounds, atol, (void*) &args);
+	struct field_evaluation_args args = {charges, (double*)jac_buffer, (double*)pos_buffer, N_vertices, field_bounds };
+		
+	if (field_bounds == NULL) {
+		return trace_particle(times_array, pos_array, field_radial_traceable, tracer_bounds, atol, (void*) &args);
+	}
+	else {
+		return trace_particle(times_array, pos_array, field_radial_traceable_bounds, tracer_bounds, atol, (void*) &args);
+	}
 }
 
 EXPORT void
@@ -958,6 +981,26 @@ field_3d(double point[3], double result[3], double *charges,
 }
 
 void
+field_3d_traceable_bounds(double point[3], double result[3], void *args_p) {
+
+	struct field_evaluation_args *args = (struct field_evaluation_args*)args_p;
+
+	double (*bounds)[2] = (double (*)[2]) args->bounds;
+	
+	if(	   (bounds[0][0] < point[0]) && (point[0] < bounds[0][1])
+		&& (bounds[1][0] < point[1]) && (point[1] < bounds[1][1])
+		&& (bounds[2][0] < point[2]) && (point[2] < bounds[2][1]) ) {
+
+		field_3d(point, result, args->charges, (jacobian_buffer_3d) args->jacobian_buffer, (position_buffer_3d) args->position_buffer, args->N_vertices);
+	}
+	else {
+		result[0] = 0.0;
+		result[1] = 0.0;
+		result[2] = 0.0;
+	}
+}
+
+void
 field_3d_traceable(double point[3], double result[3], void *args_p) {
 
 	struct field_evaluation_args *args = (struct field_evaluation_args*)args_p;
@@ -965,12 +1008,17 @@ field_3d_traceable(double point[3], double result[3], void *args_p) {
 }
 
 EXPORT size_t
-trace_particle_3d(double *times_array, double *pos_array, double bounds[3][2], double atol,
-	double* charges, jacobian_buffer_3d jacobian_buffer, position_buffer_3d position_buffer, size_t N_vertices) {
+trace_particle_3d(double *times_array, double *pos_array, double tracer_bounds[3][2], double atol,
+	double* charges, jacobian_buffer_3d jacobian_buffer, position_buffer_3d position_buffer, size_t N_vertices, double *field_bounds) {
 
-	struct field_evaluation_args args = {charges, (double*) jacobian_buffer, (double*) position_buffer, N_vertices };
+	struct field_evaluation_args args = {charges, (double*) jacobian_buffer, (double*) position_buffer, N_vertices, field_bounds};
 				
-	return trace_particle(times_array, pos_array, field_3d_traceable, bounds, atol, (void*) &args);
+	if(field_bounds == NULL) {
+		return trace_particle(times_array, pos_array, field_3d_traceable, tracer_bounds, atol, (void*) &args);
+	}
+	else {
+		return trace_particle(times_array, pos_array, field_3d_traceable_bounds, tracer_bounds, atol, (void*) &args);
+	}
 }
 
 EXPORT void

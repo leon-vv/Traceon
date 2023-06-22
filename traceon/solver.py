@@ -288,6 +288,10 @@ class FieldBEM(Field):
         self.floating_voltages = floating_voltages
         self.jac_buffer = jac_buffer
         self.pos_buffer = pos_buffer
+        self.field_bounds = None
+    
+    def set_bounds(self, bounds):
+        self.field_bounds = np.array(bounds)
 
     def __str__(self):
         name = self.__class__.__name__

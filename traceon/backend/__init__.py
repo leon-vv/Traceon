@@ -100,7 +100,7 @@ backend_functions = {
     'potential_radial_derivs': (dbl, v2, z_values, arr(ndim=3), sz),
     'charge_radial': (dbl, arr(ndim=2), dbl),
     'field_radial': (None, v3, v3, charges_2d, jac_buffer_2d, pos_buffer_2d, sz),
-    'trace_particle_radial': (sz, times_block, tracing_block, bounds, dbl, charges_2d, jac_buffer_2d, pos_buffer_2d, sz),
+    'trace_particle_radial': (sz, times_block, tracing_block, bounds, dbl, charges_2d, jac_buffer_2d, pos_buffer_2d, sz, dbl_p),
     'field_radial_derivs': (None, v3, v3, z_values, arr(ndim=3), sz),
     'trace_particle_radial_derivs': (sz, times_block, tracing_block, bounds, dbl, z_values, arr(ndim=3), sz),
     'dx1_potential_3d_point': (dbl, dbl, dbl, dbl, dbl, dbl, dbl, vp),
@@ -111,7 +111,7 @@ backend_functions = {
     'potential_3d': (dbl, v3, charges_3d, jac_buffer_3d, pos_buffer_3d, sz),
     'potential_3d_derivs': (dbl, v3, z_values, arr(ndim=5), sz),
     'field_3d': (None, v3, v3, charges_3d, jac_buffer_3d, pos_buffer_3d, sz),
-    'trace_particle_3d': (sz, times_block, tracing_block, bounds, dbl, charges_3d, jac_buffer_3d, pos_buffer_3d, sz),
+    'trace_particle_3d': (sz, times_block, tracing_block, bounds, dbl, charges_3d, jac_buffer_3d, pos_buffer_3d, sz, dbl_p),
     'field_3d_derivs': (None, v3, v3, z_values, arr(ndim=5), sz),
     'trace_particle_3d_derivs': (sz, times_block, tracing_block, bounds, dbl, z_values, arr(ndim=5), sz),
     'add_floating_conductor_constraints_radial': (None, arr(ndim=2), lines, sz, arr(dtype=np.int64), sz, sz),
@@ -120,7 +120,8 @@ backend_functions = {
     'fill_jacobian_buffer_3d': (None, jac_buffer_3d, pos_buffer_3d, vertices, sz),
     'fill_matrix_3d': (None, arr(ndim=2), vertices, arr(dtype=C.c_uint8, ndim=1), arr(ndim=1), jac_buffer_3d, pos_buffer_3d, sz, sz, C.c_int, C.c_int),
     'xy_plane_intersection_2d': (C.c_bool, arr(ndim=2), sz, arr(shape=(4,)), dbl),
-    'xy_plane_intersection_3d': (C.c_bool, arr(ndim=2), sz, arr(shape=(6,)), dbl)
+    'xy_plane_intersection_3d': (C.c_bool, arr(ndim=2), sz, arr(shape=(6,)), dbl),
+    'yz_plane_intersection_3d': (C.c_bool, arr(ndim=2), sz, arr(shape=(6,)))
 }
 
 
@@ -264,18 +265,21 @@ def trace_particle(position, velocity, field, bounds, atol):
     return trace_particle_wrapper(position, velocity,
         lambda T, P: backend_lib.trace_particle(T, P, wrap_field_fun(field), bounds, atol, None))
 
-def trace_particle_radial(position, velocity, bounds, atol, charges, jac_buffer, pos_buffer):
+def trace_particle_radial(position, velocity, bounds, atol, charges, jac_buffer, pos_buffer, field_bounds=None):
     assert jac_buffer.shape == (len(charges), N_QUAD_2D)
     assert pos_buffer.shape == (len(charges), N_QUAD_2D, 2)
     assert charges.shape == (len(charges),)
+    assert field_bounds is None or field_bounds.shape == (2,2)
     
     bounds = np.array(bounds)
      
     if bounds.shape[0] == 2:
         bounds = np.array([bounds[0], bounds[1], [-1.0, 0.0]])
+
+    field_bounds = field_bounds.ctypes.data_as(dbl_p) if field_bounds is not None else None
      
     times, positions = trace_particle_wrapper(position, velocity,
-        lambda T, P: backend_lib.trace_particle_radial(T, P, bounds, atol, charges, jac_buffer, pos_buffer, len(charges)))
+        lambda T, P: backend_lib.trace_particle_radial(T, P, bounds, atol, charges, jac_buffer, pos_buffer, len(charges), field_bounds))
     
     return times, positions[:, [0,1,3,4]]
 
@@ -291,16 +295,20 @@ def trace_particle_radial_derivs(position, velocity, bounds, atol, z, coeffs):
     
     return times, positions[:, [0,1,3,4]]
 
-def trace_particle_3d(position, velocity, bounds, atol, charges, jac_buffer, pos_buffer):
+def trace_particle_3d(position, velocity, bounds, atol, charges, jac_buffer, pos_buffer, field_bounds=None):
     N = len(charges)
     assert position.shape == (3,)
     assert velocity.shape == (3,)
     assert jac_buffer.shape == (N, N_TRIANGLE_QUAD)
     assert pos_buffer.shape == (N, N_TRIANGLE_QUAD, 3)
+    assert field_bounds is None or field_bounds.shape == (3,2)
+    
     bounds = np.array(bounds)
+    
+    field_bounds = field_bounds.ctypes.data_as(dbl_p) if field_bounds is not None else None
      
     return trace_particle_wrapper(position, velocity,
-        lambda T, P: backend_lib.trace_particle_3d(T, P, bounds, atol, charges, jac_buffer, pos_buffer, len(charges)))
+        lambda T, P: backend_lib.trace_particle_3d(T, P, bounds, atol, charges, jac_buffer, pos_buffer, len(charges), field_bounds))
 
 def trace_particle_3d_derivs(position, velocity, bounds, atol, z, coeffs):
     assert position.shape == (3,)
