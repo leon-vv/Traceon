@@ -3,7 +3,7 @@ import platform
 
 
 if platform.system() in ['Linux', 'Darwin']:
-    compiler_kwargs = dict(extra_compile_args=['-O3', '-mavx', '-ffast-math', '-DNDEBUG'], extra_link_args=['-lm'])
+    compiler_kwargs = dict(extra_compile_args=['-O3', '-mavx', '-ffast-math', '-DNDEBUG'], extra_link_args=['-lm', '-lgsl'])
 elif platform.system() == 'Windows':
     compiler_kwargs = dict(extra_compile_args=['/fp:fast', '/Ox', '/Ob3', '/Oi', '/GL', '/arch:AVX'])
 
