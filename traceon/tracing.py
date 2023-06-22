@@ -172,6 +172,12 @@ def xy_plane_intersection(positions, z):
     """
     return backend.xy_plane_intersection(positions, z)
 
+def yz_plane_intersection(positions):
+    if positions.shape[1] == 4:
+        return axis_intersection(positions)
+    else:
+        return backend.yz_plane_intersection_3d(positions)[2]
+
 def axis_intersection(positions):
     """Calculate the intersection with the optical axis using a linear interpolation. Currently only makes
     sense in radial symmetry, since in a 3D geometry the electron will never pass exactly through the optical axis.
@@ -186,6 +192,8 @@ def axis_intersection(positions):
     np.ndarray of shape (4,) containing the r coordinate, z coordinate, velocity in r direction,
     velocity in z direction at the intersection point. Returns None if the trajectory does not intersect the plane.
     """
+
+    assert positions.shape[1] == 4, "Positions passed in should be two dimensional (see yz-intersection instead)"
  
     if positions[-1, 0] <= 0:
         indices = np.where(positions[:, 0] < 0)[0]

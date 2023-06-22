@@ -466,6 +466,17 @@ def fill_matrix_3d(matrix, vertices, excitation_types, excitation_values, jac_bu
      
     backend_lib.fill_matrix_3d(matrix, vertices, excitation_types, excitation_values, jac_buffer, pos_buffer, N, matrix.shape[0], start_index, end_index)
 
+def yz_plane_intersection_3d(positions):
+     
+    assert positions.shape[1] == 6
+     
+    positions = np.require(positions, dtype=np.float64, requirements=('C_CONTIGUOUS', 'ALIGNED'))
+    
+    result = np.zeros( (6,) )
+    found = backend_lib.yz_plane_intersection_3d(positions, len(positions), result)
+    
+    return result if found else None
+
 def xy_plane_intersection(positions, z):
     
     assert positions.shape[1] == 4 or positions.shape[1] == 6

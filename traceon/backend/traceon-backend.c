@@ -1597,6 +1597,33 @@ xy_plane_intersection_3d(double *positions_p, size_t N_p, double result[6], doub
 	return false;
 }
 
+EXPORT bool
+yz_plane_intersection_3d(double *positions_p, size_t N_p, double result[6]) {
+
+	double (*positions)[6] = (double (*)[6]) positions_p;
+
+	for(int i = N_p-1; i > 0; i--) {
+	
+		double x1 = positions[i-1][0];
+		double x2 = positions[i][0];
+		
+		if(fmin(x1, x2) <= 0.0 && 0.0 <= fmax(x1, x2)) {
+			double ratio = fabs(-x1/(x1-x2));
+			
+			for(int k = 0; k < 6; k++)
+				result[k] = positions[i-1][k] + ratio*(positions[i][k] - positions[i-1][k]);
+
+			return true;
+		}
+	}
+
+	return false;
+}
+
+
+
+
+
 
 
 
