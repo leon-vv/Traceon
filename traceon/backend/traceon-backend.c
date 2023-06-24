@@ -92,7 +92,7 @@ typedef double (*position_buffer_2d)[N_QUAD_2D][2];
 // Augmented with the tricks shown on the Scipy documentation for ellipe and ellipk.
 // https://docs.scipy.org/doc/scipy/reference/generated/scipy.special.ellipkm1.html#scipy.special.ellipkm1
 
-double ellipkm1(double p) {
+EXPORT double ellipkm1(double p) {
 	double A[] = {log(4.0),
 			9.65736020516771e-2,
 			3.08909633861795e-2,
@@ -126,7 +126,7 @@ EXPORT double ellipk(double k) {
 	return ellipkm1(1./(1-k))/sqrt(k);
 }
 
-double ellipem1(double p) {
+EXPORT double ellipem1(double p) {
 	double A[] = {1,
         4.43147193467733e-1,
         5.68115681053803e-2,
@@ -188,7 +188,7 @@ normal_2d(double *p1, double *p2, double *normal) {
 	normal[1] = normal_y/length;
 }
 
-void
+EXPORT void
 higher_order_normal_radial(double alpha, double *v1, double *v2, double *v3, double *v4, double *normal) {
 
 	double v1x = v1[0], v1y = v1[1];
