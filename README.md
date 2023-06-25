@@ -15,7 +15,8 @@ Traceon is completely free to use and open source. The source code is distribute
 Please cite the software as follows:
 
 ```
-L.B. van Velzen. Traceon software (version 0.2.0). 2023. https://doi.org/10.5281/zenodo.7812232
+L.B. van Velzen. Traceon software (version 0.3.0). 2023. https://doi.org/10.5281/zenodo.8079985
+
 ```
 
 ## Installation
@@ -54,6 +55,14 @@ Don't worry. You can reach me.
 ![Image of 3D deflector](https://raw.githubusercontent.com/leon-vv/traceon/main/images/deflector-image.png)
 
 ## Features
+
+v0.3.0:
+- Use adaptive integration using GNU Scientific Library (GSL)
+- Add support for boundary constraint
+- Use [Vedo](https://vedo.embl.es/) for better plotting capabilities
+- Use higher order triangle elements for 3D (curved triangles)
+- Precompute jacobians/positions for better performance
+- First implementation of element splitting based on charges (work in progress)
 
 v0.2.0:
 - Use higher order charge distribution on line elements in radial symmetry
