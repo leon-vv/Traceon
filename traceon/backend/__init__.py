@@ -118,9 +118,8 @@ backend_functions = {
     'fill_matrix_radial': (None, arr(ndim=2), lines, arr(dtype=C.c_uint8, ndim=1), arr(ndim=1), jac_buffer_2d, pos_buffer_2d, sz, sz, C.c_int, C.c_int),
     'fill_jacobian_buffer_3d': (None, jac_buffer_3d, pos_buffer_3d, vertices, sz),
     'fill_matrix_3d': (None, arr(ndim=2), vertices, arr(dtype=C.c_uint8, ndim=1), arr(ndim=1), jac_buffer_3d, pos_buffer_3d, sz, sz, C.c_int, C.c_int),
-    'xy_plane_intersection_2d': (C.c_bool, arr(ndim=2), sz, arr(shape=(4,)), dbl),
-    'xy_plane_intersection_3d': (C.c_bool, arr(ndim=2), sz, arr(shape=(6,)), dbl),
-    'yz_plane_intersection_3d': (C.c_bool, arr(ndim=2), sz, arr(shape=(6,)))
+    'plane_intersection': (bool, v3, v3, arr(ndim=2), sz, arr(shape=(6,))),
+    'line_intersection': (bool, v2, v2, arr(ndim=2), sz, arr(shape=(4,)))
 }
 
 
@@ -458,42 +457,25 @@ def fill_matrix_3d(matrix, vertices, excitation_types, excitation_values, jac_bu
      
     backend_lib.fill_matrix_3d(matrix, vertices, excitation_types, excitation_values, jac_buffer, pos_buffer, N, matrix.shape[0], start_index, end_index)
 
-def yz_plane_intersection_3d(positions):
-     
-    assert positions.shape[1] == 6
-     
-    positions = np.require(positions, dtype=np.float64, requirements=('C_CONTIGUOUS', 'ALIGNED'))
+def plane_intersection(positions, p0, normal):
+    assert p0.shape == (3,)
+    assert normal.shape == (3,)
+    assert positions.shape == (len(positions), 6)
     
-    result = np.zeros( (6,) )
-    found = backend_lib.yz_plane_intersection_3d(positions, len(positions), result)
+    result = np.zeros(6)
+    found = backend_lib.plane_intersection(p0, normal, positions, len(positions), result)
     
     return result if found else None
 
-def xy_plane_intersection(positions, z):
+def line_intersection(positions, p0, tangent):
+    assert p0.shape == (2,)
+    assert tangent.shape == (2,)
+    assert positions.shape == (len(positions), 4)
     
-    assert positions.shape[1] == 4 or positions.shape[1] == 6
-    
-    positions = np.require(positions, dtype=np.float64, requirements=('C_CONTIGUOUS', 'ALIGNED'))
+    result = np.zeros(4)
+    found = backend_lib.line_intersection(p0, tangent, positions, len(positions), result)
      
-    if positions.shape[1] == 4:
-        result = np.zeros( (4,) )
-        found = backend_lib.xy_plane_intersection_2d(positions, len(positions), result, z)
-        
-        return result if found else None
-
-    if positions.shape[1] == 6:
-        result = np.zeros( (6,) )
-        found = backend_lib.xy_plane_intersection_3d(positions, len(positions), result, z)
-        
-        return result if found else None
-
-
-    
-
-
-
-
-
+    return result if found else None
 
 
 

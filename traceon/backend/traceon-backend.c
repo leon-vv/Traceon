@@ -78,8 +78,12 @@ typedef double (*charges_2d)[N_QUAD_2D];
 typedef double triangle6[6][3];
 typedef double (*vertices_3d)[6][3];
 
+typedef double (*positions_3d)[6];
+
 typedef double (*jacobian_buffer_3d)[N_TRIANGLE_QUAD];
 typedef double (*position_buffer_3d)[N_TRIANGLE_QUAD][3];
+
+typedef double (*positions_2d)[4];
 
 typedef double (*jacobian_buffer_2d)[N_QUAD_2D];
 typedef double (*position_buffer_2d)[N_QUAD_2D][2];
@@ -1376,82 +1380,87 @@ EXPORT void fill_matrix_3d(double *restrict matrix,
 }
 
 EXPORT bool
-xy_plane_intersection_2d(double *positions_p, size_t N_p, double result[4], double z) {
-
-	double (*positions)[4] = (double (*)[4]) positions_p;
-
-	for(int i = N_p-1; i > 0; i--) {
+plane_intersection(double p0[3], double normal[3], positions_3d positions, size_t N_p, double result[6]) {
 	
-		double z1 = positions[i-1][1];
-		double z2 = positions[i][1];
+	assert(N_p > 1);
 		
-		if(fmin(z1, z2) <= z && z <= fmax(z1, z2)) {
-			double ratio = fabs( (z-z1)/(z1-z2) );
+	double xp = p0[0], yp = p0[1], zp = p0[2];
+	double xn = normal[0], yn = normal[1], zn = normal[2];
+
+	// Initial sign
+	int i = N_p-1;
+	
+	double x = positions[i][0], y = positions[i][1], z = positions[i][2];	
+	double prev_kappa = (zn*zp-z*zn+yn*yp-y*yn+xn*xp-x*xn)/norm_3d(xn, yn, zn);
+		
+	i -= 1;
+			
+	for(; i >= 0; i--) {
+		double x = positions[i][0], y = positions[i][1], z = positions[i][2];	
+		double kappa = (zn*zp-z*zn+yn*yp-y*yn+xn*xp-x*xn)/norm_3d(xn, yn, zn);
+		
+		int sign_kappa = kappa > 0 ? 1 : -1;
+		int sign_prev = prev_kappa > 0 ? 1 : -1;
+		
+		if(sign_kappa != sign_prev) {
+			double diff = kappa - prev_kappa;
+			
+			double factor = -prev_kappa / diff;
+			double prev_factor = kappa / diff;
+			
+			for(int k = 0; k < 6; k++)
+				result[k] = prev_factor*positions[i+1][k] + factor*positions[i][k];
+
+			return true;
+		}
+		
+		prev_kappa = kappa;
+	}
+	
+	return false;
+}
+
+EXPORT bool
+line_intersection(double p0[2], double tangent[2], positions_2d positions, size_t N_p, double result[4]) {
+	
+	assert(N_p > 1);
+		
+	double xp = p0[0], yp = p0[1];
+	// Normal components, perpendicular to tangent
+	double xn = tangent[1], yn = -tangent[0];
+
+	// Initial sign
+	int i = N_p-1;
+	
+	double x = positions[i][0], y = positions[i][1];
+	double prev_kappa = (yn*yp-y*yn+xn*xp-x*xn)/norm_2d(xn, yn);
+		
+	i -= 1;
+			
+	for(; i >= 0; i--) {
+		double x = positions[i][0], y = positions[i][1], z = positions[i][2];	
+		double kappa = (yn*yp-y*yn+xn*xp-x*xn)/norm_2d(xn, yn);
+			
+		int sign_kappa = kappa > 0 ? 1 : -1;
+		int sign_prev = prev_kappa > 0 ? 1 : -1;
+		
+		if(sign_kappa != sign_prev) {
+			double diff = kappa - prev_kappa;
+			
+			double factor = -prev_kappa / diff;
+			double prev_factor = kappa / diff;
 			
 			for(int k = 0; k < 4; k++)
-				result[k] = positions[i-1][k] + ratio*(positions[i][k] - positions[i-1][k]);
+				result[k] = prev_factor*positions[i+1][k] + factor*positions[i][k];
 
 			return true;
 		}
-	}
-
-	return false;
-}
-
-EXPORT bool
-xy_plane_intersection_3d(double *positions_p, size_t N_p, double result[6], double z) {
-
-	double (*positions)[6] = (double (*)[6]) positions_p;
-
-	for(int i = N_p-1; i > 0; i--) {
-	
-		double z1 = positions[i-1][2];
-		double z2 = positions[i][2];
 		
-		if(fmin(z1, z2) <= z && z <= fmax(z1, z2)) {
-			double ratio = fabs( (z-z1)/(z1-z2) );
-			
-			for(int k = 0; k < 6; k++)
-				result[k] = positions[i-1][k] + ratio*(positions[i][k] - positions[i-1][k]);
-
-			return true;
-		}
+		prev_kappa = kappa;
 	}
-
-	return false;
-}
-
-EXPORT bool
-yz_plane_intersection_3d(double *positions_p, size_t N_p, double result[6]) {
-
-	double (*positions)[6] = (double (*)[6]) positions_p;
-
-	for(int i = N_p-1; i > 0; i--) {
 	
-		double x1 = positions[i-1][0];
-		double x2 = positions[i][0];
-		
-		if(fmin(x1, x2) <= 0.0 && 0.0 <= fmax(x1, x2)) {
-			double ratio = fabs(-x1/(x1-x2));
-			
-			for(int k = 0; k < 6; k++)
-				result[k] = positions[i-1][k] + ratio*(positions[i][k] - positions[i-1][k]);
-
-			return true;
-		}
-	}
-
 	return false;
 }
-
-
-
-
-
-
-
-
-
 
 
 

@@ -78,7 +78,7 @@ def compute_error(exc, field, geom):
     tracer = T.Tracer(field, bounds)
     times, pos = tracer(position, vel)
      
-    r_final = T.yz_plane_intersection(pos)
+    r_final = T.axis_intersection(pos)
      
     print(f'Correct intersection:\t{correct:.8f}')
     print(f'Computed intersection:\t{r_final:.8f}')
