@@ -88,6 +88,17 @@ class Excitation:
             self.excitation_types[name] = (ExcitationType.DIELECTRIC, permittivity)
 
     def add_boundary(self, *args):
+        """
+        Specify geometry elements as boundary elements. At the boundary we require E·n = 0 at every point on the boundary. This
+        is equivalent to stating that the directional derivative of the potential through the boundary is zero. Placing boundaries between
+        the spaces of electrodes usually helps convergence tremendously. Note that a boundary is equivalent to a dielectric with a dielectric
+        constant of zero. This is how a boundary is actually implemented internally.
+        
+        Parameters
+        ----------
+        *args: list of str
+            The geometry names that should be considered a boundary.
+        """
         self.add_dielectric(**{a:0 for a in args})
 
     def add_floating_conductor(self, **kwargs):
@@ -176,7 +187,15 @@ class Excitation:
         return sum(len(self.mesh.physical_to_elements[n]) for n in self.excitation_types.keys())
 
     def get_number_of_matrix_elements(self):
-        
+        """Gets the number of elements along one axis of the matrix. If this function returns N, the
+        matrix will have size NxN. The matrix consists of 64bit float values. Therefore the size of the matrix
+        in bytes is 8·NxN.
+
+        Returns
+        ---------
+        integer number
+        """
+         
         Nfloating = len([name for name, (type_, _) in self.excitation_types.items() if type_ == ExcitationType.FLOATING_CONDUCTOR])
         Nelem = self.get_number_of_active_elements()
          

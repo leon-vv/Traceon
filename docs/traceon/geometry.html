@@ -56,12 +56,12 @@ from math import sqrt
 from pygmsh import *
 import gmsh
 from enum import Enum
+import copy
 
 import pickle
 
 from .util import Saveable
-from .backend import N_QUAD_2D
-
+from .backend import N_QUAD_2D, position_and_jacobian_radial, position_and_jacobian_3d
 
 def revolve_around_optical_axis(geom, elements, factor=1.0):
     &#34;&#34;&#34;
@@ -185,9 +185,9 @@ class Geometry(geo.Geometry):
         if dim == 1:
             gmsh.option.setNumber(&#39;Mesh.ElementOrder&#39;, 3)
         else:
-            gmsh.option.setNumber(&#39;Mesh.ElementOrder&#39;, 1)
+            gmsh.option.setNumber(&#39;Mesh.ElementOrder&#39;, 2)
         
-        return Mesh(super().generate_mesh(dim=dim, *args, **kwargs), self.symmetry)
+        return Mesh.from_meshio(super().generate_mesh(dim=dim, *args, **kwargs), self.symmetry)
 
     def set_mesh_size_factor(self, factor):
         &#34;&#34;&#34;
@@ -200,7 +200,7 @@ class Geometry(geo.Geometry):
         
         &#34;&#34;&#34;
         if self.symmetry == Symmetry.RADIAL:
-            gmsh.option.setNumber(&#39;Mesh.MeshSizeFactor&#39;, 1/factor * N_QUAD_2D)
+            gmsh.option.setNumber(&#39;Mesh.MeshSizeFactor&#39;, 1/factor)
         elif self.symmetry == Symmetry.THREE_D:
             # GMSH seems to produce meshes which contain way more elements for 3D geometries
             # with the same mesh factor. This is confusing for users and therefore we arbtrarily
@@ -241,11 +241,33 @@ class Geometry(geo.Geometry):
 class Mesh(Saveable):
     &#34;&#34;&#34;Class containing a mesh and related metadata.&#34;&#34;&#34;
     
-    def __init__(self, mesh, symmetry, metadata={}):
+    def __init__(self, points, elements, physical_to_elements, symmetry, metadata={}):
         assert isinstance(symmetry, Symmetry)
-        self.mesh = mesh
-        self.metadata = metadata
+        self.points = points
+        self.elements = elements
+        self.physical_to_elements = physical_to_elements
         self.symmetry = symmetry
+        self.metadata = metadata
+            
+    def from_meshio(mesh, symmetry, metadata={}):
+        &#34;&#34;&#34;Generate a Traceon Mesh from a [meshio](https://github.com/nschloe/meshio) mesh.
+        
+        Parameters
+        ----------
+        symmetry: Symmetry
+            Specifies a radially symmetric geometry (RADIAL) or a general 3D geometry (THREE_D).
+        
+        Returns
+        ---------
+        Mesh
+        &#34;&#34;&#34;
+        type_ = &#39;line4&#39; if symmetry != Symmetry.THREE_D else &#39;triangle6&#39;
+        
+        points = mesh.points
+        elements = mesh.cells_dict[type_]
+        physical_to_elements = {k:v[type_] for k, v in mesh.cell_sets_dict.items() if type_ in v}
+        
+        return Mesh(points, elements, physical_to_elements, symmetry, metadata)
      
     def get_electrodes(self):
         &#34;&#34;&#34;Get the names of all the electrodes in the geometry.
@@ -255,30 +277,148 @@ class Mesh(Saveable):
         List of electrode names
 
         &#34;&#34;&#34;
-        return list(self.mesh.cell_sets_dict.keys())
+        return list(self.physical_to_elements.keys())
     
-    def __str__(self):
-        physicals = self.mesh.cell_sets_dict.keys()
-        physical_names = &#39;, &#39;.join(physicals)
-        type_ = &#39;line4&#39; if self.symmetry != Symmetry.THREE_D else &#39;triangle&#39;
-        physical_nums = &#39;, &#39;.join([str(len(self.mesh.cell_sets_dict[n][type_])) for n in physicals])
+    def _invert_physical_dict(self):
+        lookup = np.full(len(self.elements), None)
+
+        for k, v in self.physical_to_elements.items():
+            lookup[v] = k
         
-        cells_type = [&#39;point&#39;] + [str(c.type) for c in self.mesh.cells]
-        cells_count = [len(self.mesh.points)] + [len(c) for c in self.mesh.cells]
+        return lookup
+     
+    def _split_indices_radial(self, indices):
+        assert self.symmetry == Symmetry.RADIAL
+         
+        elements = copy.deepcopy(self.elements)
+        N_elements = len(elements)
+         
+        N = len(self.points)
+        lines_to_add = []
+        physicals = []
+        points_to_add = []
+         
+        physical_lookup = self._invert_physical_dict()
+        to_pos = lambda alpha, line: [*position_and_jacobian_radial(alpha, line[0], line[2], line[3], line[1])[1], 0.0]
+        
+        for idx in indices:
+            pi = elements[idx]
+            line = self.points[pi]
+             
+            points_to_add.append(to_pos(-2/3, line))
+            points_to_add.append(to_pos(0.0, line))
+            points_to_add.append(to_pos(2/3, line))
+            l = len(points_to_add)
+            lines_to_add.append( (N+l-2, pi[1].item(), pi[3].item(), N+l-1) )
+            elements[idx] = (pi[0], N+l-2, N+l-3, pi[2])
+            physicals.append(physical_lookup[idx])
+        
+        # Now actually alter the mesh
+        new_points = np.concatenate( (self.points, points_to_add), axis=0)
+        new_elements = np.concatenate( (elements, np.array(lines_to_add, dtype=np.uint64)), axis=0)
+        new_dict = copy.copy(self.physical_to_elements)
+        
+        for name in [p for p in np.unique(physicals) if p is not None]:   
+            old_indices = new_dict[name]
+            (added_indices,) = (np.array(physicals) == name).nonzero()
+            new_dict[name] = np.concatenate( (old_indices.astype(np.int64), N_elements + added_indices) )
+         
+        new_mesh = Mesh(new_points, new_elements, new_dict, self.symmetry, self.metadata)
+        return new_mesh
+         
+    def _split_indices_3d(self, indices):
+        assert self.symmetry == Symmetry.THREE_D
+         
+        elements = copy.deepcopy(self.elements)
+        N_elements = len(elements)
+         
+        N = len(self.points)
+        triangles_to_add = []
+        physicals = []
+        points_to_add = []
+         
+        physical_lookup = self._invert_physical_dict()
+        to_pos = lambda alpha, beta, triangle: position_and_jacobian_3d(alpha, beta, triangle)[1]
+        
+        for idx in indices:
+            pi = elements[idx]
+            triangle = self.points[pi]
+             
+            points_to_add.append(to_pos(1/3, 1/3, triangle)) # Middle
+            points_to_add.append(to_pos(1/6, 1/6, triangle)) # s0
+            points_to_add.append(to_pos(4/6, 1/6, triangle)) # s1
+            points_to_add.append(to_pos(1/6, 4/6, triangle)) # s2
+            l = len(points_to_add)
+            # Same ordering as in C backend function &#39;fill_self_voltages_3d&#39;
+            t, s0, s1, s2 = N+l-4, N+l-3, N+l-2, N+l-1
+            triangles_to_add.append( (t, pi[1], pi[2], s1, pi[4], s2) )
+            triangles_to_add.append( (t, pi[2], pi[0], s2, pi[5], s0) )
+            elements[idx] = (t, pi[0], pi[1], s0, pi[3], s1)
+            
+            physicals.append(physical_lookup[idx])
+            physicals.append(physical_lookup[idx])
+        
+        # Now actually alter the mesh
+        new_points = np.concatenate( (self.points, points_to_add), axis=0)
+        new_elements = np.concatenate( (elements, np.array(triangles_to_add, dtype=np.uint64)), axis=0)
+        new_dict = copy.copy(self.physical_to_elements)
+        
+        for name in [p for p in np.unique(physicals) if p is not None]:   
+            old_indices = new_dict[name]
+            (added_indices,) = (np.array(physicals) == name).nonzero()
+            new_dict[name] = np.concatenate( (old_indices.astype(np.int64), N_elements + added_indices) )
+         
+        new_mesh = Mesh(new_points, new_elements, new_dict, self.symmetry, self.metadata)
+        return new_mesh
+     
+    def split_indices(self, indices):
+        if self.symmetry == Symmetry.RADIAL:
+            return self._split_indices_radial(indices)
+        else:
+            return self._split_indices_3d(indices)
+
+    def split_elements_based_on_charges(self, excitation, field, max_splits, mesh_factor):
+        active = excitation.get_active_element_mask()
+        assert np.sum(active) == len(field.vertices), &#34;Excitation did not produce the given field&#34;
+
+        map_index = active.nonzero()[0]
+        
+        charges = np.array([field.charge_on_element(i) for i in map_index])
+        charges = np.abs( np.array([field.charge_on_element(i) for i in range(len(field.vertices))]) )
+         
+        # In max_splits iterations, increase the number of elements in the
+        # mesh by mesh_factor. The split_facotr then gives us the amount
+        # of elements we need to split in every iteration.
+        split_factor = mesh_factor**(1/max_splits) - 1
+        
+        if self.symmetry == Symmetry.THREE_D:
+            split_factor /= 2 # For triangles, a splitting gives two extra elements, instead of one
+        
+        new_mesh = self
+              
+        for _ in range(max_splits):
+            to_split = np.argsort(charges)[-round(split_factor*len(charges)):]
+            print(&#39;Splitting &#39;, len(to_split), &#39; elements&#39;)
+            charges[to_split] /= 2 if self.symmetry == Symmetry.RADIAL else 3
+            charges = np.concatenate( (charges, np.repeat(charges[to_split], 2)), axis=0 )
+            new_mesh = new_mesh.split_indices(to_split)
+        
+        return new_mesh
+     
+    def __str__(self):
+        physicals = self.physical_to_elements.keys()
+        physical_names = &#39;, &#39;.join(physicals)
+        physical_nums = &#39;, &#39;.join([str(len(self.physical_to_elements[n])) for n in physicals])
         
         return f&#39;&lt;Traceon Mesh {self.symmetry},\n&#39; \
             f&#39;\tPhysical groups: {physical_names}\n&#39; \
             f&#39;\tElements in physical groups: {physical_nums}\n&#39; \
-            f&#39;\tNumber of.. \n\t    &#39; \
-            + &#39;\n\t    &#39;.join([f&#39;{t}: \t{c}&#39; for t, c in zip(cells_type, cells_count)]) \
-            + &#39;&gt;&#39;
+            f&#39;\tNumber of points: {len(self.points)}&gt;&#39;
 
     def write_gmsh(self, filename):
         self.mesh.write(filename)
 
 
-        #return f&#39;&lt;Traceon Mesh with {len(self.mesh.points)} points, &#39;, &#39;.join(self.mesh.cell_sets_dict.keys()))
-        #return str(self.mesh) + &#39; (metadata: &#39; + str(self.metadata) + &#39;)&#39;
 
 class MEMSStack(Geometry):
     &#34;&#34;&#34;Geometry consisting of a stack of MEMS fabricated elements. This geometry is modelled using a stack
@@ -294,29 +434,26 @@ class MEMSStack(Geometry):
         2D geometry is returned. For `0 &lt; revolve_factor &lt;= 1.0` see the documentation of `revolve_around_optical_axis`.
     rmax: float
         The rectangular MEMS objects extend to \( r = r_{max} \).
-    enclose_right: bool
-        When creating a MEMS component it is important to have well specified boundary conditions above and
-        beneath the element. This is usually achieved by having grounded electrodes at the top and bottom of the stack.
-        To finish the grounded enclosure a grounded elements should connect these electrodes vertically at the right
-        side of the stack. 
+    margin: float
+        The distance between the electrodes and the top and bottom boundary.
     margin_right: float
-        Distance between the grounded enclosure on the right and the MEMS electrodes.
+        Distance between the boundary on the right and the MEMS electrodes.
     &#34;&#34;&#34;
     
-    def __init__(self, *args, z0=0.0, revolve_factor=0.0, rmax=2, enclose_right=True, margin_right=0.1, **kwargs):
+    def __init__(self, *args, z0=0.0, revolve_factor=0.0, rmax=2, margin=0.5, margin_right=0.1, **kwargs):
         self.symmetry = Symmetry.RADIAL if revolve_factor == 0.0 else Symmetry.THREE_D
         super().__init__(self.symmetry, *args, **kwargs)
         
         self.z0 = z0
         self.revolve_factor = revolve_factor
-        self._3d = self.revolve_factor != 0.0
         self.rmax = rmax
-        self.margin_right = margin_right
-        self.enclose_right = enclose_right
         
-        self._current_z = z0
+        self.margin = margin
+        self.margin_right = margin_right
+         
+        self._current_z = z0 + margin
         self._last_name = None
-     
+    
     def add_spacer(self, thickness):
         &#34;&#34;&#34;
 
@@ -328,6 +465,30 @@ class MEMSStack(Geometry):
         &#34;&#34;&#34;
         self._current_z += thickness
     
+    def _add_boundary(self):
+        points = [[0.0, self.z0],
+                  [self.rmax+self.margin_right, self.z0],
+                  [self.rmax+self.margin_right, self._current_z+self.margin],
+                  [0.0, self._current_z+self.margin]]
+        
+        self._add_lines_from_points(points, &#39;boundary&#39;)
+        self._current_z += self.margin
+     
+    def _add_lines_from_points(self, points, name):
+        if self.symmetry == Symmetry.THREE_D:
+            points = [self.add_point([p[0], 0.0, p[1]]) for p in points]
+        else:
+            points = [self.add_point(p) for p in points]
+        
+        Np = len(points)
+        lines = [self.add_line(points[i], points[j]) for i, j in zip(range(0,Np-1), range(1,Np))]
+         
+        if self.symmetry == Symmetry.THREE_D:
+            revolved = revolve_around_optical_axis(self, lines, self.revolve_factor)
+            self.add_physical(revolved, name)
+        else:
+            self.add_physical(lines, name)
+
     def add_electrode(self, radius, thickness, name):
         &#34;&#34;&#34;
 
@@ -342,57 +503,15 @@ class MEMSStack(Geometry):
         name : str
             Name to assign to the electode. Needed to later specify the correct excitation.
         &#34;&#34;&#34;
-        x0 = [radius, self._current_z]
-          
-        points = [x0, [x0[0], x0[1]+thickness], [self.rmax, x0[1]+thickness], [self.rmax, x0[1]]]
-        
-        if self._3d:
-            points = [self.add_point([p[0], 0.0, p[1]]) for p in points]
-        else:
-            points = [self.add_point(p) for p in points]
-        
-        lines = [self.add_line(points[i], points[j]) for i, j in zip([0, 1, 2, 3], [1, 2, 3, 0])]
-        cl = self.add_curve_loop(lines)
-        
-        if self._3d:
-            revolved = revolve_around_optical_axis(self, lines, self.revolve_factor)
-            self.add_physical(revolved, name)
-        else:
-            self.add_physical(lines, name)
-        
-        self._last_name = name
-         
+        cz = self._current_z
+        points = [[self.rmax, cz], [radius, cz], [radius, cz+thickness], [self.rmax, cz+thickness]]
+        self._add_lines_from_points(points, name)
         self._current_z += thickness
-        
-        return cl
-    
+
     def generate_mesh(self, *args, **kwargs):
-        &#34;&#34;&#34;
-        Generate the mesh, determining the mesh dimension (line elements or triangles) from the
-        supplied `revolve_factor`. The arguments are passed directly to `pygmsh.geo.Geometry.generate_mesh`.
+        self._add_boundary()
+        return super().generate_mesh(*args, **kwargs)
         
-        Returns
-        -------
-        `Mesh`
-
-        &#34;&#34;&#34;
-        # Enclose on right
-        
-        if self.enclose_right:
-            points = [[self.rmax, self.z0], [self.rmax + self.margin_right, self.z0], [self.rmax + self.margin_right, self._current_z], [self.rmax, self._current_z]]
-            
-            if self._3d:
-                points = [[p[0], 0.0, p[1]] for p in points]
-                lines = [self.add_line(self.add_point(p1), self.add_point(p2)) for p1, p2 in zip(points[1:], points)]
-                revolved = revolve_around_optical_axis(self, lines, self.revolve_factor)
-                self.add_physical(revolved, self._last_name)
-            else:
-                lines = [self.add_line(self.add_point(p1), self.add_point(p2)) for p1, p2 in zip(points[1:], points)]
-                self.add_physical(lines, self._last_name)
-        
-        return super().generate_mesh(*args, **kwargs)        
-
-    
         </code></pre>
 </details>
 </section>
@@ -569,9 +688,9 @@ This prevents singularities.</dd>
         if dim == 1:
             gmsh.option.setNumber(&#39;Mesh.ElementOrder&#39;, 3)
         else:
-            gmsh.option.setNumber(&#39;Mesh.ElementOrder&#39;, 1)
+            gmsh.option.setNumber(&#39;Mesh.ElementOrder&#39;, 2)
         
-        return Mesh(super().generate_mesh(dim=dim, *args, **kwargs), self.symmetry)
+        return Mesh.from_meshio(super().generate_mesh(dim=dim, *args, **kwargs), self.symmetry)
 
     def set_mesh_size_factor(self, factor):
         &#34;&#34;&#34;
@@ -584,7 +703,7 @@ This prevents singularities.</dd>
         
         &#34;&#34;&#34;
         if self.symmetry == Symmetry.RADIAL:
-            gmsh.option.setNumber(&#39;Mesh.MeshSizeFactor&#39;, 1/factor * N_QUAD_2D)
+            gmsh.option.setNumber(&#39;Mesh.MeshSizeFactor&#39;, 1/factor)
         elif self.symmetry == Symmetry.THREE_D:
             # GMSH seems to produce meshes which contain way more elements for 3D geometries
             # with the same mesh factor. This is confusing for users and therefore we arbtrarily
@@ -698,9 +817,9 @@ supplied symmetry. The arguments are passed directly to <code>pygmsh.geo.Geometr
     if dim == 1:
         gmsh.option.setNumber(&#39;Mesh.ElementOrder&#39;, 3)
     else:
-        gmsh.option.setNumber(&#39;Mesh.ElementOrder&#39;, 1)
+        gmsh.option.setNumber(&#39;Mesh.ElementOrder&#39;, 2)
     
-    return Mesh(super().generate_mesh(dim=dim, *args, **kwargs), self.symmetry)</code></pre>
+    return Mesh.from_meshio(super().generate_mesh(dim=dim, *args, **kwargs), self.symmetry)</code></pre>
 </details>
 </dd>
 <dt id="traceon.geometry.Geometry.set_mesh_size_factor"><code class="name flex">
@@ -728,7 +847,7 @@ supplied symmetry. The arguments are passed directly to <code>pygmsh.geo.Geometr
     
     &#34;&#34;&#34;
     if self.symmetry == Symmetry.RADIAL:
-        gmsh.option.setNumber(&#39;Mesh.MeshSizeFactor&#39;, 1/factor * N_QUAD_2D)
+        gmsh.option.setNumber(&#39;Mesh.MeshSizeFactor&#39;, 1/factor)
     elif self.symmetry == Symmetry.THREE_D:
         # GMSH seems to produce meshes which contain way more elements for 3D geometries
         # with the same mesh factor. This is confusing for users and therefore we arbtrarily
@@ -769,7 +888,7 @@ the optical axis and cause singularities when used with <code>size_from_distance
 </dd>
 <dt id="traceon.geometry.MEMSStack"><code class="flex name class">
 <span>class <span class="ident">MEMSStack</span></span>
-<span>(</span><span>*args, z0=0.0, revolve_factor=0.0, rmax=2, enclose_right=True, margin_right=0.1, **kwargs)</span>
+<span>(</span><span>*args, z0=0.0, revolve_factor=0.0, rmax=2, margin=0.5, margin_right=0.1, **kwargs)</span>
 </code></dt>
 <dd>
 <div class="desc"><p>Geometry consisting of a stack of MEMS fabricated elements. This geometry is modelled using a stack
@@ -784,13 +903,10 @@ lenses and mirrors.</p>
 2D geometry is returned. For <code>0 &lt; revolve_factor &lt;= 1.0</code> see the documentation of <code><a title="traceon.geometry.revolve_around_optical_axis" href="#traceon.geometry.revolve_around_optical_axis">revolve_around_optical_axis()</a></code>.</dd>
 <dt><strong><code>rmax</code></strong> :&ensp;<code>float</code></dt>
 <dd>The rectangular MEMS objects extend to <span><span class="MathJax_Preview"> r = r_{max} </span><script type="math/tex"> r = r_{max} </script></span>.</dd>
-<dt><strong><code>enclose_right</code></strong> :&ensp;<code>bool</code></dt>
-<dd>When creating a MEMS component it is important to have well specified boundary conditions above and
-beneath the element. This is usually achieved by having grounded electrodes at the top and bottom of the stack.
-To finish the grounded enclosure a grounded elements should connect these electrodes vertically at the right
-side of the stack.</dd>
+<dt><strong><code>margin</code></strong> :&ensp;<code>float</code></dt>
+<dd>The distance between the electrodes and the top and bottom boundary.</dd>
 <dt><strong><code>margin_right</code></strong> :&ensp;<code>float</code></dt>
-<dd>Distance between the grounded enclosure on the right and the MEMS electrodes.</dd>
+<dd>Distance between the boundary on the right and the MEMS electrodes.</dd>
 </dl></div>
 <details class="source">
 <summary>
@@ -810,29 +926,26 @@ side of the stack.</dd>
         2D geometry is returned. For `0 &lt; revolve_factor &lt;= 1.0` see the documentation of `revolve_around_optical_axis`.
     rmax: float
         The rectangular MEMS objects extend to \( r = r_{max} \).
-    enclose_right: bool
-        When creating a MEMS component it is important to have well specified boundary conditions above and
-        beneath the element. This is usually achieved by having grounded electrodes at the top and bottom of the stack.
-        To finish the grounded enclosure a grounded elements should connect these electrodes vertically at the right
-        side of the stack. 
+    margin: float
+        The distance between the electrodes and the top and bottom boundary.
     margin_right: float
-        Distance between the grounded enclosure on the right and the MEMS electrodes.
+        Distance between the boundary on the right and the MEMS electrodes.
     &#34;&#34;&#34;
     
-    def __init__(self, *args, z0=0.0, revolve_factor=0.0, rmax=2, enclose_right=True, margin_right=0.1, **kwargs):
+    def __init__(self, *args, z0=0.0, revolve_factor=0.0, rmax=2, margin=0.5, margin_right=0.1, **kwargs):
         self.symmetry = Symmetry.RADIAL if revolve_factor == 0.0 else Symmetry.THREE_D
         super().__init__(self.symmetry, *args, **kwargs)
         
         self.z0 = z0
         self.revolve_factor = revolve_factor
-        self._3d = self.revolve_factor != 0.0
         self.rmax = rmax
-        self.margin_right = margin_right
-        self.enclose_right = enclose_right
         
-        self._current_z = z0
+        self.margin = margin
+        self.margin_right = margin_right
+         
+        self._current_z = z0 + margin
         self._last_name = None
-     
+    
     def add_spacer(self, thickness):
         &#34;&#34;&#34;
 
@@ -844,6 +957,30 @@ side of the stack.</dd>
         &#34;&#34;&#34;
         self._current_z += thickness
     
+    def _add_boundary(self):
+        points = [[0.0, self.z0],
+                  [self.rmax+self.margin_right, self.z0],
+                  [self.rmax+self.margin_right, self._current_z+self.margin],
+                  [0.0, self._current_z+self.margin]]
+        
+        self._add_lines_from_points(points, &#39;boundary&#39;)
+        self._current_z += self.margin
+     
+    def _add_lines_from_points(self, points, name):
+        if self.symmetry == Symmetry.THREE_D:
+            points = [self.add_point([p[0], 0.0, p[1]]) for p in points]
+        else:
+            points = [self.add_point(p) for p in points]
+        
+        Np = len(points)
+        lines = [self.add_line(points[i], points[j]) for i, j in zip(range(0,Np-1), range(1,Np))]
+         
+        if self.symmetry == Symmetry.THREE_D:
+            revolved = revolve_around_optical_axis(self, lines, self.revolve_factor)
+            self.add_physical(revolved, name)
+        else:
+            self.add_physical(lines, name)
+
     def add_electrode(self, radius, thickness, name):
         &#34;&#34;&#34;
 
@@ -858,55 +995,14 @@ side of the stack.</dd>
         name : str
             Name to assign to the electode. Needed to later specify the correct excitation.
         &#34;&#34;&#34;
-        x0 = [radius, self._current_z]
-          
-        points = [x0, [x0[0], x0[1]+thickness], [self.rmax, x0[1]+thickness], [self.rmax, x0[1]]]
-        
-        if self._3d:
-            points = [self.add_point([p[0], 0.0, p[1]]) for p in points]
-        else:
-            points = [self.add_point(p) for p in points]
-        
-        lines = [self.add_line(points[i], points[j]) for i, j in zip([0, 1, 2, 3], [1, 2, 3, 0])]
-        cl = self.add_curve_loop(lines)
-        
-        if self._3d:
-            revolved = revolve_around_optical_axis(self, lines, self.revolve_factor)
-            self.add_physical(revolved, name)
-        else:
-            self.add_physical(lines, name)
-        
-        self._last_name = name
-         
+        cz = self._current_z
+        points = [[self.rmax, cz], [radius, cz], [radius, cz+thickness], [self.rmax, cz+thickness]]
+        self._add_lines_from_points(points, name)
         self._current_z += thickness
-        
-        return cl
-    
-    def generate_mesh(self, *args, **kwargs):
-        &#34;&#34;&#34;
-        Generate the mesh, determining the mesh dimension (line elements or triangles) from the
-        supplied `revolve_factor`. The arguments are passed directly to `pygmsh.geo.Geometry.generate_mesh`.
-        
-        Returns
-        -------
-        `Mesh`
 
-        &#34;&#34;&#34;
-        # Enclose on right
-        
-        if self.enclose_right:
-            points = [[self.rmax, self.z0], [self.rmax + self.margin_right, self.z0], [self.rmax + self.margin_right, self._current_z], [self.rmax, self._current_z]]
-            
-            if self._3d:
-                points = [[p[0], 0.0, p[1]] for p in points]
-                lines = [self.add_line(self.add_point(p1), self.add_point(p2)) for p1, p2 in zip(points[1:], points)]
-                revolved = revolve_around_optical_axis(self, lines, self.revolve_factor)
-                self.add_physical(revolved, self._last_name)
-            else:
-                lines = [self.add_line(self.add_point(p1), self.add_point(p2)) for p1, p2 in zip(points[1:], points)]
-                self.add_physical(lines, self._last_name)
-        
-        return super().generate_mesh(*args, **kwargs)        </code></pre>
+    def generate_mesh(self, *args, **kwargs):
+        self._add_boundary()
+        return super().generate_mesh(*args, **kwargs)</code></pre>
 </details>
 <h3>Ancestors</h3>
 <ul class="hlist">
@@ -947,29 +1043,10 @@ side of the stack.</dd>
     name : str
         Name to assign to the electode. Needed to later specify the correct excitation.
     &#34;&#34;&#34;
-    x0 = [radius, self._current_z]
-      
-    points = [x0, [x0[0], x0[1]+thickness], [self.rmax, x0[1]+thickness], [self.rmax, x0[1]]]
-    
-    if self._3d:
-        points = [self.add_point([p[0], 0.0, p[1]]) for p in points]
-    else:
-        points = [self.add_point(p) for p in points]
-    
-    lines = [self.add_line(points[i], points[j]) for i, j in zip([0, 1, 2, 3], [1, 2, 3, 0])]
-    cl = self.add_curve_loop(lines)
-    
-    if self._3d:
-        revolved = revolve_around_optical_axis(self, lines, self.revolve_factor)
-        self.add_physical(revolved, name)
-    else:
-        self.add_physical(lines, name)
-    
-    self._last_name = name
-     
-    self._current_z += thickness
-    
-    return cl</code></pre>
+    cz = self._current_z
+    points = [[self.rmax, cz], [radius, cz], [radius, cz+thickness], [self.rmax, cz+thickness]]
+    self._add_lines_from_points(points, name)
+    self._current_z += thickness</code></pre>
 </details>
 </dd>
 <dt id="traceon.geometry.MEMSStack.add_spacer"><code class="name flex">
@@ -997,51 +1074,13 @@ side of the stack.</dd>
     self._current_z += thickness</code></pre>
 </details>
 </dd>
-<dt id="traceon.geometry.MEMSStack.generate_mesh"><code class="name flex">
-<span>def <span class="ident">generate_mesh</span></span>(<span>self, *args, **kwargs)</span>
-</code></dt>
-<dd>
-<div class="desc"><p>Generate the mesh, determining the mesh dimension (line elements or triangles) from the
-supplied <code>revolve_factor</code>. The arguments are passed directly to <code>pygmsh.geo.Geometry.generate_mesh</code>.</p>
-<h2 id="returns">Returns</h2>
-<p><code><a title="traceon.geometry.Mesh" href="#traceon.geometry.Mesh">Mesh</a></code></p></div>
-<details class="source">
-<summary>
-<span>Expand source code</span>
-</summary>
-<pre><code class="python">def generate_mesh(self, *args, **kwargs):
-    &#34;&#34;&#34;
-    Generate the mesh, determining the mesh dimension (line elements or triangles) from the
-    supplied `revolve_factor`. The arguments are passed directly to `pygmsh.geo.Geometry.generate_mesh`.
-    
-    Returns
-    -------
-    `Mesh`
-
-    &#34;&#34;&#34;
-    # Enclose on right
-    
-    if self.enclose_right:
-        points = [[self.rmax, self.z0], [self.rmax + self.margin_right, self.z0], [self.rmax + self.margin_right, self._current_z], [self.rmax, self._current_z]]
-        
-        if self._3d:
-            points = [[p[0], 0.0, p[1]] for p in points]
-            lines = [self.add_line(self.add_point(p1), self.add_point(p2)) for p1, p2 in zip(points[1:], points)]
-            revolved = revolve_around_optical_axis(self, lines, self.revolve_factor)
-            self.add_physical(revolved, self._last_name)
-        else:
-            lines = [self.add_line(self.add_point(p1), self.add_point(p2)) for p1, p2 in zip(points[1:], points)]
-            self.add_physical(lines, self._last_name)
-    
-    return super().generate_mesh(*args, **kwargs)        </code></pre>
-</details>
-</dd>
 </dl>
 <h3>Inherited members</h3>
 <ul class="hlist">
 <li><code><b><a title="traceon.geometry.Geometry" href="#traceon.geometry.Geometry">Geometry</a></b></code>:
 <ul class="hlist">
 <li><code><a title="traceon.geometry.Geometry.add_physical" href="#traceon.geometry.Geometry.add_physical">add_physical</a></code></li>
+<li><code><a title="traceon.geometry.Geometry.generate_mesh" href="#traceon.geometry.Geometry.generate_mesh">generate_mesh</a></code></li>
 <li><code><a title="traceon.geometry.Geometry.set_mesh_size_factor" href="#traceon.geometry.Geometry.set_mesh_size_factor">set_mesh_size_factor</a></code></li>
 <li><code><a title="traceon.geometry.Geometry.set_minimum_mesh_size" href="#traceon.geometry.Geometry.set_minimum_mesh_size">set_minimum_mesh_size</a></code></li>
 </ul>
@@ -1050,7 +1089,7 @@ supplied <code>revolve_factor</code>. The arguments are passed directly to <code
 </dd>
 <dt id="traceon.geometry.Mesh"><code class="flex name class">
 <span>class <span class="ident">Mesh</span></span>
-<span>(</span><span>mesh, symmetry, metadata={})</span>
+<span>(</span><span>points, elements, physical_to_elements, symmetry, metadata={})</span>
 </code></dt>
 <dd>
 <div class="desc"><p>Class containing a mesh and related metadata.</p></div>
@@ -1061,11 +1100,33 @@ supplied <code>revolve_factor</code>. The arguments are passed directly to <code
 <pre><code class="python">class Mesh(Saveable):
     &#34;&#34;&#34;Class containing a mesh and related metadata.&#34;&#34;&#34;
     
-    def __init__(self, mesh, symmetry, metadata={}):
+    def __init__(self, points, elements, physical_to_elements, symmetry, metadata={}):
         assert isinstance(symmetry, Symmetry)
-        self.mesh = mesh
-        self.metadata = metadata
+        self.points = points
+        self.elements = elements
+        self.physical_to_elements = physical_to_elements
         self.symmetry = symmetry
+        self.metadata = metadata
+            
+    def from_meshio(mesh, symmetry, metadata={}):
+        &#34;&#34;&#34;Generate a Traceon Mesh from a [meshio](https://github.com/nschloe/meshio) mesh.
+        
+        Parameters
+        ----------
+        symmetry: Symmetry
+            Specifies a radially symmetric geometry (RADIAL) or a general 3D geometry (THREE_D).
+        
+        Returns
+        ---------
+        Mesh
+        &#34;&#34;&#34;
+        type_ = &#39;line4&#39; if symmetry != Symmetry.THREE_D else &#39;triangle6&#39;
+        
+        points = mesh.points
+        elements = mesh.cells_dict[type_]
+        physical_to_elements = {k:v[type_] for k, v in mesh.cell_sets_dict.items() if type_ in v}
+        
+        return Mesh(points, elements, physical_to_elements, symmetry, metadata)
      
     def get_electrodes(self):
         &#34;&#34;&#34;Get the names of all the electrodes in the geometry.
@@ -1075,30 +1136,146 @@ supplied <code>revolve_factor</code>. The arguments are passed directly to <code
         List of electrode names
 
         &#34;&#34;&#34;
-        return list(self.mesh.cell_sets_dict.keys())
+        return list(self.physical_to_elements.keys())
     
-    def __str__(self):
-        physicals = self.mesh.cell_sets_dict.keys()
-        physical_names = &#39;, &#39;.join(physicals)
-        type_ = &#39;line4&#39; if self.symmetry != Symmetry.THREE_D else &#39;triangle&#39;
-        physical_nums = &#39;, &#39;.join([str(len(self.mesh.cell_sets_dict[n][type_])) for n in physicals])
+    def _invert_physical_dict(self):
+        lookup = np.full(len(self.elements), None)
+
+        for k, v in self.physical_to_elements.items():
+            lookup[v] = k
         
-        cells_type = [&#39;point&#39;] + [str(c.type) for c in self.mesh.cells]
-        cells_count = [len(self.mesh.points)] + [len(c) for c in self.mesh.cells]
+        return lookup
+     
+    def _split_indices_radial(self, indices):
+        assert self.symmetry == Symmetry.RADIAL
+         
+        elements = copy.deepcopy(self.elements)
+        N_elements = len(elements)
+         
+        N = len(self.points)
+        lines_to_add = []
+        physicals = []
+        points_to_add = []
+         
+        physical_lookup = self._invert_physical_dict()
+        to_pos = lambda alpha, line: [*position_and_jacobian_radial(alpha, line[0], line[2], line[3], line[1])[1], 0.0]
+        
+        for idx in indices:
+            pi = elements[idx]
+            line = self.points[pi]
+             
+            points_to_add.append(to_pos(-2/3, line))
+            points_to_add.append(to_pos(0.0, line))
+            points_to_add.append(to_pos(2/3, line))
+            l = len(points_to_add)
+            lines_to_add.append( (N+l-2, pi[1].item(), pi[3].item(), N+l-1) )
+            elements[idx] = (pi[0], N+l-2, N+l-3, pi[2])
+            physicals.append(physical_lookup[idx])
+        
+        # Now actually alter the mesh
+        new_points = np.concatenate( (self.points, points_to_add), axis=0)
+        new_elements = np.concatenate( (elements, np.array(lines_to_add, dtype=np.uint64)), axis=0)
+        new_dict = copy.copy(self.physical_to_elements)
+        
+        for name in [p for p in np.unique(physicals) if p is not None]:   
+            old_indices = new_dict[name]
+            (added_indices,) = (np.array(physicals) == name).nonzero()
+            new_dict[name] = np.concatenate( (old_indices.astype(np.int64), N_elements + added_indices) )
+         
+        new_mesh = Mesh(new_points, new_elements, new_dict, self.symmetry, self.metadata)
+        return new_mesh
+         
+    def _split_indices_3d(self, indices):
+        assert self.symmetry == Symmetry.THREE_D
+         
+        elements = copy.deepcopy(self.elements)
+        N_elements = len(elements)
+         
+        N = len(self.points)
+        triangles_to_add = []
+        physicals = []
+        points_to_add = []
+         
+        physical_lookup = self._invert_physical_dict()
+        to_pos = lambda alpha, beta, triangle: position_and_jacobian_3d(alpha, beta, triangle)[1]
+        
+        for idx in indices:
+            pi = elements[idx]
+            triangle = self.points[pi]
+             
+            points_to_add.append(to_pos(1/3, 1/3, triangle)) # Middle
+            points_to_add.append(to_pos(1/6, 1/6, triangle)) # s0
+            points_to_add.append(to_pos(4/6, 1/6, triangle)) # s1
+            points_to_add.append(to_pos(1/6, 4/6, triangle)) # s2
+            l = len(points_to_add)
+            # Same ordering as in C backend function &#39;fill_self_voltages_3d&#39;
+            t, s0, s1, s2 = N+l-4, N+l-3, N+l-2, N+l-1
+            triangles_to_add.append( (t, pi[1], pi[2], s1, pi[4], s2) )
+            triangles_to_add.append( (t, pi[2], pi[0], s2, pi[5], s0) )
+            elements[idx] = (t, pi[0], pi[1], s0, pi[3], s1)
+            
+            physicals.append(physical_lookup[idx])
+            physicals.append(physical_lookup[idx])
+        
+        # Now actually alter the mesh
+        new_points = np.concatenate( (self.points, points_to_add), axis=0)
+        new_elements = np.concatenate( (elements, np.array(triangles_to_add, dtype=np.uint64)), axis=0)
+        new_dict = copy.copy(self.physical_to_elements)
+        
+        for name in [p for p in np.unique(physicals) if p is not None]:   
+            old_indices = new_dict[name]
+            (added_indices,) = (np.array(physicals) == name).nonzero()
+            new_dict[name] = np.concatenate( (old_indices.astype(np.int64), N_elements + added_indices) )
+         
+        new_mesh = Mesh(new_points, new_elements, new_dict, self.symmetry, self.metadata)
+        return new_mesh
+     
+    def split_indices(self, indices):
+        if self.symmetry == Symmetry.RADIAL:
+            return self._split_indices_radial(indices)
+        else:
+            return self._split_indices_3d(indices)
+
+    def split_elements_based_on_charges(self, excitation, field, max_splits, mesh_factor):
+        active = excitation.get_active_element_mask()
+        assert np.sum(active) == len(field.vertices), &#34;Excitation did not produce the given field&#34;
+
+        map_index = active.nonzero()[0]
+        
+        charges = np.array([field.charge_on_element(i) for i in map_index])
+        charges = np.abs( np.array([field.charge_on_element(i) for i in range(len(field.vertices))]) )
+         
+        # In max_splits iterations, increase the number of elements in the
+        # mesh by mesh_factor. The split_facotr then gives us the amount
+        # of elements we need to split in every iteration.
+        split_factor = mesh_factor**(1/max_splits) - 1
+        
+        if self.symmetry == Symmetry.THREE_D:
+            split_factor /= 2 # For triangles, a splitting gives two extra elements, instead of one
+        
+        new_mesh = self
+              
+        for _ in range(max_splits):
+            to_split = np.argsort(charges)[-round(split_factor*len(charges)):]
+            print(&#39;Splitting &#39;, len(to_split), &#39; elements&#39;)
+            charges[to_split] /= 2 if self.symmetry == Symmetry.RADIAL else 3
+            charges = np.concatenate( (charges, np.repeat(charges[to_split], 2)), axis=0 )
+            new_mesh = new_mesh.split_indices(to_split)
+        
+        return new_mesh
+     
+    def __str__(self):
+        physicals = self.physical_to_elements.keys()
+        physical_names = &#39;, &#39;.join(physicals)
+        physical_nums = &#39;, &#39;.join([str(len(self.physical_to_elements[n])) for n in physicals])
         
         return f&#39;&lt;Traceon Mesh {self.symmetry},\n&#39; \
             f&#39;\tPhysical groups: {physical_names}\n&#39; \
             f&#39;\tElements in physical groups: {physical_nums}\n&#39; \
-            f&#39;\tNumber of.. \n\t    &#39; \
-            + &#39;\n\t    &#39;.join([f&#39;{t}: \t{c}&#39; for t, c in zip(cells_type, cells_count)]) \
-            + &#39;&gt;&#39;
+            f&#39;\tNumber of points: {len(self.points)}&gt;&#39;
 
     def write_gmsh(self, filename):
-        self.mesh.write(filename)
-
-
-        #return f&#39;&lt;Traceon Mesh with {len(self.mesh.points)} points, &#39;, &#39;.join(self.mesh.cell_sets_dict.keys()))
-        #return str(self.mesh) + &#39; (metadata: &#39; + str(self.metadata) + &#39;)&#39;</code></pre>
+        self.mesh.write(filename)</code></pre>
 </details>
 <h3>Ancestors</h3>
 <ul class="hlist">
@@ -1106,6 +1283,46 @@ supplied <code>revolve_factor</code>. The arguments are passed directly to <code
 </ul>
 <h3>Methods</h3>
 <dl>
+<dt id="traceon.geometry.Mesh.from_meshio"><code class="name flex">
+<span>def <span class="ident">from_meshio</span></span>(<span>mesh, symmetry, metadata={})</span>
+</code></dt>
+<dd>
+<div class="desc"><p>Generate a Traceon Mesh from a <a href="https://github.com/nschloe/meshio">meshio</a> mesh.</p>
+<h2 id="parameters">Parameters</h2>
+<dl>
+<dt><strong><code>symmetry</code></strong> :&ensp;<code><a title="traceon.geometry.Symmetry" href="#traceon.geometry.Symmetry">Symmetry</a></code></dt>
+<dd>Specifies a radially symmetric geometry (RADIAL) or a general 3D geometry (THREE_D).</dd>
+</dl>
+<h2 id="returns">Returns</h2>
+<dl>
+<dt><code><a title="traceon.geometry.Mesh" href="#traceon.geometry.Mesh">Mesh</a></code></dt>
+<dd>&nbsp;</dd>
+</dl></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def from_meshio(mesh, symmetry, metadata={}):
+    &#34;&#34;&#34;Generate a Traceon Mesh from a [meshio](https://github.com/nschloe/meshio) mesh.
+    
+    Parameters
+    ----------
+    symmetry: Symmetry
+        Specifies a radially symmetric geometry (RADIAL) or a general 3D geometry (THREE_D).
+    
+    Returns
+    ---------
+    Mesh
+    &#34;&#34;&#34;
+    type_ = &#39;line4&#39; if symmetry != Symmetry.THREE_D else &#39;triangle6&#39;
+    
+    points = mesh.points
+    elements = mesh.cells_dict[type_]
+    physical_to_elements = {k:v[type_] for k, v in mesh.cell_sets_dict.items() if type_ in v}
+    
+    return Mesh(points, elements, physical_to_elements, symmetry, metadata)</code></pre>
+</details>
+</dd>
 <dt id="traceon.geometry.Mesh.get_electrodes"><code class="name flex">
 <span>def <span class="ident">get_electrodes</span></span>(<span>self)</span>
 </code></dt>
@@ -1128,7 +1345,61 @@ supplied <code>revolve_factor</code>. The arguments are passed directly to <code
     List of electrode names
 
     &#34;&#34;&#34;
-    return list(self.mesh.cell_sets_dict.keys())</code></pre>
+    return list(self.physical_to_elements.keys())</code></pre>
+</details>
+</dd>
+<dt id="traceon.geometry.Mesh.split_elements_based_on_charges"><code class="name flex">
+<span>def <span class="ident">split_elements_based_on_charges</span></span>(<span>self, excitation, field, max_splits, mesh_factor)</span>
+</code></dt>
+<dd>
+<div class="desc"></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def split_elements_based_on_charges(self, excitation, field, max_splits, mesh_factor):
+    active = excitation.get_active_element_mask()
+    assert np.sum(active) == len(field.vertices), &#34;Excitation did not produce the given field&#34;
+
+    map_index = active.nonzero()[0]
+    
+    charges = np.array([field.charge_on_element(i) for i in map_index])
+    charges = np.abs( np.array([field.charge_on_element(i) for i in range(len(field.vertices))]) )
+     
+    # In max_splits iterations, increase the number of elements in the
+    # mesh by mesh_factor. The split_facotr then gives us the amount
+    # of elements we need to split in every iteration.
+    split_factor = mesh_factor**(1/max_splits) - 1
+    
+    if self.symmetry == Symmetry.THREE_D:
+        split_factor /= 2 # For triangles, a splitting gives two extra elements, instead of one
+    
+    new_mesh = self
+          
+    for _ in range(max_splits):
+        to_split = np.argsort(charges)[-round(split_factor*len(charges)):]
+        print(&#39;Splitting &#39;, len(to_split), &#39; elements&#39;)
+        charges[to_split] /= 2 if self.symmetry == Symmetry.RADIAL else 3
+        charges = np.concatenate( (charges, np.repeat(charges[to_split], 2)), axis=0 )
+        new_mesh = new_mesh.split_indices(to_split)
+    
+    return new_mesh</code></pre>
+</details>
+</dd>
+<dt id="traceon.geometry.Mesh.split_indices"><code class="name flex">
+<span>def <span class="ident">split_indices</span></span>(<span>self, indices)</span>
+</code></dt>
+<dd>
+<div class="desc"></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def split_indices(self, indices):
+    if self.symmetry == Symmetry.RADIAL:
+        return self._split_indices_radial(indices)
+    else:
+        return self._split_indices_3d(indices)</code></pre>
 </details>
 </dd>
 <dt id="traceon.geometry.Mesh.write_gmsh"><code class="name flex">
@@ -1141,11 +1412,7 @@ supplied <code>revolve_factor</code>. The arguments are passed directly to <code
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">def write_gmsh(self, filename):
-    self.mesh.write(filename)
-
-
-    #return f&#39;&lt;Traceon Mesh with {len(self.mesh.points)} points, &#39;, &#39;.join(self.mesh.cell_sets_dict.keys()))
-    #return str(self.mesh) + &#39; (metadata: &#39; + str(self.metadata) + &#39;)&#39;</code></pre>
+    self.mesh.write(filename)</code></pre>
 </details>
 </dd>
 </dl>
@@ -1226,13 +1493,15 @@ supported symmetries are radial symmetry (also called cylindrical symmetry) and 
 <ul class="">
 <li><code><a title="traceon.geometry.MEMSStack.add_electrode" href="#traceon.geometry.MEMSStack.add_electrode">add_electrode</a></code></li>
 <li><code><a title="traceon.geometry.MEMSStack.add_spacer" href="#traceon.geometry.MEMSStack.add_spacer">add_spacer</a></code></li>
-<li><code><a title="traceon.geometry.MEMSStack.generate_mesh" href="#traceon.geometry.MEMSStack.generate_mesh">generate_mesh</a></code></li>
 </ul>
 </li>
 <li>
 <h4><code><a title="traceon.geometry.Mesh" href="#traceon.geometry.Mesh">Mesh</a></code></h4>
 <ul class="">
+<li><code><a title="traceon.geometry.Mesh.from_meshio" href="#traceon.geometry.Mesh.from_meshio">from_meshio</a></code></li>
 <li><code><a title="traceon.geometry.Mesh.get_electrodes" href="#traceon.geometry.Mesh.get_electrodes">get_electrodes</a></code></li>
+<li><code><a title="traceon.geometry.Mesh.split_elements_based_on_charges" href="#traceon.geometry.Mesh.split_elements_based_on_charges">split_elements_based_on_charges</a></code></li>
+<li><code><a title="traceon.geometry.Mesh.split_indices" href="#traceon.geometry.Mesh.split_indices">split_indices</a></code></li>
 <li><code><a title="traceon.geometry.Mesh.write_gmsh" href="#traceon.geometry.Mesh.write_gmsh">write_gmsh</a></code></li>
 </ul>
 </li>

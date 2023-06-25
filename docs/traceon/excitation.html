@@ -127,6 +127,20 @@ class Excitation:
             assert name in self.electrodes
             self.excitation_types[name] = (ExcitationType.DIELECTRIC, permittivity)
 
+    def add_boundary(self, *args):
+        &#34;&#34;&#34;
+        Specify geometry elements as boundary elements. At the boundary we require E·n = 0 at every point on the boundary. This
+        is equivalent to stating that the directional derivative of the potential through the boundary is zero. Placing boundaries between
+        the spaces of electrodes usually helps convergence tremendously. Note that a boundary is equivalent to a dielectric with a dielectric
+        constant of zero. This is how a boundary is actually implemented internally.
+        
+        Parameters
+        ----------
+        *args: list of str
+            The geometry names that should be considered a boundary.
+        &#34;&#34;&#34;
+        self.add_dielectric(**{a:0 for a in args})
+
     def add_floating_conductor(self, **kwargs):
         &#34;&#34;&#34;
         Specify geometric elements as floating conductors, and specify the total charge on the conductor.
@@ -143,13 +157,6 @@ class Excitation:
             assert name in self.electrodes
             self.excitation_types[name] = (ExcitationType.FLOATING_CONDUCTOR, charge)
      
-    def _get_element_type(self):
-        if self.mesh.symmetry == Symmetry.THREE_D:
-            return &#39;triangle&#39;
-        else:
-            return &#39;line4&#39;
-    
-        
     def _split_for_superposition(self):
         
         # Names that have a fixed voltage excitation, not equal to 0.0
@@ -180,6 +187,15 @@ class Excitation:
         assert len(non_zero_fixed) == len(excitations)
         return {n:e for (n,e) in zip(non_zero_fixed, excitations)}
 
+    def get_active_element_mask(self):
+        inactive = np.full(len(self.mesh.elements), True)
+        names = {}
+         
+        for name in self.excitation_types.keys():
+            inactive[ self.mesh.physical_to_elements[name] ] = False
+        
+        return ~inactive
+     
     def get_active_elements(self):
         &#34;&#34;&#34;Get elements in the mesh that are active, in the sense that
         an excitation to them has been applied. 
@@ -193,21 +209,12 @@ class Excitation:
         names is a dictionary, the keys being the names of the physical groups mentioned by this excitation, \
         while the values are Numpy arrays of indices that can be used to index the points array.
         &#34;&#34;&#34;
-        type_ = self._get_element_type()
-        mesh = self.mesh.mesh
-        vertices = mesh.cells_dict[type_] # Indices making up the lines and triangles
-        inactive = np.full(len(vertices), True)
-        names = {}
-        
-        for name in self.excitation_types.keys():
-            inactive[ mesh.cell_sets_dict[name][type_] ] = False
-        
+        vertices = self.mesh.elements
+        inactive = ~self.get_active_element_mask() 
         map_index = np.arange(len(vertices)) - np.cumsum(inactive)
-        
-        for name in self.excitation_types.keys():
-            names[name] = map_index[mesh.cell_sets_dict[name][type_]]
-              
-        return mesh.points[ vertices[~inactive] ], names
+        names = {n:map_index[i] for n, i in self.mesh.physical_to_elements.items() if n in self.excitation_types}
+         
+        return self.mesh.points[ vertices[~inactive] ], names
     
     def get_number_of_active_elements(self):
         &#34;&#34;&#34;Get elements in the mesh that are active, in the sense that
@@ -217,13 +224,18 @@ class Excitation:
         Returns
         --------
         int, giving the number of elements. &#34;&#34;&#34;
-        type_ = self._get_element_type()
-        mesh = self.mesh.mesh
-        
-        return sum(len(mesh.cell_sets_dict[n][type_]) for n in self.excitation_types.keys())
+        return sum(len(self.mesh.physical_to_elements[n]) for n in self.excitation_types.keys())
 
     def get_number_of_matrix_elements(self):
-        
+        &#34;&#34;&#34;Gets the number of elements along one axis of the matrix. If this function returns N, the
+        matrix will have size NxN. The matrix consists of 64bit float values. Therefore the size of the matrix
+        in bytes is 8·NxN.
+
+        Returns
+        ---------
+        integer number
+        &#34;&#34;&#34;
+         
         Nfloating = len([name for name, (type_, _) in self.excitation_types.items() if type_ == ExcitationType.FLOATING_CONDUCTOR])
         Nelem = self.get_number_of_active_elements()
          
@@ -306,6 +318,20 @@ class Excitation:
             assert name in self.electrodes
             self.excitation_types[name] = (ExcitationType.DIELECTRIC, permittivity)
 
+    def add_boundary(self, *args):
+        &#34;&#34;&#34;
+        Specify geometry elements as boundary elements. At the boundary we require E·n = 0 at every point on the boundary. This
+        is equivalent to stating that the directional derivative of the potential through the boundary is zero. Placing boundaries between
+        the spaces of electrodes usually helps convergence tremendously. Note that a boundary is equivalent to a dielectric with a dielectric
+        constant of zero. This is how a boundary is actually implemented internally.
+        
+        Parameters
+        ----------
+        *args: list of str
+            The geometry names that should be considered a boundary.
+        &#34;&#34;&#34;
+        self.add_dielectric(**{a:0 for a in args})
+
     def add_floating_conductor(self, **kwargs):
         &#34;&#34;&#34;
         Specify geometric elements as floating conductors, and specify the total charge on the conductor.
@@ -322,13 +348,6 @@ class Excitation:
             assert name in self.electrodes
             self.excitation_types[name] = (ExcitationType.FLOATING_CONDUCTOR, charge)
      
-    def _get_element_type(self):
-        if self.mesh.symmetry == Symmetry.THREE_D:
-            return &#39;triangle&#39;
-        else:
-            return &#39;line4&#39;
-    
-        
     def _split_for_superposition(self):
         
         # Names that have a fixed voltage excitation, not equal to 0.0
@@ -359,6 +378,15 @@ class Excitation:
         assert len(non_zero_fixed) == len(excitations)
         return {n:e for (n,e) in zip(non_zero_fixed, excitations)}
 
+    def get_active_element_mask(self):
+        inactive = np.full(len(self.mesh.elements), True)
+        names = {}
+         
+        for name in self.excitation_types.keys():
+            inactive[ self.mesh.physical_to_elements[name] ] = False
+        
+        return ~inactive
+     
     def get_active_elements(self):
         &#34;&#34;&#34;Get elements in the mesh that are active, in the sense that
         an excitation to them has been applied. 
@@ -372,21 +400,12 @@ class Excitation:
         names is a dictionary, the keys being the names of the physical groups mentioned by this excitation, \
         while the values are Numpy arrays of indices that can be used to index the points array.
         &#34;&#34;&#34;
-        type_ = self._get_element_type()
-        mesh = self.mesh.mesh
-        vertices = mesh.cells_dict[type_] # Indices making up the lines and triangles
-        inactive = np.full(len(vertices), True)
-        names = {}
-        
-        for name in self.excitation_types.keys():
-            inactive[ mesh.cell_sets_dict[name][type_] ] = False
-        
+        vertices = self.mesh.elements
+        inactive = ~self.get_active_element_mask() 
         map_index = np.arange(len(vertices)) - np.cumsum(inactive)
-        
-        for name in self.excitation_types.keys():
-            names[name] = map_index[mesh.cell_sets_dict[name][type_]]
-              
-        return mesh.points[ vertices[~inactive] ], names
+        names = {n:map_index[i] for n, i in self.mesh.physical_to_elements.items() if n in self.excitation_types}
+         
+        return self.mesh.points[ vertices[~inactive] ], names
     
     def get_number_of_active_elements(self):
         &#34;&#34;&#34;Get elements in the mesh that are active, in the sense that
@@ -396,13 +415,18 @@ class Excitation:
         Returns
         --------
         int, giving the number of elements. &#34;&#34;&#34;
-        type_ = self._get_element_type()
-        mesh = self.mesh.mesh
-        
-        return sum(len(mesh.cell_sets_dict[n][type_]) for n in self.excitation_types.keys())
+        return sum(len(self.mesh.physical_to_elements[n]) for n in self.excitation_types.keys())
 
     def get_number_of_matrix_elements(self):
-        
+        &#34;&#34;&#34;Gets the number of elements along one axis of the matrix. If this function returns N, the
+        matrix will have size NxN. The matrix consists of 64bit float values. Therefore the size of the matrix
+        in bytes is 8·NxN.
+
+        Returns
+        ---------
+        integer number
+        &#34;&#34;&#34;
+         
         Nfloating = len([name for name, (type_, _) in self.excitation_types.items() if type_ == ExcitationType.FLOATING_CONDUCTOR])
         Nelem = self.get_number_of_active_elements()
          
@@ -413,6 +437,38 @@ class Excitation:
 </details>
 <h3>Methods</h3>
 <dl>
+<dt id="traceon.excitation.Excitation.add_boundary"><code class="name flex">
+<span>def <span class="ident">add_boundary</span></span>(<span>self, *args)</span>
+</code></dt>
+<dd>
+<div class="desc"><p>Specify geometry elements as boundary elements. At the boundary we require E·n = 0 at every point on the boundary. This
+is equivalent to stating that the directional derivative of the potential through the boundary is zero. Placing boundaries between
+the spaces of electrodes usually helps convergence tremendously. Note that a boundary is equivalent to a dielectric with a dielectric
+constant of zero. This is how a boundary is actually implemented internally.</p>
+<h2 id="parameters">Parameters</h2>
+<dl>
+<dt><strong><code>*args</code></strong> :&ensp;<code>list</code> of <code>str</code></dt>
+<dd>The geometry names that should be considered a boundary.</dd>
+</dl></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def add_boundary(self, *args):
+    &#34;&#34;&#34;
+    Specify geometry elements as boundary elements. At the boundary we require E·n = 0 at every point on the boundary. This
+    is equivalent to stating that the directional derivative of the potential through the boundary is zero. Placing boundaries between
+    the spaces of electrodes usually helps convergence tremendously. Note that a boundary is equivalent to a dielectric with a dielectric
+    constant of zero. This is how a boundary is actually implemented internally.
+    
+    Parameters
+    ----------
+    *args: list of str
+        The geometry names that should be considered a boundary.
+    &#34;&#34;&#34;
+    self.add_dielectric(**{a:0 for a in args})</code></pre>
+</details>
+</dd>
 <dt id="traceon.excitation.Excitation.add_dielectric"><code class="name flex">
 <span>def <span class="ident">add_dielectric</span></span>(<span>self, **kwargs)</span>
 </code></dt>
@@ -517,6 +573,25 @@ Note that in 2D symmetries (such as radial symmetry) the z value for this functi
             raise NotImplementedError(&#39;Unrecognized voltage value&#39;)</code></pre>
 </details>
 </dd>
+<dt id="traceon.excitation.Excitation.get_active_element_mask"><code class="name flex">
+<span>def <span class="ident">get_active_element_mask</span></span>(<span>self)</span>
+</code></dt>
+<dd>
+<div class="desc"></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def get_active_element_mask(self):
+    inactive = np.full(len(self.mesh.elements), True)
+    names = {}
+     
+    for name in self.excitation_types.keys():
+        inactive[ self.mesh.physical_to_elements[name] ] = False
+    
+    return ~inactive</code></pre>
+</details>
+</dd>
 <dt id="traceon.excitation.Excitation.get_active_elements"><code class="name flex">
 <span>def <span class="ident">get_active_elements</span></span>(<span>self)</span>
 </code></dt>
@@ -547,21 +622,12 @@ while the values are Numpy arrays of indices that can be used to index the point
     names is a dictionary, the keys being the names of the physical groups mentioned by this excitation, \
     while the values are Numpy arrays of indices that can be used to index the points array.
     &#34;&#34;&#34;
-    type_ = self._get_element_type()
-    mesh = self.mesh.mesh
-    vertices = mesh.cells_dict[type_] # Indices making up the lines and triangles
-    inactive = np.full(len(vertices), True)
-    names = {}
-    
-    for name in self.excitation_types.keys():
-        inactive[ mesh.cell_sets_dict[name][type_] ] = False
-    
+    vertices = self.mesh.elements
+    inactive = ~self.get_active_element_mask() 
     map_index = np.arange(len(vertices)) - np.cumsum(inactive)
-    
-    for name in self.excitation_types.keys():
-        names[name] = map_index[mesh.cell_sets_dict[name][type_]]
-          
-    return mesh.points[ vertices[~inactive] ], names</code></pre>
+    names = {n:map_index[i] for n, i in self.mesh.physical_to_elements.items() if n in self.excitation_types}
+     
+    return self.mesh.points[ vertices[~inactive] ], names</code></pre>
 </details>
 </dd>
 <dt id="traceon.excitation.Excitation.get_number_of_active_elements"><code class="name flex">
@@ -585,23 +651,35 @@ array returned by the <code><a title="traceon.excitation.Excitation.get_active_e
     Returns
     --------
     int, giving the number of elements. &#34;&#34;&#34;
-    type_ = self._get_element_type()
-    mesh = self.mesh.mesh
-    
-    return sum(len(mesh.cell_sets_dict[n][type_]) for n in self.excitation_types.keys())</code></pre>
+    return sum(len(self.mesh.physical_to_elements[n]) for n in self.excitation_types.keys())</code></pre>
 </details>
 </dd>
 <dt id="traceon.excitation.Excitation.get_number_of_matrix_elements"><code class="name flex">
 <span>def <span class="ident">get_number_of_matrix_elements</span></span>(<span>self)</span>
 </code></dt>
 <dd>
-<div class="desc"></div>
+<div class="desc"><p>Gets the number of elements along one axis of the matrix. If this function returns N, the
+matrix will have size NxN. The matrix consists of 64bit float values. Therefore the size of the matrix
+in bytes is 8·NxN.</p>
+<h2 id="returns">Returns</h2>
+<dl>
+<dt><code>integer number</code></dt>
+<dd>&nbsp;</dd>
+</dl></div>
 <details class="source">
 <summary>
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">def get_number_of_matrix_elements(self):
-    
+    &#34;&#34;&#34;Gets the number of elements along one axis of the matrix. If this function returns N, the
+    matrix will have size NxN. The matrix consists of 64bit float values. Therefore the size of the matrix
+    in bytes is 8·NxN.
+
+    Returns
+    ---------
+    integer number
+    &#34;&#34;&#34;
+     
     Nfloating = len([name for name, (type_, _) in self.excitation_types.items() if type_ == ExcitationType.FLOATING_CONDUCTOR])
     Nelem = self.get_number_of_active_elements()
      
@@ -685,9 +763,11 @@ array returned by the <code><a title="traceon.excitation.Excitation.get_active_e
 <li>
 <h4><code><a title="traceon.excitation.Excitation" href="#traceon.excitation.Excitation">Excitation</a></code></h4>
 <ul class="">
+<li><code><a title="traceon.excitation.Excitation.add_boundary" href="#traceon.excitation.Excitation.add_boundary">add_boundary</a></code></li>
 <li><code><a title="traceon.excitation.Excitation.add_dielectric" href="#traceon.excitation.Excitation.add_dielectric">add_dielectric</a></code></li>
 <li><code><a title="traceon.excitation.Excitation.add_floating_conductor" href="#traceon.excitation.Excitation.add_floating_conductor">add_floating_conductor</a></code></li>
 <li><code><a title="traceon.excitation.Excitation.add_voltage" href="#traceon.excitation.Excitation.add_voltage">add_voltage</a></code></li>
+<li><code><a title="traceon.excitation.Excitation.get_active_element_mask" href="#traceon.excitation.Excitation.get_active_element_mask">get_active_element_mask</a></code></li>
 <li><code><a title="traceon.excitation.Excitation.get_active_elements" href="#traceon.excitation.Excitation.get_active_elements">get_active_elements</a></code></li>
 <li><code><a title="traceon.excitation.Excitation.get_number_of_active_elements" href="#traceon.excitation.Excitation.get_number_of_active_elements">get_number_of_active_elements</a></code></li>
 <li><code><a title="traceon.excitation.Excitation.get_number_of_matrix_elements" href="#traceon.excitation.Excitation.get_number_of_matrix_elements">get_number_of_matrix_elements</a></code></li>

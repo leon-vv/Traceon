@@ -78,7 +78,7 @@ def velocity_vec(eV, direction):
     &#34;&#34;&#34;
     assert eV &gt; 0.0
     
-    if eV &gt; 10000:
+    if eV &gt; 40000:
         print(f&#39;WARNING: velocity vector with large energy ({eV} eV) requested. Note that relativistic tracing is not yet implemented.&#39;)
      
     # From electronvolt to mm/ns
@@ -184,14 +184,62 @@ class Tracer:
         &#34;&#34;&#34;
 
         if isinstance(self.field, S.FieldRadialBEM):
-            return backend.trace_particle_radial(position, velocity, self.bounds, self.atol, self.field.vertices, self.field.charges)
+            return backend.trace_particle_radial(position, velocity, self.bounds, self.atol, self.field.charges, self.field.jac_buffer, self.field.pos_buffer, self.field.field_bounds)
         elif isinstance(self.field, S.FieldRadialAxial):
             return backend.trace_particle_radial_derivs(position, velocity, self.bounds, self.atol, self.field.z, self.field.coeffs)
         elif isinstance(self.field, S.Field3D_BEM):
-            return backend.trace_particle_3d(position, velocity, self.bounds, self.atol, self.field.vertices, self.field.charges)
+            return backend.trace_particle_3d(position, velocity, self.bounds, self.atol, self.field.charges, self.field.jac_buffer, self.field.pos_buffer, self.field.field_bounds)
         elif isinstance(self.field, S.Field3DAxial):
             return backend.trace_particle_3d_derivs(position, velocity, self.bounds, self.atol, self.field.z, self.field.coeffs)
  
+
+def plane_intersection(positions, p0, normal):
+    &#34;&#34;&#34;Compute the intersection of a trajectory with a general plane in 3D. The plane is specified
+    by a point (p0) in the plane and a normal vector (normal) to the plane. The intersection
+    point is calculated using a linear interpolation.
+    
+    Parameters
+    ----------
+    positions: (N, 6) np.ndarray of float64
+        Positions of an electron as returned by `Tracer`.
+    
+    p0: (3,) np.ndarray of float64
+        A point that lies in the plane.
+
+    normal: (3,) np.ndarray of float64
+        A vector that is normal to the plane. A point p lies in the plane iff `dot(normal, p - p0) = 0` where
+        dot is the dot product.
+    
+    Returns
+    --------
+    np.ndarray of shape (6,) containing the position and velocity of the electron at the intersection point.
+    &#34;&#34;&#34;
+
+    return backend.plane_intersection(positions, p0, normal)
+
+def line_intersection(positions, p0, tangent):
+    &#34;&#34;&#34;Compute the intersection of a trajectory with a line in 2D. The line is specified
+    by a point (p0) on the line and a vector tangential (tangent) to the line. The intersection
+    point is calculated using a linear interpolation.
+    
+    Parameters
+    ----------
+    positions: (N, 4) np.ndarray of float64
+        Positions of an electron as returned by `Tracer`.
+    
+    p0: (2,) np.ndarray of float64
+        A point that lies on the line.
+    
+    tangent: (2,) np.ndarray of float64
+        A vector that is tangential to the line. A point p lies on the line if there exists a number k
+        such that `p0 + k*tangent = p`.
+    
+    Returns
+    --------
+    np.ndarray of shape (4,) containing the position and velocity of the electron at the intersection point.
+    &#34;&#34;&#34;
+
+    return backend.line_intersection(positions, p0, tangent)
 
 def xy_plane_intersection(positions, z):
     &#34;&#34;&#34;Compute the intersection of a trajectory with an xy-plane.
@@ -207,34 +255,73 @@ def xy_plane_intersection(positions, z):
     --------
     np.ndarray of shape (4,) or (6,) containing the position and velocity of the electron at the intersection point.
     &#34;&#34;&#34;
-    return backend.xy_plane_intersection(positions, z)
+    assert positions.shape == (len(positions), 4) or positions.shape == (len(positions), 6)
+    
+    if positions.shape[1] == 4:
+        return line_intersection(positions, np.array([0., z]), np.array([1.0, 0.0]))
+    else:
+        return plane_intersection(positions, np.array([0.,0.,z]), np.array([0., 0., 1.0]))
 
-def axis_intersection(positions):
-    &#34;&#34;&#34;Calculate the intersection with the optical axis using a linear interpolation. Currently only makes
-    sense in radial symmetry, since in a 3D geometry the electron will never pass exactly through the optical axis.
+def xz_plane_intersection(positions, y):
+    &#34;&#34;&#34;Compute the intersection of a trajectory with an xz-plane. Note that this function
+    does not make sense in 2D (where we consider (r,z) as (x,z) and therefore the y-axis is missing).
 
     Parameters
     ----------
-    positions: (N, 4) np.ndarray of float64
-        positions of an electron as returned by `Tracer`.
+    positions: (N, 6) np.ndarray of float64
+        Positions of an electron as returned by `Tracer`.
+    y: float
+        y-coordinate of the plane with which to compute the intersection
+    
+    Returns
+    --------
+    np.ndarray of shape (6,) containing the position and velocity of the electron at the intersection point.
+    &#34;&#34;&#34;
+    return plane_intersection(positions, np.array([0.,y,0.]), np.array([0., 1.0, 0.]))
 
+def yz_plane_intersection(positions, x):
+    &#34;&#34;&#34;Compute the intersection of a trajectory with an yz-plane.
+
+    Parameters
+    ----------
+    positions: (N, 4) or (N, 6) np.ndarray of float64
+        Positions of an electron as returned by `Tracer`.
+    x: float
+        x-coordinate of the plane with which to compute the intersection
+    
+    Returns
+    --------
+    np.ndarray of shape (4,) or (6,) containing the position and velocity of the electron at the intersection point.
+    &#34;&#34;&#34;
+    assert positions.shape == (len(positions), 4) or positions.shape == (len(positions), 6)
+     
+    if positions.shape[1] == 4:
+        return line_intersection(positions, np.array([x, 0.]), np.array([0.0, 1.0]))
+    else:
+        return plane_intersection(positions, np.array([x,0.,0.]), np.array([1.0, 0., 0.]))
+
+
+def axis_intersection(positions):
+    &#34;&#34;&#34;Calculate the intersection with the optical axis using a linear interpolation. Notice that
+    this only makes sense in 2D as in 3D the particle will never pass exactly through the optical axis.
+    However, this function is implemented as `yz_plane_intersection(positions, 0.0)` and will therefore
+    give meaningful results in 3D if you expect the particle trajectory to be in the xz plane. This function
+    only returns the z-coordinate. Use `yz_plane_intersection` directly if you want to retrieve the velocity 
+    components.
+    
+    Parameters
+    ----------
+    positions: (N, 4) or (N, 6) np.ndarray of float64
+        positions of an electron as returned by `Tracer`.
+    
     Returns
     ----------
-    np.ndarray of shape (4,) containing the r coordinate, z coordinate, velocity in r direction,
-    velocity in z direction at the intersection point. Returns None if the trajectory does not intersect the plane.
+    float z-coordinate of intersection point
     &#34;&#34;&#34;
- 
-    if positions[-1, 0] &lt;= 0:
-        indices = np.where(positions[:, 0] &lt; 0)[0]
-    else: 
-        indices = np.where(positions[:, 0] &gt; 0)[0]
-     
-    if not len(indices):
-        return None
-     
-    idx = indices[0]
-    ratio = np.abs(positions[idx-1, 0]) / np.abs(positions[idx, 0] - positions[idx-1,0])
-    return positions[idx-1, 1] + ratio*(positions[idx, 1] - positions[idx-1, 1])</code></pre>
+    assert positions.shape == (len(positions), 4) or positions.shape == (len(positions), 6)
+    
+    z_index = 1 if positions.shape[1] == 4 else 2
+    return yz_plane_intersection(positions, 0.)[z_index]</code></pre>
 </details>
 </section>
 <section>
@@ -248,49 +335,143 @@ def axis_intersection(positions):
 <span>def <span class="ident">axis_intersection</span></span>(<span>positions)</span>
 </code></dt>
 <dd>
-<div class="desc"><p>Calculate the intersection with the optical axis using a linear interpolation. Currently only makes
-sense in radial symmetry, since in a 3D geometry the electron will never pass exactly through the optical axis.</p>
+<div class="desc"><p>Calculate the intersection with the optical axis using a linear interpolation. Notice that
+this only makes sense in 2D as in 3D the particle will never pass exactly through the optical axis.
+However, this function is implemented as <code><a title="traceon.tracing.yz_plane_intersection" href="#traceon.tracing.yz_plane_intersection">yz_plane_intersection()</a>(positions, 0.0)</code> and will therefore
+give meaningful results in 3D if you expect the particle trajectory to be in the xz plane. This function
+only returns the z-coordinate. Use <code><a title="traceon.tracing.yz_plane_intersection" href="#traceon.tracing.yz_plane_intersection">yz_plane_intersection()</a></code> directly if you want to retrieve the velocity
+components.</p>
 <h2 id="parameters">Parameters</h2>
 <dl>
-<dt><strong><code>positions</code></strong> :&ensp;<code>(N, 4) np.ndarray</code> of <code>float64</code></dt>
+<dt><strong><code>positions</code></strong> :&ensp;<code>(N, 4)</code> or <code>(N, 6) np.ndarray</code> of <code>float64</code></dt>
 <dd>positions of an electron as returned by <code><a title="traceon.tracing.Tracer" href="#traceon.tracing.Tracer">Tracer</a></code>.</dd>
 </dl>
 <h2 id="returns">Returns</h2>
 <dl>
-<dt><code>np.ndarray</code> of <code>shape (4,) containing the r coordinate, z coordinate, velocity in r direction,</code></dt>
+<dt><code>float z-coordinate</code> of <code>intersection point</code></dt>
 <dd>&nbsp;</dd>
-</dl>
-<p>velocity in z direction at the intersection point. Returns None if the trajectory does not intersect the plane.</p></div>
+</dl></div>
 <details class="source">
 <summary>
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">def axis_intersection(positions):
-    &#34;&#34;&#34;Calculate the intersection with the optical axis using a linear interpolation. Currently only makes
-    sense in radial symmetry, since in a 3D geometry the electron will never pass exactly through the optical axis.
-
+    &#34;&#34;&#34;Calculate the intersection with the optical axis using a linear interpolation. Notice that
+    this only makes sense in 2D as in 3D the particle will never pass exactly through the optical axis.
+    However, this function is implemented as `yz_plane_intersection(positions, 0.0)` and will therefore
+    give meaningful results in 3D if you expect the particle trajectory to be in the xz plane. This function
+    only returns the z-coordinate. Use `yz_plane_intersection` directly if you want to retrieve the velocity 
+    components.
+    
+    Parameters
+    ----------
+    positions: (N, 4) or (N, 6) np.ndarray of float64
+        positions of an electron as returned by `Tracer`.
+    
+    Returns
+    ----------
+    float z-coordinate of intersection point
+    &#34;&#34;&#34;
+    assert positions.shape == (len(positions), 4) or positions.shape == (len(positions), 6)
+    
+    z_index = 1 if positions.shape[1] == 4 else 2
+    return yz_plane_intersection(positions, 0.)[z_index]</code></pre>
+</details>
+</dd>
+<dt id="traceon.tracing.line_intersection"><code class="name flex">
+<span>def <span class="ident">line_intersection</span></span>(<span>positions, p0, tangent)</span>
+</code></dt>
+<dd>
+<div class="desc"><p>Compute the intersection of a trajectory with a line in 2D. The line is specified
+by a point (p0) on the line and a vector tangential (tangent) to the line. The intersection
+point is calculated using a linear interpolation.</p>
+<h2 id="parameters">Parameters</h2>
+<dl>
+<dt><strong><code>positions</code></strong> :&ensp;<code>(N, 4) np.ndarray</code> of <code>float64</code></dt>
+<dd>Positions of an electron as returned by <code><a title="traceon.tracing.Tracer" href="#traceon.tracing.Tracer">Tracer</a></code>.</dd>
+<dt><strong><code>p0</code></strong> :&ensp;<code>(2,) np.ndarray</code> of <code>float64</code></dt>
+<dd>A point that lies on the line.</dd>
+<dt><strong><code>tangent</code></strong> :&ensp;<code>(2,) np.ndarray</code> of <code>float64</code></dt>
+<dd>A vector that is tangential to the line. A point p lies on the line if there exists a number k
+such that <code>p0 + k*tangent = p</code>.</dd>
+</dl>
+<h2 id="returns">Returns</h2>
+<p>np.ndarray of shape (4,) containing the position and velocity of the electron at the intersection point.</p></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def line_intersection(positions, p0, tangent):
+    &#34;&#34;&#34;Compute the intersection of a trajectory with a line in 2D. The line is specified
+    by a point (p0) on the line and a vector tangential (tangent) to the line. The intersection
+    point is calculated using a linear interpolation.
+    
     Parameters
     ----------
     positions: (N, 4) np.ndarray of float64
-        positions of an electron as returned by `Tracer`.
-
+        Positions of an electron as returned by `Tracer`.
+    
+    p0: (2,) np.ndarray of float64
+        A point that lies on the line.
+    
+    tangent: (2,) np.ndarray of float64
+        A vector that is tangential to the line. A point p lies on the line if there exists a number k
+        such that `p0 + k*tangent = p`.
+    
     Returns
-    ----------
-    np.ndarray of shape (4,) containing the r coordinate, z coordinate, velocity in r direction,
-    velocity in z direction at the intersection point. Returns None if the trajectory does not intersect the plane.
+    --------
+    np.ndarray of shape (4,) containing the position and velocity of the electron at the intersection point.
     &#34;&#34;&#34;
- 
-    if positions[-1, 0] &lt;= 0:
-        indices = np.where(positions[:, 0] &lt; 0)[0]
-    else: 
-        indices = np.where(positions[:, 0] &gt; 0)[0]
-     
-    if not len(indices):
-        return None
-     
-    idx = indices[0]
-    ratio = np.abs(positions[idx-1, 0]) / np.abs(positions[idx, 0] - positions[idx-1,0])
-    return positions[idx-1, 1] + ratio*(positions[idx, 1] - positions[idx-1, 1])</code></pre>
+
+    return backend.line_intersection(positions, p0, tangent)</code></pre>
+</details>
+</dd>
+<dt id="traceon.tracing.plane_intersection"><code class="name flex">
+<span>def <span class="ident">plane_intersection</span></span>(<span>positions, p0, normal)</span>
+</code></dt>
+<dd>
+<div class="desc"><p>Compute the intersection of a trajectory with a general plane in 3D. The plane is specified
+by a point (p0) in the plane and a normal vector (normal) to the plane. The intersection
+point is calculated using a linear interpolation.</p>
+<h2 id="parameters">Parameters</h2>
+<dl>
+<dt><strong><code>positions</code></strong> :&ensp;<code>(N, 6) np.ndarray</code> of <code>float64</code></dt>
+<dd>Positions of an electron as returned by <code><a title="traceon.tracing.Tracer" href="#traceon.tracing.Tracer">Tracer</a></code>.</dd>
+<dt><strong><code>p0</code></strong> :&ensp;<code>(3,) np.ndarray</code> of <code>float64</code></dt>
+<dd>A point that lies in the plane.</dd>
+<dt><strong><code>normal</code></strong> :&ensp;<code>(3,) np.ndarray</code> of <code>float64</code></dt>
+<dd>A vector that is normal to the plane. A point p lies in the plane iff <code>dot(normal, p - p0) = 0</code> where
+dot is the dot product.</dd>
+</dl>
+<h2 id="returns">Returns</h2>
+<p>np.ndarray of shape (6,) containing the position and velocity of the electron at the intersection point.</p></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def plane_intersection(positions, p0, normal):
+    &#34;&#34;&#34;Compute the intersection of a trajectory with a general plane in 3D. The plane is specified
+    by a point (p0) in the plane and a normal vector (normal) to the plane. The intersection
+    point is calculated using a linear interpolation.
+    
+    Parameters
+    ----------
+    positions: (N, 6) np.ndarray of float64
+        Positions of an electron as returned by `Tracer`.
+    
+    p0: (3,) np.ndarray of float64
+        A point that lies in the plane.
+
+    normal: (3,) np.ndarray of float64
+        A vector that is normal to the plane. A point p lies in the plane iff `dot(normal, p - p0) = 0` where
+        dot is the dot product.
+    
+    Returns
+    --------
+    np.ndarray of shape (6,) containing the position and velocity of the electron at the intersection point.
+    &#34;&#34;&#34;
+
+    return backend.plane_intersection(positions, p0, normal)</code></pre>
 </details>
 </dd>
 <dt id="traceon.tracing.velocity_vec"><code class="name flex">
@@ -331,7 +512,7 @@ The shape of the resulting vector is the same as the shape of <code>direction</c
     &#34;&#34;&#34;
     assert eV &gt; 0.0
     
-    if eV &gt; 10000:
+    if eV &gt; 40000:
         print(f&#39;WARNING: velocity vector with large energy ({eV} eV) requested. Note that relativistic tracing is not yet implemented.&#39;)
      
     # From electronvolt to mm/ns
@@ -455,7 +636,89 @@ The shape of the resulting vector is the same as the shape of <code>direction</c
     --------
     np.ndarray of shape (4,) or (6,) containing the position and velocity of the electron at the intersection point.
     &#34;&#34;&#34;
-    return backend.xy_plane_intersection(positions, z)</code></pre>
+    assert positions.shape == (len(positions), 4) or positions.shape == (len(positions), 6)
+    
+    if positions.shape[1] == 4:
+        return line_intersection(positions, np.array([0., z]), np.array([1.0, 0.0]))
+    else:
+        return plane_intersection(positions, np.array([0.,0.,z]), np.array([0., 0., 1.0]))</code></pre>
+</details>
+</dd>
+<dt id="traceon.tracing.xz_plane_intersection"><code class="name flex">
+<span>def <span class="ident">xz_plane_intersection</span></span>(<span>positions, y)</span>
+</code></dt>
+<dd>
+<div class="desc"><p>Compute the intersection of a trajectory with an xz-plane. Note that this function
+does not make sense in 2D (where we consider (r,z) as (x,z) and therefore the y-axis is missing).</p>
+<h2 id="parameters">Parameters</h2>
+<dl>
+<dt><strong><code>positions</code></strong> :&ensp;<code>(N, 6) np.ndarray</code> of <code>float64</code></dt>
+<dd>Positions of an electron as returned by <code><a title="traceon.tracing.Tracer" href="#traceon.tracing.Tracer">Tracer</a></code>.</dd>
+<dt><strong><code>y</code></strong> :&ensp;<code>float</code></dt>
+<dd>y-coordinate of the plane with which to compute the intersection</dd>
+</dl>
+<h2 id="returns">Returns</h2>
+<p>np.ndarray of shape (6,) containing the position and velocity of the electron at the intersection point.</p></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def xz_plane_intersection(positions, y):
+    &#34;&#34;&#34;Compute the intersection of a trajectory with an xz-plane. Note that this function
+    does not make sense in 2D (where we consider (r,z) as (x,z) and therefore the y-axis is missing).
+
+    Parameters
+    ----------
+    positions: (N, 6) np.ndarray of float64
+        Positions of an electron as returned by `Tracer`.
+    y: float
+        y-coordinate of the plane with which to compute the intersection
+    
+    Returns
+    --------
+    np.ndarray of shape (6,) containing the position and velocity of the electron at the intersection point.
+    &#34;&#34;&#34;
+    return plane_intersection(positions, np.array([0.,y,0.]), np.array([0., 1.0, 0.]))</code></pre>
+</details>
+</dd>
+<dt id="traceon.tracing.yz_plane_intersection"><code class="name flex">
+<span>def <span class="ident">yz_plane_intersection</span></span>(<span>positions, x)</span>
+</code></dt>
+<dd>
+<div class="desc"><p>Compute the intersection of a trajectory with an yz-plane.</p>
+<h2 id="parameters">Parameters</h2>
+<dl>
+<dt><strong><code>positions</code></strong> :&ensp;<code>(N, 4)</code> or <code>(N, 6) np.ndarray</code> of <code>float64</code></dt>
+<dd>Positions of an electron as returned by <code><a title="traceon.tracing.Tracer" href="#traceon.tracing.Tracer">Tracer</a></code>.</dd>
+<dt><strong><code>x</code></strong> :&ensp;<code>float</code></dt>
+<dd>x-coordinate of the plane with which to compute the intersection</dd>
+</dl>
+<h2 id="returns">Returns</h2>
+<p>np.ndarray of shape (4,) or (6,) containing the position and velocity of the electron at the intersection point.</p></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def yz_plane_intersection(positions, x):
+    &#34;&#34;&#34;Compute the intersection of a trajectory with an yz-plane.
+
+    Parameters
+    ----------
+    positions: (N, 4) or (N, 6) np.ndarray of float64
+        Positions of an electron as returned by `Tracer`.
+    x: float
+        x-coordinate of the plane with which to compute the intersection
+    
+    Returns
+    --------
+    np.ndarray of shape (4,) or (6,) containing the position and velocity of the electron at the intersection point.
+    &#34;&#34;&#34;
+    assert positions.shape == (len(positions), 4) or positions.shape == (len(positions), 6)
+     
+    if positions.shape[1] == 4:
+        return line_intersection(positions, np.array([x, 0.]), np.array([0.0, 1.0]))
+    else:
+        return plane_intersection(positions, np.array([x,0.,0.]), np.array([1.0, 0., 0.]))</code></pre>
 </details>
 </dd>
 </dl>
@@ -535,11 +798,11 @@ The shape of the resulting vector is the same as the shape of <code>direction</c
         &#34;&#34;&#34;
 
         if isinstance(self.field, S.FieldRadialBEM):
-            return backend.trace_particle_radial(position, velocity, self.bounds, self.atol, self.field.vertices, self.field.charges)
+            return backend.trace_particle_radial(position, velocity, self.bounds, self.atol, self.field.charges, self.field.jac_buffer, self.field.pos_buffer, self.field.field_bounds)
         elif isinstance(self.field, S.FieldRadialAxial):
             return backend.trace_particle_radial_derivs(position, velocity, self.bounds, self.atol, self.field.z, self.field.coeffs)
         elif isinstance(self.field, S.Field3D_BEM):
-            return backend.trace_particle_3d(position, velocity, self.bounds, self.atol, self.field.vertices, self.field.charges)
+            return backend.trace_particle_3d(position, velocity, self.bounds, self.atol, self.field.charges, self.field.jac_buffer, self.field.pos_buffer, self.field.field_bounds)
         elif isinstance(self.field, S.Field3DAxial):
             return backend.trace_particle_3d_derivs(position, velocity, self.bounds, self.atol, self.field.z, self.field.coeffs)</code></pre>
 </details>
@@ -589,11 +852,11 @@ velocity vector.</p></div>
     &#34;&#34;&#34;
 
     if isinstance(self.field, S.FieldRadialBEM):
-        return backend.trace_particle_radial(position, velocity, self.bounds, self.atol, self.field.vertices, self.field.charges)
+        return backend.trace_particle_radial(position, velocity, self.bounds, self.atol, self.field.charges, self.field.jac_buffer, self.field.pos_buffer, self.field.field_bounds)
     elif isinstance(self.field, S.FieldRadialAxial):
         return backend.trace_particle_radial_derivs(position, velocity, self.bounds, self.atol, self.field.z, self.field.coeffs)
     elif isinstance(self.field, S.Field3D_BEM):
-        return backend.trace_particle_3d(position, velocity, self.bounds, self.atol, self.field.vertices, self.field.charges)
+        return backend.trace_particle_3d(position, velocity, self.bounds, self.atol, self.field.charges, self.field.jac_buffer, self.field.pos_buffer, self.field.field_bounds)
     elif isinstance(self.field, S.Field3DAxial):
         return backend.trace_particle_3d_derivs(position, velocity, self.bounds, self.atol, self.field.z, self.field.coeffs)</code></pre>
 </details>
@@ -619,10 +882,14 @@ velocity vector.</p></div>
 <li><h3><a href="#header-functions">Functions</a></h3>
 <ul class="">
 <li><code><a title="traceon.tracing.axis_intersection" href="#traceon.tracing.axis_intersection">axis_intersection</a></code></li>
+<li><code><a title="traceon.tracing.line_intersection" href="#traceon.tracing.line_intersection">line_intersection</a></code></li>
+<li><code><a title="traceon.tracing.plane_intersection" href="#traceon.tracing.plane_intersection">plane_intersection</a></code></li>
 <li><code><a title="traceon.tracing.velocity_vec" href="#traceon.tracing.velocity_vec">velocity_vec</a></code></li>
 <li><code><a title="traceon.tracing.velocity_vec_spherical" href="#traceon.tracing.velocity_vec_spherical">velocity_vec_spherical</a></code></li>
 <li><code><a title="traceon.tracing.velocity_vec_xz_plane" href="#traceon.tracing.velocity_vec_xz_plane">velocity_vec_xz_plane</a></code></li>
 <li><code><a title="traceon.tracing.xy_plane_intersection" href="#traceon.tracing.xy_plane_intersection">xy_plane_intersection</a></code></li>
+<li><code><a title="traceon.tracing.xz_plane_intersection" href="#traceon.tracing.xz_plane_intersection">xz_plane_intersection</a></code></li>
+<li><code><a title="traceon.tracing.yz_plane_intersection" href="#traceon.tracing.yz_plane_intersection">yz_plane_intersection</a></code></li>
 </ul>
 </li>
 <li><h3><a href="#header-classes">Classes</a></h3>

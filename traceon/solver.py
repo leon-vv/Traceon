@@ -318,6 +318,17 @@ class FieldBEM(Field):
         return self.__mul__(other)
     
     def area_of_elements(self, indices):
+        """Compute the total area of the elements at the given indices.
+        
+        Parameters
+        ------------
+        indices: int iterable
+            Indices giving which elements to include in the area calculation.
+
+        Returns
+        ---------------
+        The sum of the area of all elements with the given indices.
+        """
         return sum(self.area_on_element(i) for i in indices) 
     
     def charge_on_element(self, i):

@@ -132,12 +132,6 @@ thetas_interpolation_coefficients = np.load(coefficients_file)
 
 assert thetas_interpolation_coefficients.shape == (thetas.size-1, backend.NU_MAX, backend.M_MAX, 4)
 
-def _get_N_quad(exc):
-    if exc.mesh.symmetry == G.Symmetry.RADIAL:
-        return backend.N_QUAD_2D
-    elif exc.mesh.symmetry == G.Symmetry.THREE_D:
-        return 1
-
 def _get_floating_conductor_names(exc):
     return [n for n, (t, v) in exc.excitation_types.items() if t == E.ExcitationType.FLOATING_CONDUCTOR]
 
@@ -146,28 +140,21 @@ def _excitation_to_right_hand_side(excitation, vertices, names):
      
     N_floating = len(floating_names)
     N_lines = len(vertices)
-    N_quad = _get_N_quad(excitation)
-    N_matrix = N_quad*N_lines + N_floating # Every floating conductor adds one constraint
+    N_matrix = N_lines + N_floating # Every floating conductor adds one constraint
 
     F = np.zeros( (N_matrix) )
      
     for name, indices in names.items():
         type_, value  = excitation.excitation_types[name]
-
-        all_indices = np.concatenate( [N_quad*indices + i for i in range(N_quad)] )
-         
+        
         if type_ == E.ExcitationType.VOLTAGE_FIXED:
-            F[all_indices] = value
+            F[indices] = value
         elif type_ == E.ExcitationType.VOLTAGE_FUN:
-            for i in indices:
-                points = vertices[i]
-                middle = np.average(points, axis=0)
-                for q in range(N_quad):
-                    # TODO: use higher order BEM?
-                    F[N_quad*i + q] = value(*middle)
+            positions = [backend.position_and_jacobian_radial(0.5, vertices[i, 0], vertices[i, 2], vertices[i, 3], vertices[i, 1])[1] for i in indices]
+            F[indices] = [value(*p) for p in positions]
         elif type_ == E.ExcitationType.DIELECTRIC or \
                 type_ == E.ExcitationType.FLOATING_CONDUCTOR:
-            F[all_indices] = 0
+            F[indices] = 0
     
     # See comments in _add_floating_conductor_constraints_to_matrix
     for i, f in enumerate(floating_names):
@@ -176,46 +163,35 @@ def _excitation_to_right_hand_side(excitation, vertices, names):
     assert np.all(np.isfinite(F))
     return F
 
-def _area(symmetry, points):
+def _area(symmetry, jacobian_buffer, pos_buffer, index):
     if symmetry == G.Symmetry.RADIAL:
-        middle = np.average(points, axis=0)
-        length = np.linalg.norm(points[1] - points[0])
-        return length*2*np.pi*middle[0]
+        return 2*np.pi*np.sum(jacobian_buffer[index] * pos_buffer[index, :, 0])
     elif symmetry == G.Symmetry.THREE_D:
-        v1, v2, v3 = points 
-        return 1/2*np.linalg.norm(np.cross(v2-v1, v3-v1))
+        return np.sum(jacobian_buffer[index])
 
-
-def _add_floating_conductor_constraints_to_matrix(matrix, vertices, names, excitation):
+def _add_floating_conductor_constraints_to_matrix(matrix, jac_buffer, pos_buffer, names, excitation):
     floating = _get_floating_conductor_names(excitation)
     N_matrix = matrix.shape[0]
     assert matrix.shape == (N_matrix, N_matrix)
      
     for i, f in enumerate(floating):
-        if excitation.mesh.symmetry == G.Symmetry.THREE_D: 
-            for index in names[f]:
-                # An extra unknown voltage is added to the matrix for every floating conductor.
-                # The column related to this unknown voltage is positioned at the rightmost edge of the matrix.
-                # If multiple floating conductors are present the column lives at -len(floating) + i
-                matrix[ index, -len(floating) + i] = -1
-                # The unknown voltage is determined by the constraint on the total charge of the conductor.
-                # This constraint lives at the bottom edge of the matrix.
-                # The surface area of the respective line element (or triangle) is multiplied by the surface charge (unknown)
-                # to arrive at the total specified charge (right hand side).
-                element = vertices[index]
-                matrix[ -len(floating) + i, index] = _area(excitation.mesh.symmetry, element)
-        elif excitation.mesh.symmetry == G.Symmetry.RADIAL:
-            indices = names[f]
-            backend.add_floating_conductor_constraints_radial(matrix, vertices, indices, i)
-                
+        for index in names[f]:
+            # An extra unknown voltage is added to the matrix for every floating conductor.
+            # The column related to this unknown voltage is positioned at the rightmost edge of the matrix.
+            # If multiple floating conductors are present the column lives at -len(floating) + i
+            matrix[ index, -len(floating) + i] = -1
+            # The unknown voltage is determined by the constraint on the total charge of the conductor.
+            # This constraint lives at the bottom edge of the matrix.
+            # The surface area of the respective line element (or triangle) is multiplied by the surface charge (unknown)
+            # to arrive at the total specified charge (right hand side).
+            matrix[ -len(floating) + i, index] = _area(excitation.mesh.symmetry, jac_buffer, pos_buffer, index)
 
 def _excitation_to_matrix(excitation, vertices, names):
     floating_names = _get_floating_conductor_names(excitation)
     
     N_floating = len(floating_names)
     N_lines = len(vertices)
-    N_quad = _get_N_quad(excitation)
-    N_matrix = N_quad*N_lines + N_floating # Every floating conductor adds one constraint
+    N_matrix = N_lines + N_floating # Every floating conductor adds one constraint
      
     excitation_types = np.zeros(N_lines, dtype=np.uint8)
     excitation_values = np.zeros(N_lines)
@@ -231,44 +207,42 @@ def _excitation_to_matrix(excitation, vertices, names):
     st = time.time()
     matrix = np.zeros( (N_matrix, N_matrix) )
     print(f&#39;Number of elements: {N_lines}, size of matrix: {N_matrix} ({matrix.nbytes/1e6:.0f} MB), symmetry: {excitation.mesh.symmetry}&#39;)
+
+    _3d = excitation.mesh.symmetry == G.Symmetry.THREE_D
+
+    jac_buffer, pos_buffer = backend.fill_jacobian_buffer_3d(vertices) if _3d else backend.fill_jacobian_buffer_radial(vertices)
+    fill_fun = backend.fill_matrix_3d if _3d else backend.fill_matrix_radial
      
-    fill_fun = backend.fill_matrix_radial if excitation.mesh.symmetry != G.Symmetry.THREE_D else backend.fill_matrix_3d
-    
     def fill_matrix_rows(rows):
-        fill_fun(matrix, vertices, excitation_types, excitation_values, rows[0], rows[-1])
-    
+        fill_fun(matrix, vertices, excitation_types, excitation_values, jac_buffer, pos_buffer, rows[0], rows[-1])
+     
     util.split_collect(fill_matrix_rows, np.arange(N_lines))    
 
     # Fill the difficult self voltages
     print(f&#39;Time for building matrix: {(time.time()-st)*1000:.0f} ms&#39;)
-     
+
     assert np.all(np.isfinite(matrix))
     
-    _add_floating_conductor_constraints_to_matrix(matrix, vertices, names, excitation)
+    _add_floating_conductor_constraints_to_matrix(matrix, jac_buffer, pos_buffer, names, excitation)
         
-    return matrix
+    return matrix, jac_buffer, pos_buffer
 
 
-def _charges_to_field(excitation, charges, vertices, names):
+def _charges_to_field(excitation, charges, vertices, names, jac_buffer, pos_buffer):
     floating_names = _get_floating_conductor_names(excitation)
     N_floating = len(floating_names)
-    N_quad = _get_N_quad(excitation)
      
-    assert len(charges) == N_quad*len(vertices) + N_floating
+    assert len(charges) == len(vertices) + N_floating
     
     floating_voltages = {n:charges[-N_floating+i] for i, n in enumerate(floating_names)}
     if N_floating &gt; 0:
         charges = charges[:-N_floating]
      
-    assert len(charges) == N_quad*len(vertices)
-
-    if N_quad &gt; 1:
-        charges = np.reshape(charges, (len(vertices), N_quad))
-     
-    field_class = FieldRadialBEM if excitation.mesh.symmetry != G.Symmetry.THREE_D else Field3D_BEM
-    return field_class(vertices, charges, floating_voltages=floating_voltages)
+    assert len(charges) == len(vertices)
     
-
+    field_class = FieldRadialBEM if excitation.mesh.symmetry != G.Symmetry.THREE_D else Field3D_BEM
+    return field_class(vertices, charges, jac_buffer, pos_buffer, floating_voltages=floating_voltages)
+    
 def solve_bem(excitation, superposition=False):
     &#34;&#34;&#34;
     Solve for the charges on the surface of the geometry by using the Boundary Element Method (BEM) and taking
@@ -298,24 +272,24 @@ def solve_bem(excitation, superposition=False):
     vertices, names = excitation.get_active_elements()
      
     if not superposition:
-        matrix = _excitation_to_matrix(excitation, vertices, names)
+        matrix, jac_buffer, pos_buffer = _excitation_to_matrix(excitation, vertices, names)
         F = _excitation_to_right_hand_side(excitation, vertices, names)
         st = time.time()
         charges = np.linalg.solve(matrix, F)
         assert np.all(np.isfinite(charges))
         print(f&#39;Time for solving matrix: {(time.time()-st)*1000:.0f} ms&#39;)
-
-        return _charges_to_field(excitation, charges, vertices, names)
+        
+        return _charges_to_field(excitation, charges, vertices, names, jac_buffer, pos_buffer)
      
     excs = excitation._split_for_superposition()
     superposed_names = excs.keys()
-    matrix = _excitation_to_matrix(excitation, vertices, names)
+    matrix, jac_buffer, pos_buffer = _excitation_to_matrix(excitation, vertices, names)
     F = np.array([_excitation_to_right_hand_side(excs[n], vertices, names) for n in superposed_names]).T
     st = time.time()
     charges = np.linalg.solve(matrix, F)
     print(f&#39;Time for solving matrix: {(time.time()-st)*1000:.0f} ms&#39;)
     assert np.all(np.isfinite(charges))
-    return {n:_charges_to_field(excs[n], charges[:, i], vertices, names) for i, n in enumerate(superposed_names)}
+    return {n:_charges_to_field(excs[n], charges[:, i], vertices, names, jac_buffer, pos_buffer) for i, n in enumerate(superposed_names)}
 
 
 def _get_one_dimensional_high_order_ppoly(z, y, dydz, dydz2):
@@ -355,11 +329,17 @@ class FieldBEM(Field):
     not initialize this class yourself, but it is used as a base class for the fields returned by the `solve_bem` function. 
     This base class overloads the +,*,- operators so it is very easy to take a superposition of different fields.&#34;&#34;&#34;
     
-    def __init__(self, vertices, charges, floating_voltages={}):
+    def __init__(self, vertices, charges, jac_buffer, pos_buffer, floating_voltages={}):
         assert len(vertices) == len(charges)
         self.vertices = vertices
         self.charges = charges
         self.floating_voltages = floating_voltages
+        self.jac_buffer = jac_buffer
+        self.pos_buffer = pos_buffer
+        self.field_bounds = None
+    
+    def set_bounds(self, bounds):
+        self.field_bounds = np.array(bounds)
 
     def __str__(self):
         name = self.__class__.__name__
@@ -367,11 +347,14 @@ class FieldBEM(Field):
      
     def __add__(self, other):
         if isinstance(other, FieldBEM):
-            assert np.array_equal(self.vertices, other.vertices), &#34;Cannot add Field3D_BEM if geometry is unequal.&#34;
-            assert self.charges.shape == other.charges.shape, &#34;Cannot add Field3D_BEM if charges have not equal shape.&#34;
+            assert np.array_equal(self.vertices, other.vertices), &#34;Cannot add FieldBEM if geometry is unequal.&#34;
+            assert np.array_equal(self.jac_buffer, other.jac_buffer), &#34;Cannot add FieldBEM if geometry is unequal&#34;
+            assert np.array_equal(self.pos_buffer, other.pos_buffer), &#34;Cannot add FieldBEM if geometry is unequal&#34;
+            assert self.charges.shape == other.charges.shape, &#34;Cannot add FieldBEM if charges have not equal shape.&#34;
             assert set(self.floating_voltages.keys()) == set(other.floating_voltages.keys())
+            
             floating = {n:self.floating_voltages[n]+other.floating_voltages[n] for n in self.floating_voltages.keys()}
-            return self.__class__(self.vertices, self.charges+other.charges, floating)
+            return self.__class__(self.vertices, self.charges+other.charges, self.jac_buffer, self.pos_buffer, floating)
          
         return NotImpemented
     
@@ -384,8 +367,8 @@ class FieldBEM(Field):
     def __mul__(self, other):
         if isinstance(other, int) or isinstance(other, float):
             floating = {n:v*other for n, v in self.floating_voltages.items()}
-            return self.__class__(self.vertices, other*self.charges, floating)
-        
+            return self.__class__(self.vertices, other*self.charges, self.jac_buffer, self.pos_buffer, floating)
+         
         return NotImpemented
 
     def __neg__(self):
@@ -393,15 +376,49 @@ class FieldBEM(Field):
     
     def __rmul__(self, other):
         return self.__mul__(other)
+    
+    def area_of_elements(self, indices):
+        &#34;&#34;&#34;Compute the total area of the elements at the given indices.
+        
+        Parameters
+        ------------
+        indices: int iterable
+            Indices giving which elements to include in the area calculation.
+
+        Returns
+        ---------------
+        The sum of the area of all elements with the given indices.
+        &#34;&#34;&#34;
+        return sum(self.area_on_element(i) for i in indices) 
+    
+    def charge_on_element(self, i):
+        return self.area_of_element(i) * self.charges[i]
+    
+    def charge_on_elements(self, indices):
+        &#34;&#34;&#34;Compute the sum of the charges present on the elements with the given indices. To
+        get the total charge of a physical group use `names[&#39;name&#39;]` for indices where `names` 
+        is returned by `traceon.excitation.Excitation.get_active_elements()`.
+
+        Parameters
+        ----------
+        indices: (N,) array of int
+            indices of the elements contributing to the charge sum. 
+         
+        Returns
+        -------
+        The sum of the charge. See the note about units on the front page.&#34;&#34;&#34;
+        return sum(self.charge_on_element(i) for i in indices)
+
 
 
 class FieldRadialBEM(FieldBEM):
     &#34;&#34;&#34;A radially symmetric electrostatic field. The field is a result of the surface charges as computed by the
     `solve_bem` function. See the comments in `FieldBEM`.&#34;&#34;&#34;
     
-    def __init__(self, vertices, charges, floating_voltages={}):
-        super().__init__(vertices, charges, floating_voltages)
+    def __init__(self, vertices, charges, jac_buffer, pos_buffer, floating_voltages={}):
+        super().__init__(vertices, charges, jac_buffer, pos_buffer, floating_voltages)
         assert vertices.shape == (len(charges), 4, 3)
+        assert charges.shape == (len(charges),)
         
     def field_at_point(self, point):
         &#34;&#34;&#34;
@@ -417,8 +434,8 @@ class FieldRadialBEM(FieldBEM):
         Numpy array containing the field strengths (in units of V/mm) in the r and z directions.   
         &#34;&#34;&#34;
         assert point.shape == (2,) or point.shape == (3,)
-        return backend.field_radial(point, self.vertices, self.charges)
-    
+        return backend.field_radial(point, self.charges, self.jac_buffer, self.pos_buffer)
+     
     def potential_at_point(self, point):
         &#34;&#34;&#34;
         Compute the potential.
@@ -433,7 +450,7 @@ class FieldRadialBEM(FieldBEM):
         Potential as a float value (in units of V).
         &#34;&#34;&#34;
         assert point.shape == (2,) or point.shape == (3,)
-        return backend.potential_radial(point, self.vertices, self.charges)
+        return backend.potential_radial(point, self.charges, self.jac_buffer, self.pos_buffer)
      
     def get_axial_potential_derivatives(self, z):
         &#34;&#34;&#34;
@@ -450,7 +467,7 @@ class FieldRadialBEM(FieldBEM):
         Numpy array of shape (N, 9) containing the derivatives. At index i one finds the i-th derivative (so
         at position 0 the potential itself is returned). The highest derivative returned is a 
         constant currently set to 9.&#34;&#34;&#34;
-        return backend.axial_derivatives_radial_ring(z, self.vertices, self.charges)
+        return backend.axial_derivatives_radial_ring(z, self.charges, self.jac_buffer, self.pos_buffer)
      
     def axial_derivative_interpolation(self, zmin, zmax, N=None):
         &#34;&#34;&#34;
@@ -485,32 +502,18 @@ class FieldRadialBEM(FieldBEM):
         print(f&#39;Computing derivative interpolation took {(time.time()-st)*1000:.2f} ms ({len(z)} items)&#39;)
         
         return FieldRadialAxial(z, coeffs)
-
-    def _charge_on_index(self, i):
-        return backend.charge_radial(self.vertices[i], self.charges[i])
-
-    def charge_on_elements(self, indices):
-        &#34;&#34;&#34;Compute the sum of the charges present on the elements with the given indices. To
-        get the total charge of a physical group use `names[&#39;name&#39;]` for indices where `names` 
-        is returned by `traceon.excitation.Excitation.get_active_elements()`.
-
-        Parameters
-        ----------
-        indices: (N,) array of int
-            indices of the elements contributing to the charge sum. 
-         
-        Returns
-        -------
-        The sum of the charge. See the note about units on the front page.&#34;&#34;&#34;
-        return sum(self._charge_on_index(i) for i in indices)
-
+    
+    def area_of_element(self, i):
+        return _area(G.Symmetry.RADIAL, self.jac_buffer, self.pos_buffer, i)
+    
+    
 class Field3D_BEM(FieldBEM):
     &#34;&#34;&#34;An electrostatic field resulting from a general 3D geometry. The field is a result of the surface charges as computed by the
     `solve_bem` function. See the comments in `FieldBEM`.&#34;&#34;&#34;
      
-    def __init__(self, vertices, charges, floating_voltages={}):
-        super().__init__(vertices, charges, floating_voltages)
-        assert vertices.shape == (len(charges), 3, 3)
+    def __init__(self, vertices, charges, jac_buffer, pos_buffer, floating_voltages={}):
+        super().__init__(vertices, charges, jac_buffer, pos_buffer, floating_voltages)
+        assert vertices.shape == (len(charges), 6, 3)
     
     def field_at_point(self, point):
         &#34;&#34;&#34;
@@ -526,7 +529,7 @@ class Field3D_BEM(FieldBEM):
         Numpy array containing the field strengths (in units of V/mm) in the x, y and z directions.
         &#34;&#34;&#34;
         assert point.shape == (3,)
-        return backend.field_3d(point, self.vertices, self.charges)
+        return backend.field_3d(point, self.charges, self.jac_buffer, self.pos_buffer)
      
     def potential_at_point(self, point):
         &#34;&#34;&#34;
@@ -542,7 +545,7 @@ class Field3D_BEM(FieldBEM):
         Potential as a float value (in units of V).
         &#34;&#34;&#34;
         assert point.shape == (3,)
-        return backend.potential_3d(point, self.vertices, self.charges)
+        return backend.potential_3d(point, self.charges, self.jac_buffer, self.pos_buffer)
     
     def axial_derivative_interpolation(self, zmin, zmax, N=None):
         &#34;&#34;&#34;
@@ -574,7 +577,8 @@ class Field3D_BEM(FieldBEM):
         
         print(f&#39;Number of points on z-axis: {len(z)}&#39;)
         st = time.time()
-        coeffs = util.split_collect(lambda z: backend.axial_coefficients_3d(self.vertices, self.charges, z, thetas, thetas_interpolation_coefficients), z)
+        jac_buffer, pos_buffer = self.jac_buffer, self.pos_buffer
+        coeffs = util.split_collect(lambda z: backend.axial_coefficients_3d(self.charges, jac_buffer, pos_buffer,  z, thetas, thetas_interpolation_coefficients), z)
         coeffs = np.concatenate(coeffs, axis=0)
         interpolated_coeffs = CubicSpline(z, coeffs).c
         interpolated_coeffs = np.moveaxis(interpolated_coeffs, 0, -1)
@@ -582,6 +586,12 @@ class Field3D_BEM(FieldBEM):
         print(f&#39;Time for calculating radial series expansion coefficients: {(time.time()-st)*1000:.0f} ms ({len(z)} items)&#39;)
 
         return Field3DAxial(z, interpolated_coeffs)
+    
+    def area_of_element(self, i):
+        return _area(G.Symmetry.THREE_D, self.jac_buffer, self.pos_buffer, i)
+    
+
+     
 
 class FieldAxial(Field):
     &#34;&#34;&#34;An electrostatic field resulting from a radial series expansion around the optical axis. You should
@@ -772,24 +782,24 @@ are the physical groups with unity excitation, and the values are the resulting 
     vertices, names = excitation.get_active_elements()
      
     if not superposition:
-        matrix = _excitation_to_matrix(excitation, vertices, names)
+        matrix, jac_buffer, pos_buffer = _excitation_to_matrix(excitation, vertices, names)
         F = _excitation_to_right_hand_side(excitation, vertices, names)
         st = time.time()
         charges = np.linalg.solve(matrix, F)
         assert np.all(np.isfinite(charges))
         print(f&#39;Time for solving matrix: {(time.time()-st)*1000:.0f} ms&#39;)
-
-        return _charges_to_field(excitation, charges, vertices, names)
+        
+        return _charges_to_field(excitation, charges, vertices, names, jac_buffer, pos_buffer)
      
     excs = excitation._split_for_superposition()
     superposed_names = excs.keys()
-    matrix = _excitation_to_matrix(excitation, vertices, names)
+    matrix, jac_buffer, pos_buffer = _excitation_to_matrix(excitation, vertices, names)
     F = np.array([_excitation_to_right_hand_side(excs[n], vertices, names) for n in superposed_names]).T
     st = time.time()
     charges = np.linalg.solve(matrix, F)
     print(f&#39;Time for solving matrix: {(time.time()-st)*1000:.0f} ms&#39;)
     assert np.all(np.isfinite(charges))
-    return {n:_charges_to_field(excs[n], charges[:, i], vertices, names) for i, n in enumerate(superposed_names)}</code></pre>
+    return {n:_charges_to_field(excs[n], charges[:, i], vertices, names, jac_buffer, pos_buffer) for i, n in enumerate(superposed_names)}</code></pre>
 </details>
 </dd>
 </dl>
@@ -946,7 +956,7 @@ are the physical groups with unity excitation, and the values are the resulting 
 </dd>
 <dt id="traceon.solver.Field3D_BEM"><code class="flex name class">
 <span>class <span class="ident">Field3D_BEM</span></span>
-<span>(</span><span>vertices, charges, floating_voltages={})</span>
+<span>(</span><span>vertices, charges, jac_buffer, pos_buffer, floating_voltages={})</span>
 </code></dt>
 <dd>
 <div class="desc"><p>An electrostatic field resulting from a general 3D geometry. The field is a result of the surface charges as computed by the
@@ -959,9 +969,9 @@ are the physical groups with unity excitation, and the values are the resulting 
     &#34;&#34;&#34;An electrostatic field resulting from a general 3D geometry. The field is a result of the surface charges as computed by the
     `solve_bem` function. See the comments in `FieldBEM`.&#34;&#34;&#34;
      
-    def __init__(self, vertices, charges, floating_voltages={}):
-        super().__init__(vertices, charges, floating_voltages)
-        assert vertices.shape == (len(charges), 3, 3)
+    def __init__(self, vertices, charges, jac_buffer, pos_buffer, floating_voltages={}):
+        super().__init__(vertices, charges, jac_buffer, pos_buffer, floating_voltages)
+        assert vertices.shape == (len(charges), 6, 3)
     
     def field_at_point(self, point):
         &#34;&#34;&#34;
@@ -977,7 +987,7 @@ are the physical groups with unity excitation, and the values are the resulting 
         Numpy array containing the field strengths (in units of V/mm) in the x, y and z directions.
         &#34;&#34;&#34;
         assert point.shape == (3,)
-        return backend.field_3d(point, self.vertices, self.charges)
+        return backend.field_3d(point, self.charges, self.jac_buffer, self.pos_buffer)
      
     def potential_at_point(self, point):
         &#34;&#34;&#34;
@@ -993,7 +1003,7 @@ are the physical groups with unity excitation, and the values are the resulting 
         Potential as a float value (in units of V).
         &#34;&#34;&#34;
         assert point.shape == (3,)
-        return backend.potential_3d(point, self.vertices, self.charges)
+        return backend.potential_3d(point, self.charges, self.jac_buffer, self.pos_buffer)
     
     def axial_derivative_interpolation(self, zmin, zmax, N=None):
         &#34;&#34;&#34;
@@ -1025,14 +1035,18 @@ are the physical groups with unity excitation, and the values are the resulting 
         
         print(f&#39;Number of points on z-axis: {len(z)}&#39;)
         st = time.time()
-        coeffs = util.split_collect(lambda z: backend.axial_coefficients_3d(self.vertices, self.charges, z, thetas, thetas_interpolation_coefficients), z)
+        jac_buffer, pos_buffer = self.jac_buffer, self.pos_buffer
+        coeffs = util.split_collect(lambda z: backend.axial_coefficients_3d(self.charges, jac_buffer, pos_buffer,  z, thetas, thetas_interpolation_coefficients), z)
         coeffs = np.concatenate(coeffs, axis=0)
         interpolated_coeffs = CubicSpline(z, coeffs).c
         interpolated_coeffs = np.moveaxis(interpolated_coeffs, 0, -1)
         interpolated_coeffs = np.require(interpolated_coeffs, requirements=(&#39;C_CONTIGUOUS&#39;, &#39;ALIGNED&#39;))
         print(f&#39;Time for calculating radial series expansion coefficients: {(time.time()-st)*1000:.0f} ms ({len(z)} items)&#39;)
 
-        return Field3DAxial(z, interpolated_coeffs)</code></pre>
+        return Field3DAxial(z, interpolated_coeffs)
+    
+    def area_of_element(self, i):
+        return _area(G.Symmetry.THREE_D, self.jac_buffer, self.pos_buffer, i)</code></pre>
 </details>
 <h3>Ancestors</h3>
 <ul class="hlist">
@@ -1041,6 +1055,19 @@ are the physical groups with unity excitation, and the values are the resulting 
 </ul>
 <h3>Methods</h3>
 <dl>
+<dt id="traceon.solver.Field3D_BEM.area_of_element"><code class="name flex">
+<span>def <span class="ident">area_of_element</span></span>(<span>self, i)</span>
+</code></dt>
+<dd>
+<div class="desc"></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def area_of_element(self, i):
+    return _area(G.Symmetry.THREE_D, self.jac_buffer, self.pos_buffer, i)</code></pre>
+</details>
+</dd>
 <dt id="traceon.solver.Field3D_BEM.axial_derivative_interpolation"><code class="name flex">
 <span>def <span class="ident">axial_derivative_interpolation</span></span>(<span>self, zmin, zmax, N=None)</span>
 </code></dt>
@@ -1095,7 +1122,8 @@ is determined by taking into account the number of elements in the mesh.</dd>
     
     print(f&#39;Number of points on z-axis: {len(z)}&#39;)
     st = time.time()
-    coeffs = util.split_collect(lambda z: backend.axial_coefficients_3d(self.vertices, self.charges, z, thetas, thetas_interpolation_coefficients), z)
+    jac_buffer, pos_buffer = self.jac_buffer, self.pos_buffer
+    coeffs = util.split_collect(lambda z: backend.axial_coefficients_3d(self.charges, jac_buffer, pos_buffer,  z, thetas, thetas_interpolation_coefficients), z)
     coeffs = np.concatenate(coeffs, axis=0)
     interpolated_coeffs = CubicSpline(z, coeffs).c
     interpolated_coeffs = np.moveaxis(interpolated_coeffs, 0, -1)
@@ -1135,7 +1163,7 @@ is determined by taking into account the number of elements in the mesh.</dd>
     Numpy array containing the field strengths (in units of V/mm) in the x, y and z directions.
     &#34;&#34;&#34;
     assert point.shape == (3,)
-    return backend.field_3d(point, self.vertices, self.charges)</code></pre>
+    return backend.field_3d(point, self.charges, self.jac_buffer, self.pos_buffer)</code></pre>
 </details>
 </dd>
 <dt id="traceon.solver.Field3D_BEM.potential_at_point"><code class="name flex">
@@ -1168,10 +1196,19 @@ is determined by taking into account the number of elements in the mesh.</dd>
     Potential as a float value (in units of V).
     &#34;&#34;&#34;
     assert point.shape == (3,)
-    return backend.potential_3d(point, self.vertices, self.charges)</code></pre>
+    return backend.potential_3d(point, self.charges, self.jac_buffer, self.pos_buffer)</code></pre>
 </details>
 </dd>
 </dl>
+<h3>Inherited members</h3>
+<ul class="hlist">
+<li><code><b><a title="traceon.solver.FieldBEM" href="#traceon.solver.FieldBEM">FieldBEM</a></b></code>:
+<ul class="hlist">
+<li><code><a title="traceon.solver.FieldBEM.area_of_elements" href="#traceon.solver.FieldBEM.area_of_elements">area_of_elements</a></code></li>
+<li><code><a title="traceon.solver.FieldBEM.charge_on_elements" href="#traceon.solver.FieldBEM.charge_on_elements">charge_on_elements</a></code></li>
+</ul>
+</li>
+</ul>
 </dd>
 <dt id="traceon.solver.FieldAxial"><code class="flex name class">
 <span>class <span class="ident">FieldAxial</span></span>
@@ -1238,7 +1275,7 @@ This base class overloads the +,*,- operators so it is very easy to take a super
 </dd>
 <dt id="traceon.solver.FieldBEM"><code class="flex name class">
 <span>class <span class="ident">FieldBEM</span></span>
-<span>(</span><span>vertices, charges, floating_voltages={})</span>
+<span>(</span><span>vertices, charges, jac_buffer, pos_buffer, floating_voltages={})</span>
 </code></dt>
 <dd>
 <div class="desc"><p>An electrostatic field (resulting from surface charges) as computed from the Boundary Element Method. You should
@@ -1253,11 +1290,17 @@ This base class overloads the +,*,- operators so it is very easy to take a super
     not initialize this class yourself, but it is used as a base class for the fields returned by the `solve_bem` function. 
     This base class overloads the +,*,- operators so it is very easy to take a superposition of different fields.&#34;&#34;&#34;
     
-    def __init__(self, vertices, charges, floating_voltages={}):
+    def __init__(self, vertices, charges, jac_buffer, pos_buffer, floating_voltages={}):
         assert len(vertices) == len(charges)
         self.vertices = vertices
         self.charges = charges
         self.floating_voltages = floating_voltages
+        self.jac_buffer = jac_buffer
+        self.pos_buffer = pos_buffer
+        self.field_bounds = None
+    
+    def set_bounds(self, bounds):
+        self.field_bounds = np.array(bounds)
 
     def __str__(self):
         name = self.__class__.__name__
@@ -1265,11 +1308,14 @@ This base class overloads the +,*,- operators so it is very easy to take a super
      
     def __add__(self, other):
         if isinstance(other, FieldBEM):
-            assert np.array_equal(self.vertices, other.vertices), &#34;Cannot add Field3D_BEM if geometry is unequal.&#34;
-            assert self.charges.shape == other.charges.shape, &#34;Cannot add Field3D_BEM if charges have not equal shape.&#34;
+            assert np.array_equal(self.vertices, other.vertices), &#34;Cannot add FieldBEM if geometry is unequal.&#34;
+            assert np.array_equal(self.jac_buffer, other.jac_buffer), &#34;Cannot add FieldBEM if geometry is unequal&#34;
+            assert np.array_equal(self.pos_buffer, other.pos_buffer), &#34;Cannot add FieldBEM if geometry is unequal&#34;
+            assert self.charges.shape == other.charges.shape, &#34;Cannot add FieldBEM if charges have not equal shape.&#34;
             assert set(self.floating_voltages.keys()) == set(other.floating_voltages.keys())
+            
             floating = {n:self.floating_voltages[n]+other.floating_voltages[n] for n in self.floating_voltages.keys()}
-            return self.__class__(self.vertices, self.charges+other.charges, floating)
+            return self.__class__(self.vertices, self.charges+other.charges, self.jac_buffer, self.pos_buffer, floating)
          
         return NotImpemented
     
@@ -1282,15 +1328,47 @@ This base class overloads the +,*,- operators so it is very easy to take a super
     def __mul__(self, other):
         if isinstance(other, int) or isinstance(other, float):
             floating = {n:v*other for n, v in self.floating_voltages.items()}
-            return self.__class__(self.vertices, other*self.charges, floating)
-        
+            return self.__class__(self.vertices, other*self.charges, self.jac_buffer, self.pos_buffer, floating)
+         
         return NotImpemented
 
     def __neg__(self):
         return -1*self
     
     def __rmul__(self, other):
-        return self.__mul__(other)</code></pre>
+        return self.__mul__(other)
+    
+    def area_of_elements(self, indices):
+        &#34;&#34;&#34;Compute the total area of the elements at the given indices.
+        
+        Parameters
+        ------------
+        indices: int iterable
+            Indices giving which elements to include in the area calculation.
+
+        Returns
+        ---------------
+        The sum of the area of all elements with the given indices.
+        &#34;&#34;&#34;
+        return sum(self.area_on_element(i) for i in indices) 
+    
+    def charge_on_element(self, i):
+        return self.area_of_element(i) * self.charges[i]
+    
+    def charge_on_elements(self, indices):
+        &#34;&#34;&#34;Compute the sum of the charges present on the elements with the given indices. To
+        get the total charge of a physical group use `names[&#39;name&#39;]` for indices where `names` 
+        is returned by `traceon.excitation.Excitation.get_active_elements()`.
+
+        Parameters
+        ----------
+        indices: (N,) array of int
+            indices of the elements contributing to the charge sum. 
+         
+        Returns
+        -------
+        The sum of the charge. See the note about units on the front page.&#34;&#34;&#34;
+        return sum(self.charge_on_element(i) for i in indices)</code></pre>
 </details>
 <h3>Ancestors</h3>
 <ul class="hlist">
@@ -1301,6 +1379,100 @@ This base class overloads the +,*,- operators so it is very easy to take a super
 <li><a title="traceon.solver.Field3D_BEM" href="#traceon.solver.Field3D_BEM">Field3D_BEM</a></li>
 <li><a title="traceon.solver.FieldRadialBEM" href="#traceon.solver.FieldRadialBEM">FieldRadialBEM</a></li>
 </ul>
+<h3>Methods</h3>
+<dl>
+<dt id="traceon.solver.FieldBEM.area_of_elements"><code class="name flex">
+<span>def <span class="ident">area_of_elements</span></span>(<span>self, indices)</span>
+</code></dt>
+<dd>
+<div class="desc"><p>Compute the total area of the elements at the given indices.</p>
+<h2 id="parameters">Parameters</h2>
+<dl>
+<dt><strong><code>indices</code></strong> :&ensp;<code>int iterable</code></dt>
+<dd>Indices giving which elements to include in the area calculation.</dd>
+</dl>
+<h2 id="returns">Returns</h2>
+<p>The sum of the area of all elements with the given indices.</p></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def area_of_elements(self, indices):
+    &#34;&#34;&#34;Compute the total area of the elements at the given indices.
+    
+    Parameters
+    ------------
+    indices: int iterable
+        Indices giving which elements to include in the area calculation.
+
+    Returns
+    ---------------
+    The sum of the area of all elements with the given indices.
+    &#34;&#34;&#34;
+    return sum(self.area_on_element(i) for i in indices) </code></pre>
+</details>
+</dd>
+<dt id="traceon.solver.FieldBEM.charge_on_element"><code class="name flex">
+<span>def <span class="ident">charge_on_element</span></span>(<span>self, i)</span>
+</code></dt>
+<dd>
+<div class="desc"></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def charge_on_element(self, i):
+    return self.area_of_element(i) * self.charges[i]</code></pre>
+</details>
+</dd>
+<dt id="traceon.solver.FieldBEM.charge_on_elements"><code class="name flex">
+<span>def <span class="ident">charge_on_elements</span></span>(<span>self, indices)</span>
+</code></dt>
+<dd>
+<div class="desc"><p>Compute the sum of the charges present on the elements with the given indices. To
+get the total charge of a physical group use <code>names['name']</code> for indices where <code>names</code>
+is returned by <code><a title="traceon.excitation.Excitation.get_active_elements" href="excitation.html#traceon.excitation.Excitation.get_active_elements">Excitation.get_active_elements()</a></code>.</p>
+<h2 id="parameters">Parameters</h2>
+<dl>
+<dt><strong><code>indices</code></strong> :&ensp;<code>(N,) array</code> of <code>int</code></dt>
+<dd>indices of the elements contributing to the charge sum.</dd>
+</dl>
+<h2 id="returns">Returns</h2>
+<p>The sum of the charge. See the note about units on the front page.</p></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def charge_on_elements(self, indices):
+    &#34;&#34;&#34;Compute the sum of the charges present on the elements with the given indices. To
+    get the total charge of a physical group use `names[&#39;name&#39;]` for indices where `names` 
+    is returned by `traceon.excitation.Excitation.get_active_elements()`.
+
+    Parameters
+    ----------
+    indices: (N,) array of int
+        indices of the elements contributing to the charge sum. 
+     
+    Returns
+    -------
+    The sum of the charge. See the note about units on the front page.&#34;&#34;&#34;
+    return sum(self.charge_on_element(i) for i in indices)</code></pre>
+</details>
+</dd>
+<dt id="traceon.solver.FieldBEM.set_bounds"><code class="name flex">
+<span>def <span class="ident">set_bounds</span></span>(<span>self, bounds)</span>
+</code></dt>
+<dd>
+<div class="desc"></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def set_bounds(self, bounds):
+    self.field_bounds = np.array(bounds)</code></pre>
+</details>
+</dd>
+</dl>
 </dd>
 <dt id="traceon.solver.FieldRadialAxial"><code class="flex name class">
 <span>class <span class="ident">FieldRadialAxial</span></span>
@@ -1427,7 +1599,7 @@ This base class overloads the +,*,- operators so it is very easy to take a super
 </dd>
 <dt id="traceon.solver.FieldRadialBEM"><code class="flex name class">
 <span>class <span class="ident">FieldRadialBEM</span></span>
-<span>(</span><span>vertices, charges, floating_voltages={})</span>
+<span>(</span><span>vertices, charges, jac_buffer, pos_buffer, floating_voltages={})</span>
 </code></dt>
 <dd>
 <div class="desc"><p>A radially symmetric electrostatic field. The field is a result of the surface charges as computed by the
@@ -1440,9 +1612,10 @@ This base class overloads the +,*,- operators so it is very easy to take a super
     &#34;&#34;&#34;A radially symmetric electrostatic field. The field is a result of the surface charges as computed by the
     `solve_bem` function. See the comments in `FieldBEM`.&#34;&#34;&#34;
     
-    def __init__(self, vertices, charges, floating_voltages={}):
-        super().__init__(vertices, charges, floating_voltages)
+    def __init__(self, vertices, charges, jac_buffer, pos_buffer, floating_voltages={}):
+        super().__init__(vertices, charges, jac_buffer, pos_buffer, floating_voltages)
         assert vertices.shape == (len(charges), 4, 3)
+        assert charges.shape == (len(charges),)
         
     def field_at_point(self, point):
         &#34;&#34;&#34;
@@ -1458,8 +1631,8 @@ This base class overloads the +,*,- operators so it is very easy to take a super
         Numpy array containing the field strengths (in units of V/mm) in the r and z directions.   
         &#34;&#34;&#34;
         assert point.shape == (2,) or point.shape == (3,)
-        return backend.field_radial(point, self.vertices, self.charges)
-    
+        return backend.field_radial(point, self.charges, self.jac_buffer, self.pos_buffer)
+     
     def potential_at_point(self, point):
         &#34;&#34;&#34;
         Compute the potential.
@@ -1474,7 +1647,7 @@ This base class overloads the +,*,- operators so it is very easy to take a super
         Potential as a float value (in units of V).
         &#34;&#34;&#34;
         assert point.shape == (2,) or point.shape == (3,)
-        return backend.potential_radial(point, self.vertices, self.charges)
+        return backend.potential_radial(point, self.charges, self.jac_buffer, self.pos_buffer)
      
     def get_axial_potential_derivatives(self, z):
         &#34;&#34;&#34;
@@ -1491,7 +1664,7 @@ This base class overloads the +,*,- operators so it is very easy to take a super
         Numpy array of shape (N, 9) containing the derivatives. At index i one finds the i-th derivative (so
         at position 0 the potential itself is returned). The highest derivative returned is a 
         constant currently set to 9.&#34;&#34;&#34;
-        return backend.axial_derivatives_radial_ring(z, self.vertices, self.charges)
+        return backend.axial_derivatives_radial_ring(z, self.charges, self.jac_buffer, self.pos_buffer)
      
     def axial_derivative_interpolation(self, zmin, zmax, N=None):
         &#34;&#34;&#34;
@@ -1526,24 +1699,9 @@ This base class overloads the +,*,- operators so it is very easy to take a super
         print(f&#39;Computing derivative interpolation took {(time.time()-st)*1000:.2f} ms ({len(z)} items)&#39;)
         
         return FieldRadialAxial(z, coeffs)
-
-    def _charge_on_index(self, i):
-        return backend.charge_radial(self.vertices[i], self.charges[i])
-
-    def charge_on_elements(self, indices):
-        &#34;&#34;&#34;Compute the sum of the charges present on the elements with the given indices. To
-        get the total charge of a physical group use `names[&#39;name&#39;]` for indices where `names` 
-        is returned by `traceon.excitation.Excitation.get_active_elements()`.
-
-        Parameters
-        ----------
-        indices: (N,) array of int
-            indices of the elements contributing to the charge sum. 
-         
-        Returns
-        -------
-        The sum of the charge. See the note about units on the front page.&#34;&#34;&#34;
-        return sum(self._charge_on_index(i) for i in indices)</code></pre>
+    
+    def area_of_element(self, i):
+        return _area(G.Symmetry.RADIAL, self.jac_buffer, self.pos_buffer, i)</code></pre>
 </details>
 <h3>Ancestors</h3>
 <ul class="hlist">
@@ -1552,6 +1710,19 @@ This base class overloads the +,*,- operators so it is very easy to take a super
 </ul>
 <h3>Methods</h3>
 <dl>
+<dt id="traceon.solver.FieldRadialBEM.area_of_element"><code class="name flex">
+<span>def <span class="ident">area_of_element</span></span>(<span>self, i)</span>
+</code></dt>
+<dd>
+<div class="desc"></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def area_of_element(self, i):
+    return _area(G.Symmetry.RADIAL, self.jac_buffer, self.pos_buffer, i)</code></pre>
+</details>
+</dd>
 <dt id="traceon.solver.FieldRadialBEM.axial_derivative_interpolation"><code class="name flex">
 <span>def <span class="ident">axial_derivative_interpolation</span></span>(<span>self, zmin, zmax, N=None)</span>
 </code></dt>
@@ -1610,40 +1781,6 @@ is determined by taking into account the number of elements in the mesh.</dd>
     return FieldRadialAxial(z, coeffs)</code></pre>
 </details>
 </dd>
-<dt id="traceon.solver.FieldRadialBEM.charge_on_elements"><code class="name flex">
-<span>def <span class="ident">charge_on_elements</span></span>(<span>self, indices)</span>
-</code></dt>
-<dd>
-<div class="desc"><p>Compute the sum of the charges present on the elements with the given indices. To
-get the total charge of a physical group use <code>names['name']</code> for indices where <code>names</code>
-is returned by <code><a title="traceon.excitation.Excitation.get_active_elements" href="excitation.html#traceon.excitation.Excitation.get_active_elements">Excitation.get_active_elements()</a></code>.</p>
-<h2 id="parameters">Parameters</h2>
-<dl>
-<dt><strong><code>indices</code></strong> :&ensp;<code>(N,) array</code> of <code>int</code></dt>
-<dd>indices of the elements contributing to the charge sum.</dd>
-</dl>
-<h2 id="returns">Returns</h2>
-<p>The sum of the charge. See the note about units on the front page.</p></div>
-<details class="source">
-<summary>
-<span>Expand source code</span>
-</summary>
-<pre><code class="python">def charge_on_elements(self, indices):
-    &#34;&#34;&#34;Compute the sum of the charges present on the elements with the given indices. To
-    get the total charge of a physical group use `names[&#39;name&#39;]` for indices where `names` 
-    is returned by `traceon.excitation.Excitation.get_active_elements()`.
-
-    Parameters
-    ----------
-    indices: (N,) array of int
-        indices of the elements contributing to the charge sum. 
-     
-    Returns
-    -------
-    The sum of the charge. See the note about units on the front page.&#34;&#34;&#34;
-    return sum(self._charge_on_index(i) for i in indices)</code></pre>
-</details>
-</dd>
 <dt id="traceon.solver.FieldRadialBEM.field_at_point"><code class="name flex">
 <span>def <span class="ident">field_at_point</span></span>(<span>self, point)</span>
 </code></dt>
@@ -1674,7 +1811,7 @@ is returned by <code><a title="traceon.excitation.Excitation.get_active_elements
     Numpy array containing the field strengths (in units of V/mm) in the r and z directions.   
     &#34;&#34;&#34;
     assert point.shape == (2,) or point.shape == (3,)
-    return backend.field_radial(point, self.vertices, self.charges)</code></pre>
+    return backend.field_radial(point, self.charges, self.jac_buffer, self.pos_buffer)</code></pre>
 </details>
 </dd>
 <dt id="traceon.solver.FieldRadialBEM.get_axial_potential_derivatives"><code class="name flex">
@@ -1710,7 +1847,7 @@ constant currently set to 9.</p></div>
     Numpy array of shape (N, 9) containing the derivatives. At index i one finds the i-th derivative (so
     at position 0 the potential itself is returned). The highest derivative returned is a 
     constant currently set to 9.&#34;&#34;&#34;
-    return backend.axial_derivatives_radial_ring(z, self.vertices, self.charges)</code></pre>
+    return backend.axial_derivatives_radial_ring(z, self.charges, self.jac_buffer, self.pos_buffer)</code></pre>
 </details>
 </dd>
 <dt id="traceon.solver.FieldRadialBEM.potential_at_point"><code class="name flex">
@@ -1743,10 +1880,19 @@ constant currently set to 9.</p></div>
     Potential as a float value (in units of V).
     &#34;&#34;&#34;
     assert point.shape == (2,) or point.shape == (3,)
-    return backend.potential_radial(point, self.vertices, self.charges)</code></pre>
+    return backend.potential_radial(point, self.charges, self.jac_buffer, self.pos_buffer)</code></pre>
 </details>
 </dd>
 </dl>
+<h3>Inherited members</h3>
+<ul class="hlist">
+<li><code><b><a title="traceon.solver.FieldBEM" href="#traceon.solver.FieldBEM">FieldBEM</a></b></code>:
+<ul class="hlist">
+<li><code><a title="traceon.solver.FieldBEM.area_of_elements" href="#traceon.solver.FieldBEM.area_of_elements">area_of_elements</a></code></li>
+<li><code><a title="traceon.solver.FieldBEM.charge_on_elements" href="#traceon.solver.FieldBEM.charge_on_elements">charge_on_elements</a></code></li>
+</ul>
+</li>
+</ul>
 </dd>
 </dl>
 </section>
@@ -1788,6 +1934,7 @@ constant currently set to 9.</p></div>
 <li>
 <h4><code><a title="traceon.solver.Field3D_BEM" href="#traceon.solver.Field3D_BEM">Field3D_BEM</a></code></h4>
 <ul class="">
+<li><code><a title="traceon.solver.Field3D_BEM.area_of_element" href="#traceon.solver.Field3D_BEM.area_of_element">area_of_element</a></code></li>
 <li><code><a title="traceon.solver.Field3D_BEM.axial_derivative_interpolation" href="#traceon.solver.Field3D_BEM.axial_derivative_interpolation">axial_derivative_interpolation</a></code></li>
 <li><code><a title="traceon.solver.Field3D_BEM.field_at_point" href="#traceon.solver.Field3D_BEM.field_at_point">field_at_point</a></code></li>
 <li><code><a title="traceon.solver.Field3D_BEM.potential_at_point" href="#traceon.solver.Field3D_BEM.potential_at_point">potential_at_point</a></code></li>
@@ -1798,6 +1945,12 @@ constant currently set to 9.</p></div>
 </li>
 <li>
 <h4><code><a title="traceon.solver.FieldBEM" href="#traceon.solver.FieldBEM">FieldBEM</a></code></h4>
+<ul class="">
+<li><code><a title="traceon.solver.FieldBEM.area_of_elements" href="#traceon.solver.FieldBEM.area_of_elements">area_of_elements</a></code></li>
+<li><code><a title="traceon.solver.FieldBEM.charge_on_element" href="#traceon.solver.FieldBEM.charge_on_element">charge_on_element</a></code></li>
+<li><code><a title="traceon.solver.FieldBEM.charge_on_elements" href="#traceon.solver.FieldBEM.charge_on_elements">charge_on_elements</a></code></li>
+<li><code><a title="traceon.solver.FieldBEM.set_bounds" href="#traceon.solver.FieldBEM.set_bounds">set_bounds</a></code></li>
+</ul>
 </li>
 <li>
 <h4><code><a title="traceon.solver.FieldRadialAxial" href="#traceon.solver.FieldRadialAxial">FieldRadialAxial</a></code></h4>
@@ -1809,8 +1962,8 @@ constant currently set to 9.</p></div>
 <li>
 <h4><code><a title="traceon.solver.FieldRadialBEM" href="#traceon.solver.FieldRadialBEM">FieldRadialBEM</a></code></h4>
 <ul class="">
+<li><code><a title="traceon.solver.FieldRadialBEM.area_of_element" href="#traceon.solver.FieldRadialBEM.area_of_element">area_of_element</a></code></li>
 <li><code><a title="traceon.solver.FieldRadialBEM.axial_derivative_interpolation" href="#traceon.solver.FieldRadialBEM.axial_derivative_interpolation">axial_derivative_interpolation</a></code></li>
-<li><code><a title="traceon.solver.FieldRadialBEM.charge_on_elements" href="#traceon.solver.FieldRadialBEM.charge_on_elements">charge_on_elements</a></code></li>
 <li><code><a title="traceon.solver.FieldRadialBEM.field_at_point" href="#traceon.solver.FieldRadialBEM.field_at_point">field_at_point</a></code></li>
 <li><code><a title="traceon.solver.FieldRadialBEM.get_axial_potential_derivatives" href="#traceon.solver.FieldRadialBEM.get_axial_potential_derivatives">get_axial_potential_derivatives</a></code></li>
 <li><code><a title="traceon.solver.FieldRadialBEM.potential_at_point" href="#traceon.solver.FieldRadialBEM.potential_at_point">potential_at_point</a></code></li>

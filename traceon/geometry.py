@@ -211,6 +211,17 @@ class Mesh(Saveable):
         self.metadata = metadata
             
     def from_meshio(mesh, symmetry, metadata={}):
+        """Generate a Traceon Mesh from a [meshio](https://github.com/nschloe/meshio) mesh.
+        
+        Parameters
+        ----------
+        symmetry: Symmetry
+            Specifies a radially symmetric geometry (RADIAL) or a general 3D geometry (THREE_D).
+        
+        Returns
+        ---------
+        Mesh
+        """
         type_ = 'line4' if symmetry != Symmetry.THREE_D else 'triangle6'
         
         points = mesh.points
@@ -384,13 +395,10 @@ class MEMSStack(Geometry):
         2D geometry is returned. For `0 < revolve_factor <= 1.0` see the documentation of `revolve_around_optical_axis`.
     rmax: float
         The rectangular MEMS objects extend to \( r = r_{max} \).
-    enclose_right: bool
-        When creating a MEMS component it is important to have well specified boundary conditions above and
-        beneath the element. This is usually achieved by having grounded electrodes at the top and bottom of the stack.
-        To finish the grounded enclosure a grounded elements should connect these electrodes vertically at the right
-        side of the stack. 
+    margin: float
+        The distance between the electrodes and the top and bottom boundary.
     margin_right: float
-        Distance between the grounded enclosure on the right and the MEMS electrodes.
+        Distance between the boundary on the right and the MEMS electrodes.
     """
     
     def __init__(self, *args, z0=0.0, revolve_factor=0.0, rmax=2, margin=0.5, margin_right=0.1, **kwargs):
