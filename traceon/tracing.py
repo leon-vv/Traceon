@@ -41,7 +41,7 @@ def velocity_vec(eV, direction):
     """
     assert eV > 0.0
     
-    if eV > 10000:
+    if eV > 40000:
         print(f'WARNING: velocity vector with large energy ({eV} eV) requested. Note that relativistic tracing is not yet implemented.')
      
     # From electronvolt to mm/ns
