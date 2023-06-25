@@ -317,9 +317,6 @@ class FieldBEM(Field):
     def __rmul__(self, other):
         return self.__mul__(other)
     
-    def area_of_element(self, i):
-        return _area(self.symmetry, self.jac_buffer, self.pos_buffer, i)
-    
     def area_of_elements(self, indices):
         return sum(self.area_on_element(i) for i in indices) 
     
@@ -435,6 +432,9 @@ class FieldRadialBEM(FieldBEM):
         
         return FieldRadialAxial(z, coeffs)
     
+    def area_of_element(self, i):
+        return _area(G.Symmetry.RADIAL, self.jac_buffer, self.pos_buffer, i)
+    
     
 class Field3D_BEM(FieldBEM):
     """An electrostatic field resulting from a general 3D geometry. The field is a result of the surface charges as computed by the
@@ -515,6 +515,11 @@ class Field3D_BEM(FieldBEM):
         print(f'Time for calculating radial series expansion coefficients: {(time.time()-st)*1000:.0f} ms ({len(z)} items)')
 
         return Field3DAxial(z, interpolated_coeffs)
+    
+    def area_of_element(self, i):
+        return _area(G.Symmetry.THREE_D, self.jac_buffer, self.pos_buffer, i)
+    
+
      
 
 class FieldAxial(Field):
