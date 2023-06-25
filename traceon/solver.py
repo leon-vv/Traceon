@@ -103,38 +103,28 @@ def _excitation_to_right_hand_side(excitation, vertices, names):
     assert np.all(np.isfinite(F))
     return F
 
-def _area(symmetry, points):
+def _area(symmetry, jacobian_buffer, pos_buffer, index):
     if symmetry == G.Symmetry.RADIAL:
-        middle = np.average(points, axis=0)
-        length = np.linalg.norm(points[1] - points[0])
-        return length*2*np.pi*middle[0]
+        return 2*np.pi*np.sum(jacobian_buffer[index] * pos_buffer[index, :, 0])
     elif symmetry == G.Symmetry.THREE_D:
-        v1, v2, v3 = points 
-        return 1/2*np.linalg.norm(np.cross(v2-v1, v3-v1))
+        return np.sum(jacobian_buffer[index])
 
-
-def _add_floating_conductor_constraints_to_matrix(matrix, vertices, names, excitation):
+def _add_floating_conductor_constraints_to_matrix(matrix, jac_buffer, pos_buffer, names, excitation):
     floating = _get_floating_conductor_names(excitation)
     N_matrix = matrix.shape[0]
     assert matrix.shape == (N_matrix, N_matrix)
      
     for i, f in enumerate(floating):
-        if excitation.mesh.symmetry == G.Symmetry.THREE_D: 
-            for index in names[f]:
-                # An extra unknown voltage is added to the matrix for every floating conductor.
-                # The column related to this unknown voltage is positioned at the rightmost edge of the matrix.
-                # If multiple floating conductors are present the column lives at -len(floating) + i
-                matrix[ index, -len(floating) + i] = -1
-                # The unknown voltage is determined by the constraint on the total charge of the conductor.
-                # This constraint lives at the bottom edge of the matrix.
-                # The surface area of the respective line element (or triangle) is multiplied by the surface charge (unknown)
-                # to arrive at the total specified charge (right hand side).
-                element = vertices[index]
-                matrix[ -len(floating) + i, index] = _area(excitation.mesh.symmetry, element)
-        elif excitation.mesh.symmetry == G.Symmetry.RADIAL:
-            indices = names[f]
-            backend.add_floating_conductor_constraints_radial(matrix, vertices, indices, i)
-                
+        for index in names[f]:
+            # An extra unknown voltage is added to the matrix for every floating conductor.
+            # The column related to this unknown voltage is positioned at the rightmost edge of the matrix.
+            # If multiple floating conductors are present the column lives at -len(floating) + i
+            matrix[ index, -len(floating) + i] = -1
+            # The unknown voltage is determined by the constraint on the total charge of the conductor.
+            # This constraint lives at the bottom edge of the matrix.
+            # The surface area of the respective line element (or triangle) is multiplied by the surface charge (unknown)
+            # to arrive at the total specified charge (right hand side).
+            matrix[ -len(floating) + i, index] = _area(excitation.mesh.symmetry, jac_buffer, pos_buffer, index)
 
 def _excitation_to_matrix(excitation, vertices, names):
     floating_names = _get_floating_conductor_names(excitation)
@@ -173,7 +163,7 @@ def _excitation_to_matrix(excitation, vertices, names):
 
     assert np.all(np.isfinite(matrix))
     
-    _add_floating_conductor_constraints_to_matrix(matrix, vertices, names, excitation)
+    _add_floating_conductor_constraints_to_matrix(matrix, jac_buffer, pos_buffer, names, excitation)
         
     return matrix, jac_buffer, pos_buffer
 
@@ -328,6 +318,31 @@ class FieldBEM(Field):
     
     def __rmul__(self, other):
         return self.__mul__(other)
+    
+    def area_of_element(self, i):
+        return _area(self.symmetry, self.jac_buffer, self.pos_buffer, i)
+    
+    def area_of_elements(self, indices):
+        return sum(self.area_on_element(i) for i in indices) 
+    
+    def charge_on_element(self, i):
+        return self.area_of_element(i) * self.charges[i]
+    
+    def charge_on_elements(self, indices):
+        """Compute the sum of the charges present on the elements with the given indices. To
+        get the total charge of a physical group use `names['name']` for indices where `names` 
+        is returned by `traceon.excitation.Excitation.get_active_elements()`.
+
+        Parameters
+        ----------
+        indices: (N,) array of int
+            indices of the elements contributing to the charge sum. 
+         
+        Returns
+        -------
+        The sum of the charge. See the note about units on the front page."""
+        return sum(self.charge_on_element(i) for i in indices)
+
 
 
 class FieldRadialBEM(FieldBEM):
@@ -421,26 +436,8 @@ class FieldRadialBEM(FieldBEM):
         print(f'Computing derivative interpolation took {(time.time()-st)*1000:.2f} ms ({len(z)} items)')
         
         return FieldRadialAxial(z, coeffs)
-
-    def charge_on_element(self, i):
-        #return backend.charge_radial(self.vertices[i], self.charges[i])
-        return 2*np.pi*np.sum(self.jac_buffer[i] * self.pos_buffer[i, :, 0]) * self.charges[i]
-     
-    def charge_on_elements(self, indices):
-        """Compute the sum of the charges present on the elements with the given indices. To
-        get the total charge of a physical group use `names['name']` for indices where `names` 
-        is returned by `traceon.excitation.Excitation.get_active_elements()`.
-
-        Parameters
-        ----------
-        indices: (N,) array of int
-            indices of the elements contributing to the charge sum. 
-         
-        Returns
-        -------
-        The sum of the charge. See the note about units on the front page."""
-        return sum(self.charge_on_element(i) for i in indices)
-
+    
+    
 class Field3D_BEM(FieldBEM):
     """An electrostatic field resulting from a general 3D geometry. The field is a result of the surface charges as computed by the
     `solve_bem` function. See the comments in `FieldBEM`."""
@@ -521,25 +518,6 @@ class Field3D_BEM(FieldBEM):
 
         return Field3DAxial(z, interpolated_coeffs)
      
-    def charge_on_element(self, i):
-        return np.sum(self.jac_buffer[i]) * self.charges[i]
-      
-    def charge_on_elements(self, indices):
-        """Compute the sum of the charges present on the elements with the given indices. To
-        get the total charge of a physical group use `names['name']` for indices where `names` 
-        is returned by `traceon.excitation.Excitation.get_active_elements()`.
-
-        Parameters
-        ----------
-        indices: (N,) array of int
-            indices of the elements contributing to the charge sum. 
-         
-        Returns
-        -------
-        The sum of the charge. See the note about units on the front page."""
-        return sum(self.charge_on_element(i) for i in indices)
-
-
 
 class FieldAxial(Field):
     """An electrostatic field resulting from a radial series expansion around the optical axis. You should

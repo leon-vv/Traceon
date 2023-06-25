@@ -114,7 +114,6 @@ backend_functions = {
     'trace_particle_3d': (sz, times_block, tracing_block, bounds, dbl, charges_3d, jac_buffer_3d, pos_buffer_3d, sz, dbl_p),
     'field_3d_derivs': (None, v3, v3, z_values, arr(ndim=5), sz),
     'trace_particle_3d_derivs': (sz, times_block, tracing_block, bounds, dbl, z_values, arr(ndim=5), sz),
-    'add_floating_conductor_constraints_radial': (None, arr(ndim=2), lines, sz, arr(dtype=np.int64), sz, sz),
     'fill_jacobian_buffer_radial': (None, jac_buffer_2d, pos_buffer_2d, vertices, sz),
     'fill_matrix_radial': (None, arr(ndim=2), lines, arr(dtype=C.c_uint8, ndim=1), arr(ndim=1), jac_buffer_2d, pos_buffer_2d, sz, sz, C.c_int, C.c_int),
     'fill_jacobian_buffer_3d': (None, jac_buffer_3d, pos_buffer_3d, vertices, sz),
@@ -414,13 +413,6 @@ def field_3d_derivs(point, z, coeffs):
 
     field = np.zeros( (3,) )
     backend_lib.field_3d_derivs(point, field, z, coeffs, len(z))
-
-def add_floating_conductor_constraints_radial(matrix, vertices, indices, row):
-    N_matrix = matrix.shape[0]
-    assert all(N_QUAD_2D*i < N_matrix for i in indices)
-    assert matrix.shape[0] == matrix.shape[1]
-
-    return backend_lib.add_floating_conductor_constraints_radial(matrix, vertices, N_matrix, indices.astype(np.int64), len(indices), row)
 
 def fill_jacobian_buffer_radial(vertices):
     N = len(vertices)
