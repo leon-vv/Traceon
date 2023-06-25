@@ -72,12 +72,6 @@ thetas_interpolation_coefficients = np.load(coefficients_file)
 
 assert thetas_interpolation_coefficients.shape == (thetas.size-1, backend.NU_MAX, backend.M_MAX, 4)
 
-def _get_N_quad(exc):
-    if exc.mesh.symmetry == G.Symmetry.RADIAL:
-        return backend.N_QUAD_2D
-    elif exc.mesh.symmetry == G.Symmetry.THREE_D:
-        return 1
-
 def _get_floating_conductor_names(exc):
     return [n for n, (t, v) in exc.excitation_types.items() if t == E.ExcitationType.FLOATING_CONDUCTOR]
 
@@ -86,28 +80,21 @@ def _excitation_to_right_hand_side(excitation, vertices, names):
      
     N_floating = len(floating_names)
     N_lines = len(vertices)
-    N_quad = _get_N_quad(excitation)
-    N_matrix = N_quad*N_lines + N_floating # Every floating conductor adds one constraint
+    N_matrix = N_lines + N_floating # Every floating conductor adds one constraint
 
     F = np.zeros( (N_matrix) )
      
     for name, indices in names.items():
         type_, value  = excitation.excitation_types[name]
-
-        all_indices = np.concatenate( [N_quad*indices + i for i in range(N_quad)] )
-         
+        
         if type_ == E.ExcitationType.VOLTAGE_FIXED:
-            F[all_indices] = value
+            F[indices] = value
         elif type_ == E.ExcitationType.VOLTAGE_FUN:
-            for i in indices:
-                points = vertices[i]
-                middle = np.average(points, axis=0)
-                for q in range(N_quad):
-                    # TODO: use higher order BEM?
-                    F[N_quad*i + q] = value(*middle)
+            positions = [backend.position_and_jacobian_radial(0.5, vertices[i, 0], vertices[i, 2], vertices[i, 3], vertices[i, 1])[1] for i in indices]
+            F[indices] = [value(*p) for p in positions]
         elif type_ == E.ExcitationType.DIELECTRIC or \
                 type_ == E.ExcitationType.FLOATING_CONDUCTOR:
-            F[all_indices] = 0
+            F[indices] = 0
     
     # See comments in _add_floating_conductor_constraints_to_matrix
     for i, f in enumerate(floating_names):
@@ -154,8 +141,7 @@ def _excitation_to_matrix(excitation, vertices, names):
     
     N_floating = len(floating_names)
     N_lines = len(vertices)
-    N_quad = _get_N_quad(excitation)
-    N_matrix = N_quad*N_lines + N_floating # Every floating conductor adds one constraint
+    N_matrix = N_lines + N_floating # Every floating conductor adds one constraint
      
     excitation_types = np.zeros(N_lines, dtype=np.uint8)
     excitation_values = np.zeros(N_lines)
@@ -195,19 +181,15 @@ def _excitation_to_matrix(excitation, vertices, names):
 def _charges_to_field(excitation, charges, vertices, names, jac_buffer, pos_buffer):
     floating_names = _get_floating_conductor_names(excitation)
     N_floating = len(floating_names)
-    N_quad = _get_N_quad(excitation)
      
-    assert len(charges) == N_quad*len(vertices) + N_floating
+    assert len(charges) == len(vertices) + N_floating
     
     floating_voltages = {n:charges[-N_floating+i] for i, n in enumerate(floating_names)}
     if N_floating > 0:
         charges = charges[:-N_floating]
      
-    assert len(charges) == N_quad*len(vertices)
-
-    if N_quad > 1:
-        charges = np.reshape(charges, (len(vertices), N_quad))
-     
+    assert len(charges) == len(vertices)
+    
     field_class = FieldRadialBEM if excitation.mesh.symmetry != G.Symmetry.THREE_D else Field3D_BEM
     return field_class(vertices, charges, jac_buffer, pos_buffer, floating_voltages=floating_voltages)
     
@@ -240,7 +222,9 @@ def solve_bem(excitation, superposition=False):
     vertices, names = excitation.get_active_elements()
      
     if not superposition:
+        print(repr(vertices[4]))
         matrix, jac_buffer, pos_buffer = _excitation_to_matrix(excitation, vertices, names)
+        print('First diagonal: ', np.diagonal(matrix)[:6])
         F = _excitation_to_right_hand_side(excitation, vertices, names)
         st = time.time()
         charges = np.linalg.solve(matrix, F)
@@ -304,6 +288,10 @@ class FieldBEM(Field):
         self.floating_voltages = floating_voltages
         self.jac_buffer = jac_buffer
         self.pos_buffer = pos_buffer
+        self.field_bounds = None
+    
+    def set_bounds(self, bounds):
+        self.field_bounds = np.array(bounds)
 
     def __str__(self):
         name = self.__class__.__name__
@@ -349,6 +337,7 @@ class FieldRadialBEM(FieldBEM):
     def __init__(self, vertices, charges, jac_buffer, pos_buffer, floating_voltages={}):
         super().__init__(vertices, charges, jac_buffer, pos_buffer, floating_voltages)
         assert vertices.shape == (len(charges), 4, 3)
+        assert charges.shape == (len(charges),)
         
     def field_at_point(self, point):
         """
@@ -364,8 +353,8 @@ class FieldRadialBEM(FieldBEM):
         Numpy array containing the field strengths (in units of V/mm) in the r and z directions.   
         """
         assert point.shape == (2,) or point.shape == (3,)
-        return backend.field_radial(point, self.vertices, self.charges)
-    
+        return backend.field_radial(point, self.charges, self.jac_buffer, self.pos_buffer)
+     
     def potential_at_point(self, point):
         """
         Compute the potential.
@@ -380,7 +369,7 @@ class FieldRadialBEM(FieldBEM):
         Potential as a float value (in units of V).
         """
         assert point.shape == (2,) or point.shape == (3,)
-        return backend.potential_radial(point, self.vertices, self.charges)
+        return backend.potential_radial(point, self.charges, self.jac_buffer, self.pos_buffer)
      
     def get_axial_potential_derivatives(self, z):
         """
@@ -397,7 +386,7 @@ class FieldRadialBEM(FieldBEM):
         Numpy array of shape (N, 9) containing the derivatives. At index i one finds the i-th derivative (so
         at position 0 the potential itself is returned). The highest derivative returned is a 
         constant currently set to 9."""
-        return backend.axial_derivatives_radial_ring(z, self.vertices, self.charges)
+        return backend.axial_derivatives_radial_ring(z, self.charges, self.jac_buffer, self.pos_buffer)
      
     def axial_derivative_interpolation(self, zmin, zmax, N=None):
         """
@@ -434,8 +423,9 @@ class FieldRadialBEM(FieldBEM):
         return FieldRadialAxial(z, coeffs)
 
     def charge_on_element(self, i):
-        return backend.charge_radial(self.vertices[i], self.charges[i])
-    
+        #return backend.charge_radial(self.vertices[i], self.charges[i])
+        return 2*np.pi*np.sum(self.jac_buffer[i] * self.pos_buffer[i, :, 0]) * self.charges[i]
+     
     def charge_on_elements(self, indices):
         """Compute the sum of the charges present on the elements with the given indices. To
         get the total charge of a physical group use `names['name']` for indices where `names` 

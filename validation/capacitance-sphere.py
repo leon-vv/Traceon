@@ -45,7 +45,7 @@ def create_geometry(MSF, symmetry):
         l1 = add_shell(r1)
         d1 = add_shell(r3, reorient=symmetry == G.Symmetry.RADIAL)
         d2 = add_shell(r4, reorient=symmetry != G.Symmetry.RADIAL)
-        l2 = add_shell(r2)
+        l2 = add_shell(r2, reorient=True)
         
         geom.add_physical(l1, 'inner')
         geom.add_physical(l2, 'outer')
@@ -64,6 +64,11 @@ def compute_field(geom):
     exc.add_dielectric(dielectric=K)
     
     field = S.solve_bem(exc)
+
+    r = np.linspace(r1, r2)
+    pot = [field.potential_at_point(np.array([r_, 0.0] + ([0.0] if geom.symmetry == G.Symmetry.THREE_D else []))) for r_ in r]
+    plt.plot(r, pot)
+    plt.show()
 
     return exc, field
 

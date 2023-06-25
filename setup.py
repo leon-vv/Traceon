@@ -1,21 +1,27 @@
 from setuptools import setup, Extension
 import platform
 
+VCPKG_DIR = 'C:\\Users\\leonv\\vcpkg'
 
 if platform.system() in ['Linux', 'Darwin']:
-    compiler_kwargs = dict(extra_compile_args=['-O3', '-mavx', '-ffast-math'], extra_link_args=['-lm'])
+    compiler_kwargs = dict(extra_compile_args=['-O3', '-mavx', '-ffast-math', '-DNDEBUG'], extra_link_args=['-lm', '-lgsl'])
+    extra_objects = []
+    include_dirs = []
 elif platform.system() == 'Windows':
-    compiler_kwargs = dict(extra_compile_args=['/fp:fast', '/Ox', '/Ob3', '/Oi', '/GL', '/arch:AVX'])
+    compiler_kwargs = dict(extra_compile_args=['/fp:fast', '/Ox', '/Ob3', '/Oi', '/GL', '/arch:AVX', '-I .\\traceon\\backend\\'])
+    extra_objects = [VCPKG_DIR + '\\packages\\gsl_x64-windows-static-release\\lib\\gsl.lib']
+    include_dirs = VCPKG_DIR + '\\packages\\gsl_x64-windows-static-release\\include'
 
 
 backend_extension = Extension(
     name='traceon.backend.traceon_backend',
     sources=['traceon/backend/traceon-backend.c'],
+    extra_objects=extra_objects,
     **compiler_kwargs)
 
 setup(
     name='traceon',
-    version='0.2.0',
+    version='0.3.0-rc.1',
     description='Solver and tracer for electrostatic problems',
     url='https://github.com/leon-vv/Traceon',
     author='Léon van Velzen',
@@ -32,7 +38,8 @@ setup(
         'Documentation': "https://leon.science/traceon",
         'Code': "https://github.com/leon-vv/traceon",
         'Issues': "https://github.com/leon-vv/traceon/issues"
-    }
+    },
+    include_dirs=include_dirs,
 )
 
 

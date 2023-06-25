@@ -50,17 +50,18 @@ def create_geometry(MSF, symmetry):
         return geom.generate_mesh()
 
 
-
-
-def gap_voltage(x, y, _):
+def gap_voltage(x, y):
     return (y-9.9)/0.2 * 10
 
-def compute_error(geom):
+def compute_field(geom):
     exc = E.Excitation(geom)
     exc.add_voltage(v1=0, v2=10, gap=gap_voltage)
      
     field = solver.solve_bem(exc)
     
+    return exc, field
+    
+def compute_error(exc, field, _):
     edwards = np.array([5.0, 2.5966375108359858, 1.1195606398479115, .4448739946832647, .1720028130382, .065954697686])
     z = 2*np.array([0.0, 0.2, 0.4, 0.6, 0.8, 1.0])
     
@@ -75,5 +76,5 @@ Compute the potential inside a two cylinder lens.  The correct values for the po
 Accurate Potential Calculations For The Two Tube Electrostatic Lens Using A Multiregion FDM Method.  David Edwards, Jr. 2007.
 '''
 
-util.parse_validation_args(create_geometry, compute_error, v1='blue', v2='green', gap='orange')
+util.parse_validation_args(create_geometry, compute_field, compute_error, v1='blue', v2='green', gap='orange')
 

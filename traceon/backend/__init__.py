@@ -67,7 +67,7 @@ field_fun = C.CFUNCTYPE(None, C.POINTER(dbl), C.POINTER(dbl), vp);
 vertices = arr(ndim=3)
 lines = arr(ndim=3)
 charges_3d = arr(ndim=1)
-charges_2d = arr(ndim=2)
+charges_2d = arr(ndim=1)
 z_values = arr(ndim=1)
 
 jac_buffer_3d = arr(ndim=2)
@@ -82,9 +82,12 @@ times_block = arr(shape=(TRACING_BLOCK_SIZE,))
 tracing_block = arr(shape=(TRACING_BLOCK_SIZE, 6))
 
 backend_functions = {
+    'ellipkm1' : (dbl, dbl),
     'ellipk' : (dbl, dbl),
+    'ellipem1' : (dbl, dbl),
     'ellipe': (dbl, dbl),
     'normal_2d': (None, v2, v2, v2),
+    'higher_order_normal_radial': (None, dbl, v2, v2, v2, v2, v2),
     'normal_3d': (None, v3, v3, v3, v3),
     'position_and_jacobian_3d': (None, dbl, dbl, arr(ndim=2), v3, dbl_p),
     'position_and_jacobian_radial': (None, dbl, v2, v2, v2, v2, v2, dbl_p),
@@ -92,12 +95,12 @@ backend_functions = {
     'potential_radial_ring': (dbl, dbl, dbl, dbl, dbl, vp), 
     'dr1_potential_radial_ring': (dbl, dbl, dbl, dbl, dbl, vp), 
     'dz1_potential_radial_ring': (dbl, dbl, dbl, dbl, dbl, vp), 
-    'axial_derivatives_radial_ring': (None, arr(ndim=2), lines, charges_2d, sz, z_values, sz),
-    'potential_radial': (dbl, v3, vertices, charges_2d, sz),
+    'axial_derivatives_radial_ring': (None, arr(ndim=2), charges_2d, jac_buffer_2d, pos_buffer_2d, sz, z_values, sz),
+    'potential_radial': (dbl, v3, charges_2d, jac_buffer_2d, pos_buffer_2d, sz),
     'potential_radial_derivs': (dbl, v2, z_values, arr(ndim=3), sz),
-    'charge_radial': (dbl, arr(ndim=2), arr(ndim=1)),
-    'field_radial': (None, v3, v3, vertices, charges_2d, sz),
-    'trace_particle_radial': (sz, times_block, tracing_block, bounds, dbl, vertices, charges_2d, sz),
+    'charge_radial': (dbl, arr(ndim=2), dbl),
+    'field_radial': (None, v3, v3, charges_2d, jac_buffer_2d, pos_buffer_2d, sz),
+    'trace_particle_radial': (sz, times_block, tracing_block, bounds, dbl, charges_2d, jac_buffer_2d, pos_buffer_2d, sz, dbl_p),
     'field_radial_derivs': (None, v3, v3, z_values, arr(ndim=3), sz),
     'trace_particle_radial_derivs': (sz, times_block, tracing_block, bounds, dbl, z_values, arr(ndim=3), sz),
     'dx1_potential_3d_point': (dbl, dbl, dbl, dbl, dbl, dbl, dbl, vp),
@@ -108,7 +111,7 @@ backend_functions = {
     'potential_3d': (dbl, v3, charges_3d, jac_buffer_3d, pos_buffer_3d, sz),
     'potential_3d_derivs': (dbl, v3, z_values, arr(ndim=5), sz),
     'field_3d': (None, v3, v3, charges_3d, jac_buffer_3d, pos_buffer_3d, sz),
-    'trace_particle_3d': (sz, times_block, tracing_block, bounds, dbl, charges_3d, jac_buffer_3d, pos_buffer_3d, sz),
+    'trace_particle_3d': (sz, times_block, tracing_block, bounds, dbl, charges_3d, jac_buffer_3d, pos_buffer_3d, sz, dbl_p),
     'field_3d_derivs': (None, v3, v3, z_values, arr(ndim=5), sz),
     'trace_particle_3d_derivs': (sz, times_block, tracing_block, bounds, dbl, z_values, arr(ndim=5), sz),
     'add_floating_conductor_constraints_radial': (None, arr(ndim=2), lines, sz, arr(dtype=np.int64), sz, sz),
@@ -117,7 +120,8 @@ backend_functions = {
     'fill_jacobian_buffer_3d': (None, jac_buffer_3d, pos_buffer_3d, vertices, sz),
     'fill_matrix_3d': (None, arr(ndim=2), vertices, arr(dtype=C.c_uint8, ndim=1), arr(ndim=1), jac_buffer_3d, pos_buffer_3d, sz, sz, C.c_int, C.c_int),
     'xy_plane_intersection_2d': (C.c_bool, arr(ndim=2), sz, arr(shape=(4,)), dbl),
-    'xy_plane_intersection_3d': (C.c_bool, arr(ndim=2), sz, arr(shape=(6,)), dbl)
+    'xy_plane_intersection_3d': (C.c_bool, arr(ndim=2), sz, arr(shape=(6,)), dbl),
+    'yz_plane_intersection_3d': (C.c_bool, arr(ndim=2), sz, arr(shape=(6,)))
 }
 
 
@@ -145,9 +149,17 @@ for (fun, (res, *args)) in backend_functions.items():
     libfun.restype = res
     libfun.argtypes = args
 
+ellipkm1 = np.frompyfunc(backend_lib.ellipkm1, 1, 1)
 ellipk = np.frompyfunc(backend_lib.ellipk, 1, 1)
+ellipem1 = np.frompyfunc(backend_lib.ellipem1, 1, 1)
 ellipe = np.frompyfunc(backend_lib.ellipe, 1, 1)
 
+def higher_order_normal_radial(alpha, vertices):
+    normal = np.zeros(2)
+    backend_lib.higher_order_normal_radial(alpha, vertices[0, :2], vertices[2, :2], vertices[3, :2], vertices[1, :2], normal)
+    assert np.isclose(np.linalg.norm(normal), 1.0)
+    return normal
+    
 def normal_2d(p1, p2):
     normal = np.zeros( (2,) )
     backend_lib.normal_2d(p1, p2, normal)
@@ -253,16 +265,21 @@ def trace_particle(position, velocity, field, bounds, atol):
     return trace_particle_wrapper(position, velocity,
         lambda T, P: backend_lib.trace_particle(T, P, wrap_field_fun(field), bounds, atol, None))
 
-def trace_particle_radial(position, velocity, bounds, atol, vertices, charges):
-    assert vertices.shape == (len(charges), 4, 3)
-    assert charges.shape == (len(charges), N_QUAD_2D)
-    bounds = np.array(bounds)
+def trace_particle_radial(position, velocity, bounds, atol, charges, jac_buffer, pos_buffer, field_bounds=None):
+    assert jac_buffer.shape == (len(charges), N_QUAD_2D)
+    assert pos_buffer.shape == (len(charges), N_QUAD_2D, 2)
+    assert charges.shape == (len(charges),)
+    assert field_bounds is None or field_bounds.shape == (2,2)
     
+    bounds = np.array(bounds)
+     
     if bounds.shape[0] == 2:
         bounds = np.array([bounds[0], bounds[1], [-1.0, 0.0]])
+
+    field_bounds = field_bounds.ctypes.data_as(dbl_p) if field_bounds is not None else None
      
     times, positions = trace_particle_wrapper(position, velocity,
-        lambda T, P: backend_lib.trace_particle_radial(T, P, bounds, atol, vertices, charges, len(charges)))
+        lambda T, P: backend_lib.trace_particle_radial(T, P, bounds, atol, charges, jac_buffer, pos_buffer, len(charges), field_bounds))
     
     return times, positions[:, [0,1,3,4]]
 
@@ -278,16 +295,20 @@ def trace_particle_radial_derivs(position, velocity, bounds, atol, z, coeffs):
     
     return times, positions[:, [0,1,3,4]]
 
-def trace_particle_3d(position, velocity, bounds, atol, charges, jac_buffer, pos_buffer):
+def trace_particle_3d(position, velocity, bounds, atol, charges, jac_buffer, pos_buffer, field_bounds=None):
     N = len(charges)
     assert position.shape == (3,)
     assert velocity.shape == (3,)
     assert jac_buffer.shape == (N, N_TRIANGLE_QUAD)
     assert pos_buffer.shape == (N, N_TRIANGLE_QUAD, 3)
+    assert field_bounds is None or field_bounds.shape == (3,2)
+    
     bounds = np.array(bounds)
+    
+    field_bounds = field_bounds.ctypes.data_as(dbl_p) if field_bounds is not None else None
      
     return trace_particle_wrapper(position, velocity,
-        lambda T, P: backend_lib.trace_particle_3d(T, P, bounds, atol, charges, jac_buffer, pos_buffer, len(charges)))
+        lambda T, P: backend_lib.trace_particle_3d(T, P, bounds, atol, charges, jac_buffer, pos_buffer, len(charges), field_bounds))
 
 def trace_particle_3d_derivs(position, velocity, bounds, atol, z, coeffs):
     assert position.shape == (3,)
@@ -302,38 +323,37 @@ potential_radial_ring = lambda *args: backend_lib.potential_radial_ring(*args, N
 dr1_potential_radial_ring = lambda *args: backend_lib.dr1_potential_radial_ring(*args, None)
 dz1_potential_radial_ring = lambda *args: backend_lib.dz1_potential_radial_ring(*args, None)
 
-def axial_derivatives_radial_ring(z, lines, charges):
+def axial_derivatives_radial_ring(z, charges, jac_buffer, pos_buffer):
     derivs = np.zeros( (z.size, DERIV_2D_MAX) )
-    assert lines.shape == (len(charges), 4, 3)
-    assert len(lines) == len(charges)
-    assert charges.shape == (len(charges), N_QUAD_2D)
     
-    backend_lib.axial_derivatives_radial_ring(derivs, lines, charges, len(lines), z, len(z))
+    assert jac_buffer.shape == (len(charges), N_QUAD_2D)
+    assert pos_buffer.shape == (len(charges), N_QUAD_2D, 2)
+    assert charges.shape == (len(charges),)
+     
+    backend_lib.axial_derivatives_radial_ring(derivs,charges, jac_buffer, pos_buffer, len(charges), z, len(z))
     return derivs
 
-def potential_radial(point, vertices, charges):
+def potential_radial(point, charges, jac_buffer, pos_buffer):
     point = _vec_2d_to_3d(point)
-    assert vertices.shape == (len(charges), 4, 3)
-    assert charges.shape == (len(vertices), N_QUAD_2D)
-    return backend_lib.potential_radial(point, vertices, charges, len(charges))
+    assert jac_buffer.shape == (len(charges), N_QUAD_2D)
+    assert pos_buffer.shape == (len(charges), N_QUAD_2D, 2)
+    return backend_lib.potential_radial(point, charges, jac_buffer, pos_buffer, len(charges))
 
 def potential_radial_derivs(point, z, coeffs):
     assert coeffs.shape == (len(z)-1, DERIV_2D_MAX, 6)
     return backend_lib.potential_radial_derivs(point, z, coeffs, len(z))
 
-def charge_radial(vertices, charges):
-    assert vertices.shape == (len(charges), 3)
-    assert charges.shape == (len(vertices),)
+def charge_radial(vertices, charge):
+    assert vertices.shape == (len(vertices), 3)
+    return backend_lib.charge_radial(vertices, charge)
 
-    return backend_lib.charge_radial(vertices, charges)
-
-def field_radial(point, vertices, charges):
+def field_radial(point, charges, jac_buffer, pos_buffer):
     point = _vec_2d_to_3d(point)
-    assert vertices.shape == (len(charges), 4, 3)
-    assert charges.shape == (len(charges), N_QUAD_2D)
-     
+    assert jac_buffer.shape == (len(charges), N_QUAD_2D)
+    assert pos_buffer.shape == (len(charges), N_QUAD_2D, 2)
+    assert charges.shape == (len(charges),)
     field = np.zeros( (3,) )
-    backend_lib.field_radial(point, field, vertices, charges, len(charges))
+    backend_lib.field_radial(point, field, charges, jac_buffer, pos_buffer, len(charges))
     return field[:2]
 
 def field_radial_derivs(point, z, coeffs):
@@ -413,10 +433,8 @@ def fill_jacobian_buffer_radial(vertices):
 
 def fill_matrix_radial(matrix, lines, excitation_types, excitation_values, jac_buffer, pos_buffer, start_index, end_index):
     N = len(lines)
-    N_quad = N_QUAD_2D*N
-    
     # Due to floating conductor constraints the matrix might actually be bigger than NxN
-    assert matrix.shape[0] >= N_quad and matrix.shape[1] >= N_quad and matrix.shape[0] == matrix.shape[1]
+    assert matrix.shape[0] >= N and matrix.shape[1] >= N and matrix.shape[0] == matrix.shape[1]
     assert lines.shape == (N, 4, 3)
     assert excitation_types.shape == (N,)
     assert excitation_values.shape == (N,)
@@ -447,6 +465,17 @@ def fill_matrix_3d(matrix, vertices, excitation_types, excitation_values, jac_bu
     assert 0 <= start_index < N and 0 <= end_index < N and start_index < end_index
      
     backend_lib.fill_matrix_3d(matrix, vertices, excitation_types, excitation_values, jac_buffer, pos_buffer, N, matrix.shape[0], start_index, end_index)
+
+def yz_plane_intersection_3d(positions):
+     
+    assert positions.shape[1] == 6
+     
+    positions = np.require(positions, dtype=np.float64, requirements=('C_CONTIGUOUS', 'ALIGNED'))
+    
+    result = np.zeros( (6,) )
+    found = backend_lib.yz_plane_intersection_3d(positions, len(positions), result)
+    
+    return result if found else None
 
 def xy_plane_intersection(positions, z):
     
