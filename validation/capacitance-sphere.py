@@ -62,22 +62,13 @@ def compute_field(geom):
     exc.add_voltage(inner=1)
     exc.add_voltage(outer=0)
     exc.add_dielectric(dielectric=K)
-    
+     
     field = S.solve_bem(exc)
-
-    r = np.linspace(r1, r2)
-    pot = [field.potential_at_point(np.array([r_, 0.0] + ([0.0] if geom.symmetry == G.Symmetry.THREE_D else []))) for r_ in r]
-    plt.plot(r, pot)
-    plt.show()
-
     return exc, field
 
 def compute_error(exc, field, geom):
     x = np.linspace(0.55, 0.95)
     f = [field.field_at_point(np.array([x_, 0.0, 0.0]))[0] for x_ in x]
-    
-    #plt.plot(x, f)
-    #plt.show()
      
     vertices = field.vertices
     charges = field.charges
@@ -88,8 +79,8 @@ def compute_error(exc, field, geom):
     
     expected = 4/( (1/r1 - 1/r3) + (1/r3 - 1/r4)/K + (1/r4 - 1/r2))
     capacitance = (abs(Q['outer']) + abs(Q['inner']))/2
-    print('Capacitance found: \t%.6f' % capacitance)
-    print('Capacitance expected: \t%.6f' % expected)
+    print('Capacitance found: \t%.10f' % capacitance)
+    print('Capacitance expected: \t%.10f' % expected)
     error = abs(capacitance/expected - 1)
     return exc, error
 

@@ -49,18 +49,18 @@ def compute_error(exc, field, geom):
     p0 = np.array([RADIUS/3, 3]) if not _3d else np.array([RADIUS/3, 0.0, 3])
     v0 = T.velocity_vec_xz_plane(1000, 0, three_dimensional=_3d)
      
-    print(p0, v0)
     _, pos = tracer(p0, v0)
     
     f = -T.yz_plane_intersection(pos)
-    print('Focal length: ', f)
-
     correct = 3.916282058300268
+    print('Focal length calculated:\t', f)
+    print('Actual focal length:\t\t', correct)
+
     
     return exc, f/correct - 1
 
 util.parser.description = '''   '''
-util.parse_validation_args(create_geometry, compute_field, compute_error, lens='blue', ground='green', boundary='purple',
-    MSF={'radial': [200, 300, 400, 500], '3d': [100, 175, 250, 350, 500]})
+util.parse_validation_args(create_geometry, compute_field, compute_error, lens='blue', ground='green', boundary='purple')
+#    MSF={'radial': [200, 300, 400, 500], '3d': [100, 175, 250, 350, 500]})
 
 

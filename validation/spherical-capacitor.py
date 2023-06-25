@@ -78,13 +78,10 @@ def compute_error(exc, field, geom):
     tracer = T.Tracer(field, bounds)
     times, pos = tracer(position, vel)
      
-    if geom.symmetry == G.Symmetry.THREE_D:
-        pos = pos[:, [0, 2]] # Throw away y axis
+    r_final = T.yz_plane_intersection(pos)
      
-    r_final = T.axis_intersection(pos)
-     
-    print(f'Correct intersection: {correct:.8f}')
-    print(f'Computed intersection: {r_final:.8f}')
+    print(f'Correct intersection:\t{correct:.8f}')
+    print(f'Computed intersection:\t{r_final:.8f}')
      
     return exc, abs(r_final/correct - 1)
 

@@ -73,11 +73,12 @@ def compute_error(excitation, field, geom):
     
     p = T.xy_plane_intersection(pos, 10)
      
-    #correct = 0.16338325
     correct = 1.6327355811e-01
     calculated = np.linalg.norm(p[:2] if _3d else p[:1])
      
-    print(f'Computed intersection: {calculated:.10e} (correct: {correct:.5e})')
+    print(f'Computed intersection:\t', calculated)
+    print(f'Correct intersection:\t', correct)
+    
     return excitation, calculated/correct - 1
 
 util.parser.description = '''   '''
