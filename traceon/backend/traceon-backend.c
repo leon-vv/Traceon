@@ -165,12 +165,12 @@ EXPORT double ellipe(double k) {
 
 
 
-EXPORT inline double
+INLINE double
 norm_2d(double x, double y) {
 	return sqrt(x*x + y*y);
 }
 
-EXPORT inline double
+INLINE double
 length_2d(double *v1, double *v2) {
 	return norm_2d(v2[0]-v1[0], v2[1]-v1[1]);
 }
@@ -208,7 +208,7 @@ higher_order_normal_radial(double alpha, double *v1, double *v2, double *v3, dou
 }
 
 
-EXPORT void inline position_and_jacobian_radial(double alpha, double *v1, double *v2, double *v3, double *v4, double *pos_out, double *jac) {
+INLINE void position_and_jacobian_radial(double alpha, double *v1, double *v2, double *v3, double *v4, double *pos_out, double *jac) {
 
 	double v1x = v1[0], v1y = v1[1];
 	double v2x = v2[0], v2y = v2[1];
@@ -231,7 +231,7 @@ EXPORT void inline position_and_jacobian_radial(double alpha, double *v1, double
 
 typedef double (*integration_cb_3d)(double, double, double, double, double, double, void*);
 
-EXPORT inline double
+INLINE double
 norm_3d(double x, double y, double z) {
 	return sqrt(x*x + y*y + z*z);
 }
@@ -254,9 +254,6 @@ normal_3d(double *p1, double *p2, double *p3, double *normal) {
 
 INLINE void barycentric_coefficients_higher_order_triangle_3d(double alpha, double beta,
 	double v0, double v1, double v2, double v3, double v4, double v5, double coeffs[6]) {
-	//v3 = (v0+v1)/2.;
-	//v4 = (v1+v2)/2.;
-	//v5 = (v0+v2)/2.;
     coeffs[0] = v0;
 	coeffs[1] = 4*v3-v1-3*v0;
 	coeffs[2] = 4*v5-v2-3*v0;
@@ -340,16 +337,11 @@ triangle_integral_alpha(double alpha, void *args_p) {
 	double eta = B*pow(alpha, order);
 	double Jeta = order*B*pow(alpha, order-1);
 	
-	//assert( (0 <= alpha) && (alpha <= 1-beta) );
-	//assert( (0 <= beta) && (beta <= 1));
-		
 	double pos[3], jac;
 	double *v = args->vertices;
-	//printf("Vertices: %f, %f, %f\n", v[0], v[1], v[2]);
-	//printf("Vertices: %f, %f, %f\n", v[3], v[4], v[5]);
-	//printf("Vertices: %f, %f, %f\n", v[6], v[7], v[8]);
+	
 	position_and_jacobian_3d(eta, beta, (double (*)[3]) args->vertices, pos, &jac);
-
+	
 	return Jeta*jac*args->cb_fun(target[0], target[1], target[2], pos[0], pos[1], pos[2], args->cb_args);
 }
 
@@ -359,18 +351,18 @@ double
 triangle_integral_beta(double beta, void *args_p) {
 
 	struct self_voltage_3d_args *args = args_p;
-
+	
 	// Telles transformation
 	const int order = 3;
 	double eta = pow(beta,order);
 	double Jeta = order*pow(beta,order-1);
-	
-	args->beta = eta;
 		
+	args->beta = eta;
+			
     gsl_function F;
     F.function = &triangle_integral_alpha;
 	F.params = args;
-	
+		
     double result, error;
     gsl_integration_qags(&F, 0, 1, 0, 1e-5, ADAPTIVE_MAX_ITERATION, args->inner_workspace, &result, &error);
 		
@@ -404,7 +396,7 @@ triangle_integral_adaptive(double target[3], triangle6 vertices, integration_cb_
 	return result;
 }
 
-EXPORT inline double potential_3d_point(double x0, double y0, double z0, double x, double y, double z, void *_) {
+INLINE double potential_3d_point(double x0, double y0, double z0, double x, double y, double z, void *_) {
 	double r = norm_3d(x-x0, y-y0, z-z0);
     return 1/(4*r);
 }
@@ -572,40 +564,6 @@ axial_derivatives_radial_ring(double *derivs_p, double *charges, jacobian_buffer
 }
 
 //////////////////////////////// RADIAL SYMMETRY POTENTIAL EVALUATION
-
-
-
-// John A. Crow. Quadrature of Integrands with a Logarithmic Singularity. 1993.
-// Computed higher order points and weights with own Python code..
-#define N_LOG_QUAD_2D 12
-const double GAUSS_LOG_QUAD_POINTS[N_LOG_QUAD_2D] =
-					{0.000245284264977222214486999757349594712755863,
-					0.003593698020213691584953180874184458866517133,
-					0.01712292595159614370417434799786314278267083,
-					0.05020561232318819384573670241984682206686949,
-					0.1115235855573625644218104518656856812018872,
-					0.2060030029051239758752495945505766309866304,
-					0.3324626975136065400973675503604997045074356,
-					0.4826067009659319425485030383099190543511725,
-					0.6416794701239928589863342367708391692838668,
-					0.7907090871833554068663998987642233419999952,
-					0.9098838287655625921196627463680156613773641,
-					0.9823479377157619510221418912858930542857947};
-
-const double GAUSS_LOG_QUAD_WEIGHTS[N_LOG_QUAD_2D] =
-					{0.0009331998830671428063097434941623766739840873,
-					0.006977495915143715985530451759041482867494198,
-					0.02169468902199853397715717421909584842021132,
-					0.04597069439559112469266362311262695693833166,
-					0.07752703869583178458842135310107317470803586,
-					0.1112525181837396068263131383589812009329696,
-					0.1402731060085833332292272698216837072064324,
-					0.1575171300868296275541516485738687199310457,
-					0.1574083422236489759715520802610080785790687,
-					0.1372838327177858585860313716723887135089706,
-					0.09819669547418950067876642091789781881144955,
-					0.04496525739359079510387572470817192142199618};
-
 
 
 EXPORT double
@@ -1103,116 +1061,6 @@ enum ExcitationType{
     DIELECTRIC = 3,
     FLOATING_CONDUCTOR = 4};
 
-
-double legendre(int N, double x) {
-	switch(N) {
-		case 0:
-			return 1;
-		case 1:
-			return x;
-		case 2:
-			return (3*pow(x,2)-1)/2.;
-		case 3:
-			return (5*pow(x,3) -3*x)/2.;
-		case 4:
-			return (35*pow(x,4)-30*pow(x,2)+3)/8.;
-		case 5:
-			return (63*pow(x,5)-70*pow(x,3)+15*x)/8.;
-		case 6:
-			return (231*pow(x,6)-315*pow(x,4)+105*pow(x,2)-5)/16.;
-		case 7:
-			return (429*pow(x,7)-693*pow(x,5)+315*pow(x,3)-35*x)/16.;
-		case 8:
-			return (6435*pow(x,8) - 12012*pow(x,6) + 6930*pow(x,4) - 1260*pow(x,2) + 35) / 128;
-		/*case 9:
-			return (12155*pow(x,9) - 25740*pow(x,7) + 18018*pow(x,5) - 4620*pow(x,3) + 315*x) / 128;
-		case 10:
-			return (46189*pow(x,10) - 109395*pow(x,8) + 90090*pow(x,6) - 30030*pow(x,4) + 3465*pow(x,2) - 63) / 256;
-		case 11:
-			return (88179*pow(x,11) - 230945*pow(x,9) + 218790*pow(x,7) - 90090*pow(x,5) + 15015*pow(x,3) - 693*x) / 256;
-		case 12:
-			return (676039*pow(x,12) - 1939938*pow(x,10) + 2078505*pow(x,8) - 1021020*pow(x,6) + 225225*pow(x,4) - 18018*pow(x,2) + 231) / 1024;
-		case 13:
-			return (1300075*pow(x,13) - 4056234*pow(x,11) + 4849845*pow(x,9) - 2771340*pow(x,7) + 765765*pow(x,5) - 90090*pow(x,3) + 3003*x) / 1024;
-		case 14:
-			return (5014575*pow(x,14) - 16900975*pow(x,12) + 22309287*pow(x,10) - 14549535*pow(x,8) + 4849845*pow(x,6) - 765765*pow(x,4) + 45045*pow(x,2) - 429) / 2048;
-		case 15:
-			return (9694845*pow(x,15) - 35102025*pow(x,13) + 50702925*pow(x,11) - 37182145*pow(x,9) + 14549535*pow(x,7) - 2909907*pow(x,5) + 255255*pow(x,3) - 6435*x) / 2048;
-		case 16:
-			return (300540195*pow(x,16) - 1163381400*pow(x,14) + 1825305300*pow(x,12) - 1487285800*pow(x,10) + 669278610*pow(x,8) - 162954792*pow(x,6) + 19399380*pow(x,4) - 875160*pow(x,2) + 6435) / 32768;*/
-	}
-	exit(1);
-}
-
-
-// Modified weight taking into account that the charge contribution
-// is a sum of Legendre polynomials.
-double legendre_log_weight(int k, int l, double legendre_arg) {
-
-	double sum_ = 0.0;
-
-	for(int i = 0; i < N_QUAD_2D; i++)
-		sum_ += GAUSS_QUAD_WEIGHTS[k] * GAUSS_LOG_QUAD_WEIGHTS[l] * (2*i + 1)/2. * legendre(i, GAUSS_QUAD_POINTS[k]) * legendre(i, legendre_arg);
-	
-	return sum_;
-}
-
-
-double log_integral(
-	double *v1,
-	double *v2,
-	double *v3,
-	double *v4,
-	int row, int k,
-	integration_cb_2d callback, void *args) {
-	
-	double s = GAUSS_QUAD_POINTS[row];
-	
-	double spos[2], jac;
-	position_and_jacobian_radial(s, v1, v2, v3, v4, spos, &jac);
-	
-	double spos_left1[2];
-	position_and_jacobian_radial( -1 + 2*(s+1)/3., v1, v2, v3, v4, spos_left1, &jac);
-	
-	double spos_left2[2];
-	position_and_jacobian_radial( -1 + (s+1)/3., v1, v2, v3, v4, spos_left2, &jac);
-	
-	double spos_right1[2];
-	position_and_jacobian_radial( s + (1-s)/3, v1, v2, v3, v4, spos_right1, &jac);
-	
-	double spos_right2[2];
-	position_and_jacobian_radial( s + 2*(1-s)/3, v1, v2, v3, v4, spos_right2, &jac);
-
-	double integration_sum = 0.0;
-	
-	// Logarithmic integration using improved quadrature weights
-	// split the integration around the singularity
-	for(int l = 0; l < N_LOG_QUAD_2D; l++) {
-		
-		// To left direction
-		double local_alpha = 2*GAUSS_LOG_QUAD_POINTS[l] - 1;
-		double global_alpha = s + GAUSS_LOG_QUAD_POINTS[l]*(-s-1);
-		
-		assert( (-1<local_alpha) && (local_alpha<1) );
-		assert( (-1<global_alpha) && (global_alpha<1) );
-		
-		double pos[2], jac;
-		position_and_jacobian_radial(local_alpha, spos, spos_left1, spos_left2, v1, pos, &jac);
-		double pot_ring = callback(spos[0], spos[1], pos[0], pos[1], args);
-		integration_sum += 2*jac * legendre_log_weight(k, l, global_alpha) * pot_ring;
-		// To right direction
-		global_alpha = s + GAUSS_LOG_QUAD_POINTS[l]*(1-s);
-			
-		assert( (-1<local_alpha) && (local_alpha<1) );
-		assert( (-1<global_alpha) && (global_alpha<1) );
-		
-		position_and_jacobian_radial(local_alpha, spos, spos_right1, spos_right2, v4, pos, &jac);
-		pot_ring = callback(spos[0], spos[1], pos[0], pos[1], args);
-		integration_sum += 2*jac * legendre_log_weight(k, l, global_alpha) * pot_ring;
-	}
-	
-	return integration_sum;
-}
 
 struct self_voltage_radial_args {
 	double (*line_points)[3];
