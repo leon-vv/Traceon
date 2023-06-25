@@ -212,15 +212,13 @@ def solve_bem(excitation, superposition=False):
     vertices, names = excitation.get_active_elements()
      
     if not superposition:
-        print(repr(vertices[4]))
         matrix, jac_buffer, pos_buffer = _excitation_to_matrix(excitation, vertices, names)
-        print('First diagonal: ', np.diagonal(matrix)[:6])
         F = _excitation_to_right_hand_side(excitation, vertices, names)
         st = time.time()
         charges = np.linalg.solve(matrix, F)
         assert np.all(np.isfinite(charges))
         print(f'Time for solving matrix: {(time.time()-st)*1000:.0f} ms')
-
+        
         return _charges_to_field(excitation, charges, vertices, names, jac_buffer, pos_buffer)
      
     excs = excitation._split_for_superposition()
