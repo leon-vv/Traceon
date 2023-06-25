@@ -1438,7 +1438,7 @@ line_intersection(double p0[2], double tangent[2], positions_2d positions, size_
 	i -= 1;
 			
 	for(; i >= 0; i--) {
-		double x = positions[i][0], y = positions[i][1], z = positions[i][2];	
+		double x = positions[i][0], y = positions[i][1];
 		double kappa = (yn*yp-y*yn+xn*xp-x*xn)/norm_2d(xn, yn);
 			
 		int sign_kappa = kappa > 0 ? 1 : -1;
