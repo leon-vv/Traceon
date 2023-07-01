@@ -801,8 +801,8 @@ EXPORT double dz1_potential_3d_point(double x0, double y0, double z0, double x, 
 
 EXPORT void
 axial_coefficients_3d(double *restrict charges,
-	jacobian_buffer_3d jacobian_buffer,
-	position_buffer_3d position_buffer,
+	jacobian_buffer_3d restrict jacobian_buffer,
+	position_buffer_3d restrict position_buffer,
 	size_t N_v,
 	double *restrict zs, double *restrict output_coeffs_p, size_t N_z,
 	double *restrict thetas, double *restrict theta_coeffs_p, size_t N_t) {
@@ -822,7 +822,7 @@ axial_coefficients_3d(double *restrict charges,
 			double y = position_buffer[h][k][1];
 			double z = position_buffer[h][k][2];
 			
-			double r = norm_3d(x, y, z-zs[i]);
+			double r = 1/norm_3d(x, y, z-zs[i]);
 			double theta = atan2((z-zs[i]), norm_2d(x, y));
 			double mu = atan2(y, x);
 
@@ -836,7 +836,7 @@ axial_coefficients_3d(double *restrict charges,
 			UNROLL
 			for (int m=0; m < M_MAX; m++) {
 				double base = pow(t, 3)*C[nu][m][0] + pow(t, 2)*C[nu][m][1] + t*C[nu][m][2] + C[nu][m][3];
-				double r_dependence = pow(r, -2*nu - m - 1);
+				double r_dependence = pow(r, 2*nu + m + 1);
 					
 				double jac = jacobian_buffer[h][k];
 				
