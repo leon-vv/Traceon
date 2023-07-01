@@ -6,6 +6,7 @@
 #include <stdbool.h>
 
 #include <gsl/gsl_integration.h>
+#include <gsl/gsl_errno.h>
 
 #ifdef _MSC_VER
 #define EXPORT __declspec(dllexport)
@@ -367,8 +368,8 @@ triangle_integral_beta(double beta, void *args_p) {
 	F.params = args;
 		
     double result, error;
-    gsl_integration_qags(&F, 0, 1, 0, 1e-5, ADAPTIVE_MAX_ITERATION, args->inner_workspace, &result, &error);
-		
+    gsl_integration_qags(&F, 0, 1, 0, 1e-8, ADAPTIVE_MAX_ITERATION, args->inner_workspace, &result, &error);
+			
 	return Jeta*result;
 }
 
@@ -391,7 +392,7 @@ triangle_integral_adaptive(double target[3], triangle6 vertices, integration_cb_
 	F.params = &integration_args;
 		
     double result, error;
-    gsl_integration_qags(&F, 0, 1, 0, 1e-5, ADAPTIVE_MAX_ITERATION, w, &result, &error);
+    gsl_integration_qags(&F, 0, 1, 0, 1e-7, ADAPTIVE_MAX_ITERATION, w, &result, &error);
 	
     gsl_integration_workspace_free(w);
     gsl_integration_workspace_free(w_inner);
@@ -1132,7 +1133,7 @@ void fill_self_voltages_radial(double *matrix,
 			
 		double result, error;
 		double singular_points[3] = {-1, 0, 1};
-		gsl_integration_qagp(&F, singular_points, 3, 1e-9, 5e-5, ADAPTIVE_MAX_ITERATION, w, &result, &error);
+		gsl_integration_qagp(&F, singular_points, 3, 1e-9, 1e-9, ADAPTIVE_MAX_ITERATION, w, &result, &error);
 
 		if(type_ == DIELECTRIC) {
 			matrix[N_matrix*i + i] = result - 1;
@@ -1181,6 +1182,7 @@ EXPORT void fill_matrix_radial(double *matrix,
                         int lines_range_start, 
                         int lines_range_end) {
     
+	gsl_set_error_handler_off();
 	assert(lines_range_start < N_lines && lines_range_end < N_lines);
 	assert(N_matrix >= N_lines);
 		
@@ -1326,7 +1328,8 @@ EXPORT void fill_matrix_3d(double *restrict matrix,
 					size_t N_matrix,
                     int lines_range_start, 
                     int lines_range_end) {
-		
+	
+	gsl_set_error_handler_off();
 	assert(lines_range_start < N_lines && lines_range_end < N_lines);
 		
     for (int i = lines_range_start; i <= lines_range_end; i++) {
