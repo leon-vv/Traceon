@@ -211,7 +211,6 @@ higher_order_normal_radial(double alpha, double *v1, double *v2, double *v3, dou
 	normal_2d(zero, vec, normal);
 }
 
-
 INLINE void position_and_jacobian_radial(double alpha, double *v1, double *v2, double *v3, double *v4, double *pos_out, double *jac) {
 
 	double v1x = v1[0], v1y = v1[1];
@@ -254,6 +253,23 @@ normal_3d(double *p1, double *p2, double *p3, double *normal) {
 	normal[0] = normal_x/length;
 	normal[1] = normal_y/length;
 	normal[2] = normal_z/length;
+}
+
+INLINE void higher_order_normal_3d(double alpha, double beta, triangle6 triangle, double normal[3]) {
+	double v0x = triangle[0][0], v0y = triangle[0][1], v0z = triangle[0][2];
+	double v1x = triangle[1][0], v1y = triangle[1][1], v1z = triangle[1][2];
+	double v2x = triangle[2][0], v2y = triangle[2][1], v2z = triangle[2][2];
+	double v3x = triangle[3][0], v3y = triangle[3][1], v3z = triangle[3][2];
+	double v4x = triangle[4][0], v4y = triangle[4][1], v4z = triangle[4][2];
+	double v5x = triangle[5][0], v5y = triangle[5][1], v5z = triangle[5][2];
+
+	double a=alpha, b=beta;
+	
+	double da[3] = {-4*b*v5x+4*b*v4x+(-4*b-8*a+4)*v3x+(4*a-1)*v1x+(4*b+4*a-3)*v0x,-4*b*v5y+4*b*v4y+(-4*b-8*a+4)*v3y+(4*a-1)*v1y+(4*b+4*a-3)*v0y,-4*b*v5z+4*b*v4z+(-4*b-8*a+4)*v3z+(4*a-1)*v1z+(4*b+4*a-3)*v0z};
+	double db[3] = {(-8*b-4*a+4)*v5x+4*a*v4x-4*a*v3x+(4*b-1)*v2x+(4*b+4*a-3)*v0x,(-8*b-4*a+4)*v5y+4*a*v4y-4*a*v3y+(4*b-1)*v2y+(4*b+4*a-3)*v0y,(-8*b-4*a+4)*v5z+4*a*v4z-4*a*v3z+(4*b-1)*v2z+(4*b+4*a-3)*v0z};
+	
+	double zero[3] = {0, 0, 0};
+	normal_3d(zero, da, db, normal);
 }
 
 INLINE void barycentric_coefficients_higher_order_triangle_3d(double alpha, double beta,
@@ -1352,16 +1368,13 @@ EXPORT void fill_matrix_3d(double *restrict matrix,
             }
         } 
 		else if (type_ == DIELECTRIC) {  
-			double *p1 = &triangle_points[i][0][0];  
-			double *p2 = &triangle_points[i][1][0];  
-			double *p3 = &triangle_points[i][2][0];  
-
+			
 			double normal[3];  
-			normal_3d(p1, p2, p3, normal);  
+			higher_order_normal_3d(1/3., 1/3., &triangle_points[i][0], normal);
 			double K = excitation_values[i];  
-
+			
 			double factor = (2*K - 2) / (M_PI*(1 + K));  
-
+			
 			for (int j = 0; j < N_lines; j++) {  
 					
 				UNROLL  
