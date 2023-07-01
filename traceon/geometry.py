@@ -427,17 +427,17 @@ class MEMSStack(Geometry):
         self._current_z += thickness
     
     def _add_boundary(self):
-        points = [[0.0, self.z0],
-                  [self.rmax+self.margin_right, self.z0],
+        points = [[0.0, self._current_z+self.margin],
                   [self.rmax+self.margin_right, self._current_z+self.margin],
-                  [0.0, self._current_z+self.margin]]
+                  [self.rmax+self.margin_right, self.z0],
+                  [0.0, self.z0]]
         
         self._add_lines_from_points(points, 'boundary')
         self._current_z += self.margin
      
     def _add_lines_from_points(self, points, name):
         if self.symmetry == Symmetry.THREE_D:
-            points = [self.add_point([p[0], 0.0, p[1]]) for p in points]
+            points = [self.add_point([p[0], 0.0, p[1]]) for p in points[::-1]]
         else:
             points = [self.add_point(p) for p in points]
         

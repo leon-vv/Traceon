@@ -39,7 +39,7 @@ def create_geometry(MSF, symmetry):
 
 def compute_field(geom):
     exc = E.Excitation(geom)
-    exc.add_voltage(ground=0.0, mirror=-1250, lens=695)
+    exc.add_voltage(ground=0.0, mirror=-1250, lens=200)
     exc.add_boundary('boundary')
     
     field = S.solve_bem(exc)

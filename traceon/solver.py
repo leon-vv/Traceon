@@ -86,11 +86,11 @@ def _excitation_to_right_hand_side(excitation, vertices, names):
      
     for name, indices in names.items():
         type_, value  = excitation.excitation_types[name]
-        
+         
         if type_ == E.ExcitationType.VOLTAGE_FIXED:
             F[indices] = value
         elif type_ == E.ExcitationType.VOLTAGE_FUN:
-            positions = [backend.position_and_jacobian_radial(0.5, vertices[i, 0], vertices[i, 2], vertices[i, 3], vertices[i, 1])[1] for i in indices]
+            positions = [backend.position_and_jacobian_radial(0, vertices[i, 0], vertices[i, 2], vertices[i, 3], vertices[i, 1])[1] for i in indices]
             F[indices] = [value(*p) for p in positions]
         elif type_ == E.ExcitationType.DIELECTRIC or \
                 type_ == E.ExcitationType.FLOATING_CONDUCTOR:

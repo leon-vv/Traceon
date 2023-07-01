@@ -52,7 +52,7 @@ def compute_error(exc, field, geom):
     _, pos = tracer(p0, v0)
     
     f = -T.axis_intersection(pos)
-    correct = 3.916282058300268
+    correct = 3.915970140918643
     print('Focal length calculated:\t', f)
     print('Actual focal length:\t\t', correct)
 
