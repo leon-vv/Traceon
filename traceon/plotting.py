@@ -95,9 +95,12 @@ def plot_triangle_mesh(mesh, show_legend=True, show_normals=False, **colors):
      
     triangles_to_plot = []
     colors_ = []
+    
+    normal_coordinates = [(1/6, 1/6), (1/2-1/6, 1/2-1/6), (1/2-1/6, 1/6), (1/6, 1/2-1/6)]
+    normals = []
      
     for (v0, v1, v2, v3, v4, v5) in triangles:
-        for A, B, C in [(v0, v3, v5), (v3, v4, v5), (v3, v1, v4), (v5, v4, v2)]:
+        for i, (A, B, C) in enumerate([(v0, v3, v5), (v3, v4, v5), (v3, v1, v4), (v5, v4, v2)]):
             color = '#CCCCC'
             
             if A in dict_ and B in dict_ and C in dict_:
@@ -106,6 +109,9 @@ def plot_triangle_mesh(mesh, show_legend=True, show_normals=False, **colors):
                     color = colors[phys1]
             
             triangles_to_plot.append( [A, B, C] )
+
+            alpha, beta = normal_coordinates[i]
+            normals.append(backend.higher_order_normal_3d(alpha, beta, mesh.points[[v0, v1, v2, v3, v4, v5]]))
             colors_.append(color)
      
     colors_, triangles_to_plot = np.array(colors_), np.array(triangles_to_plot)
@@ -166,7 +172,7 @@ def plot_line_mesh(mesh, show_legend=True, show_normals=False, **colors):
     normals = []
     
     for (P1, P2, P3, P4) in lines:
-        for A, B in [(P1, P3), (P3, P4), (P4, P2)]:
+        for i, (A, B) in enumerate([(P1, P3), (P3, P4), (P4, P2)]):
             color = '#CCCCC'
 
             if A in dict_ and B in dict_:
@@ -177,8 +183,8 @@ def plot_line_mesh(mesh, show_legend=True, show_normals=False, **colors):
             p1, p2 = mesh.points[A], mesh.points[B]
             start.append(p1)
             end.append(p2)
-            normals.append(backend.higher_order_normal_radial(0.0, mesh.points[np.array([P1, P2, P3, P4])]))
             colors_.append(color)
+            normals.append(backend.higher_order_normal_radial(-2/3 + i*2/3, mesh.points[np.array([P1, P2, P3, P4])]))
     
     start, end = np.array(start), np.array(end)
     colors_ = np.array(colors_)

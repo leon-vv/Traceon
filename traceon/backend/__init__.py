@@ -89,6 +89,7 @@ backend_functions = {
     'normal_2d': (None, v2, v2, v2),
     'higher_order_normal_radial': (None, dbl, v2, v2, v2, v2, v2),
     'normal_3d': (None, v3, v3, v3, v3),
+    'higher_order_normal_3d': (None, dbl, dbl, arr(shape=(6,3)), v3),
     'position_and_jacobian_3d': (None, dbl, dbl, arr(ndim=2), v3, dbl_p),
     'position_and_jacobian_radial': (None, dbl, v2, v2, v2, v2, v2, dbl_p),
     'trace_particle': (sz, times_block, tracing_block, field_fun, bounds, dbl, vp),
@@ -163,6 +164,13 @@ def normal_2d(p1, p2):
     backend_lib.normal_2d(p1, p2, normal)
     return normal
 
+def higher_order_normal_3d(alpha, beta, vertices):
+    assert vertices.shape == (6,3)
+    normal = np.zeros(3)
+    backend_lib.higher_order_normal_3d(alpha, beta, vertices, normal)
+    assert np.isclose(np.linalg.norm(normal), 1.0)
+    return normal
+ 
 # Remove the last argument, which is usually a void pointer to optional data
 # passed to the function. In Python we don't need this functionality
 # as we can simply use closures.
