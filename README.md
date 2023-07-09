@@ -15,8 +15,7 @@ Traceon is completely free to use and open source. The source code is distribute
 Please cite the software as follows:
 
 ```
-L.B. van Velzen. Traceon software (version 0.3.0). 2023. https://doi.org/10.5281/zenodo.8079985
-
+L.B. van Velzen. Traceon software (version 0.3.1). 2023. https://doi.org/10.5281/zenodo.8127611
 ```
 
 ## Installation
