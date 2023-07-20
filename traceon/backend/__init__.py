@@ -108,7 +108,7 @@ backend_functions = {
     'dy1_potential_3d_point': (dbl, dbl, dbl, dbl, dbl, dbl, dbl, vp),
     'dz1_potential_3d_point': (dbl, dbl, dbl, dbl, dbl, dbl, dbl, vp),
     'potential_3d_point': (dbl, dbl, dbl, dbl, dbl, dbl, dbl, vp),
-    'axial_coefficients_3d': (None, charges_3d, jac_buffer_3d, pos_buffer_3d, sz, z_values, arr(ndim=4), sz, arr(ndim=1), arr(ndim=4), sz),
+    'axial_coefficients_3d': (None, charges_3d, jac_buffer_3d, pos_buffer_3d, arr(ndim=3), arr(ndim=3), sz, z_values, arr(ndim=4), sz, arr(ndim=1), arr(ndim=4), sz),
     'potential_3d': (dbl, v3, charges_3d, jac_buffer_3d, pos_buffer_3d, sz),
     'potential_3d_derivs': (dbl, v3, z_values, arr(ndim=5), sz),
     'field_3d': (None, v3, v3, charges_3d, jac_buffer_3d, pos_buffer_3d, sz),
@@ -380,9 +380,12 @@ def axial_coefficients_3d(charges, jacobian_buffer, pos_buffer, z, thetas, theta
     assert theta_interpolation.shape == (len(thetas)-1, NU_MAX, M_MAX, 4)
 
     output_coeffs = np.zeros( (len(z), 2, NU_MAX, M_MAX) )
+     
+    trig_cos_buffer = np.zeros( (len(charges), N_TRIANGLE_QUAD, M_MAX) )
+    trig_sin_buffer = np.zeros( (len(charges), N_TRIANGLE_QUAD, M_MAX) )
     
     backend_lib.axial_coefficients_3d(charges, 
-        jacobian_buffer, pos_buffer,
+        jacobian_buffer, pos_buffer, trig_cos_buffer, trig_sin_buffer,
         len(charges),
         z, output_coeffs, len(z),
         thetas, theta_interpolation, len(thetas))

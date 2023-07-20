@@ -820,6 +820,7 @@ EXPORT void
 axial_coefficients_3d(double *restrict charges,
 	jacobian_buffer_3d restrict jacobian_buffer,
 	position_buffer_3d restrict position_buffer,
+	double *trig_cos_buffer_p, double *trig_sin_buffer_p,
 	size_t N_v,
 	double *restrict zs, double *restrict output_coeffs_p, size_t N_z,
 	double *restrict thetas, double *restrict theta_coeffs_p, size_t N_t) {
@@ -830,19 +831,31 @@ axial_coefficients_3d(double *restrict charges,
 	double theta0 = thetas[0];
 	double dtheta = thetas[1] - thetas[0];
 	
+	double (*trig_cos_buffer)[N_TRIANGLE_QUAD][M_MAX] = (double (*)[N_TRIANGLE_QUAD][M_MAX]) trig_cos_buffer_p;
+	double (*trig_sin_buffer)[N_TRIANGLE_QUAD][M_MAX] = (double (*)[N_TRIANGLE_QUAD][M_MAX]) trig_sin_buffer_p;
+	
+	for(int h = 0; h < N_v; h++)
+	for(int k = 0; k < N_TRIANGLE_QUAD; k++)
+	for(int m = 0; m < M_MAX; m++) {
+		
+		double x = position_buffer[h][k][0];
+		double y = position_buffer[h][k][1];
+		double mu = atan2(y, x);
+			
+		trig_cos_buffer[h][k][m] = cos(m*mu);
+		trig_sin_buffer[h][k][m] = sin(m*mu);
+	}
+		
 	for(int h = 0; h < N_v; h++) {
         for (int i=0; i < N_z; i++) 
-		
-		UNROLL
 		for (int k=0; k < N_TRIANGLE_QUAD; k++) {
 			double x = position_buffer[h][k][0];
 			double y = position_buffer[h][k][1];
 			double z = position_buffer[h][k][2];
 			
 			double r = 1/norm_3d(x, y, z-zs[i]);
-			double theta = atan2((z-zs[i]), norm_2d(x, y));
-			double mu = atan2(y, x);
-
+			double theta = atan((z-zs[i])/norm_2d(x,y));
+				
 			int index = (int) ((theta-theta0)/dtheta);
 
 			double t = theta-thetas[index];
@@ -856,9 +869,10 @@ axial_coefficients_3d(double *restrict charges,
 				double r_dependence = pow(r, 2*nu + m + 1);
 					
 				double jac = jacobian_buffer[h][k];
+				double C = trig_cos_buffer[h][k][m], S = trig_sin_buffer[h][k][m];
 				
-				output_coeffs[i][0][nu][m] += charges[h]*jac*base*cos(m*mu)*r_dependence;
-				output_coeffs[i][1][nu][m] += charges[h]*jac*base*sin(m*mu)*r_dependence;
+				output_coeffs[i][0][nu][m] += charges[h]*jac*base*C*r_dependence;
+				output_coeffs[i][1][nu][m] += charges[h]*jac*base*S*r_dependence;
 			}
 		}
 	}
