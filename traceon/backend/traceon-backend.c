@@ -833,7 +833,12 @@ axial_coefficients_3d(double *restrict charges,
 	
 	double (*trig_cos_buffer)[N_TRIANGLE_QUAD][M_MAX] = (double (*)[N_TRIANGLE_QUAD][M_MAX]) trig_cos_buffer_p;
 	double (*trig_sin_buffer)[N_TRIANGLE_QUAD][M_MAX] = (double (*)[N_TRIANGLE_QUAD][M_MAX]) trig_sin_buffer_p;
-	
+
+	double factorial[2*NU_MAX+M_MAX] = {
+		1.0,1.0,0.5,0.1666666666666666,0.04166666666666666,0.008333333333333334,
+		0.001388888888888889,1.984126984126984e-4,2.48015873015873e-5,2.755731922398589e-6,2.755731922398589e-7,
+		2.505210838544172e-8,2.08767569878681e-9,1.605904383682161e-10,1.147074559772972e-11,7.647163731819816e-13};
+		
 	for(int h = 0; h < N_v; h++)
 	for(int k = 0; k < N_TRIANGLE_QUAD; k++)
 	for(int m = 0; m < M_MAX; m++) {
@@ -842,38 +847,80 @@ axial_coefficients_3d(double *restrict charges,
 		double y = position_buffer[h][k][1];
 		double mu = atan2(y, x);
 			
-		trig_cos_buffer[h][k][m] = cos(m*mu);
+		// The integration factor needs to be adjusted for m=0, since the
+		// cos(m*phi) term in the integral vanishes.
+		trig_cos_buffer[h][k][m] = cos(m*mu) * (m == 0 ? 1/2. : 1.);
 		trig_sin_buffer[h][k][m] = sin(m*mu);
 	}
 		
-	for(int h = 0; h < N_v; h++) {
-        for (int i=0; i < N_z; i++) 
-		for (int k=0; k < N_TRIANGLE_QUAD; k++) {
-			double x = position_buffer[h][k][0];
-			double y = position_buffer[h][k][1];
-			double z = position_buffer[h][k][2];
+	for (int i=0; i < N_z; i++) 
+	for(int h = 0; h < N_v; h++)
+	for (int k=0; k < N_TRIANGLE_QUAD; k++) {
+		double x = position_buffer[h][k][0];
+		double y = position_buffer[h][k][1];
+		double z = position_buffer[h][k][2];
+		
+		double r = 1/norm_3d(x, y, z-zs[i]);
+		double p = (z-zs[i]) / norm_2d(x, y);
+		double p2 = pow(p, 2);
+		double p4 = pow(p, 4);
+		double p6 = pow(p, 6);
+		double p8 = pow(p, 8);
+		double p10 = pow(p, 10);
+		double p12 = pow(p, 12);
+		double p14 = pow(p, 14);
+		double sqrt_p2_plus1 = sqrt(p2+1);
+		
+		// Output base values, without cos, sin dependence
+		double output_base[NU_MAX][M_MAX] = {
+			{1./2.,
+			1./(4*sqrt_p2_plus1),
+			(3)/((8*p2+8)),
+			(15)/(sqrt_p2_plus1*(16*p2+16)),
+			(105)/((32*p4+64*p2+32)),
+			(945*sqrt_p2_plus1)/((64*p6+192*p4+192*p2+64)),
+			(10395)/((128*p6+384*p4+384*p2+128)),
+			(135135*sqrt_p2_plus1)/((256*p8+1024*p6+1536*p4+1024*p2+256))},
 			
-			double r = 1/norm_3d(x, y, z-zs[i]);
-			double theta = atan((z-zs[i])/norm_2d(x,y));
+			{-(2*p2-1)/((4*p2+4)),
+			-(36*p2-9)/(sqrt_p2_plus1*(16*p2+16)),
+			-(90*p2-15)/((8*p4+16*p2+8)),
+			-(sqrt_p2_plus1*(4200*p2-525))/((64*p6+192*p4+192*p2+64)),
+			-(28350*p2-2835)/((64*p6+192*p4+192*p2+64)),
+			-(sqrt_p2_plus1*(873180*p2-72765))/((256*p8+1024*p6+1536*p4+1024*p2+256)),
+			-(1891890*p2-135135)/((64*p8+256*p6+384*p4+256*p2+64)),
+			-(291891600*p2-18243225)/(sqrt_p2_plus1*(1024*p8+4096*p6+6144*p4+4096*p2+1024))},
+			
+			{(72*p4-216*p2+27)/((16*p4+32*p2+16)),
+			(sqrt_p2_plus1*(1800*p4-2700*p2+225))/((32*p6+96*p4+96*p2+32)),
+			(75600*p4-75600*p2+4725)/((128*p6+384*p4+384*p2+128)),
+			(sqrt_p2_plus1*(1587600*p4-1190700*p2+59535))/((256*p8+1024*p6+1536*p4+1024*p2+256)),
+			(8731800*p4-5239080*p2+218295)/((128*p8+512*p6+768*p4+512*p2+128)),
+			(204324120*p4-102162060*p2+3648645)/(sqrt_p2_plus1*(256*p8+1024*p6+1536*p4+1024*p2+256)),
+			(20432412000*p4-8756748000*p2+273648375)/((2048*p10+10240*p8+20480*p6+20480*p4+10240*p2+2048)),
+			(545837292000*p4-204688984500*p2+5685805125)/(sqrt_p2_plus1*(4096*p10+20480*p8+40960*p6+40960*p4+20480*p2+4096))},
+			
+			{-(3600*p6-27000*p4+20250*p2-1125)/((32*p6+96*p4+96*p2+32)),
+			-(sqrt_p2_plus1*(705600*p6-2646000*p4+1323000*p2-55125))/((256*p8+1024*p6+1536*p4+1024*p2+256)),
+			-(3175200*p6-7938000*p4+2976750*p2-99225)/((64*p8+256*p6+384*p4+256*p2+64)),
+			-(209563200*p6-392931000*p4+117879300*p2-3274425)/(sqrt_p2_plus1*(256*p8+1024*p6+1536*p4+1024*p2+256)),
+			-(3405402000*p6-5108103000*p4+1277025750*p2-30405375)/((256*p10+1280*p8+2560*p6+2560*p4+1280*p2+256)),
+			-(899026128000*p6-1123782660000*p4+240810570000*p2-5016886875)/(sqrt_p2_plus1*(4096*p10+20480*p8+40960*p6+40960*p4+20480*p2+4096)),
+			-(7641722088000*p6-8187559380000*p4+1535167383750*p2-28429025625)/((2048*p12+12288*p10+30720*p8+40960*p6+30720*p4+12288*p2+2048)),
+			-(sqrt_p2_plus1*(539287244496000*p6-505581791715000*p4+84263631952500*p2-1404393865875))/(8192*p14+57344*p12+172032*p10+286720*p8+286720*p6+172032*p4+57344*p2+8192)} };
+		
+		UNROLL
+		for (int nu=0; nu < NU_MAX; nu++)
+		UNROLL
+		for (int m=0; m < M_MAX; m++) {
+			double base = output_base[nu][m];
+			double r_dependence = pow(r, 2*nu + m + 1);
 				
-			int index = (int) ((theta-theta0)/dtheta);
-
-			double t = theta-thetas[index];
-			double (*C)[M_MAX][4] = &theta_coeffs[index][0];
-				
-			UNROLL
-			for (int nu=0; nu < NU_MAX; nu++)
-			UNROLL
-			for (int m=0; m < M_MAX; m++) {
-				double base = pow(t, 3)*C[nu][m][0] + pow(t, 2)*C[nu][m][1] + t*C[nu][m][2] + C[nu][m][3];
-				double r_dependence = pow(r, 2*nu + m + 1);
-					
-				double jac = jacobian_buffer[h][k];
-				double C = trig_cos_buffer[h][k][m], S = trig_sin_buffer[h][k][m];
-				
-				output_coeffs[i][0][nu][m] += charges[h]*jac*base*C*r_dependence;
-				output_coeffs[i][1][nu][m] += charges[h]*jac*base*S*r_dependence;
-			}
+			double jac = jacobian_buffer[h][k];
+			double C = trig_cos_buffer[h][k][m], S = trig_sin_buffer[h][k][m];
+			
+			output_coeffs[i][0][nu][m] += charges[h]*jac*base*C*r_dependence / factorial[2*nu + m];
+			output_coeffs[i][1][nu][m] += charges[h]*jac*base*S*r_dependence / factorial[2*nu + m];
 		}
 	}
 }
