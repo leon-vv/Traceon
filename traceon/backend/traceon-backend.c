@@ -834,10 +834,11 @@ axial_coefficients_3d(double *restrict charges,
 	double (*trig_cos_buffer)[N_TRIANGLE_QUAD][M_MAX] = (double (*)[N_TRIANGLE_QUAD][M_MAX]) trig_cos_buffer_p;
 	double (*trig_sin_buffer)[N_TRIANGLE_QUAD][M_MAX] = (double (*)[N_TRIANGLE_QUAD][M_MAX]) trig_sin_buffer_p;
 
-	double factorial[2*NU_MAX+M_MAX] = {
-		1.0,1.0,0.5,0.1666666666666666,0.04166666666666666,0.008333333333333334,
-		0.001388888888888889,1.984126984126984e-4,2.48015873015873e-5,2.755731922398589e-6,2.755731922398589e-7,
-		2.505210838544172e-8,2.08767569878681e-9,1.605904383682161e-10,1.147074559772972e-11,7.647163731819816e-13};
+	double factorial[NU_MAX][M_MAX] = {
+		{1.0,1.0,0.5,0.1666666666666666,0.04166666666666666,0.008333333333333334,0.001388888888888889,1.984126984126984E-4},
+		{0.5,0.1666666666666666,0.04166666666666666,0.008333333333333334,0.001388888888888889,1.984126984126984E-4,2.48015873015873E-5,2.755731922398589E-6},
+		{0.04166666666666666,0.008333333333333334,0.001388888888888889,1.984126984126984E-4,2.48015873015873E-5,2.755731922398589E-6,2.755731922398589E-7,2.505210838544172E-8},
+		{0.001388888888888889,1.984126984126984E-4,2.48015873015873E-5,2.755731922398589E-6,2.755731922398589E-7,2.505210838544172E-8,2.08767569878681E-9,1.605904383682161E-10}};
 		
 	for(int h = 0; h < N_v; h++)
 	for(int k = 0; k < N_TRIANGLE_QUAD; k++)
@@ -911,17 +912,22 @@ axial_coefficients_3d(double *restrict charges,
 			-(sqrt_p2_plus1*(539287244496000*p6-505581791715000*p4+84263631952500*p2-1404393865875))/(8192*p14+57344*p12+172032*p10+286720*p8+286720*p6+172032*p4+57344*p2+8192)} };
 		
 		UNROLL
-		for (int nu=0; nu < NU_MAX; nu++)
-		UNROLL
-		for (int m=0; m < M_MAX; m++) {
-			double base = output_base[nu][m];
-			double r_dependence = pow(r, 2*nu + m + 1);
-				
-			double jac = jacobian_buffer[h][k];
-			double C = trig_cos_buffer[h][k][m], S = trig_sin_buffer[h][k][m];
+		for (int nu=0; nu < NU_MAX; nu++) {
+
+			double r_dependence = pow(r, 2*nu + 1);
 			
-			output_coeffs[i][0][nu][m] += charges[h]*jac*base*C*r_dependence * factorial[2*nu + m];
-			output_coeffs[i][1][nu][m] += charges[h]*jac*base*S*r_dependence * factorial[2*nu + m];
+			UNROLL
+			for (int m=0; m < M_MAX; m++) {
+				double base = output_base[nu][m];
+					
+				double jac = jacobian_buffer[h][k];
+				double C = trig_cos_buffer[h][k][m], S = trig_sin_buffer[h][k][m];
+				
+				output_coeffs[i][0][nu][m] += charges[h]*jac*base*C*r_dependence * factorial[nu][m];
+				output_coeffs[i][1][nu][m] += charges[h]*jac*base*S*r_dependence * factorial[nu][m];
+				
+				r_dependence *= r;
+			}
 		}
 	}
 }
