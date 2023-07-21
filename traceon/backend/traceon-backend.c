@@ -862,6 +862,7 @@ axial_coefficients_3d(double *restrict charges,
 		
 		double r = 1/norm_3d(x, y, z-zs[i]);
 		double p = (z-zs[i]) / norm_2d(x, y);
+		
 		double p2 = pow(p, 2);
 		double p4 = pow(p, 4);
 		double p6 = pow(p, 6);
@@ -919,8 +920,8 @@ axial_coefficients_3d(double *restrict charges,
 			double jac = jacobian_buffer[h][k];
 			double C = trig_cos_buffer[h][k][m], S = trig_sin_buffer[h][k][m];
 			
-			output_coeffs[i][0][nu][m] += charges[h]*jac*base*C*r_dependence / factorial[2*nu + m];
-			output_coeffs[i][1][nu][m] += charges[h]*jac*base*S*r_dependence / factorial[2*nu + m];
+			output_coeffs[i][0][nu][m] += charges[h]*jac*base*C*r_dependence * factorial[2*nu + m];
+			output_coeffs[i][1][nu][m] += charges[h]*jac*base*S*r_dependence * factorial[2*nu + m];
 		}
 	}
 }
