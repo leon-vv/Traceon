@@ -24,7 +24,7 @@ def plot_mesh(mesh, *args, **kwargs):
      
     if mesh.symmetry == Symmetry.RADIAL:
         return plot_line_mesh(mesh, *args, **kwargs)
-    elif mesh.symmetry == Symmetry.THREE_D_HIGHER_ORDER:
+    elif mesh.symmetry == Symmetry.THREE_D_HIGHER_ORDER or Symmetry.THREE_D:
         return plot_triangle_mesh(mesh, *args, **kwargs)
 
 def plot_charge_density(excitation, field, *args, **kwargs):
@@ -88,42 +88,47 @@ def _plot_charge_density_2d(excitation, field, density=False):
     
     
 
-def plot_triangle_mesh(mesh, show_legend=True, show_normals=False, **colors):
+def plot_triangle_mesh(mesh, show_legend=True, show_normals=False, **phys_colors):
     
-    dict_ = _create_point_to_physical_dict(mesh)
     triangles = mesh.elements
      
     triangles_to_plot = []
-    colors_ = []
-    
-    normal_coordinates = [(1/6, 1/6), (1/2-1/6, 1/2-1/6), (1/2-1/6, 1/6), (1/6, 1/2-1/6)]
     normals = []
+    
+    if mesh.symmetry == Symmetry.THREE_D:
+        triangles_to_plot = np.copy(triangles)
+        normals = [backend.normal_3d(*mesh.points[t]) for t in triangles]
+    elif mesh.symmetry == Symmetry.THREE_D_HIGHER_ORDER:
+        normal_coordinates = [(1/6, 1/6), (1/2-1/6, 1/2-1/6), (1/2-1/6, 1/6), (1/6, 1/2-1/6)]
+        for (v0, v1, v2, v3, v4, v5) in triangles:
+            for i, (A, B, C) in enumerate([(v0, v3, v5), (v3, v4, v5), (v3, v1, v4), (v5, v4, v2)]):
+                triangles_to_plot.append( [A, B, C] )
+                alpha, beta = normal_coordinates[i]
+                normals.append(backend.higher_order_normal_3d(alpha, beta, mesh.points[[v0, v1, v2, v3, v4, v5]]))
      
-    for (v0, v1, v2, v3, v4, v5) in triangles:
-        for i, (A, B, C) in enumerate([(v0, v3, v5), (v3, v4, v5), (v3, v1, v4), (v5, v4, v2)]):
-            color = '#CCCCC'
-            
-            if A in dict_ and B in dict_ and C in dict_:
-                phys1, phys2, phys3 = dict_[A], dict_[B], dict_[C]
-                if phys1 == phys2 and phys2 == phys3 and phys1 in colors:
-                    color = colors[phys1]
-            
-            triangles_to_plot.append( [A, B, C] )
-
-            alpha, beta = normal_coordinates[i]
-            normals.append(backend.higher_order_normal_3d(alpha, beta, mesh.points[[v0, v1, v2, v3, v4, v5]]))
-            colors_.append(color)
+    normals, triangles_to_plot = np.array(normals), np.array(triangles_to_plot)
      
-    colors_, triangles_to_plot = np.array(colors_), np.array(triangles_to_plot)
+    # Calculate color per triangle
+    # If all three vertices of a triangle belong to a physical group, the triangle
+    # receives the color of the physical group
+    colors = np.full(len(triangles_to_plot), '#CCCCCC')
+    dict_ = _create_point_to_physical_dict(mesh)
+    
+    for i, (A, B, C) in enumerate(triangles_to_plot):
+        if A in dict_ and B in dict_ and C in dict_:
+            phys1, phys2, phys3 = dict_[A], dict_[B], dict_[C]
+            if phys1 == phys2 and phys2 == phys3 and phys1 in phys_colors:
+                colors[i] = phys_colors[phys1]
+     
     plotter = vedo.Plotter()
     meshes = []
     
-    for c in set(colors_):
-        mask = colors_ == c
+    for c in set(colors):
+        mask = colors == c
         vm = vedo.Mesh([mesh.points, triangles_to_plot[mask]], c)
         vm.linecolor('black').linewidth(2)
         
-        key = [k for k, col in colors.items() if c==col]
+        key = [k for k, col in phys_colors.items() if c==col]
         if len(key):
             vm.legend(key[0])
         
