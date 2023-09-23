@@ -150,7 +150,7 @@ def _excitation_to_matrix(excitation, vertices, names):
 
     _3d = excitation.mesh.symmetry == G.Symmetry.THREE_D_HIGHER_ORDER
 
-    jac_buffer, pos_buffer = backend.fill_jacobian_buffer_3d(vertices) if _3d else backend.fill_jacobian_buffer_radial(vertices)
+    jac_buffer, pos_buffer = backend.fill_jacobian_buffer_3d_higher_order(vertices) if _3d else backend.fill_jacobian_buffer_radial(vertices)
     fill_fun = backend.fill_matrix_3d if _3d else backend.fill_matrix_radial
      
     def fill_matrix_rows(rows):
