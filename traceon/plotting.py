@@ -131,16 +131,16 @@ def plot_triangle_mesh(mesh, show_legend=True, show_normals=False, **colors):
         meshes.append(vm)
     
     if show_normals:
-        normals = np.zeros( (len(triangles_to_plot), 6) )
+        start_to_end = np.zeros( (len(triangles_to_plot), 6) )
         for i, t in enumerate(triangles_to_plot):
             v1, v2, v3 = mesh.points[t]
             middle = (v1 + v2 + v3)/3
             area = 1/2*np.linalg.norm(np.cross(v2-v1, v3-v1))
             side_length = sqrt( (4*area) / sqrt(3) ) # Equilateral triangle, side length with equal area
-            normal = 0.75*side_length*backend.normal_3d(v1, v2, v3)
-            normals[i] = [*middle, *(middle+normal)]
-        
-        arrows = vedo.shapes.Arrows(normals[:, :3], normals[:, 3:], res=20, c='black')
+            normal = 0.75*side_length*normals[i]
+            start_to_end[i] = [*middle, *(middle+normal)]
+         
+        arrows = vedo.shapes.Arrows(start_to_end[:, :3], start_to_end[:, 3:], res=20, c='black')
         plotter.add(arrows)
      
     lb = vedo.LegendBox(meshes)
