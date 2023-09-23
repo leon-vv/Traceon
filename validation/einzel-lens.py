@@ -33,7 +33,7 @@ def compute_field(mesh):
     return excitation, field
 
 def compute_error(exc, field, geom):
-    _3d = geom.symmetry == G.Symmetry.THREE_D
+    _3d = geom.symmetry == G.Symmetry.THREE_D_HIGHER_ORDER
     
     field.set_bounds( ((-RADIUS, RADIUS), (-1.5, 1.5)) if not _3d else ((-RADIUS, RADIUS), (-RADIUS, RADIUS), (-1.5,1.5)) )
     field_axial = field.axial_derivative_interpolation(-1.5, 1.5, 400)

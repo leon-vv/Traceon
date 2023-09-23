@@ -34,7 +34,7 @@ def create_geometry(MSF, symmetry):
             [r2, 0]
         ]
          
-        points = [geom.add_point([p[0], 0, p[1]] if symmetry==G.Symmetry.THREE_D else p) for p in points]
+        points = [geom.add_point([p[0], 0, p[1]] if symmetry==G.Symmetry.THREE_D_HIGHER_ORDER else p) for p in points]
         center = geom.add_point([0, 0, 0])
          
         l2 = geom.add_circle_arc(points[1], center, points[2])
@@ -46,7 +46,7 @@ def create_geometry(MSF, symmetry):
         if symmetry == G.Symmetry.RADIAL:
             geom.add_physical([l2, l3], 'inner')
             geom.add_physical([l5, l6], 'outer')
-        elif symmetry == G.Symmetry.THREE_D:
+        elif symmetry == G.Symmetry.THREE_D_HIGHER_ORDER:
             s1 = G.revolve_around_optical_axis(geom, [l2, l3])
             s2 = G.revolve_around_optical_axis(geom, [l5, l6])
             geom.add_physical(s1, 'inner')

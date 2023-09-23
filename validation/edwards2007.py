@@ -31,7 +31,7 @@ def create_geometry(MSF, symmetry):
         
         geom.set_mesh_size_factor(MSF)
         
-        if symmetry == G.Symmetry.THREE_D:
+        if symmetry == G.Symmetry.THREE_D_HIGHER_ORDER:
             points = [geom.add_point([p[0], 0.0, p[1]]) for p in points]
         else:
             points = [geom.add_point(p) for p in points]
@@ -44,7 +44,7 @@ def create_geometry(MSF, symmetry):
         l5 = geom.add_line(points[-3], points[-2])
         l6 = geom.add_line(points[-2], points[-1])
         
-        if symmetry == G.Symmetry.THREE_D:
+        if symmetry == G.Symmetry.THREE_D_HIGHER_ORDER:
             inner = G.revolve_around_optical_axis(geom, [l1, l2, l3])
             boundary = G.revolve_around_optical_axis(geom, [l4, l5, l6])
             
@@ -67,7 +67,7 @@ def compute_field(geometry):
 
 def compute_error(excitation, field, geometry):
     st = time.time()
-    if excitation.mesh.symmetry == G.Symmetry.THREE_D:
+    if excitation.mesh.symmetry == G.Symmetry.THREE_D_HIGHER_ORDER:
         pot = field.potential_at_point(np.array([12, 0.0, 4]))
     else:
         pot = field.potential_at_point(np.array([12, 4]))

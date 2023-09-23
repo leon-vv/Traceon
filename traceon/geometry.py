@@ -63,13 +63,16 @@ class Symmetry(Enum):
     supported symmetries are radial symmetry (also called cylindrical symmetry) and general 3D geometries.
     """
     RADIAL = 0
-    THREE_D = 1
+    THREE_D_HIGHER_ORDER = 1
+    THREE_D = 2
 
     def __str__(self):
         if self == Symmetry.RADIAL:
             return 'radial'
+        elif self == Symmetry.THREE_D_HIGHER_ORDER:
+            return '3d higher order'
         elif self == Symmetry.THREE_D:
-            return '3d'
+            return '3d first order'
 
 class Geometry(geo.Geometry):
     """
@@ -140,14 +143,14 @@ class Geometry(geo.Geometry):
           
         if self.size_from_distance:
             self.set_mesh_size_callback(self._mesh_size_callback)
-        
-        dim = 2 if self.symmetry == Symmetry.THREE_D else 1
-
-        if dim == 1:
+         
+        if self.symmetry == Symmetry.RADIAL:
             gmsh.option.setNumber('Mesh.ElementOrder', 3)
-        else:
+        elif self.symmetry == Symmetry.THREE_D:
+            gmsh.option.setNumber('Mesh.ElementOrder', 1)
+        elif self.symmetry == Symmetry.THREE_D_HIGHER_ORDER:
             gmsh.option.setNumber('Mesh.ElementOrder', 2)
-        
+         
         return Mesh.from_meshio(super().generate_mesh(dim=dim, *args, **kwargs), self.symmetry)
 
     def set_mesh_size_factor(self, factor):
@@ -162,10 +165,10 @@ class Geometry(geo.Geometry):
         """
         if self.symmetry == Symmetry.RADIAL:
             gmsh.option.setNumber('Mesh.MeshSizeFactor', 1/factor)
-        elif self.symmetry == Symmetry.THREE_D:
+        elif self.symmetry == Symmetry.THREE_D_HIGHER_ORDER or self.symmetry == Symmetry.THREE_D:
             # GMSH seems to produce meshes which contain way more elements for 3D geometries
             # with the same mesh factor. This is confusing for users and therefore we arbtrarily
-            # incrase the mesh size to roughly correspond with the 2D number of elements.
+            # increase the mesh size to roughly correspond with the 2D number of elements.
             gmsh.option.setNumber('Mesh.MeshSizeFactor', 4*sqrt(1/factor))
 
     def set_minimum_mesh_size(self, size):
@@ -185,18 +188,17 @@ class Geometry(geo.Geometry):
         # Scale mesh size with distance to optical axis, but only the part of the optical
         # axis that lies between zmin and zmax
         
-        z_optical = z if self.symmetry == Symmetry.THREE_D else y
+        z_optical = y if self.symmetry == Symmetry.RADIAL else z
          
         if self.zmin is not None:
             z_optical = max(z_optical, self.zmin)
         if self.zmax is not None:
             z_optical = min(z_optical, self.zmax)
          
-        if self.symmetry == Symmetry.THREE_D:
-            return sqrt( x**2 + y**2 + (z-z_optical)**2 )
-        else:
+        if self.symmetry == Symmetry.RADIAL:
             return sqrt( x**2 + (y-z_optical)**2 )
-
+        else:
+            return sqrt( x**2 + y**2 + (z-z_optical)**2 )
 
 
 class Mesh(Saveable):
@@ -216,13 +218,13 @@ class Mesh(Saveable):
         Parameters
         ----------
         symmetry: Symmetry
-            Specifies a radially symmetric geometry (RADIAL) or a general 3D geometry (THREE_D).
+            Specifies a radially symmetric geometry (RADIAL) or a general 3D geometry (THREE_D_HIGHER_ORDER).
         
         Returns
         ---------
         Mesh
         """
-        type_ = 'line4' if symmetry != Symmetry.THREE_D else 'triangle6'
+        type_ = 'line4' if symmetry != Symmetry.THREE_D_HIGHER_ORDER else 'triangle6'
         
         points = mesh.points
         elements = mesh.cells_dict[type_]
@@ -288,7 +290,7 @@ class Mesh(Saveable):
         return new_mesh
          
     def _split_indices_3d(self, indices):
-        assert self.symmetry == Symmetry.THREE_D
+        assert self.symmetry == Symmetry.THREE_D_HIGHER_ORDER
          
         elements = copy.deepcopy(self.elements)
         N_elements = len(elements)
@@ -352,7 +354,7 @@ class Mesh(Saveable):
         # of elements we need to split in every iteration.
         split_factor = mesh_factor**(1/max_splits) - 1
         
-        if self.symmetry == Symmetry.THREE_D:
+        if self.symmetry == Symmetry.THREE_D_HIGHER_ORDER:
             split_factor /= 2 # For triangles, a splitting gives two extra elements, instead of one
         
         new_mesh = self
@@ -402,7 +404,7 @@ class MEMSStack(Geometry):
     """
     
     def __init__(self, *args, z0=0.0, revolve_factor=0.0, rmax=2, margin=0.5, margin_right=0.1, **kwargs):
-        self.symmetry = Symmetry.RADIAL if revolve_factor == 0.0 else Symmetry.THREE_D
+        self.symmetry = Symmetry.RADIAL if revolve_factor == 0.0 else Symmetry.THREE_D_HIGHER_ORDER
         super().__init__(self.symmetry, *args, **kwargs)
         
         self.z0 = z0
@@ -436,7 +438,7 @@ class MEMSStack(Geometry):
         self._current_z += self.margin
      
     def _add_lines_from_points(self, points, name):
-        if self.symmetry == Symmetry.THREE_D:
+        if self.symmetry == Symmetry.THREE_D_HIGHER_ORDER:
             points = [self.add_point([p[0], 0.0, p[1]]) for p in points[::-1]]
         else:
             points = [self.add_point(p) for p in points]
@@ -444,7 +446,7 @@ class MEMSStack(Geometry):
         Np = len(points)
         lines = [self.add_line(points[i], points[j]) for i, j in zip(range(0,Np-1), range(1,Np))]
          
-        if self.symmetry == Symmetry.THREE_D:
+        if self.symmetry == Symmetry.THREE_D_HIGHER_ORDER:
             revolved = revolve_around_optical_axis(self, lines, self.revolve_factor)
             self.add_physical(revolved, name)
         else:

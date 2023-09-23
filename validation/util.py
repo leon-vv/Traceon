@@ -31,7 +31,7 @@ def parse_validation_args(create_geometry, compute_field, compute_error, MSF={'r
      
     args = parser.parse_args()
     MSFdefault = args.MSF if args.MSF != None else MSF[args.symmetry][1]
-    symmetry = G.Symmetry.RADIAL if args.symmetry == 'radial' else G.Symmetry.THREE_D
+    symmetry = G.Symmetry.RADIAL if args.symmetry == 'radial' else G.Symmetry.THREE_D_HIGHER_ORDER
 
     plot = args.plot_geometry or args.plot_normals or args.plot_charge_density or args.plot_charges
     

@@ -24,7 +24,7 @@ def plot_mesh(mesh, *args, **kwargs):
      
     if mesh.symmetry == Symmetry.RADIAL:
         return plot_line_mesh(mesh, *args, **kwargs)
-    elif mesh.symmetry == Symmetry.THREE_D:
+    elif mesh.symmetry == Symmetry.THREE_D_HIGHER_ORDER:
         return plot_triangle_mesh(mesh, *args, **kwargs)
 
 def plot_charge_density(excitation, field, *args, **kwargs):
@@ -33,7 +33,7 @@ def plot_charge_density(excitation, field, *args, **kwargs):
     
     if mesh.symmetry == Symmetry.RADIAL:
         return _plot_charge_density_2d(excitation, field, *args, **kwargs)
-    elif mesh.symmetry == Symmetry.THREE_D:
+    elif mesh.symmetry == Symmetry.THREE_D_HIGHER_ORDER:
         return _plot_charge_density_3d(excitation, field, *args, **kwargs)
 
 def _plot_charge_density_3d(excitation, field, density=False):
