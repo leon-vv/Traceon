@@ -1425,7 +1425,7 @@ EXPORT void fill_jacobian_buffer_3d(
             double b2_ = QUAD_B2[k];  
             double w = QUAD_WEIGHTS[k];  
 			
-            jacobian_buffer[i][k] = w * area;
+            jacobian_buffer[i][k] = 2 * w * area;
             pos_buffer[i][k][0] = x1 + b1_*(x2 - x1) + b2_*(x3 - x1);
             pos_buffer[i][k][1] = y1 + b1_*(y2 - y1) + b2_*(y3 - y1);
             pos_buffer[i][k][2] = z1 + b1_*(z2 - z1) + b2_*(z3 - z1);

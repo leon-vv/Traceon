@@ -22,7 +22,7 @@ import copy
 import pickle
 
 from .util import Saveable
-from .backend import N_QUAD_2D, position_and_jacobian_radial, position_and_jacobian_3d
+from .backend import N_QUAD_2D, position_and_jacobian_radial, position_and_jacobian_3d, normal_3d
 
 def revolve_around_optical_axis(geom, elements, factor=1.0):
     """
@@ -145,10 +145,13 @@ class Geometry(geo.Geometry):
             self.set_mesh_size_callback(self._mesh_size_callback)
          
         if self.symmetry == Symmetry.RADIAL:
+            dim = 1
             gmsh.option.setNumber('Mesh.ElementOrder', 3)
         elif self.symmetry == Symmetry.THREE_D:
+            dim = 2
             gmsh.option.setNumber('Mesh.ElementOrder', 1)
         elif self.symmetry == Symmetry.THREE_D_HIGHER_ORDER:
+            dim = 2
             gmsh.option.setNumber('Mesh.ElementOrder', 2)
          
         return Mesh.from_meshio(super().generate_mesh(dim=dim, *args, **kwargs), self.symmetry)
@@ -224,8 +227,15 @@ class Mesh(Saveable):
         ---------
         Mesh
         """
-        type_ = 'line4' if symmetry != Symmetry.THREE_D_HIGHER_ORDER else 'triangle6'
-        
+        if symmetry == Symmetry.RADIAL:
+            type_ = 'line4'
+        elif symmetry == Symmetry.THREE_D:
+            type_ = 'triangle'
+        elif symmetry == Symmetry.THREE_D_HIGHER_ORDER:
+            type_ = 'triangle6'
+        else:
+            raise ValueError('Symmetry passed to from_meshio(..) not valid: ' + str(symmetry))
+         
         points = mesh.points
         elements = mesh.cells_dict[type_]
         physical_to_elements = {k:v[type_] for k, v in mesh.cell_sets_dict.items() if type_ in v}

@@ -53,6 +53,7 @@ from . import geometry as G
 from . import excitation as E
 from . import backend
 from . import util
+from . import fast_multipole_method
 
 FACTOR_AXIAL_DERIV_SAMPLING_2D = 0.2
 FACTOR_AXIAL_DERIV_SAMPLING_3D = 0.06
@@ -146,7 +147,7 @@ def _excitation_to_matrix(excitation, vertices, names):
      
     st = time.time()
     matrix = np.zeros( (N_matrix, N_matrix) )
-    print(f'Number of elements: {N_lines}, size of matrix: {N_matrix} ({matrix.nbytes/1e6:.0f} MB), symmetry: {excitation.mesh.symmetry}')
+    print(f'Using matrix solver, number of elements: {N_lines}, size of matrix: {N_matrix} ({matrix.nbytes/1e6:.0f} MB), symmetry: {excitation.mesh.symmetry}')
 
     _3d = excitation.mesh.symmetry == G.Symmetry.THREE_D_HIGHER_ORDER
 
@@ -182,7 +183,32 @@ def _charges_to_field(excitation, charges, vertices, names, jac_buffer, pos_buff
     
     field_class = FieldRadialBEM if excitation.mesh.symmetry != G.Symmetry.THREE_D_HIGHER_ORDER else Field3D_BEM
     return field_class(vertices, charges, jac_buffer, pos_buffer, floating_voltages=floating_voltages)
+
+def solve_fmm(excitation):
+    assert E.ExcitationType.DIELECTRIC not in [t for t, _ in excitation.excitation_types.values()], 'DIELECTRIC not yet supported in FMM'
+    assert E.ExcitationType.FLOATING_CONDUCTOR not in [t for t, _ in excitation.excitation_types.values()], 'Floating conductor not yet supported in FMM'
+    assert excitation.mesh.symmetry == G.Symmetry.THREE_D
+    triangles, names = excitation.get_active_elements()
     
+    print(f'Using FMM solver, number of elements: {len(triangles)}, symmetry: {excitation.mesh.symmetry}')
+       
+    N = len(triangles)
+    assert triangles.shape == (N, 3, 3)
+     
+    F = _excitation_to_right_hand_side(excitation, triangles, names)
+    assert F.shape == (N,)
+     
+    np.save('triangles.npy', triangles)
+    np.save('right-hand-side.npy', F)
+     
+    st = time.time()
+    charges, count = fast_multipole_method.solve_iteratively(triangles, F)
+    print(f'Time for solving FMM: {(time.time()-st)*1000:.0f} ms (iterations: {count})')
+     
+    jac_buffer, pos_buffer = backend.fill_jacobian_buffer_3d(triangles)
+     
+    return Field3D_BEM(triangles, charges, jac_buffer, pos_buffer)
+
 def solve_bem(excitation, superposition=False):
     """
     Solve for the charges on the surface of the geometry by using the Boundary Element Method (BEM) and taking
@@ -446,14 +472,12 @@ class FieldRadialBEM(FieldBEM):
     def area_of_element(self, i):
         return _area(G.Symmetry.RADIAL, self.jac_buffer, self.pos_buffer, i)
     
-    
 class Field3D_BEM(FieldBEM):
     """An electrostatic field resulting from a general 3D geometry. The field is a result of the surface charges as computed by the
     `solve_bem` function. See the comments in `FieldBEM`."""
      
     def __init__(self, vertices, charges, jac_buffer, pos_buffer, floating_voltages={}):
         super().__init__(vertices, charges, jac_buffer, pos_buffer, floating_voltages)
-        assert vertices.shape == (len(charges), 6, 3)
     
     def field_at_point(self, point):
         """
@@ -528,7 +552,7 @@ class Field3D_BEM(FieldBEM):
         return Field3DAxial(z, interpolated_coeffs)
     
     def area_of_element(self, i):
-        return _area(G.Symmetry.THREE_D, self.jac_buffer, self.pos_buffer, i)
+        return _area(G.Symmetry.THREE_D_HIGHER_ORDER, self.jac_buffer, self.pos_buffer, i)
     
 
      
