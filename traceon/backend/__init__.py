@@ -479,7 +479,7 @@ def fill_matrix_3d(matrix, vertices, excitation_types, excitation_values, jac_bu
     assert excitation_values.shape == (N,)
     assert jac_buffer.shape == (N, N_TRIANGLE_QUAD)
     assert pos_buffer.shape == (N, N_TRIANGLE_QUAD, 3)
-    assert 0 <= start_index < N and 0 <= end_index < N and start_index < end_index
+    assert 0 <= start_index < N and 0 <= end_index < N and start_index <= end_index
      
     backend_lib.fill_matrix_3d(matrix, vertices, excitation_types, excitation_values, jac_buffer, pos_buffer, N, matrix.shape[0], start_index, end_index)
 

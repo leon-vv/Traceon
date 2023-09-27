@@ -27,7 +27,7 @@ def create_geometry(MSF, symmetry):
             
             if symmetry == G.Symmetry.RADIAL:
                 points = [[0,-r], [r, 0], [0,r]]
-            elif symmetry == G.Symmetry.THREE_D_HIGHER_ORDER:
+            else:
                 points = [[0,0,-r], [r,0, 0], [0,0,r]]
             
             p = [geom.add_point(p) for p in points]
@@ -37,11 +37,11 @@ def create_geometry(MSF, symmetry):
             else:
                 arcs = [geom.add_circle_arc(p[2], center, p[1]), geom.add_circle_arc(p[1], center, p[0])]
 
-            if symmetry == G.Symmetry.THREE_D_HIGHER_ORDER:
-                return G.revolve_around_optical_axis(geom, arcs, factor=factor)
-            else:
+            if symmetry == G.Symmetry.RADIAL:
                 return arcs
-        
+            else:
+                return G.revolve_around_optical_axis(geom, arcs, factor=factor)
+         
         l1 = add_shell(r1)
         d1 = add_shell(r3, reorient=symmetry == G.Symmetry.RADIAL)
         d2 = add_shell(r4, reorient=symmetry != G.Symmetry.RADIAL)
@@ -63,7 +63,11 @@ def compute_field(geom):
     exc.add_voltage(outer=0)
     exc.add_dielectric(dielectric=K)
      
-    field = S.solve_bem(exc)
+    if geom.symmetry == G.Symmetry.THREE_D:
+        field = S.solve_fmm(exc)
+    else:
+        field = S.solve_bem(exc)
+    
     return exc, field
 
 def compute_error(exc, field, geom):
@@ -76,6 +80,7 @@ def compute_error(exc, field, geom):
     # Find the charges
     _, names = exc.get_active_elements()
     Q = {n:field.charge_on_elements(i) for n, i in names.items()}
+    print(Q)
     
     expected = 4/( (1/r1 - 1/r3) + (1/r3 - 1/r4)/K + (1/r4 - 1/r2))
     capacitance = (abs(Q['outer']) + abs(Q['inner']))/2

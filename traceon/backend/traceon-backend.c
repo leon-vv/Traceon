@@ -1474,8 +1474,11 @@ EXPORT void fill_matrix_3d(double *restrict matrix,
 			higher_order_normal_3d(1/3., 1/3., &triangle_points[i][0], normal);
 			double K = excitation_values[i];  
 			
+			// This factor is hard to derive. It takes into account that the field
+			// calculated at the edge of the dielectric is basically the average of the
+			// field at either side of the surface of the dielecric (the field makes a jump).
 			double factor = (2*K - 2) / (M_PI*(1 + K));  
-			
+				
 			for (int j = 0; j < N_lines; j++) {  
 					
 				UNROLL  

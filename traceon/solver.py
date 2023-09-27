@@ -185,7 +185,6 @@ def _charges_to_field(excitation, charges, vertices, names, jac_buffer, pos_buff
     return field_class(vertices, charges, jac_buffer, pos_buffer, floating_voltages=floating_voltages)
 
 def solve_fmm(excitation):
-    assert E.ExcitationType.DIELECTRIC not in [t for t, _ in excitation.excitation_types.values()], 'DIELECTRIC not yet supported in FMM'
     assert E.ExcitationType.FLOATING_CONDUCTOR not in [t for t, _ in excitation.excitation_types.values()], 'Floating conductor not yet supported in FMM'
     assert excitation.mesh.symmetry == G.Symmetry.THREE_D
     triangles, names = excitation.get_active_elements()
@@ -202,7 +201,7 @@ def solve_fmm(excitation):
     np.save('right-hand-side.npy', F)
      
     st = time.time()
-    charges, count = fast_multipole_method.solve_iteratively(triangles, F)
+    charges, count = fast_multipole_method.solve_iteratively(names, excitation, triangles, F)
     print(f'Time for solving FMM: {(time.time()-st)*1000:.0f} ms (iterations: {count})')
      
     jac_buffer, pos_buffer = backend.fill_jacobian_buffer_3d(triangles)
@@ -239,6 +238,7 @@ def solve_bem(excitation, superposition=False):
      
     if not superposition:
         matrix, jac_buffer, pos_buffer = _excitation_to_matrix(excitation, vertices, names)
+          
         F = _excitation_to_right_hand_side(excitation, vertices, names)
         st = time.time()
         charges = np.linalg.solve(matrix, F)
