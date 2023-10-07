@@ -197,9 +197,6 @@ def solve_fmm(excitation):
     F = _excitation_to_right_hand_side(excitation, triangles, names)
     assert F.shape == (N,)
      
-    np.save('triangles.npy', triangles)
-    np.save('right-hand-side.npy', F)
-     
     st = time.time()
     charges, count = fast_multipole_method.solve_iteratively(names, excitation, triangles, F)
     print(f'Time for solving FMM: {(time.time()-st)*1000:.0f} ms (iterations: {count})')
