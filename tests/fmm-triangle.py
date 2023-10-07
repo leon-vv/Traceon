@@ -28,15 +28,16 @@ physical_to_elements = dict(first=np.array([0, 1, 2]))
 mesh = G.Mesh(points, elements, physical_to_elements, G.Symmetry.THREE_D)
 
 exc = E.Excitation(mesh)
-exc.add_dielectric(first=2)
+exc.add_voltage(first=1)
 
 ## Result of matrix application by FMM
 vertices, names = exc.get_active_elements()
-wrapped_mesh = FMM.MeshWrapperPyFMMLib(vertices)
+geometry = FMM.get_geometry_in_fortran_layout(vertices)
+
 charges = np.ones(elements.shape[0])
 
 dielectric_indices, dielectric_factors = FMM.get_dielectric_indices_and_factors(names, exc)
-result_fmm = FMM.apply_matrix(charges, wrapped_mesh, dielectric_indices, dielectric_factors)
+result_fmm = FMM.apply_matrix(charges, geometry, 2, dielectric_indices, dielectric_factors)
 
 fmm_matrix_apply = result_fmm
 
@@ -71,7 +72,7 @@ physical_to_elements = dict(first=np.array([0, 1, 2]))
 mesh = G.Mesh(points, elements, physical_to_elements, G.Symmetry.THREE_D_HIGHER_ORDER)
 
 exc = E.Excitation(mesh)
-exc.add_dielectric(first=2)
+exc.add_voltage(first=1)
 
 vertices, names = exc.get_active_elements()
 matrix, _, _ = S._excitation_to_matrix(exc, vertices, names)
