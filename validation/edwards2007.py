@@ -63,11 +63,9 @@ def create_geometry(MSF, symmetry):
 def compute_field(geometry):
     excitation = E.Excitation(geometry)
     excitation.add_voltage(boundary=0, inner=10)
-    
-    if geometry.symmetry == G.Symmetry.THREE_D:
-        field = S.solve_fmm(excitation)
-    else:
-        field = S.solve_bem(excitation)
+
+    use_fmm = geometry.symmetry == G.Symmetry.THREE_D
+    field = S.solve_bem(excitation, use_fmm=use_fmm)
     
     return excitation, field
 

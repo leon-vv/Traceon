@@ -53,11 +53,9 @@ def compute_field(geom):
     excitation = E.Excitation(geom)
     excitation.add_voltage(mirror=-110, ground=0.0)
 
-    if geom.symmetry != G.Symmetry.THREE_D:
-        field = S.solve_bem(excitation)
-    else:
-        field = S.solve_fmm(excitation)
-    
+    use_fmm = geom.symmetry == G.Symmetry.THREE_D
+    field = S.solve_bem(excitation, use_fmm=use_fmm)
+     
     return excitation, field
 
 def compute_error(excitation, field, geom):

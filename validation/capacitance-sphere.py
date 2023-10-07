@@ -63,10 +63,8 @@ def compute_field(geom):
     exc.add_voltage(outer=0)
     exc.add_dielectric(dielectric=K)
      
-    if geom.symmetry == G.Symmetry.THREE_D:
-        field = S.solve_fmm(exc)
-    else:
-        field = S.solve_bem(exc)
+    use_fmm = geom.symmetry == G.Symmetry.THREE_D
+    field = S.solve_bem(exc, use_fmm=use_fmm)
     
     return exc, field
 

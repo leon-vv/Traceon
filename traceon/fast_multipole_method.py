@@ -4,7 +4,7 @@ import numpy as np
 try:
     import pyfmmlib
 except ImportError:
-    print('WARNING: pyfmmlib not found, fast multipole method not supported')
+    pyfmmlib = None
 
 from . import backend
 from . import excitation as E
@@ -102,6 +102,8 @@ def get_geometry_in_fortran_layout(triangles):
     return (triangles, centroids, normals)
 
 def solve_iteratively(names, excitation, triangles, right_hand_side, precision=1):
+    assert pyfmmlib is not None, "pyfmmlib should be installed to use fast multipole method"
+     
     N = len(triangles)
     assert triangles.shape == (N, 3, 3)
     assert right_hand_side.shape == (N,)

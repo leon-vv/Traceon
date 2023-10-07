@@ -184,9 +184,15 @@ def _charges_to_field(excitation, charges, vertices, names, jac_buffer, pos_buff
     field_class = FieldRadialBEM if excitation.mesh.symmetry != G.Symmetry.THREE_D_HIGHER_ORDER else Field3D_BEM
     return field_class(vertices, charges, jac_buffer, pos_buffer, floating_voltages=floating_voltages)
 
-def solve_fmm(excitation):
+def _solve_fmm(excitation, superposition=False, precision=0):
     assert E.ExcitationType.FLOATING_CONDUCTOR not in [t for t, _ in excitation.excitation_types.values()], 'Floating conductor not yet supported in FMM'
-    assert excitation.mesh.symmetry == G.Symmetry.THREE_D
+    assert excitation.mesh.symmetry == G.Symmetry.THREE_D, "Fast multipole method is only supported for simple 3D geometries (non higher order triangles)."
+    assert isinstance(precision, int) and -2 <= precision <= 5
+    
+    if superposition:
+        excs = excitation._split_for_superposition()
+        return {n:_solve_fmm(e, superposition=False) for n, e in excs.items()}
+    
     triangles, names = excitation.get_active_elements()
     
     print(f'Using FMM solver, number of elements: {len(triangles)}, symmetry: {excitation.mesh.symmetry}')
@@ -205,32 +211,7 @@ def solve_fmm(excitation):
      
     return Field3D_BEM(triangles, charges, jac_buffer, pos_buffer)
 
-def solve_bem(excitation, superposition=False):
-    """
-    Solve for the charges on the surface of the geometry by using the Boundary Element Method (BEM) and taking
-    into account the specified `excitation`. 
-
-    Parameters
-    ----------
-    excitation : traceon.excitation.Excitation
-        The excitation that produces the resulting field.
-        
-    superposition : bool
-        When `superposition=True` the function returns multiple fields. Each field corresponds with a unity excitation (1V)
-        of a physical group that was previously assigned a non-zero fixed voltage value. This is useful when a geometry needs
-        to be analyzed for many different voltage settings. In this case taking a linear superposition of the returned fields
-        allows to select a different voltage 'setting' without inducing any computational cost. There is no computational cost
-        involved in using `superposition=True` since a direct solver is used which easily allows for multiple right hand sides (the
-        matrix does not have to be inverted multiple times). However, some excitations are invalid in the superposition process: floating
-        conductor with a non-zero total charge and voltage functions (position dependent voltages).
-    
-    Returns
-    -------
-    A `FieldRadialBEM` if the geometry (contained in the given `excitation`) is radially symmetric. If the geometry is a generic three
-    dimensional geometry `Field3D_BEM` is returned. Alternatively, when `superposition=True` a dictionary is returned, where the keys
-    are the physical groups with unity excitation, and the values are the resulting fields.
-    """
-    
+def _solve_matrix(excitation, superposition=False):
     vertices, names = excitation.get_active_elements()
      
     if not superposition:
@@ -253,6 +234,47 @@ def solve_bem(excitation, superposition=False):
     print(f'Time for solving matrix: {(time.time()-st)*1000:.0f} ms')
     assert np.all(np.isfinite(charges))
     return {n:_charges_to_field(excs[n], charges[:, i], vertices, names, jac_buffer, pos_buffer) for i, n in enumerate(superposed_names)}
+
+def solve_bem(excitation, superposition=False, use_fmm=False, fmm_precision=0):
+    """
+    Solve for the charges on the surface of the geometry by using the Boundary Element Method (BEM) and taking
+    into account the specified `excitation`. 
+
+    Parameters
+    ----------
+    excitation : traceon.excitation.Excitation
+        The excitation that produces the resulting field.
+     
+    superposition : bool
+        When `superposition=True` the function returns multiple fields. Each field corresponds with a unity excitation (1V)
+        of a physical group that was previously assigned a non-zero fixed voltage value. This is useful when a geometry needs
+        to be analyzed for many different voltage settings. In this case taking a linear superposition of the returned fields
+        allows to select a different voltage 'setting' without inducing any computational cost. There is no computational cost
+        involved in using `superposition=True` since a direct solver is used which easily allows for multiple right hand sides (the
+        matrix does not have to be inverted multiple times). However, some excitations are invalid in the superposition process: floating
+        conductor with a non-zero total charge and voltage functions (position dependent voltages).
+    
+    use_fmm : bool
+        Use the fast multipole method to calculate the charge distribution. This method is currently only implemented for 3D geometries without
+        higher order elements. This function only works if [pyfmmlib](https://github.com/inducer/pyfmmlib) is installed
+        (version 2023.1 or later). The fast multipole method is usually slower for small 3D problems, but scales much better to problems with >10^5
+        number of triangles.
+
+    fmm_precision : int
+        Precision flag passed to the fast multipole library (see iprec argument in the [official documentation](https://github.com/zgimbutas/fmmlib3d/blob/master/doc/fmm3dpart_manual3.pdf)).
+        Usually values -1, 0, 1, 2 will work, choose higher numbers if more precision is desired.
+    
+    Returns
+    -------
+    A `FieldRadialBEM` if the geometry (contained in the given `excitation`) is radially symmetric. If the geometry is a generic three
+    dimensional geometry `Field3D_BEM` is returned. Alternatively, when `superposition=True` a dictionary is returned, where the keys
+    are the physical groups with unity excitation, and the values are the resulting fields.
+    """
+
+    if use_fmm:
+        return _solve_fmm(excitation, superposition=superposition, precision=fmm_precision)
+    else:
+        return _solve_matrix(excitation, superposition=superposition)
 
 
 def _get_one_dimensional_high_order_ppoly(z, y, dydz, dydz2):
