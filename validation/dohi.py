@@ -19,7 +19,7 @@ def create_geometry(MSF, symmetry):
     with G.MEMSStack(z0=-margin, margin=margin, zmin=0.1, zmax=1.7, size_from_distance=True, revolve_factor=revolve_factor, rmax=rmax) as geom:
         
         # Close mirror at the bottom, like in the paper
-        if symmetry == G.Symmetry.THREE_D:
+        if symmetry == G.Symmetry.THREE_D_HIGHER_ORDER:
             mirror_line = geom.add_line(geom.add_point([0.0, 0.0, 0.0]), geom.add_point([0.075, 0.0, 0.0]))
             revolved = G.revolve_around_optical_axis(geom, [mirror_line], revolve_factor)
             geom.add_physical(revolved, 'mirror')
@@ -49,17 +49,17 @@ def compute_field(geom):
 def compute_error(exc, field, geom):
     axial_field = field.axial_derivative_interpolation(0.05, 1.7, 400)
 
-    bounds = ((-0.1, 0.1), (-0.1, 0.1), (0.05, 1.7)) if geom.symmetry == G.Symmetry.THREE_D else ((-0.1, 0.1), (0.05, 1.7))
+    bounds = ((-0.1, 0.1), (-0.1, 0.1), (0.05, 1.7)) if geom.symmetry == G.Symmetry.THREE_D_HIGHER_ORDER else ((-0.1, 0.1), (0.05, 1.7))
     field.set_bounds(bounds)
      
-    bounds = ((-0.1, 0.1), (-0.03, 0.03), (0.05, 19.0)) if geom.symmetry == G.Symmetry.THREE_D else ((-0.03, 0.03), (0.05, 19.0))
+    bounds = ((-0.1, 0.1), (-0.03, 0.03), (0.05, 19.0)) if geom.symmetry == G.Symmetry.THREE_D_HIGHER_ORDER else ((-0.03, 0.03), (0.05, 19.0))
     tracer_derivs = T.Tracer(axial_field, bounds)
      
     angle = 0.5e-3
     z0 = 15
     
-    start_pos = np.array([0.0, 0.0, z0]) if geom.symmetry == G.Symmetry.THREE_D else np.array([0.0, z0])
-    start_vel = T.velocity_vec_xz_plane(1000, angle, three_dimensional=geom.symmetry == G.Symmetry.THREE_D)
+    start_pos = np.array([0.0, 0.0, z0]) if geom.symmetry == G.Symmetry.THREE_D_HIGHER_ORDER else np.array([0.0, z0])
+    start_vel = T.velocity_vec_xz_plane(1000, angle, three_dimensional=geom.symmetry == G.Symmetry.THREE_D_HIGHER_ORDER)
      
     print('Starting trace.')
     st = time.time()
