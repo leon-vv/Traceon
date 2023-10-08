@@ -60,19 +60,6 @@ FACTOR_AXIAL_DERIV_SAMPLING_3D = 0.06
 
 DERIV_ACCURACY = 6
 
-dir_ = path.dirname(__file__)
-data = path.join(dir_, 'data')
-thetas_file = path.join(data, 'radial-series-3D-thetas.npy')
-coefficients_file = path.join(data, 'radial-series-3D-theta-dependent-coefficients.npy')
-
-thetas = np.load(thetas_file)
-theta0 = thetas[0]
-dtheta = thetas[1]-thetas[0]
-
-thetas_interpolation_coefficients = np.load(coefficients_file)
-
-assert thetas_interpolation_coefficients.shape == (thetas.size-1, backend.NU_MAX, backend.M_MAX, 4)
-
 def _get_floating_conductor_names(exc):
     return [n for n, (t, v) in exc.excitation_types.items() if t == E.ExcitationType.FLOATING_CONDUCTOR]
 
@@ -561,7 +548,7 @@ class Field3D_BEM(FieldBEM):
         print(f'Number of points on z-axis: {len(z)}')
         st = time.time()
         jac_buffer, pos_buffer = self.jac_buffer, self.pos_buffer
-        coeffs = util.split_collect(lambda z: backend.axial_coefficients_3d(self.charges, jac_buffer, pos_buffer,  z, thetas, thetas_interpolation_coefficients), z)
+        coeffs = util.split_collect(lambda z: backend.axial_coefficients_3d(self.charges, jac_buffer, pos_buffer,  z), z)
         coeffs = np.concatenate(coeffs, axis=0)
         interpolated_coeffs = CubicSpline(z, coeffs).c
         interpolated_coeffs = np.moveaxis(interpolated_coeffs, 0, -1)

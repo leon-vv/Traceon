@@ -30,7 +30,6 @@ setup(
     license='AGPLv3',
     ext_modules=[backend_extension],
     packages=['traceon', 'traceon.backend'],
-    include_package_data=True,
     long_description = open('README.md').read(),
     long_description_content_type='text/markdown',
     install_requires=['matplotlib', 'vedo', 'numpy', 'gmsh>=4.9', 'pygmsh>=7.1.13', 'scipy'],

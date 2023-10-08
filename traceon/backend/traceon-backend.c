@@ -823,15 +823,10 @@ axial_coefficients_3d(double *restrict charges,
 	position_buffer_3d restrict position_buffer,
 	double *trig_cos_buffer_p, double *trig_sin_buffer_p,
 	size_t N_v,
-	double *restrict zs, double *restrict output_coeffs_p, size_t N_z,
-	double *restrict thetas, double *restrict theta_coeffs_p, size_t N_t) {
+	double *restrict zs, double *restrict output_coeffs_p, size_t N_z) {
 		
-	double (*theta_coeffs)[NU_MAX][M_MAX][4] = (double (*)[NU_MAX][M_MAX][4]) theta_coeffs_p;
 	double (*output_coeffs)[2][NU_MAX][M_MAX] = (double (*)[2][NU_MAX][M_MAX]) output_coeffs_p;
-	
-	double theta0 = thetas[0];
-	double dtheta = thetas[1] - thetas[0];
-	
+		
 	double (*trig_cos_buffer)[N_TRIANGLE_QUAD][M_MAX] = (double (*)[N_TRIANGLE_QUAD][M_MAX]) trig_cos_buffer_p;
 	double (*trig_sin_buffer)[N_TRIANGLE_QUAD][M_MAX] = (double (*)[N_TRIANGLE_QUAD][M_MAX]) trig_sin_buffer_p;
 
