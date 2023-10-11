@@ -153,6 +153,8 @@ class Geometry(geo.Geometry):
         elif self.symmetry == Symmetry.THREE_D_HIGHER_ORDER:
             dim = 2
             gmsh.option.setNumber('Mesh.ElementOrder', 2)
+        else:
+            raise ValueError('Symmetry not valid: ', self.symmetry)
          
         return Mesh.from_meshio(super().generate_mesh(dim=dim, *args, **kwargs), self.symmetry)
 
