@@ -182,7 +182,7 @@ def _solve_fmm(excitation, superposition=False, precision=0):
     
     triangles, names = excitation.get_active_elements()
     
-    print(f'Using FMM solver, number of elements: {len(triangles)}, symmetry: {excitation.mesh.symmetry}')
+    print(f'Using FMM solver, number of elements: {len(triangles)}, symmetry: {excitation.mesh.symmetry}, precision: {precision}')
        
     N = len(triangles)
     assert triangles.shape == (N, 3, 3)
@@ -191,7 +191,7 @@ def _solve_fmm(excitation, superposition=False, precision=0):
     assert F.shape == (N,)
      
     st = time.time()
-    charges, count = fast_multipole_method.solve_iteratively(names, excitation, triangles, F)
+    charges, count = fast_multipole_method.solve_iteratively(names, excitation, triangles, F, precision=precision)
     print(f'Time for solving FMM: {(time.time()-st)*1000:.0f} ms (iterations: {count})')
      
     jac_buffer, pos_buffer = backend.fill_jacobian_buffer_3d(triangles)
