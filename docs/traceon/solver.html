@@ -120,19 +120,6 @@ FACTOR_AXIAL_DERIV_SAMPLING_3D = 0.06
 
 DERIV_ACCURACY = 6
 
-dir_ = path.dirname(__file__)
-data = path.join(dir_, &#39;data&#39;)
-thetas_file = path.join(data, &#39;radial-series-3D-thetas.npy&#39;)
-coefficients_file = path.join(data, &#39;radial-series-3D-theta-dependent-coefficients.npy&#39;)
-
-thetas = np.load(thetas_file)
-theta0 = thetas[0]
-dtheta = thetas[1]-thetas[0]
-
-thetas_interpolation_coefficients = np.load(coefficients_file)
-
-assert thetas_interpolation_coefficients.shape == (thetas.size-1, backend.NU_MAX, backend.M_MAX, 4)
-
 def _get_floating_conductor_names(exc):
     return [n for n, (t, v) in exc.excitation_types.items() if t == E.ExcitationType.FLOATING_CONDUCTOR]
 
@@ -255,7 +242,7 @@ def _solve_fmm(excitation, superposition=False, precision=0):
     
     triangles, names = excitation.get_active_elements()
     
-    print(f&#39;Using FMM solver, number of elements: {len(triangles)}, symmetry: {excitation.mesh.symmetry}&#39;)
+    print(f&#39;Using FMM solver, number of elements: {len(triangles)}, symmetry: {excitation.mesh.symmetry}, precision: {precision}&#39;)
        
     N = len(triangles)
     assert triangles.shape == (N, 3, 3)
@@ -264,7 +251,7 @@ def _solve_fmm(excitation, superposition=False, precision=0):
     assert F.shape == (N,)
      
     st = time.time()
-    charges, count = fast_multipole_method.solve_iteratively(names, excitation, triangles, F)
+    charges, count = fast_multipole_method.solve_iteratively(names, excitation, triangles, F, precision=precision)
     print(f&#39;Time for solving FMM: {(time.time()-st)*1000:.0f} ms (iterations: {count})&#39;)
      
     jac_buffer, pos_buffer = backend.fill_jacobian_buffer_3d(triangles)
@@ -621,7 +608,7 @@ class Field3D_BEM(FieldBEM):
         print(f&#39;Number of points on z-axis: {len(z)}&#39;)
         st = time.time()
         jac_buffer, pos_buffer = self.jac_buffer, self.pos_buffer
-        coeffs = util.split_collect(lambda z: backend.axial_coefficients_3d(self.charges, jac_buffer, pos_buffer,  z, thetas, thetas_interpolation_coefficients), z)
+        coeffs = util.split_collect(lambda z: backend.axial_coefficients_3d(self.charges, jac_buffer, pos_buffer,  z), z)
         coeffs = np.concatenate(coeffs, axis=0)
         interpolated_coeffs = CubicSpline(z, coeffs).c
         interpolated_coeffs = np.moveaxis(interpolated_coeffs, 0, -1)
@@ -1079,7 +1066,7 @@ are the physical groups with unity excitation, and the values are the resulting 
         print(f&#39;Number of points on z-axis: {len(z)}&#39;)
         st = time.time()
         jac_buffer, pos_buffer = self.jac_buffer, self.pos_buffer
-        coeffs = util.split_collect(lambda z: backend.axial_coefficients_3d(self.charges, jac_buffer, pos_buffer,  z, thetas, thetas_interpolation_coefficients), z)
+        coeffs = util.split_collect(lambda z: backend.axial_coefficients_3d(self.charges, jac_buffer, pos_buffer,  z), z)
         coeffs = np.concatenate(coeffs, axis=0)
         interpolated_coeffs = CubicSpline(z, coeffs).c
         interpolated_coeffs = np.moveaxis(interpolated_coeffs, 0, -1)
@@ -1166,7 +1153,7 @@ is determined by taking into account the number of elements in the mesh.</dd>
     print(f&#39;Number of points on z-axis: {len(z)}&#39;)
     st = time.time()
     jac_buffer, pos_buffer = self.jac_buffer, self.pos_buffer
-    coeffs = util.split_collect(lambda z: backend.axial_coefficients_3d(self.charges, jac_buffer, pos_buffer,  z, thetas, thetas_interpolation_coefficients), z)
+    coeffs = util.split_collect(lambda z: backend.axial_coefficients_3d(self.charges, jac_buffer, pos_buffer,  z), z)
     coeffs = np.concatenate(coeffs, axis=0)
     interpolated_coeffs = CubicSpline(z, coeffs).c
     interpolated_coeffs = np.moveaxis(interpolated_coeffs, 0, -1)

@@ -31,6 +31,24 @@
 
 
 def focus_position(positions):
+    &#34;&#34;&#34;
+    Find the focus of the given trajectories (which are returned from `traceon.tracing.Tracer.__call__`).
+    The focus is found using a least square method by considering the final positions and velocities of
+    the given trajectories and linearly extending the trajectories backwards.
+     
+    
+    Parameters
+    ------------
+    positions: iterable of (N,4) or (N,6) np.ndarray float64
+        Trajectories of electrons, as returned by `traceon.tracing.Tracer.__call__`
+    
+    
+    Returns
+    --------------
+    A tuple of size two or three, depending on whether the input positions are 2D or 3D trajectories. The \
+    returned position is the (r, z) or (x, y, z) position of the focus.
+
+    &#34;&#34;&#34;
     two_d = positions[0].shape[1] == 4
     
     # Also for 2D, extend to 3D
@@ -69,12 +87,40 @@ def focus_position(positions):
 <span>def <span class="ident">focus_position</span></span>(<span>positions)</span>
 </code></dt>
 <dd>
-<div class="desc"></div>
+<div class="desc"><p>Find the focus of the given trajectories (which are returned from <code><a title="traceon.tracing.Tracer.__call__" href="tracing.html#traceon.tracing.Tracer.__call__">Tracer.__call__()</a></code>).
+The focus is found using a least square method by considering the final positions and velocities of
+the given trajectories and linearly extending the trajectories backwards.</p>
+<h2 id="parameters">Parameters</h2>
+<dl>
+<dt><strong><code>positions</code></strong> :&ensp;<code>iterable</code> of <code>(N,4)</code> or <code>(N,6) np.ndarray float64</code></dt>
+<dd>Trajectories of electrons, as returned by <code><a title="traceon.tracing.Tracer.__call__" href="tracing.html#traceon.tracing.Tracer.__call__">Tracer.__call__()</a></code></dd>
+</dl>
+<h2 id="returns">Returns</h2>
+<p>A tuple of size two or three, depending on whether the input positions are 2D or 3D trajectories. The
+returned position is the (r, z) or (x, y, z) position of the focus.</p></div>
 <details class="source">
 <summary>
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">def focus_position(positions):
+    &#34;&#34;&#34;
+    Find the focus of the given trajectories (which are returned from `traceon.tracing.Tracer.__call__`).
+    The focus is found using a least square method by considering the final positions and velocities of
+    the given trajectories and linearly extending the trajectories backwards.
+     
+    
+    Parameters
+    ------------
+    positions: iterable of (N,4) or (N,6) np.ndarray float64
+        Trajectories of electrons, as returned by `traceon.tracing.Tracer.__call__`
+    
+    
+    Returns
+    --------------
+    A tuple of size two or three, depending on whether the input positions are 2D or 3D trajectories. The \
+    returned position is the (r, z) or (x, y, z) position of the focus.
+
+    &#34;&#34;&#34;
     two_d = positions[0].shape[1] == 4
     
     # Also for 2D, extend to 3D
