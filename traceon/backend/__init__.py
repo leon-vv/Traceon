@@ -108,7 +108,7 @@ backend_functions = {
     'dy1_potential_3d_point': (dbl, dbl, dbl, dbl, dbl, dbl, dbl, vp),
     'dz1_potential_3d_point': (dbl, dbl, dbl, dbl, dbl, dbl, dbl, vp),
     'potential_3d_point': (dbl, dbl, dbl, dbl, dbl, dbl, dbl, vp),
-    'axial_coefficients_3d': (None, charges_3d, jac_buffer_3d, pos_buffer_3d, arr(ndim=3), arr(ndim=3), sz, z_values, arr(ndim=4), sz, arr(ndim=1), arr(ndim=4), sz),
+    'axial_coefficients_3d': (None, charges_3d, jac_buffer_3d, pos_buffer_3d, arr(ndim=3), arr(ndim=3), sz, z_values, arr(ndim=4), sz),
     'potential_3d': (dbl, v3, charges_3d, jac_buffer_3d, pos_buffer_3d, sz),
     'potential_3d_derivs': (dbl, v3, z_values, arr(ndim=5), sz),
     'field_3d': (None, v3, v3, charges_3d, jac_buffer_3d, pos_buffer_3d, sz),
@@ -117,6 +117,7 @@ backend_functions = {
     'trace_particle_3d_derivs': (sz, times_block, tracing_block, bounds, dbl, z_values, arr(ndim=5), sz),
     'fill_jacobian_buffer_radial': (None, jac_buffer_2d, pos_buffer_2d, vertices, sz),
     'fill_matrix_radial': (None, arr(ndim=2), lines, arr(dtype=C.c_uint8, ndim=1), arr(ndim=1), jac_buffer_2d, pos_buffer_2d, sz, sz, C.c_int, C.c_int),
+    'fill_jacobian_buffer_3d_higher_order': (None, jac_buffer_3d, pos_buffer_3d, vertices, sz),
     'fill_jacobian_buffer_3d': (None, jac_buffer_3d, pos_buffer_3d, vertices, sz),
     'fill_matrix_3d': (None, arr(ndim=2), vertices, arr(dtype=C.c_uint8, ndim=1), arr(ndim=1), jac_buffer_3d, pos_buffer_3d, sz, sz, C.c_int, C.c_int),
     'plane_intersection': (bool, v3, v3, arr(ndim=2), sz, arr(shape=(6,))),
@@ -374,22 +375,19 @@ dy1_potential_3d_point = remove_arg(backend_lib.dy1_potential_3d_point)
 dz1_potential_3d_point = remove_arg(backend_lib.dz1_potential_3d_point)
 potential_3d_point = remove_arg(backend_lib.potential_3d_point)
 
-def axial_coefficients_3d(charges, jacobian_buffer, pos_buffer, z, thetas, theta_interpolation):
+def axial_coefficients_3d(charges, jacobian_buffer, pos_buffer, z):
     assert jacobian_buffer.shape == (len(charges), N_TRIANGLE_QUAD)
     assert pos_buffer.shape == (len(charges), N_TRIANGLE_QUAD, 3)
-    assert theta_interpolation.shape == (len(thetas)-1, NU_MAX, M_MAX, 4)
-
+    
     output_coeffs = np.zeros( (len(z), 2, NU_MAX, M_MAX) )
-     
+      
     trig_cos_buffer = np.zeros( (len(charges), N_TRIANGLE_QUAD, M_MAX) )
     trig_sin_buffer = np.zeros( (len(charges), N_TRIANGLE_QUAD, M_MAX) )
-    
+     
     backend_lib.axial_coefficients_3d(charges, 
         jacobian_buffer, pos_buffer, trig_cos_buffer, trig_sin_buffer,
-        len(charges),
-        z, output_coeffs, len(z),
-        thetas, theta_interpolation, len(thetas))
-     
+        len(charges), z, output_coeffs, len(z))
+      
     return output_coeffs
 
 def potential_3d(point, charges, jac_buffer, pos_buffer):
@@ -446,14 +444,28 @@ def fill_matrix_radial(matrix, lines, excitation_types, excitation_values, jac_b
      
     backend_lib.fill_matrix_radial(matrix, lines, excitation_types, excitation_values, jac_buffer, pos_buffer, N, matrix.shape[0], start_index, end_index)
 
+def fill_jacobian_buffer_3d_higher_order(vertices):
+    N = len(vertices)
+    assert vertices.shape == (N, 6, 3)
+    
+    jac_buffer = np.zeros( (N, N_TRIANGLE_QUAD) )
+    pos_buffer = np.zeros( (N, N_TRIANGLE_QUAD, 3) )
+    
+    backend_lib.fill_jacobian_buffer_3d_higher_order(jac_buffer, pos_buffer, vertices, N)
+
+    return jac_buffer, pos_buffer
+
 def fill_jacobian_buffer_3d(vertices):
     N = len(vertices)
+    assert vertices.shape == (N, 3, 3)
     jac_buffer = np.zeros( (N, N_TRIANGLE_QUAD) )
     pos_buffer = np.zeros( (N, N_TRIANGLE_QUAD, 3) )
     
     backend_lib.fill_jacobian_buffer_3d(jac_buffer, pos_buffer, vertices, N)
 
     return jac_buffer, pos_buffer
+
+
 
 def fill_matrix_3d(matrix, vertices, excitation_types, excitation_values, jac_buffer, pos_buffer, start_index, end_index):
     N = len(vertices)
@@ -464,7 +476,7 @@ def fill_matrix_3d(matrix, vertices, excitation_types, excitation_values, jac_bu
     assert excitation_values.shape == (N,)
     assert jac_buffer.shape == (N, N_TRIANGLE_QUAD)
     assert pos_buffer.shape == (N, N_TRIANGLE_QUAD, 3)
-    assert 0 <= start_index < N and 0 <= end_index < N and start_index < end_index
+    assert 0 <= start_index < N and 0 <= end_index < N and start_index <= end_index
      
     backend_lib.fill_matrix_3d(matrix, vertices, excitation_types, excitation_values, jac_buffer, pos_buffer, N, matrix.shape[0], start_index, end_index)
 

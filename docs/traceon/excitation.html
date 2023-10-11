@@ -242,6 +242,9 @@ class Excitation:
         if self.mesh.symmetry == Symmetry.RADIAL:
             return Nelem*N_QUAD_2D + Nfloating
         elif self.mesh.symmetry == Symmetry.THREE_D:
+            assert Nfloating == 0, &#39;Floating elements not yet supported in FMM&#39;
+            return Nelem
+        elif self.mesh.symmetry == Symmetry.THREE_D_HIGHER_ORDER:
             return Nelem + Nfloating
 
 
@@ -433,6 +436,9 @@ class Excitation:
         if self.mesh.symmetry == Symmetry.RADIAL:
             return Nelem*N_QUAD_2D + Nfloating
         elif self.mesh.symmetry == Symmetry.THREE_D:
+            assert Nfloating == 0, &#39;Floating elements not yet supported in FMM&#39;
+            return Nelem
+        elif self.mesh.symmetry == Symmetry.THREE_D_HIGHER_ORDER:
             return Nelem + Nfloating</code></pre>
 </details>
 <h3>Methods</h3>
@@ -686,6 +692,9 @@ in bytes is 8·NxN.</p>
     if self.mesh.symmetry == Symmetry.RADIAL:
         return Nelem*N_QUAD_2D + Nfloating
     elif self.mesh.symmetry == Symmetry.THREE_D:
+        assert Nfloating == 0, &#39;Floating elements not yet supported in FMM&#39;
+        return Nelem
+    elif self.mesh.symmetry == Symmetry.THREE_D_HIGHER_ORDER:
         return Nelem + Nfloating</code></pre>
 </details>
 </dd>

@@ -113,24 +113,12 @@ from . import geometry as G
 from . import excitation as E
 from . import backend
 from . import util
+from . import fast_multipole_method
 
 FACTOR_AXIAL_DERIV_SAMPLING_2D = 0.2
 FACTOR_AXIAL_DERIV_SAMPLING_3D = 0.06
 
 DERIV_ACCURACY = 6
-
-dir_ = path.dirname(__file__)
-data = path.join(dir_, &#39;data&#39;)
-thetas_file = path.join(data, &#39;radial-series-3D-thetas.npy&#39;)
-coefficients_file = path.join(data, &#39;radial-series-3D-theta-dependent-coefficients.npy&#39;)
-
-thetas = np.load(thetas_file)
-theta0 = thetas[0]
-dtheta = thetas[1]-thetas[0]
-
-thetas_interpolation_coefficients = np.load(coefficients_file)
-
-assert thetas_interpolation_coefficients.shape == (thetas.size-1, backend.NU_MAX, backend.M_MAX, 4)
 
 def _get_floating_conductor_names(exc):
     return [n for n, (t, v) in exc.excitation_types.items() if t == E.ExcitationType.FLOATING_CONDUCTOR]
@@ -146,11 +134,11 @@ def _excitation_to_right_hand_side(excitation, vertices, names):
      
     for name, indices in names.items():
         type_, value  = excitation.excitation_types[name]
-        
+         
         if type_ == E.ExcitationType.VOLTAGE_FIXED:
             F[indices] = value
         elif type_ == E.ExcitationType.VOLTAGE_FUN:
-            positions = [backend.position_and_jacobian_radial(0.5, vertices[i, 0], vertices[i, 2], vertices[i, 3], vertices[i, 1])[1] for i in indices]
+            positions = [backend.position_and_jacobian_radial(0, vertices[i, 0], vertices[i, 2], vertices[i, 3], vertices[i, 1])[1] for i in indices]
             F[indices] = [value(*p) for p in positions]
         elif type_ == E.ExcitationType.DIELECTRIC or \
                 type_ == E.ExcitationType.FLOATING_CONDUCTOR:
@@ -166,7 +154,7 @@ def _excitation_to_right_hand_side(excitation, vertices, names):
 def _area(symmetry, jacobian_buffer, pos_buffer, index):
     if symmetry == G.Symmetry.RADIAL:
         return 2*np.pi*np.sum(jacobian_buffer[index] * pos_buffer[index, :, 0])
-    elif symmetry == G.Symmetry.THREE_D:
+    elif symmetry == G.Symmetry.THREE_D_HIGHER_ORDER:
         return np.sum(jacobian_buffer[index])
 
 def _add_floating_conductor_constraints_to_matrix(matrix, jac_buffer, pos_buffer, names, excitation):
@@ -206,11 +194,11 @@ def _excitation_to_matrix(excitation, vertices, names):
      
     st = time.time()
     matrix = np.zeros( (N_matrix, N_matrix) )
-    print(f&#39;Number of elements: {N_lines}, size of matrix: {N_matrix} ({matrix.nbytes/1e6:.0f} MB), symmetry: {excitation.mesh.symmetry}&#39;)
+    print(f&#39;Using matrix solver, number of elements: {N_lines}, size of matrix: {N_matrix} ({matrix.nbytes/1e6:.0f} MB), symmetry: {excitation.mesh.symmetry}&#39;)
 
-    _3d = excitation.mesh.symmetry == G.Symmetry.THREE_D
+    _3d = excitation.mesh.symmetry == G.Symmetry.THREE_D_HIGHER_ORDER
 
-    jac_buffer, pos_buffer = backend.fill_jacobian_buffer_3d(vertices) if _3d else backend.fill_jacobian_buffer_radial(vertices)
+    jac_buffer, pos_buffer = backend.fill_jacobian_buffer_3d_higher_order(vertices) if _3d else backend.fill_jacobian_buffer_radial(vertices)
     fill_fun = backend.fill_matrix_3d if _3d else backend.fill_matrix_radial
      
     def fill_matrix_rows(rows):
@@ -240,39 +228,42 @@ def _charges_to_field(excitation, charges, vertices, names, jac_buffer, pos_buff
      
     assert len(charges) == len(vertices)
     
-    field_class = FieldRadialBEM if excitation.mesh.symmetry != G.Symmetry.THREE_D else Field3D_BEM
+    field_class = FieldRadialBEM if excitation.mesh.symmetry != G.Symmetry.THREE_D_HIGHER_ORDER else Field3D_BEM
     return field_class(vertices, charges, jac_buffer, pos_buffer, floating_voltages=floating_voltages)
-    
-def solve_bem(excitation, superposition=False):
-    &#34;&#34;&#34;
-    Solve for the charges on the surface of the geometry by using the Boundary Element Method (BEM) and taking
-    into account the specified `excitation`. 
 
-    Parameters
-    ----------
-    excitation : traceon.excitation.Excitation
-        The excitation that produces the resulting field.
-        
-    superposition : bool
-        When `superposition=True` the function returns multiple fields. Each field corresponds with a unity excitation (1V)
-        of a physical group that was previously assigned a non-zero fixed voltage value. This is useful when a geometry needs
-        to be analyzed for many different voltage settings. In this case taking a linear superposition of the returned fields
-        allows to select a different voltage &#39;setting&#39; without inducing any computational cost. There is no computational cost
-        involved in using `superposition=True` since a direct solver is used which easily allows for multiple right hand sides (the
-        matrix does not have to be inverted multiple times). However, some excitations are invalid in the superposition process: floating
-        conductor with a non-zero total charge and voltage functions (position dependent voltages).
+def _solve_fmm(excitation, superposition=False, precision=0):
+    assert E.ExcitationType.FLOATING_CONDUCTOR not in [t for t, _ in excitation.excitation_types.values()], &#39;Floating conductor not yet supported in FMM&#39;
+    assert excitation.mesh.symmetry == G.Symmetry.THREE_D, &#34;Fast multipole method is only supported for simple 3D geometries (non higher order triangles).&#34;
+    assert isinstance(precision, int) and -2 &lt;= precision &lt;= 5
     
-    Returns
-    -------
-    A `FieldRadialBEM` if the geometry (contained in the given `excitation`) is radially symmetric. If the geometry is a generic three
-    dimensional geometry `Field3D_BEM` is returned. Alternatively, when `superposition=True` a dictionary is returned, where the keys
-    are the physical groups with unity excitation, and the values are the resulting fields.
-    &#34;&#34;&#34;
+    if superposition:
+        excs = excitation._split_for_superposition()
+        return {n:_solve_fmm(e, superposition=False) for n, e in excs.items()}
     
+    triangles, names = excitation.get_active_elements()
+    
+    print(f&#39;Using FMM solver, number of elements: {len(triangles)}, symmetry: {excitation.mesh.symmetry}, precision: {precision}&#39;)
+       
+    N = len(triangles)
+    assert triangles.shape == (N, 3, 3)
+     
+    F = _excitation_to_right_hand_side(excitation, triangles, names)
+    assert F.shape == (N,)
+     
+    st = time.time()
+    charges, count = fast_multipole_method.solve_iteratively(names, excitation, triangles, F, precision=precision)
+    print(f&#39;Time for solving FMM: {(time.time()-st)*1000:.0f} ms (iterations: {count})&#39;)
+     
+    jac_buffer, pos_buffer = backend.fill_jacobian_buffer_3d(triangles)
+     
+    return Field3D_BEM(triangles, charges, jac_buffer, pos_buffer)
+
+def _solve_matrix(excitation, superposition=False):
     vertices, names = excitation.get_active_elements()
      
     if not superposition:
         matrix, jac_buffer, pos_buffer = _excitation_to_matrix(excitation, vertices, names)
+          
         F = _excitation_to_right_hand_side(excitation, vertices, names)
         st = time.time()
         charges = np.linalg.solve(matrix, F)
@@ -290,6 +281,47 @@ def solve_bem(excitation, superposition=False):
     print(f&#39;Time for solving matrix: {(time.time()-st)*1000:.0f} ms&#39;)
     assert np.all(np.isfinite(charges))
     return {n:_charges_to_field(excs[n], charges[:, i], vertices, names, jac_buffer, pos_buffer) for i, n in enumerate(superposed_names)}
+
+def solve_bem(excitation, superposition=False, use_fmm=False, fmm_precision=0):
+    &#34;&#34;&#34;
+    Solve for the charges on the surface of the geometry by using the Boundary Element Method (BEM) and taking
+    into account the specified `excitation`. 
+
+    Parameters
+    ----------
+    excitation : traceon.excitation.Excitation
+        The excitation that produces the resulting field.
+     
+    superposition : bool
+        When `superposition=True` the function returns multiple fields. Each field corresponds with a unity excitation (1V)
+        of a physical group that was previously assigned a non-zero fixed voltage value. This is useful when a geometry needs
+        to be analyzed for many different voltage settings. In this case taking a linear superposition of the returned fields
+        allows to select a different voltage &#39;setting&#39; without inducing any computational cost. There is no computational cost
+        involved in using `superposition=True` since a direct solver is used which easily allows for multiple right hand sides (the
+        matrix does not have to be inverted multiple times). However, some excitations are invalid in the superposition process: floating
+        conductor with a non-zero total charge and voltage functions (position dependent voltages).
+    
+    use_fmm : bool
+        Use the fast multipole method to calculate the charge distribution. This method is currently only implemented for 3D geometries without
+        higher order elements. This function only works if [pyfmmlib](https://github.com/inducer/pyfmmlib) is installed
+        (version 2023.1 or later). The fast multipole method is usually slower for small 3D problems, but scales much better to problems with &gt;10^5
+        number of triangles.
+
+    fmm_precision : int
+        Precision flag passed to the fast multipole library (see iprec argument in the [official documentation](https://github.com/zgimbutas/fmmlib3d/blob/master/doc/fmm3dpart_manual3.pdf)).
+        Usually values -1, 0, 1, 2 will work, choose higher numbers if more precision is desired.
+    
+    Returns
+    -------
+    A `FieldRadialBEM` if the geometry (contained in the given `excitation`) is radially symmetric. If the geometry is a generic three
+    dimensional geometry `Field3D_BEM` is returned. Alternatively, when `superposition=True` a dictionary is returned, where the keys
+    are the physical groups with unity excitation, and the values are the resulting fields.
+    &#34;&#34;&#34;
+
+    if use_fmm:
+        return _solve_fmm(excitation, superposition=superposition, precision=fmm_precision)
+    else:
+        return _solve_matrix(excitation, superposition=superposition)
 
 
 def _get_one_dimensional_high_order_ppoly(z, y, dydz, dydz2):
@@ -506,14 +538,12 @@ class FieldRadialBEM(FieldBEM):
     def area_of_element(self, i):
         return _area(G.Symmetry.RADIAL, self.jac_buffer, self.pos_buffer, i)
     
-    
 class Field3D_BEM(FieldBEM):
     &#34;&#34;&#34;An electrostatic field resulting from a general 3D geometry. The field is a result of the surface charges as computed by the
     `solve_bem` function. See the comments in `FieldBEM`.&#34;&#34;&#34;
      
     def __init__(self, vertices, charges, jac_buffer, pos_buffer, floating_voltages={}):
         super().__init__(vertices, charges, jac_buffer, pos_buffer, floating_voltages)
-        assert vertices.shape == (len(charges), 6, 3)
     
     def field_at_point(self, point):
         &#34;&#34;&#34;
@@ -578,7 +608,7 @@ class Field3D_BEM(FieldBEM):
         print(f&#39;Number of points on z-axis: {len(z)}&#39;)
         st = time.time()
         jac_buffer, pos_buffer = self.jac_buffer, self.pos_buffer
-        coeffs = util.split_collect(lambda z: backend.axial_coefficients_3d(self.charges, jac_buffer, pos_buffer,  z, thetas, thetas_interpolation_coefficients), z)
+        coeffs = util.split_collect(lambda z: backend.axial_coefficients_3d(self.charges, jac_buffer, pos_buffer,  z), z)
         coeffs = np.concatenate(coeffs, axis=0)
         interpolated_coeffs = CubicSpline(z, coeffs).c
         interpolated_coeffs = np.moveaxis(interpolated_coeffs, 0, -1)
@@ -588,7 +618,7 @@ class Field3D_BEM(FieldBEM):
         return Field3DAxial(z, interpolated_coeffs)
     
     def area_of_element(self, i):
-        return _area(G.Symmetry.THREE_D, self.jac_buffer, self.pos_buffer, i)
+        return _area(G.Symmetry.THREE_D_HIGHER_ORDER, self.jac_buffer, self.pos_buffer, i)
     
 
      
@@ -727,7 +757,7 @@ class Field3DAxial(FieldAxial):
 <h2 class="section-title" id="header-functions">Functions</h2>
 <dl>
 <dt id="traceon.solver.solve_bem"><code class="name flex">
-<span>def <span class="ident">solve_bem</span></span>(<span>excitation, superposition=False)</span>
+<span>def <span class="ident">solve_bem</span></span>(<span>excitation, superposition=False, use_fmm=False, fmm_precision=0)</span>
 </code></dt>
 <dd>
 <div class="desc"><p>Solve for the charges on the surface of the geometry by using the Boundary Element Method (BEM) and taking
@@ -744,6 +774,14 @@ allows to select a different voltage 'setting' without inducing any computationa
 involved in using <code>superposition=True</code> since a direct solver is used which easily allows for multiple right hand sides (the
 matrix does not have to be inverted multiple times). However, some excitations are invalid in the superposition process: floating
 conductor with a non-zero total charge and voltage functions (position dependent voltages).</dd>
+<dt><strong><code>use_fmm</code></strong> :&ensp;<code>bool</code></dt>
+<dd>Use the fast multipole method to calculate the charge distribution. This method is currently only implemented for 3D geometries without
+higher order elements. This function only works if <a href="https://github.com/inducer/pyfmmlib">pyfmmlib</a> is installed
+(version 2023.1 or later). The fast multipole method is usually slower for small 3D problems, but scales much better to problems with &gt;10^5
+number of triangles.</dd>
+<dt><strong><code>fmm_precision</code></strong> :&ensp;<code>int</code></dt>
+<dd>Precision flag passed to the fast multipole library (see iprec argument in the <a href="https://github.com/zgimbutas/fmmlib3d/blob/master/doc/fmm3dpart_manual3.pdf">official documentation</a>).
+Usually values -1, 0, 1, 2 will work, choose higher numbers if more precision is desired.</dd>
 </dl>
 <h2 id="returns">Returns</h2>
 <p>A <code><a title="traceon.solver.FieldRadialBEM" href="#traceon.solver.FieldRadialBEM">FieldRadialBEM</a></code> if the geometry (contained in the given <code>excitation</code>) is radially symmetric. If the geometry is a generic three
@@ -753,7 +791,7 @@ are the physical groups with unity excitation, and the values are the resulting 
 <summary>
 <span>Expand source code</span>
 </summary>
-<pre><code class="python">def solve_bem(excitation, superposition=False):
+<pre><code class="python">def solve_bem(excitation, superposition=False, use_fmm=False, fmm_precision=0):
     &#34;&#34;&#34;
     Solve for the charges on the surface of the geometry by using the Boundary Element Method (BEM) and taking
     into account the specified `excitation`. 
@@ -762,7 +800,7 @@ are the physical groups with unity excitation, and the values are the resulting 
     ----------
     excitation : traceon.excitation.Excitation
         The excitation that produces the resulting field.
-        
+     
     superposition : bool
         When `superposition=True` the function returns multiple fields. Each field corresponds with a unity excitation (1V)
         of a physical group that was previously assigned a non-zero fixed voltage value. This is useful when a geometry needs
@@ -772,34 +810,27 @@ are the physical groups with unity excitation, and the values are the resulting 
         matrix does not have to be inverted multiple times). However, some excitations are invalid in the superposition process: floating
         conductor with a non-zero total charge and voltage functions (position dependent voltages).
     
+    use_fmm : bool
+        Use the fast multipole method to calculate the charge distribution. This method is currently only implemented for 3D geometries without
+        higher order elements. This function only works if [pyfmmlib](https://github.com/inducer/pyfmmlib) is installed
+        (version 2023.1 or later). The fast multipole method is usually slower for small 3D problems, but scales much better to problems with &gt;10^5
+        number of triangles.
+
+    fmm_precision : int
+        Precision flag passed to the fast multipole library (see iprec argument in the [official documentation](https://github.com/zgimbutas/fmmlib3d/blob/master/doc/fmm3dpart_manual3.pdf)).
+        Usually values -1, 0, 1, 2 will work, choose higher numbers if more precision is desired.
+    
     Returns
     -------
     A `FieldRadialBEM` if the geometry (contained in the given `excitation`) is radially symmetric. If the geometry is a generic three
     dimensional geometry `Field3D_BEM` is returned. Alternatively, when `superposition=True` a dictionary is returned, where the keys
     are the physical groups with unity excitation, and the values are the resulting fields.
     &#34;&#34;&#34;
-    
-    vertices, names = excitation.get_active_elements()
-     
-    if not superposition:
-        matrix, jac_buffer, pos_buffer = _excitation_to_matrix(excitation, vertices, names)
-        F = _excitation_to_right_hand_side(excitation, vertices, names)
-        st = time.time()
-        charges = np.linalg.solve(matrix, F)
-        assert np.all(np.isfinite(charges))
-        print(f&#39;Time for solving matrix: {(time.time()-st)*1000:.0f} ms&#39;)
-        
-        return _charges_to_field(excitation, charges, vertices, names, jac_buffer, pos_buffer)
-     
-    excs = excitation._split_for_superposition()
-    superposed_names = excs.keys()
-    matrix, jac_buffer, pos_buffer = _excitation_to_matrix(excitation, vertices, names)
-    F = np.array([_excitation_to_right_hand_side(excs[n], vertices, names) for n in superposed_names]).T
-    st = time.time()
-    charges = np.linalg.solve(matrix, F)
-    print(f&#39;Time for solving matrix: {(time.time()-st)*1000:.0f} ms&#39;)
-    assert np.all(np.isfinite(charges))
-    return {n:_charges_to_field(excs[n], charges[:, i], vertices, names, jac_buffer, pos_buffer) for i, n in enumerate(superposed_names)}</code></pre>
+
+    if use_fmm:
+        return _solve_fmm(excitation, superposition=superposition, precision=fmm_precision)
+    else:
+        return _solve_matrix(excitation, superposition=superposition)</code></pre>
 </details>
 </dd>
 </dl>
@@ -971,7 +1002,6 @@ are the physical groups with unity excitation, and the values are the resulting 
      
     def __init__(self, vertices, charges, jac_buffer, pos_buffer, floating_voltages={}):
         super().__init__(vertices, charges, jac_buffer, pos_buffer, floating_voltages)
-        assert vertices.shape == (len(charges), 6, 3)
     
     def field_at_point(self, point):
         &#34;&#34;&#34;
@@ -1036,7 +1066,7 @@ are the physical groups with unity excitation, and the values are the resulting 
         print(f&#39;Number of points on z-axis: {len(z)}&#39;)
         st = time.time()
         jac_buffer, pos_buffer = self.jac_buffer, self.pos_buffer
-        coeffs = util.split_collect(lambda z: backend.axial_coefficients_3d(self.charges, jac_buffer, pos_buffer,  z, thetas, thetas_interpolation_coefficients), z)
+        coeffs = util.split_collect(lambda z: backend.axial_coefficients_3d(self.charges, jac_buffer, pos_buffer,  z), z)
         coeffs = np.concatenate(coeffs, axis=0)
         interpolated_coeffs = CubicSpline(z, coeffs).c
         interpolated_coeffs = np.moveaxis(interpolated_coeffs, 0, -1)
@@ -1046,7 +1076,7 @@ are the physical groups with unity excitation, and the values are the resulting 
         return Field3DAxial(z, interpolated_coeffs)
     
     def area_of_element(self, i):
-        return _area(G.Symmetry.THREE_D, self.jac_buffer, self.pos_buffer, i)</code></pre>
+        return _area(G.Symmetry.THREE_D_HIGHER_ORDER, self.jac_buffer, self.pos_buffer, i)</code></pre>
 </details>
 <h3>Ancestors</h3>
 <ul class="hlist">
@@ -1065,7 +1095,7 @@ are the physical groups with unity excitation, and the values are the resulting 
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">def area_of_element(self, i):
-    return _area(G.Symmetry.THREE_D, self.jac_buffer, self.pos_buffer, i)</code></pre>
+    return _area(G.Symmetry.THREE_D_HIGHER_ORDER, self.jac_buffer, self.pos_buffer, i)</code></pre>
 </details>
 </dd>
 <dt id="traceon.solver.Field3D_BEM.axial_derivative_interpolation"><code class="name flex">
@@ -1123,7 +1153,7 @@ is determined by taking into account the number of elements in the mesh.</dd>
     print(f&#39;Number of points on z-axis: {len(z)}&#39;)
     st = time.time()
     jac_buffer, pos_buffer = self.jac_buffer, self.pos_buffer
-    coeffs = util.split_collect(lambda z: backend.axial_coefficients_3d(self.charges, jac_buffer, pos_buffer,  z, thetas, thetas_interpolation_coefficients), z)
+    coeffs = util.split_collect(lambda z: backend.axial_coefficients_3d(self.charges, jac_buffer, pos_buffer,  z), z)
     coeffs = np.concatenate(coeffs, axis=0)
     interpolated_coeffs = CubicSpline(z, coeffs).c
     interpolated_coeffs = np.moveaxis(interpolated_coeffs, 0, -1)

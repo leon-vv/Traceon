@@ -13,32 +13,34 @@ import traceon.solver as S
 import util
 
 def create_geometry(MSF, symmetry):
+
+    _3d = symmetry != G.Symmetry.RADIAL
     
     with G.Geometry(symmetry, size_from_distance=True, zmin=0.1, zmax=2) as geom:
         
         points = [ [0, -1], [2, -1], [2, 1], [0.3, 1] ]
-        if symmetry == G.Symmetry.THREE_D:
+        if _3d: 
             points = [ [p[0], 0.0, p[1]] for p in points ]
         
         points = [geom.add_point(p) for p in points]
         
         ground_lines = [geom.add_line(p1, p2) for p1, p2 in zip(points, points[1:])]
             
-        if symmetry == G.Symmetry.THREE_D:
+        if _3d:
             revolved = G.revolve_around_optical_axis(geom, ground_lines)
             geom.add_physical(revolved, 'ground')
         else:
             geom.add_physical(ground_lines, 'ground')
         
         points = [ [0.0, 0.0], [1, 0] ]
-        if symmetry == G.Symmetry.THREE_D:
+        if _3d:
             points = [ [p[0], 0.0, p[1]] for p in points ]
           
         points = [geom.add_point(p) for p in points]
          
         mirror_line = geom.add_line(points[0], points[1])
 
-        if symmetry == G.Symmetry.THREE_D:
+        if _3d:
             revolved = G.revolve_around_optical_axis(geom, mirror_line)
             geom.add_physical(revolved, 'mirror')
         else:
@@ -50,11 +52,14 @@ def create_geometry(MSF, symmetry):
 def compute_field(geom):
     excitation = E.Excitation(geom)
     excitation.add_voltage(mirror=-110, ground=0.0)
-    field = S.solve_bem(excitation)
+
+    use_fmm = geom.symmetry == G.Symmetry.THREE_D
+    field = S.solve_bem(excitation, use_fmm=use_fmm)
+     
     return excitation, field
 
 def compute_error(excitation, field, geom):
-    _3d = geom.symmetry == G.Symmetry.THREE_D
+    _3d = geom.symmetry != G.Symmetry.RADIAL
 
     bounds = ((-0.22, 0.22), (0.02, 11))
 

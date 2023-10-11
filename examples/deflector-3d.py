@@ -52,7 +52,7 @@ def rectangle_electrode(geom, x, z, name):
 
 
 # Create the actual geometry using the utility functions above.
-with G.Geometry(G.Symmetry.THREE_D, size_from_distance=True) as geom:
+with G.Geometry(G.Symmetry.THREE_D_HIGHER_ORDER, size_from_distance=True) as geom:
     round_electrode(geom, z0, 'ground')
      
     rectangle_electrode(geom, RADIUS, z0+THICKNESS+SPACING, 'deflector_positive')    

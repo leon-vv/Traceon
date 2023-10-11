@@ -17,6 +17,7 @@ parser.add_argument('--plot-geometry', action='store_true', help='Plot the geome
 parser.add_argument('--plot-normals', action='store_true', help='When plotting geometry, show normals')
 parser.add_argument('--plot-charge-density', action='store_true', help='When plotting geometry, base the colors on the computed charge density')
 parser.add_argument('--plot-charges', action='store_true', help='When plotting geometry, base the colors on the charge on each element')
+parser.add_argument('--use-fmm', action='store_true', help='Use fast multipole method to solve 3D geometry')
 
 def print_info(Nlines, duration, accuracy):
     print('Number of elements\t\tComputation time (ms)\t\tAccuracy')
@@ -31,8 +32,15 @@ def parse_validation_args(create_geometry, compute_field, compute_error, MSF={'r
      
     args = parser.parse_args()
     MSFdefault = args.MSF if args.MSF != None else MSF[args.symmetry][1]
-    symmetry = G.Symmetry.RADIAL if args.symmetry == 'radial' else G.Symmetry.THREE_D
 
+    if args.symmetry == 'radial':
+        assert not args.use_fmm, "Fast Multipole Method not supported for radial geometries"
+        symmetry = G.Symmetry.RADIAL
+    elif args.symmetry == '3d' and not args.use_fmm:
+        symmetry = G.Symmetry.THREE_D_HIGHER_ORDER
+    elif args.symmetry == '3d' and args.use_fmm:
+        symmetry = G.Symmetry.THREE_D
+    
     plot = args.plot_geometry or args.plot_normals or args.plot_charge_density or args.plot_charges
     
     if plot:

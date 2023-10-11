@@ -28,10 +28,12 @@ def create_geometry(MSF, symmetry):
             [20, 20],
             [20, 0]
         ]
+
+        _3d = symmetry != G.Symmetry.RADIAL
         
         geom.set_mesh_size_factor(MSF)
         
-        if symmetry == G.Symmetry.THREE_D:
+        if _3d:
             points = [geom.add_point([p[0], 0.0, p[1]]) for p in points]
         else:
             points = [geom.add_point(p) for p in points]
@@ -44,7 +46,7 @@ def create_geometry(MSF, symmetry):
         l5 = geom.add_line(points[-3], points[-2])
         l6 = geom.add_line(points[-2], points[-1])
         
-        if symmetry == G.Symmetry.THREE_D:
+        if _3d:
             inner = G.revolve_around_optical_axis(geom, [l1, l2, l3])
             boundary = G.revolve_around_optical_axis(geom, [l4, l5, l6])
             
@@ -52,7 +54,7 @@ def create_geometry(MSF, symmetry):
             geom.add_physical(boundary, 'boundary')
             
             return geom.generate_mesh()
-        elif symmetry == G.Symmetry.RADIAL:
+        else:
             geom.add_physical([l1, l2, l3], 'inner')
             geom.add_physical([l4, l5, l6], 'boundary')
             
@@ -61,13 +63,18 @@ def create_geometry(MSF, symmetry):
 def compute_field(geometry):
     excitation = E.Excitation(geometry)
     excitation.add_voltage(boundary=0, inner=10)
+
+    use_fmm = geometry.symmetry == G.Symmetry.THREE_D
+    field = S.solve_bem(excitation, use_fmm=use_fmm)
     
-    field = S.solve_bem(excitation)
     return excitation, field
 
 def compute_error(excitation, field, geometry):
     st = time.time()
-    if excitation.mesh.symmetry == G.Symmetry.THREE_D:
+
+    _3d = excitation.mesh.symmetry != G.Symmetry.RADIAL
+    
+    if _3d:
         pot = field.potential_at_point(np.array([12, 0.0, 4]))
     else:
         pot = field.potential_at_point(np.array([12, 4]))
