@@ -16,8 +16,6 @@ def print_info(MSFs, Nlines, duration, correct, computed, accuracy):
     for m, N, d, corr, comp, a in zip(MSFs, Nlines, duration, correct, computed, accuracy):
         print('%-25d %-25d %-25.1f %-25.8f %-25.8f %-25.1e' % (m, N, d, corr, comp, a))
 
-default_MSF ={'radial':[10, 25, 50, 100, 150], '3d':[20, 50, 100, 200, 400]}
-
 class Validation:
     
     def __init__(self, description=''):
@@ -39,10 +37,12 @@ class Validation:
         parser.add_argument('--plot-charges', action='store_true', help='When plotting geometry, base the colors on the charge on each element')
         parser.add_argument('--use-fmm', action='store_true', help='Use fast multipole method to solve 3D geometry')
         return parser.parse_args()
-
-   
-    def is_3d(self, mesh):
-        return mesh.symmetry in [G.Symmetry.THREE_D_HIGHER_ORDER, G.Symmetry.THREE_D]
+    
+    def default_MSF(self, symmetry):
+        if symmetry.is_3d():
+            return [20, 50, 100, 200, 400]
+        else:
+            return [10, 25, 50, 100, 150]
     
     def plot_geometry(self, MSF, symmetry, use_fmm=False, plot_charges=False, plot_charge_density=False, plot_normals=False):
         geom = self.create_mesh(MSF, symmetry)
@@ -128,15 +128,15 @@ class Validation:
     def run_validation(self):
         args = self.parse_args()
         plot = args.plot_geometry or args.plot_normals or args.plot_charge_density or args.plot_charges
-        MSF = args.MSF if args.MSF != None else default_MSF[args.symmetry][1]
         symmetry = Validation.args_to_symmetry(args)
+        MSF = args.MSF if args.MSF != None else self.default_MSF(symmetry)[1]
          
         if plot:
             self.plot_geometry(MSF, symmetry, plot_charges=args.plot_charges, \
                                             plot_charge_density=args.plot_charge_density,
                                             plot_normals=args.plot_normals) 
         elif args.plot_accuracy:
-            self.plot_accuracy(default_MSF[args.symmetry], symmetry, use_fmm=args.use_fmm)
+            self.plot_accuracy(self.default_MSF(symmetry), symmetry, use_fmm=args.use_fmm)
         else:
             self.print_accuracy(MSF, symmetry, use_fmm=args.use_fmm)
 

@@ -9,7 +9,7 @@ import traceon.excitation as E
 import traceon.plotting as P
 import traceon.solver as S
 
-from util import Validation
+from validation import Validation
 
 
 class Edwards2007(Validation):
@@ -80,7 +80,7 @@ class Edwards2007(Validation):
     def compute_value_of_interest(self, geometry, field):
         st = time.time()
         
-        if self.is_3d(geometry):
+        if geometry.is_3d():
             pot = field.potential_at_point(np.array([12, 0.0, 4]))
         else:
             pot = field.potential_at_point(np.array([12, 4]))
