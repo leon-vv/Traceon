@@ -72,7 +72,10 @@ class Symmetry(Enum):
         elif self == Symmetry.THREE_D_HIGHER_ORDER:
             return '3d higher order'
         elif self == Symmetry.THREE_D:
-            return '3d first order'
+            return '3d first order' 
+    
+    def is_3d(self):
+        return self in [Symmetry.THREE_D_HIGHER_ORDER, Symmetry.THREE_D]
 
 class Geometry(geo.Geometry):
     """
@@ -244,6 +247,14 @@ class Mesh(Saveable):
         
         return Mesh(points, elements, physical_to_elements, symmetry, metadata)
      
+    def is_3d(self):
+        """Check if the mesh is three dimensional.
+
+        Returns
+        ----------------
+        True if mesh is three dimensional, False if the mesh is two dimensional"""
+        return self.symmetry.is_3d()
+    
     def get_electrodes(self):
         """Get the names of all the electrodes in the geometry.
          
