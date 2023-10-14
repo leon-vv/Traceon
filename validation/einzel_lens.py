@@ -21,8 +21,7 @@ class EinzelLens(Validation):
         self.plot_colors = dict(lens='blue', ground='green', boundary='purple')
 
     def create_mesh(self, MSF, symmetry):
-        revolve_factor = 0.0 if symmetry == G.Symmetry.RADIAL else 1.0
-        with G.MEMSStack(z0=z0, zmin=-1.5, zmax=1.5, revolve_factor=revolve_factor, size_from_distance=True) as geom:
+        with G.MEMSStack(z0=z0, zmin=-1.5, zmax=1.5, symmetry=symmetry, size_from_distance=True) as geom:
             geom.add_electrode(RADIUS, THICKNESS, 'ground')
             geom.add_spacer(THICKNESS)
             geom.add_electrode(RADIUS, THICKNESS, 'lens')
@@ -41,7 +40,7 @@ class EinzelLens(Validation):
         return 3.915970140918643
       
     def compute_value_of_interest(self, geom, field):
-        _3d = geom.symmetry == G.Symmetry.THREE_D_HIGHER_ORDER
+        _3d = geom.is_3d()
         
         field.set_bounds( ((-RADIUS, RADIUS), (-1.5, 1.5)) if not _3d else ((-RADIUS, RADIUS), (-RADIUS, RADIUS), (-1.5,1.5)) )
         field_axial = field.axial_derivative_interpolation(-1.5, 1.5, 600)

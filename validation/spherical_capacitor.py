@@ -50,7 +50,7 @@ class SphericalCapacitor(Validation):
                 [r2, 0]
             ]
             
-            points = [geom.add_point([p[0], 0, p[1]] if symmetry==G.Symmetry.THREE_D_HIGHER_ORDER else p) for p in points]
+            points = [geom.add_point([p[0], 0, p[1]] if geom.is_3d() else p) for p in points]
             center = geom.add_point([0, 0, 0])
             
             l2 = geom.add_circle_arc(points[1], center, points[2])
@@ -59,10 +59,10 @@ class SphericalCapacitor(Validation):
             l5 = geom.add_circle_arc(points[4], center, points[5])
             l6 = geom.add_circle_arc(points[5], center, points[0])
             
-            if symmetry == G.Symmetry.RADIAL:
+            if not geom.is_3d():
                 geom.add_physical([l2, l3], 'inner')
                 geom.add_physical([l5, l6], 'outer')
-            elif symmetry == G.Symmetry.THREE_D_HIGHER_ORDER:
+            else:
                 s1 = G.revolve_around_optical_axis(geom, [l2, l3])
                 s2 = G.revolve_around_optical_axis(geom, [l5, l6])
                 geom.add_physical(s1, 'inner')

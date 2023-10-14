@@ -30,10 +30,10 @@ class SphericalFloatingConductor(Validation):
             
             def add_shell(r, reorient=False, factor=1.0):
                 
-                if symmetry == G.Symmetry.RADIAL:
-                    points = [[0,-r], [r, 0], [0,r]]
-                elif symmetry == G.Symmetry.THREE_D_HIGHER_ORDER:
+                if geom.is_3d():
                     points = [[0,0,-r], [r,0, 0], [0,0,r]]
+                else:
+                    points = [[0,-r], [r, 0], [0,r]]
                 
                 p = [geom.add_point(p) for p in points]
 
@@ -42,7 +42,7 @@ class SphericalFloatingConductor(Validation):
                 else:
                     arcs = [geom.add_circle_arc(p[2], center, p[1]), geom.add_circle_arc(p[1], center, p[0])]
 
-                if symmetry == G.Symmetry.THREE_D_HIGHER_ORDER:
+                if geom.is_3d():
                     return G.revolve_around_optical_axis(geom, arcs, factor=factor)
                 else:
                     return arcs
@@ -58,6 +58,9 @@ class SphericalFloatingConductor(Validation):
             
             geom.set_mesh_size_factor(MSF)
             return geom.generate_mesh()
+
+    def supports_fmm(self):
+        return False
     
     def get_excitation(self, mesh):
         exc = E.Excitation(mesh)
@@ -72,7 +75,7 @@ class SphericalFloatingConductor(Validation):
     def compute_value_of_interest(self, geom, field):
         print('Floating voltages: ', field.floating_voltages)
          
-        if geom.symmetry == G.Symmetry.RADIAL:
+        if not geom.is_3d():
             point = np.array([(r3+r4)/2, 0.0])
             field_val = field.field_at_point(point)
             print('Electric field inside conductor: Er=%.2e, Ez=%.2e' % (field_val[0], field_val[1]))

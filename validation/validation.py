@@ -43,6 +43,9 @@ class Validation:
             return [20, 50, 100, 200, 400]
         else:
             return [10, 25, 50, 100, 150]
+
+    def supports_fmm(self):
+        return True
     
     def plot_geometry(self, MSF, symmetry, use_fmm=False, plot_charges=False, plot_charge_density=False, plot_normals=False):
         geom = self.create_mesh(MSF, symmetry)
