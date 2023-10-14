@@ -112,7 +112,15 @@ class Geometry(geo.Geometry):
             return f'<Traceon Geometry {self.symmetry}, zmin={self.zmin:.2f} mm, zmax={self.zmax:.2f} mm'
         else:
             return f'<Traceon Geometry {self.symmetry}>'
-        
+
+    def is_3d(self):
+        """Check if the geometry is three dimensional.
+
+        Returns
+        ----------------
+        True if geometry is three dimensional, False if the geometry is two dimensional"""
+        return self.symmetry.is_3d()
+     
     def add_physical(self, entities, name):
         """
 
@@ -158,7 +166,7 @@ class Geometry(geo.Geometry):
             gmsh.option.setNumber('Mesh.ElementOrder', 2)
         else:
             raise ValueError('Symmetry not valid: ', self.symmetry)
-         
+        
         return Mesh.from_meshio(super().generate_mesh(dim=dim, *args, **kwargs), self.symmetry)
 
     def set_mesh_size_factor(self, factor):
@@ -424,10 +432,20 @@ class MEMSStack(Geometry):
         The distance between the electrodes and the top and bottom boundary.
     margin_right: float
         Distance between the boundary on the right and the MEMS electrodes.
+    symmetry: `Symmetry`
+        What symmetry to use for the resulting geometry
     """
     
-    def __init__(self, *args, z0=0.0, revolve_factor=0.0, rmax=2, margin=0.5, margin_right=0.1, **kwargs):
-        self.symmetry = Symmetry.RADIAL if revolve_factor == 0.0 else Symmetry.THREE_D_HIGHER_ORDER
+    def __init__(self, *args, z0=0.0, revolve_factor=0.0, rmax=2, margin=0.5, margin_right=0.1, symmetry=None, **kwargs):
+        
+        if symmetry is None:
+            self.symmetry = Symmetry.RADIAL if revolve_factor == 0.0 else Symmetry.THREE_D_HIGHER_ORDER
+        else:
+            self.symmetry = symmetry
+            
+            if revolve_factor == 0.0:
+                revolve_factor = 1.0
+         
         super().__init__(self.symmetry, *args, **kwargs)
         
         self.z0 = z0
@@ -461,7 +479,7 @@ class MEMSStack(Geometry):
         self._current_z += self.margin
      
     def _add_lines_from_points(self, points, name):
-        if self.symmetry == Symmetry.THREE_D_HIGHER_ORDER:
+        if self.is_3d():
             points = [self.add_point([p[0], 0.0, p[1]]) for p in points[::-1]]
         else:
             points = [self.add_point(p) for p in points]
@@ -469,7 +487,7 @@ class MEMSStack(Geometry):
         Np = len(points)
         lines = [self.add_line(points[i], points[j]) for i, j in zip(range(0,Np-1), range(1,Np))]
          
-        if self.symmetry == Symmetry.THREE_D_HIGHER_ORDER:
+        if self.is_3d():
             revolved = revolve_around_optical_axis(self, lines, self.revolve_factor)
             self.add_physical(revolved, name)
         else:
