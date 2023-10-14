@@ -259,8 +259,11 @@ def solve_bem(excitation, superposition=False, use_fmm=False, fmm_precision=0):
     """
 
     if use_fmm:
+        assert excitation.mesh.symmetry == G.Symmetry.THREE_D, "FMM solver only supported for simple triangular meshes (geometry.Symmetry.THREE_D)"
         return _solve_fmm(excitation, superposition=superposition, precision=fmm_precision)
     else:
+        mesh = excitation.mesh
+        assert not mesh.is_3d() or mesh.symmetry == G.Symmetry.THREE_D_HIGHER_ORDER, "Matrix solver only supported for higher order triangular meshes (geometry.Symmetry.THREE_D_HIGHER_ORDER)"
         return _solve_matrix(excitation, superposition=superposition)
 
 
