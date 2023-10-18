@@ -54,12 +54,15 @@ class DohiMirror(Validation):
 
     def get_excitation(self, mesh):
         exc = E.Excitation(mesh)
-        exc.add_voltage(ground=0.0, mirror=-1250, lens=710)
+        exc.add_voltage(ground=0.0, mirror=-1250, lens=710.0126605741955)
         exc.add_boundary('boundary')
         return exc
 
     def correct_value_of_interest(self):
         return 3.13452443471595e-03 # Determined by a accurate, not interpolated trace
+
+    def compute_accuracy(self, computed, correct):
+        return abs(computed)
     
     def compute_value_of_interest(self, geom, field):
         axial_field = field.axial_derivative_interpolation(0.05, 1.7, 500)
@@ -87,4 +90,23 @@ class DohiMirror(Validation):
         return intersection[0]
 
 if __name__ == '__main__':
+    '''
+    from scipy.optimize import newton
+    dohi = DohiMirror()
+    geom = dohi.create_mesh(200, G.Symmetry.RADIAL)
+    exc = dohi.get_excitation(geom)
+    exc.add_voltage(lens=720)
+    fields = S.solve_bem(exc, superposition=True)
+
+    def opt(lens_voltage):
+        field = -1250*fields['mirror'] + lens_voltage*fields['lens']
+        intersection = dohi.compute_value_of_interest(geom, field)
+        print(intersection)
+        return intersection
+    
+    print(newton(opt, 710.0126605741955, tol=1e-9))
+    '''
     DohiMirror().run_validation()
+
+
+
