@@ -59,7 +59,7 @@ class DohiMirror(Validation):
         return exc
 
     def correct_value_of_interest(self):
-        return 3.13452443471595e-03 # Determined by a accurate, not interpolated trace
+        return 0. # Determined by a accurate, not interpolated trace
 
     def compute_accuracy(self, computed, correct):
         return abs(computed)
