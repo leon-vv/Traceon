@@ -55,6 +55,12 @@ Don't worry. You can reach me.
 
 ## Features
 
+v0.4.0:
+- Introudce Fast Multipole Method (FMM) for large 3D problems
+- Compute 3D radial expansion coefficients using analytical formulas
+- Further speed up computation of 3D radial expansion coefficients 
+- Big code quality improvement of validation/ files
+
 v0.3.0:
 - Use adaptive integration using GNU Scientific Library (GSL)
 - Add support for boundary constraint
