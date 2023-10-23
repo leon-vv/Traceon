@@ -15,7 +15,7 @@ Traceon is completely free to use and open source. The source code is distribute
 Please cite the software as follows:
 
 ```
-L.B. van Velzen. Traceon software (version 0.3.1). 2023. https://doi.org/10.5281/zenodo.8127611
+L.B. van Velzen. Traceon software (version 0.4.0). 2023. https://doi.org/10.5281/zenodo.10035301
 ```
 
 ## Installation
@@ -56,7 +56,7 @@ Don't worry. You can reach me.
 ## Features
 
 v0.4.0:
-- Introudce Fast Multipole Method (FMM) for large 3D problems
+- Introduce Fast Multipole Method (FMM) for large 3D problems
 - Compute 3D radial expansion coefficients using analytical formulas
 - Further speed up computation of 3D radial expansion coefficients 
 - Big code quality improvement of validation/ files
