@@ -1,3 +1,4 @@
+from math import sqrt
 from scipy.sparse.linalg import LinearOperator, gmres
 import numpy as np
 
@@ -122,7 +123,17 @@ def solve_iteratively(names, excitation, triangles, right_hand_side, precision=1
         assert charges.shape == (N,)
         return apply_matrix(charges, geometry, precision, dielectric_indices, dielectric_factors)
      
-    charges, _ = gmres(LinearOperator(matvec=matvec, shape=(N, N)), right_hand_side, callback=increase_count)
+    # Average accuracy of the computed potential
+    accuracy = 5e-8
+    # To reach that accuracy we want each element of the residual to be accurate to within
+    # 5e-8. The accuracy of norm of the residual is then sqrt(N) * 5e-8
+    tol = accuracy * sqrt(N)
+     
+    charges, _ = gmres(LinearOperator(matvec=matvec, shape=(N, N)),
+        right_hand_side,
+        callback=increase_count,
+        restart=np.inf,
+        atol=0., tol=tol)
     assert np.all(np.isfinite(charges))
     
     return charges, count
