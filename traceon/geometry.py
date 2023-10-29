@@ -332,6 +332,35 @@ class Mesh(Saveable):
 
         """
         return list(self.physical_to_elements.keys())
+
+    def _to_higher_order_mesh(self):
+        assert self.symmetry == Symmetry.THREE_D
+        
+        N_elements = len(self.elements)
+        N_points = len(self.points)
+        
+        p = self.points
+        v0, v1, v2 = self.elements.T
+        p3 = (p[v0] + p[v1])/2
+        p4 = (p[v1] + p[v2])/2
+        p5 = (p[v2] + p[v0])/2
+          
+        assert all(p.shape == (N_elements, 3) for p in [p3,p4,p5])
+         
+        points = np.concatenate( (p, p3, p4, p5), axis=0)
+         
+        elements = np.array([
+            self.elements[:, 0], self.elements[:, 1], self.elements[:, 2],
+            np.arange(N_points, N_points + N_elements, dtype=np.uint64),
+            np.arange(N_points + N_elements, N_points + 2*N_elements, dtype=np.uint64),
+            np.arange(N_points + 2*N_elements, N_points + 3*N_elements, dtype=np.uint64)]).T
+        
+        assert np.allclose(p3, points[elements[:, 3]])
+        assert np.allclose(p4, points[elements[:, 4]])
+        assert np.allclose(p5, points[elements[:, 5]])
+         
+        return Mesh(Symmetry.THREE_D_HIGHER_ORDER,
+            points, elements, self.physical_to_elements.copy(), metadata=self.metadata.copy())
     
     def _invert_physical_dict(self):
         lookup = np.full(len(self.elements), None)
@@ -469,10 +498,6 @@ class Mesh(Saveable):
             f'\tElements in physical groups: {physical_nums}\n' \
             f'\tNumber of elements: {len(self.elements)}\n' \
             f'\tNumber of points: {len(self.points)}>'
-
-    def write_gmsh(self, filename):
-        self.mesh.write(filename)
-
 
 
 class MEMSStack(Geometry):

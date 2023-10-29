@@ -43,6 +43,7 @@ import math as m
 import time
 from threading import Thread
 import os.path as path
+import copy
 
 import numpy as np
 from scipy.interpolate import CubicSpline, BPoly, PPoly
@@ -263,7 +264,14 @@ def solve_bem(excitation, superposition=False, use_fmm=False, fmm_precision=0):
         return _solve_fmm(excitation, superposition=superposition, precision=fmm_precision)
     else:
         mesh = excitation.mesh
-        assert not mesh.is_3d() or mesh.symmetry == G.Symmetry.THREE_D_HIGHER_ORDER, "Matrix solver only supported for higher order triangular meshes (geometry.Symmetry.THREE_D_HIGHER_ORDER)"
+         
+        if mesh.symmetry == G.Symmetry.THREE_D:
+            # Upgrade the simple triangular mesh to a higher order mesh
+            # such that the backend code still understands it
+            excitation = copy.copy(excitation)
+            excitation.mesh = mesh._to_higher_order_mesh()
+            print('Upgrading mesh')
+         
         return _solve_matrix(excitation, superposition=superposition)
 
 

@@ -30,6 +30,7 @@ class Validation:
         
         parser.add_argument('-MSF', '--mesh-size-factor', dest='MSF', default=None, type=int, help='Mesh size factor')
         parser.add_argument('--symmetry', choices=['3d', 'radial'], default='radial', help='Choose the symmetry to use for the geometry (3d or radially symmetric)')
+        parser.add_argument('--higher-order', action='store_true', help='Use higher order (curved) elements')
         parser.add_argument('--plot-accuracy', action='store_true', help='Plot the accuracy as a function of time and number of elements')
         parser.add_argument('--plot-geometry', action='store_true', help='Plot the geometry')
         parser.add_argument('--plot-normals', action='store_true', help='When plotting geometry, show normals')
@@ -121,9 +122,13 @@ class Validation:
         if args.symmetry == 'radial':
             assert not args.use_fmm, "Fast Multipole Method not supported for radial geometries"
             return G.Symmetry.RADIAL
-        elif args.symmetry == '3d' and not args.use_fmm:
-            return G.Symmetry.THREE_D_HIGHER_ORDER
-        elif args.symmetry == '3d' and args.use_fmm:
+        elif args.symmetry == '3d':
+            
+            assert not (args.use_fmm and args.higher_order), "Fast Multipole Method not supported for higher order elements"
+            
+            if args.higher_order:
+                return G.Symmetry.THREE_D_HIGHER_ORDER
+            
             return G.Symmetry.THREE_D
          
         return G.Symmetry.RADIAL
