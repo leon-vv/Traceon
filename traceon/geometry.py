@@ -10,16 +10,15 @@ of this electrode.
 From this module you will likely use either the `Geometry` class when creating arbitrary geometries,
 or the `MEMSStack` class, if your geometry consists of a stack of MEMS fabricated elements.
 """
-
-
-import numpy as np
 from math import sqrt
-from pygmsh import *
-import gmsh
 from enum import Enum
 import copy
-
 import pickle
+
+import numpy as np
+from pygmsh import *
+import gmsh
+import meshio
 
 from .util import Saveable
 from .backend import N_QUAD_2D, position_and_jacobian_radial, position_and_jacobian_3d, normal_3d
@@ -220,14 +219,44 @@ class Geometry(geo.Geometry):
 class Mesh(Saveable):
     """Class containing a mesh and related metadata."""
     
-    def __init__(self, points, elements, physical_to_elements, symmetry, metadata={}):
+    def __init__(self, symmetry, points=[], elements=[], physical_to_elements={}, metadata={}):
         assert isinstance(symmetry, Symmetry)
-        self.points = points
-        self.elements = elements
-        self.physical_to_elements = physical_to_elements
         self.symmetry = symmetry
+        self.points = np.array(points, dtype=np.float64)
+        self.elements = np.array(elements)
+        self.physical_to_elements = physical_to_elements
         self.metadata = metadata
-            
+
+        self._sanity_check()
+    
+    def _sanity_check(self):
+        N_points = len(self.points)
+        N_elements = len(self.elements)
+        assert np.all((0 <= self.elements) & (self.elements < N_points))
+        assert np.all([np.all( (0 <= group) & (group < N_elements) ) for group in self.physical_to_elements.values()])
+    
+    def __add__(self, other):
+        assert isinstance(other, Mesh)
+        assert self.symmetry == other.symmetry, "Cannot add meshes with different symmetries"
+         
+        N_points = len(self.points)
+        N_elements = len(self.elements)
+         
+        points = np.concatenate( (self.points, other.points), axis=0)
+        elements = np.concatenate( (self.elements, other.elements + N_points), axis=0)
+        physicals_ = {k:(v+N_elements) for k, v in other.physical_to_elements.items()}
+        merged_physicals = {**self.physical_to_elements, **physicals_}
+        return Mesh(self.symmetry, points, elements, merged_physicals, metadata={**self.metadata, **other.metadata})
+    
+    def import_file(filename, symmetry, metadata={}, name=None):
+        meshio_obj = meshio.read(filename)
+        mesh = Mesh.from_meshio(meshio_obj, symmetry, metadata)
+         
+        if name is not None:
+            mesh.physical_to_elements[name] = np.arange(len(mesh.elements))
+        
+        return mesh
+     
     def from_meshio(mesh, symmetry, metadata={}):
         """Generate a Traceon Mesh from a [meshio](https://github.com/nschloe/meshio) mesh.
         
@@ -253,7 +282,7 @@ class Mesh(Saveable):
         elements = mesh.cells_dict[type_]
         physical_to_elements = {k:v[type_] for k, v in mesh.cell_sets_dict.items() if type_ in v}
         
-        return Mesh(points, elements, physical_to_elements, symmetry, metadata)
+        return Mesh(symmetry, points, elements, physical_to_elements, metadata)
      
     def is_3d(self):
         """Check if the mesh is three dimensional.
@@ -407,6 +436,7 @@ class Mesh(Saveable):
         return f'<Traceon Mesh {self.symmetry},\n' \
             f'\tPhysical groups: {physical_names}\n' \
             f'\tElements in physical groups: {physical_nums}\n' \
+            f'\tNumber of elements: {len(self.elements)}\n' \
             f'\tNumber of points: {len(self.points)}>'
 
     def write_gmsh(self, filename):
