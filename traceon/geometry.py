@@ -251,6 +251,24 @@ class Mesh(Saveable):
         merged_physicals = {**self.physical_to_elements, **physicals_}
         return Mesh(self.symmetry, points, elements, merged_physicals, metadata={**self.metadata, **other.metadata})
     
+    def extract_physical_group(self, name, metadata=None):
+        assert name in self.physical_to_elements, "Physical group not in mesh, so cannot extract"
+        elements_indices = np.unique(self.physical_to_elements[name])
+        elements = self.elements[elements_indices]
+         
+        points_mask = np.full(len(self.points), False)
+        points_mask[elements] = True
+          
+        new_index = np.cumsum(points_mask) - 1
+        elements = new_index[elements]
+        
+        if metadata is None:
+            metadata = copy.copy(self.metadata)
+          
+        physical_to_elements = {name:np.arange(len(elements))}
+        return Mesh(self.symmetry, self.points[points_mask], elements, physical_to_elements, metadata)
+
+    
     def import_file(filename, symmetry, metadata={}, name=None):
         meshio_obj = meshio.read(filename)
         mesh = Mesh.from_meshio(meshio_obj, symmetry, metadata)
