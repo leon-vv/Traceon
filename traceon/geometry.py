@@ -235,6 +235,9 @@ class Mesh(Saveable):
         assert np.all((0 <= self.elements) & (self.elements < N_points))
         assert np.all([np.all( (0 <= group) & (group < N_elements) ) for group in self.physical_to_elements.values()])
     
+    def move(self, vector):
+        self.points += vector
+     
     def __add__(self, other):
         assert isinstance(other, Mesh)
         assert self.symmetry == other.symmetry, "Cannot add meshes with different symmetries"
