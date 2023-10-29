@@ -278,6 +278,24 @@ class Mesh(Saveable):
         
         return mesh
      
+    def export_file(self, filename):
+        meshio_obj = self.to_meshio()
+        meshio_obj.write(filename)
+      
+    def _get_meshio_type(symmetry):
+        if symmetry == Symmetry.RADIAL:
+            return 'line4'
+        elif symmetry == Symmetry.THREE_D:
+            return 'triangle'
+        elif symmetry == Symmetry.THREE_D_HIGHER_ORDER:
+            return 'triangle6'
+        else:
+            raise ValueError('Symmetry not valid: ' + str(symmetry))
+     
+    def to_meshio(self):
+        type_ = Mesh._get_meshio_type(self.symmetry)
+        return meshio.Mesh(self.points, [(type_, self.elements)])
+     
     def from_meshio(mesh, symmetry, metadata={}):
         """Generate a Traceon Mesh from a [meshio](https://github.com/nschloe/meshio) mesh.
         
@@ -290,15 +308,7 @@ class Mesh(Saveable):
         ---------
         Mesh
         """
-        if symmetry == Symmetry.RADIAL:
-            type_ = 'line4'
-        elif symmetry == Symmetry.THREE_D:
-            type_ = 'triangle'
-        elif symmetry == Symmetry.THREE_D_HIGHER_ORDER:
-            type_ = 'triangle6'
-        else:
-            raise ValueError('Symmetry passed to from_meshio(..) not valid: ' + str(symmetry))
-         
+        type_ = Mesh._get_meshio_type(symmetry)
         points = mesh.points
         elements = mesh.cells_dict[type_]
         physical_to_elements = {k:v[type_] for k, v in mesh.cell_sets_dict.items() if type_ in v}
