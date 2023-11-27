@@ -217,16 +217,15 @@ class Geometry(geo.Geometry):
 
 
 class Mesh(Saveable):
-    """Class containing a mesh and related metadata."""
+    """Class containing a mesh."""
     
-    def __init__(self, symmetry, points=[], elements=[], physical_to_elements={}, metadata={}):
+    def __init__(self, symmetry, points=[], elements=[], physical_to_elements={}):
         assert isinstance(symmetry, Symmetry)
         self.symmetry = symmetry
         self.points = np.array(points, dtype=np.float64)
         self.elements = np.array(elements)
         self.physical_to_elements = physical_to_elements
-        self.metadata = metadata
-
+        
         self._sanity_check()
     
     def _sanity_check(self):
@@ -249,9 +248,9 @@ class Mesh(Saveable):
         elements = np.concatenate( (self.elements, other.elements + N_points), axis=0)
         physicals_ = {k:(v+N_elements) for k, v in other.physical_to_elements.items()}
         merged_physicals = {**self.physical_to_elements, **physicals_}
-        return Mesh(self.symmetry, points, elements, merged_physicals, metadata={**self.metadata, **other.metadata})
+        return Mesh(self.symmetry, points, elements, merged_physicals)
     
-    def extract_physical_group(self, name, metadata=None):
+    def extract_physical_group(self, name):
         assert name in self.physical_to_elements, "Physical group not in mesh, so cannot extract"
         elements_indices = np.unique(self.physical_to_elements[name])
         elements = self.elements[elements_indices]
@@ -261,17 +260,13 @@ class Mesh(Saveable):
           
         new_index = np.cumsum(points_mask) - 1
         elements = new_index[elements]
-        
-        if metadata is None:
-            metadata = copy.copy(self.metadata)
-          
+         
         physical_to_elements = {name:np.arange(len(elements))}
-        return Mesh(self.symmetry, self.points[points_mask], elements, physical_to_elements, metadata)
-
-    
-    def import_file(filename, symmetry, metadata={}, name=None):
+        return Mesh(self.symmetry, self.points[points_mask], elements, physical_to_elements)
+     
+    def import_file(filename, symmetry,  name=None):
         meshio_obj = meshio.read(filename)
-        mesh = Mesh.from_meshio(meshio_obj, symmetry, metadata)
+        mesh = Mesh.from_meshio(meshio_obj, symmetry)
          
         if name is not None:
             mesh.physical_to_elements[name] = np.arange(len(mesh.elements))
@@ -296,7 +291,7 @@ class Mesh(Saveable):
         type_ = Mesh._get_meshio_type(self.symmetry)
         return meshio.Mesh(self.points, [(type_, self.elements)])
      
-    def from_meshio(mesh, symmetry, metadata={}):
+    def from_meshio(mesh, symmetry):
         """Generate a Traceon Mesh from a [meshio](https://github.com/nschloe/meshio) mesh.
         
         Parameters
@@ -313,7 +308,7 @@ class Mesh(Saveable):
         elements = mesh.cells_dict[type_]
         physical_to_elements = {k:v[type_] for k, v in mesh.cell_sets_dict.items() if type_ in v}
         
-        return Mesh(symmetry, points, elements, physical_to_elements, metadata)
+        return Mesh(symmetry, points, elements, physical_to_elements)
      
     def is_3d(self):
         """Check if the mesh is three dimensional.
@@ -360,7 +355,7 @@ class Mesh(Saveable):
         assert np.allclose(p5, points[elements[:, 5]])
          
         return Mesh(Symmetry.THREE_D_HIGHER_ORDER,
-            points, elements, self.physical_to_elements.copy(), metadata=self.metadata.copy())
+            points, elements, self.physical_to_elements.copy())
     
     def _invert_physical_dict(self):
         lookup = np.full(len(self.elements), None)
