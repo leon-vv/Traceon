@@ -147,15 +147,6 @@ class Excitation:
         assert len(non_zero_fixed) == len(excitations)
         return {n:e for (n,e) in zip(non_zero_fixed, excitations)}
 
-    def get_active_element_mask(self):
-        inactive = np.full(len(self.mesh.elements), True)
-        names = {}
-         
-        for name in self.excitation_types.keys():
-            inactive[ self.mesh.physical_to_elements[name] ] = False
-        
-        return ~inactive
-     
     def get_active_elements(self):
         """Get elements in the mesh that are active, in the sense that
         an excitation to them has been applied. 
@@ -169,12 +160,22 @@ class Excitation:
         names is a dictionary, the keys being the names of the physical groups mentioned by this excitation, \
         while the values are Numpy arrays of indices that can be used to index the points array.
         """
-        vertices = self.mesh.elements
-        inactive = ~self.get_active_element_mask() 
-        map_index = np.arange(len(vertices)) - np.cumsum(inactive)
-        names = {n:map_index[i] for n, i in self.mesh.physical_to_elements.items() if n in self.excitation_types}
+        
+        if self.mesh.symmetry == Symmetry.RADIAL:
+            elements = self.mesh.lines
+            physicals = self.mesh.physical_to_lines
+        else:
+            elements = self.mesh.triangles
+            physicals = self.mesh.physical_to_triangles
          
-        return self.mesh.points[ vertices[~inactive] ], names
+        inactive = np.full(len(elements), True)
+        for name in self.excitation_types.keys():
+            inactive[ physicals[name] ] = False
+         
+        map_index = np.arange(len(elements)) - np.cumsum(inactive)
+        names = {n:map_index[i] for n, i in physicals.items() if n in self.excitation_types}
+         
+        return self.mesh.points[ elements[~inactive] ], names
     
     def get_number_of_active_elements(self):
         """Get elements in the mesh that are active, in the sense that
@@ -184,7 +185,15 @@ class Excitation:
         Returns
         --------
         int, giving the number of elements. """
-        return sum(len(self.mesh.physical_to_elements[n]) for n in self.excitation_types.keys())
+        
+        if self.mesh.symmetry == Symmetry.RADIAL:
+            elements = self.mesh.lines
+            physicals = self.mesh.physical_to_lines
+        else:
+            elements = self.mesh.triangles
+            physicals = self.mesh.physical_to_triangles
+          
+        return sum(len(physicals[n]) for n in self.excitation_types.keys())
 
     def get_number_of_matrix_elements(self):
         """Gets the number of elements along one axis of the matrix. If this function returns N, the

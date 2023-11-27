@@ -11,12 +11,13 @@ from .geometry import Symmetry
 
 def _create_point_to_physical_dict(mesh):
     d = {}
-
-    for k, v in mesh.physical_to_elements.items():
-        for elm in v:
-            for p in mesh.elements[elm]:
-                d[p] = k
     
+    for physical, elements in [(mesh.physical_to_lines, mesh.lines), (mesh.physical_to_triangles, mesh.triangles)]:
+        for k, v in physical:
+            for element_index in v:
+                for p in elements[element_index]:
+                    d[p] = k
+     
     return d
 
 

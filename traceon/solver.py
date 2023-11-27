@@ -137,7 +137,7 @@ def _excitation_to_matrix(excitation, vertices, names):
     matrix = np.zeros( (N_matrix, N_matrix) )
     print(f'Using matrix solver, number of elements: {N_lines}, size of matrix: {N_matrix} ({matrix.nbytes/1e6:.0f} MB), symmetry: {excitation.mesh.symmetry}')
 
-    _3d = excitation.mesh.symmetry == G.Symmetry.THREE_D_HIGHER_ORDER
+    _3d = excitation.mesh.is_3d()
 
     jac_buffer, pos_buffer = backend.fill_jacobian_buffer_3d_higher_order(vertices) if _3d else backend.fill_jacobian_buffer_radial(vertices)
     fill_fun = backend.fill_matrix_3d if _3d else backend.fill_matrix_radial
@@ -169,7 +169,7 @@ def _charges_to_field(excitation, charges, vertices, names, jac_buffer, pos_buff
      
     assert len(charges) == len(vertices)
     
-    field_class = FieldRadialBEM if excitation.mesh.symmetry != G.Symmetry.THREE_D_HIGHER_ORDER else Field3D_BEM
+    field_class = FieldRadialBEM if not excitation.mesh.is_3d() else Field3D_BEM
     return field_class(vertices, charges, jac_buffer, pos_buffer, floating_voltages=floating_voltages)
 
 def _solve_fmm(excitation, superposition=False, precision=0):

@@ -25,7 +25,7 @@ points = np.array([
 elements = np.array([[0, 1, 2], [3, 4, 5], [6, 7, 8]])
 physical_to_elements = dict(first=np.array([0, 1, 2]))
 
-mesh = G.Mesh(points, elements, physical_to_elements, G.Symmetry.THREE_D)
+mesh = G.Mesh(G.Symmetry.THREE_D, points=points, triangles=elements, physical_to_triangles=physical_to_elements)
 
 exc = E.Excitation(mesh)
 exc.add_voltage(first=1)

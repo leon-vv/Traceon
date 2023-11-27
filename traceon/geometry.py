@@ -12,7 +12,6 @@ or the `MEMSStack` class, if your geometry consists of a stack of MEMS fabricate
 """
 from math import sqrt
 from enum import Enum
-import copy
 import pickle
 
 import numpy as np
@@ -73,6 +72,9 @@ class Symmetry(Enum):
         elif self == Symmetry.THREE_D:
             return '3d first order' 
     
+    def is_2d(self):
+        return self == Symmetry.RADIAL
+        
     def is_3d(self):
         return self in [Symmetry.THREE_D_HIGHER_ORDER, Symmetry.THREE_D]
 
@@ -217,22 +219,40 @@ class Geometry(geo.Geometry):
 
 
 class Mesh(Saveable):
-    """Class containing a mesh."""
+    """Class containing a mesh.
+    For now, to make things manageable only lines and triangles are supported.
+    Lines and triangles can be higher order (curved) or not. But a mesh cannot contain
+    both curved and simple elements at the same time.
     
-    def __init__(self, symmetry, points=[], elements=[], physical_to_elements={}):
+    When the elements are higher order (curved), triangles consists of 6 points and lines of four points.
+    These correspond with the GMSH line4 and triangle6 types."""
+     
+    def __init__(self, symmetry,
+            points=[],
+            lines=[],
+            triangles=[],
+            physical_to_lines={},
+            physical_to_triangles={}):
+        
         assert isinstance(symmetry, Symmetry)
         self.symmetry = symmetry
-        self.points = np.array(points, dtype=np.float64)
-        self.elements = np.array(elements)
-        self.physical_to_elements = physical_to_elements
         
-        self._sanity_check()
-    
-    def _sanity_check(self):
-        N_points = len(self.points)
-        N_elements = len(self.elements)
-        assert np.all((0 <= self.elements) & (self.elements < N_points))
-        assert np.all([np.all( (0 <= group) & (group < N_elements) ) for group in self.physical_to_elements.values()])
+        self.points = np.array(points, dtype=np.float64)
+        self.lines = np.array(lines)
+        self.triangles = np.array(triangles)
+        
+        self.physical_to_lines = physical_to_lines.copy()
+        self.physical_to_triangles = physical_to_triangles.copy()
+        
+        if symmetry.is_2d():
+            assert points.shape[1] == 2 or np.allclose(points[:, 2], 0.), "Cannot have three dimensional points when symmetry is 2D"
+        
+        assert np.all( (0 <= self.lines) & (self.lines < len(self.points)) ), "Lines reference points outside points array"
+        assert np.all( (0 <= self.triangles) & (self.triangles < len(self.points)) ), "Triangles reference points outside points array"
+        assert np.all([np.all( (0 <= group) & (group < len(self.lines)) ) for group in self.physical_to_lines.values()])
+        assert np.all([np.all( (0 <= group) & (group < len(self.triangles)) ) for group in self.physical_to_triangles.values()])
+        assert not len(self.lines) or self.lines.shape[1] in [2,4], "Lines should contain either 2 or 4 points."
+        assert not len(self.triangles) or self.triangles.shape[1] in [3,6], "Triangles should contain either 3 or 6 points"
     
     def move(self, vector):
         self.points += vector
@@ -242,54 +262,75 @@ class Mesh(Saveable):
         assert self.symmetry == other.symmetry, "Cannot add meshes with different symmetries"
          
         N_points = len(self.points)
-        N_elements = len(self.elements)
+        N_lines = len(self.lines)
+        N_triangles = len(self.triangles)
          
         points = np.concatenate( (self.points, other.points), axis=0)
-        elements = np.concatenate( (self.elements, other.elements + N_points), axis=0)
-        physicals_ = {k:(v+N_elements) for k, v in other.physical_to_elements.items()}
-        merged_physicals = {**self.physical_to_elements, **physicals_}
-        return Mesh(self.symmetry, points, elements, merged_physicals)
+        lines = np.concatenate( (self.lines, other.lines + N_points), axis=0)
+        triangles = np.concatenate( (self.triangles, other.triangles + N_points), axis=0)
+         
+        physical_lines = {**self.physical_to_lines, **{k:(v+N_lines) for k, v in other.physical_to_lines.items()}}
+        physical_triangles = {**self.physical_to_triangles, **{k:(v+N_triangles) for k, v in other.physical_to_triangles.items()}}
+         
+        return Mesh(self.symmetry,
+                        points=points,
+                        lines=lines,
+                        triangles=triangles,
+                        physical_to_lines=physical_lines,
+                        physical_to_triangles=physical_triangles)
     
     def extract_physical_group(self, name):
-        assert name in self.physical_to_elements, "Physical group not in mesh, so cannot extract"
-        elements_indices = np.unique(self.physical_to_elements[name])
-        elements = self.elements[elements_indices]
+        assert name in self.physical_to_lines or name in self.physical_to_triangles, "Physical group not in mesh, so cannot extract"
+
+        if name in self.physical_to_lines:
+            elements = self.lines
+            physical = self.physical_to_lines
+        elif name in self.physical_to_triangles:
+            elements = self.triangles
+            physical = self.physical_to_triangles
          
+        elements_indices = np.unique(physical[name])
+        elements = elements[elements_indices]
+          
         points_mask = np.full(len(self.points), False)
         points_mask[elements] = True
+        points = self.points[points_mask]
           
         new_index = np.cumsum(points_mask) - 1
         elements = new_index[elements]
-         
         physical_to_elements = {name:np.arange(len(elements))}
-        return Mesh(self.symmetry, self.points[points_mask], elements, physical_to_elements)
+         
+        if name in self.physical_to_lines:
+            return Mesh(self.symmetry, points=points, lines=elements, physical_to_lines=physical_to_elements)
+        elif name in self.physical_to_triangles:
+            return Mesh(self.symmetry, points=points, triangles=triangles, physical_to_triangles=physical_to_elements)
      
     def import_file(filename, symmetry,  name=None):
         meshio_obj = meshio.read(filename)
         mesh = Mesh.from_meshio(meshio_obj, symmetry)
          
         if name is not None:
-            mesh.physical_to_elements[name] = np.arange(len(mesh.elements))
-        
+            mesh.physical_to_lines[name] = np.arange(len(mesh.lines))
+            mesh.physical_to_triangles[name] = np.arange(len(mesh.triangles))
+         
         return mesh
      
     def export_file(self, filename):
         meshio_obj = self.to_meshio()
         meshio_obj.write(filename)
-      
-    def _get_meshio_type(symmetry):
-        if symmetry == Symmetry.RADIAL:
-            return 'line4'
-        elif symmetry == Symmetry.THREE_D:
-            return 'triangle'
-        elif symmetry == Symmetry.THREE_D_HIGHER_ORDER:
-            return 'triangle6'
-        else:
-            raise ValueError('Symmetry not valid: ' + str(symmetry))
      
     def to_meshio(self):
-        type_ = Mesh._get_meshio_type(self.symmetry)
-        return meshio.Mesh(self.points, [(type_, self.elements)])
+        to_export = []
+        
+        if len(self.lines):
+            line_type = 'line' if self.lines.shape[1] == 2 else 'line4'
+            to_export.append( (line_type, self.lines) )
+        
+        if len(self.triangles):
+            triangle_type = 'triangle' if self.triangles.shape[1] == 3 else 'triangle6'
+            to_export.append( (triangle_type, self.triangles) )
+        
+        return meshio.Mesh(self.points, to_export)
      
     def from_meshio(mesh, symmetry):
         """Generate a Traceon Mesh from a [meshio](https://github.com/nschloe/meshio) mesh.
@@ -303,12 +344,28 @@ class Mesh(Saveable):
         ---------
         Mesh
         """
-        type_ = Mesh._get_meshio_type(symmetry)
-        points = mesh.points
-        elements = mesh.cells_dict[type_]
-        physical_to_elements = {k:v[type_] for k, v in mesh.cell_sets_dict.items() if type_ in v}
+        def extract(type_):
+            elements = mesh.cells_dict[type_]
+            physical = {k:v[type_] for k,v in mesh.cell_sets_dict.items() if type_ in v}
+            return elements, physical
         
-        return Mesh(symmetry, points, elements, physical_to_elements)
+        lines, physical_lines = [], {}
+        triangles, physical_triangles = [], {}
+        
+        if 'line' in mesh.cells_dict:
+            lines, physical_lines = extract('line')
+        elif 'line4' in mesh.cells_dict:
+            lines, physical_lines = extract('line4')
+        
+        if 'triangle' in mesh.cells_dict:
+            triangles, physical_triangles = extract('triangle')
+        elif 'triangle6' in mesh.cells_dict:
+            triangles, physical_triangles = extract('triangle6')
+        
+        return Mesh(symmetry,
+            points=mesh.points,
+            lines=lines, physical_to_lines=physical_lines,
+            triangles=triangles, physical_to_triangles=physical_triangles)
      
     def is_3d(self):
         """Check if the mesh is three dimensional.
@@ -326,55 +383,85 @@ class Mesh(Saveable):
         List of electrode names
 
         """
-        return list(self.physical_to_elements.keys())
-
-    def _to_higher_order_mesh(self):
-        assert self.symmetry == Symmetry.THREE_D
-        
-        N_elements = len(self.elements)
-        N_points = len(self.points)
-        
-        p = self.points
-        v0, v1, v2 = self.elements.T
-        p3 = (p[v0] + p[v1])/2
-        p4 = (p[v1] + p[v2])/2
-        p5 = (p[v2] + p[v0])/2
+        return list(self.physical_to_lines.keys()) + list(self.physical_to_triangles.keys())
+     
+    def _lines_to_higher_order(points, elements):
+        N_elements = len(elements)
+        N_points = len(points)
+         
+        v0, v1 = elements.T
+        p2 = points[v0] + (points[v1] - points[v0]) * 1/3
+        p3 = points[v0] + (points[v1] - points[v0]) * 2/3
+         
+        assert all(p.shape == (N_elements, points.shape[1]) for p in [p2, p3])
+         
+        points = np.concatenate( (points, p2, p3), axis=0)
           
-        assert all(p.shape == (N_elements, 3) for p in [p3,p4,p5])
-         
-        points = np.concatenate( (p, p3, p4, p5), axis=0)
-         
         elements = np.array([
-            self.elements[:, 0], self.elements[:, 1], self.elements[:, 2],
+            elements[:, 0], elements[:, 1], 
+            np.arange(N_points, N_points + N_elements, dtype=np.uint64),
+            np.arange(N_points + N_elements, N_points + 2*N_elements, dtype=np.uint64)]).T
+         
+        assert np.allclose(p2, points[elements[:, 2]]) and np.allclose(p3, points[elements[:, 3]])
+        return points, elements
+
+
+    def _triangles_to_higher_order(points, elements):
+        N_elements = len(elements)
+        N_points = len(points)
+         
+        v0, v1, v2 = elements.T
+        p3 = (points[v0] + points[v1])/2
+        p4 = (points[v1] + points[v2])/2
+        p5 = (points[v2] + points[v0])/2
+         
+        assert all(p.shape == (N_elements, points.shape[1]) for p in [p3,p4,p5])
+          
+        points = np.concatenate( (points, p3, p4, p5), axis=0)
+          
+        elements = np.array([
+            elements[:, 0], elements[:, 1], elements[:, 2],
             np.arange(N_points, N_points + N_elements, dtype=np.uint64),
             np.arange(N_points + N_elements, N_points + 2*N_elements, dtype=np.uint64),
             np.arange(N_points + 2*N_elements, N_points + 3*N_elements, dtype=np.uint64)]).T
-        
+         
         assert np.allclose(p3, points[elements[:, 3]])
         assert np.allclose(p4, points[elements[:, 4]])
         assert np.allclose(p5, points[elements[:, 5]])
-         
-        return Mesh(Symmetry.THREE_D_HIGHER_ORDER,
-            points, elements, self.physical_to_elements.copy())
-    
-    def _invert_physical_dict(self):
-        lookup = np.full(len(self.elements), None)
-
-        for k, v in self.physical_to_elements.items():
-            lookup[v] = k
         
-        return lookup
+        return points, elements
+
+    
+    def _to_higher_order_mesh(self):
+        # The matrix solver currently only works with higher order meshes.
+        # We can however convert a simple mesh easily to a higher order mesh, and solve that.
+        
+        points, lines, triangles = self.points, self.lines, self.triangles
+
+        if len(lines) and lines.shape[1] == 2:
+            points, lines = Mesh._lines_to_higher_order(points, lines)
+        if len(triangles) and triangles.shape[1] == 3:
+            points, triangles = Mesh._triangles_to_higher_order(points, triangles) 
+         
+        return Mesh(self.symmetry,
+            points=points,
+            lines=lines, physical_to_lines=self.physical_to_lines,
+            triangles=triangles, physical_to_triangles=self.physical_to_triangles)
      
     def __str__(self):
-        physicals = self.physical_to_elements.keys()
-        physical_names = ', '.join(physicals)
-        physical_nums = ', '.join([str(len(self.physical_to_elements[n])) for n in physicals])
+        physical_lines = ', '.join(self.physical_to_lines.keys())
+        physical_lines_nums = ', '.join([str(len(self.physical_to_lines[n])) for n in self.physical_to_lines.keys()])
+        physical_triangles = ', '.join(self.physical_to_triangles.keys())
+        physical_triangles_nums = ', '.join([str(len(self.physical_to_triangles[n])) for n in self.physical_to_triangles.keys()])
         
         return f'<Traceon Mesh {self.symmetry},\n' \
-            f'\tPhysical groups: {physical_names}\n' \
-            f'\tElements in physical groups: {physical_nums}\n' \
-            f'\tNumber of elements: {len(self.elements)}\n' \
-            f'\tNumber of points: {len(self.points)}>'
+            f'\tNumber of points: {len(self.points)}\n' \
+            f'\tNumber of lines: {len(self.lines)}\n' \
+            f'\tNumber of triangles: {len(self.triangles)}\n' \
+            f'\tPhysical lines: {physical_lines}\n' \
+            f'\tElements in physical line groups: {physical_lines_nums}\n' \
+            f'\tPhysical triangles: {physical_triangles}\n' \
+            f'\tElements in physical triangle groups: {physical_triangles_nums}>'
 
 
 class MEMSStack(Geometry):
