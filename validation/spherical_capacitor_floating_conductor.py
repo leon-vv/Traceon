@@ -24,7 +24,7 @@ class SphericalFloatingConductor(Validation):
             The accuracy of the solution is determined by considering whether Er=0, as the field inside the floating conductor should be zero.''')
         self.plot_colors = dict(inner='blue', outer='darkblue', floating='green')
 
-    def create_mesh(self, MSF, symmetry):
+    def create_mesh(self, MSF, symmetry, higher_order):
         with G.Geometry(symmetry) as geom:
             center = geom.add_point([0.0, 0.0])
             
@@ -57,7 +57,7 @@ class SphericalFloatingConductor(Validation):
             geom.add_physical([*d1, *d2], 'floating')
             
             geom.set_mesh_size_factor(MSF)
-            return geom.generate_mesh()
+            return geom.generate_line_mesh(higher_order) if geom.is_2d() else geom.generate_triangle_mesh(higher_order)
 
     def supports_fmm(self):
         return False

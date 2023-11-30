@@ -95,7 +95,7 @@ def _excitation_to_right_hand_side(excitation, vertices, names):
 def _area(symmetry, jacobian_buffer, pos_buffer, index):
     if symmetry == G.Symmetry.RADIAL:
         return 2*np.pi*np.sum(jacobian_buffer[index] * pos_buffer[index, :, 0])
-    elif symmetry == G.Symmetry.THREE_D_HIGHER_ORDER:
+    else:
         return np.sum(jacobian_buffer[index])
 
 def _add_floating_conductor_constraints_to_matrix(matrix, jac_buffer, pos_buffer, names, excitation):
@@ -135,7 +135,7 @@ def _excitation_to_matrix(excitation, vertices, names):
      
     st = time.time()
     matrix = np.zeros( (N_matrix, N_matrix) )
-    print(f'Using matrix solver, number of elements: {N_lines}, size of matrix: {N_matrix} ({matrix.nbytes/1e6:.0f} MB), symmetry: {excitation.mesh.symmetry}')
+    print(f'Using matrix solver, number of elements: {N_lines}, size of matrix: {N_matrix} ({matrix.nbytes/1e6:.0f} MB), symmetry: {excitation.mesh.symmetry}, higher order: {excitation.mesh.is_higher_order()}')
 
     _3d = excitation.mesh.is_3d()
 
@@ -260,14 +260,14 @@ def solve_bem(excitation, superposition=False, use_fmm=False, fmm_precision=0):
     """
 
     if use_fmm:
-        assert excitation.mesh.symmetry == G.Symmetry.THREE_D, "FMM solver only supported for simple triangular meshes (geometry.Symmetry.THREE_D)"
+        assert excitation.mesh.symmetry == G.Symmetry.THREE_D, "FMM solver only supports 3D meshes (geometry.Symmetry.THREE_D)"
+        assert not excitation.mesh.is_higher_order(), "FMM solver does not support higher order meshes"
         return _solve_fmm(excitation, superposition=superposition, precision=fmm_precision)
     else:
         mesh = excitation.mesh
-         
-        if mesh.symmetry == G.Symmetry.THREE_D:
-            # Upgrade the simple triangular mesh to a higher order mesh
-            # such that the backend code still understands it
+
+        if not mesh.is_higher_order():
+            # Upgrade mesh, such that matrix solver will support it
             excitation = copy.copy(excitation)
             excitation.mesh = mesh._to_higher_order_mesh()
             print('Upgrading mesh')
@@ -569,7 +569,7 @@ class Field3D_BEM(FieldBEM):
         return Field3DAxial(z, interpolated_coeffs)
     
     def area_of_element(self, i):
-        return _area(G.Symmetry.THREE_D_HIGHER_ORDER, self.jac_buffer, self.pos_buffer, i)
+        return _area(G.Symmetry.THREE_D, self.jac_buffer, self.pos_buffer, i)
     
 
      

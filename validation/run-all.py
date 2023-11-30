@@ -19,20 +19,23 @@ validations = [CapacitanceSphere,
                SphericalFloatingConductor,
                TwoCylinderEdwards]
 
-def run_all(symmetry):
+def run_all(symmetry, higher_order, use_fmm):
     for v in validations:
         print('='*80, ' ', v.__name__, ' ', '='*10, str(symmetry))
         validation = v()
         MSF = validation.default_MSF(symmetry)[1]
-
-        use_fmm = symmetry == G.Symmetry.THREE_D
-
+        
         if use_fmm and not validation.supports_fmm():
             print('Validation does not support FMM')
             continue
         
-        validation.print_accuracy(MSF, symmetry, use_fmm=use_fmm)
+        validation.print_accuracy(MSF, symmetry, higher_order=higher_order, use_fmm=use_fmm)
 
-run_all(G.Symmetry.RADIAL)
-run_all(G.Symmetry.THREE_D_HIGHER_ORDER)
-run_all(G.Symmetry.THREE_D)
+#run_all(G.Symmetry.RADIAL, True, False)
+run_all(G.Symmetry.RADIAL, False, False)
+
+run_all(G.Symmetry.THREE_D, False, False)
+run_all(G.Symmetry.THREE_D, True, False)
+run_all(G.Symmetry.THREE_D, False, True)
+
+

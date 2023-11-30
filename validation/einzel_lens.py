@@ -20,7 +20,7 @@ class EinzelLens(Validation):
         super().__init__('Calculate focal length of an einzel lens.')
         self.plot_colors = dict(lens='blue', ground='green', boundary='purple')
 
-    def create_mesh(self, MSF, symmetry):
+    def create_mesh(self, MSF, symmetry, higher_order):
         with G.MEMSStack(z0=z0, zmin=-1.5, zmax=1.5, symmetry=symmetry, size_from_distance=True) as geom:
             geom.add_electrode(RADIUS, THICKNESS, 'ground')
             geom.add_spacer(THICKNESS)
@@ -28,7 +28,7 @@ class EinzelLens(Validation):
             geom.add_spacer(THICKNESS)
             geom.add_electrode(RADIUS, THICKNESS, 'ground')
             geom.set_mesh_size_factor(MSF)
-            return geom.generate_mesh()
+            return geom.generate_line_mesh(higher_order) if geom.is_2d() else geom.generate_triangle_mesh(higher_order)
 
     def get_excitation(self, mesh):
         excitation = E.Excitation(mesh)

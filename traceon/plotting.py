@@ -25,16 +25,16 @@ def plot_mesh(mesh, *args, **kwargs):
      
     if mesh.symmetry == Symmetry.RADIAL:
         return plot_line_mesh(mesh, *args, **kwargs)
-    elif mesh.symmetry == Symmetry.THREE_D_HIGHER_ORDER or Symmetry.THREE_D:
+    elif mesh.symmetry == Symmetry.THREE_D:
         return plot_triangle_mesh(mesh, *args, **kwargs)
 
 def plot_charge_density(excitation, field, *args, **kwargs):
     
     mesh = excitation.mesh 
     
-    if mesh.symmetry == Symmetry.RADIAL:
+    if mesh.is_2d():
         return _plot_charge_density_2d(excitation, field, *args, **kwargs)
-    elif mesh.symmetry == Symmetry.THREE_D_HIGHER_ORDER:
+    elif mesh.is_3d():
         return _plot_charge_density_3d(excitation, field, *args, **kwargs)
 
 def _plot_charge_density_3d(excitation, field, density=False):
@@ -91,15 +91,17 @@ def _plot_charge_density_2d(excitation, field, density=False):
 
 def plot_triangle_mesh(mesh, show_legend=True, show_normals=False, **phys_colors):
     
+    assert mesh.symmetry == Symmetry.THREE_D
+    
     triangles = mesh.elements
      
     triangles_to_plot = []
     normals = []
     
-    if mesh.symmetry == Symmetry.THREE_D:
+    if not mesh.higher_order:
         triangles_to_plot = np.copy(triangles)
         normals = [backend.normal_3d(*mesh.points[t]) for t in triangles]
-    elif mesh.symmetry == Symmetry.THREE_D_HIGHER_ORDER:
+    else:
         normal_coordinates = [(1/6, 1/6), (1/2-1/6, 1/2-1/6), (1/2-1/6, 1/6), (1/6, 1/2-1/6)]
         for (v0, v1, v2, v3, v4, v5) in triangles:
             for i, (A, B, C) in enumerate([(v0, v3, v5), (v3, v4, v5), (v3, v1, v4), (v5, v4, v2)]):

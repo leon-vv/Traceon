@@ -48,8 +48,8 @@ class Validation:
     def supports_fmm(self):
         return True
     
-    def plot_geometry(self, MSF, symmetry, use_fmm=False, plot_charges=False, plot_charge_density=False, plot_normals=False):
-        geom = self.create_mesh(MSF, symmetry)
+    def plot_geometry(self, MSF, symmetry, higher_order=False, use_fmm=False, plot_charges=False, plot_charge_density=False, plot_normals=False):
+        geom = self.create_mesh(MSF, symmetry, higher_order)
         assert geom.symmetry == symmetry 
          
         if plot_charges or plot_charge_density:
@@ -58,7 +58,7 @@ class Validation:
         else:
             P.plot_mesh(geom, show_normals=plot_normals, **self.plot_colors) 
     
-    def plot_accuracy(self, MSFs, symmetry, use_fmm=False):
+    def plot_accuracy(self, MSFs, symmetry, higher_order, use_fmm=False):
         num_lines = []
         times = []
         correct = []
@@ -68,7 +68,7 @@ class Validation:
         for n in MSFs:
             print('-'*81, f' MSF={n}')
             st = time.time()
-            geom = self.create_mesh(n, symmetry)
+            geom = self.create_mesh(n, symmetry, higher_order)
             exc, field = self.compute_field(geom, use_fmm=use_fmm)
             
             corr = self.correct_value_of_interest()  
@@ -106,9 +106,9 @@ class Validation:
         plt.ylabel('Computation time (ms)')
         plt.show()
 
-    def print_accuracy(self, MSF, symmetry, use_fmm=False):
+    def print_accuracy(self, MSF, symmetry, higher_order=True, use_fmm=False):
         st = time.time()
-        geom = self.create_mesh(MSF, symmetry)
+        geom = self.create_mesh(MSF, symmetry, higher_order)
         exc, field = self.compute_field(geom, use_fmm=use_fmm)
         
         correct = self.correct_value_of_interest()  
@@ -123,14 +123,9 @@ class Validation:
             assert not args.use_fmm, "Fast Multipole Method not supported for radial geometries"
             return G.Symmetry.RADIAL
         elif args.symmetry == '3d':
-            
             assert not (args.use_fmm and args.higher_order), "Fast Multipole Method not supported for higher order elements"
-            
-            if args.higher_order:
-                return G.Symmetry.THREE_D_HIGHER_ORDER
-            
             return G.Symmetry.THREE_D
-         
+          
         return G.Symmetry.RADIAL
     
     def run_validation(self):
@@ -140,16 +135,17 @@ class Validation:
         MSF = args.MSF if args.MSF != None else self.default_MSF(symmetry)[1]
          
         if plot:
-            self.plot_geometry(MSF, symmetry, plot_charges=args.plot_charges, \
+            self.plot_geometry(MSF, symmetry, higher_order=args.higher_order,
+                                            plot_charges=args.plot_charges,
                                             plot_charge_density=args.plot_charge_density,
                                             plot_normals=args.plot_normals) 
         elif args.plot_accuracy:
-            self.plot_accuracy(self.default_MSF(symmetry), symmetry, use_fmm=args.use_fmm)
+            self.plot_accuracy(self.default_MSF(symmetry), symmetry, args.higher_order, use_fmm=args.use_fmm)
         else:
-            self.print_accuracy(MSF, symmetry, use_fmm=args.use_fmm)
+            self.print_accuracy(MSF, symmetry, args.higher_order, use_fmm=args.use_fmm)
 
     # Should be implemented by each of the validations
-    def create_mesh(self, MSF, symmetry):
+    def create_mesh(self, MSF, symmetry, higher_order):
         pass
     
     def get_excitation(self, geometry):

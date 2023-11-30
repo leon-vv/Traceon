@@ -207,15 +207,7 @@ class Excitation:
          
         Nfloating = len([name for name, (type_, _) in self.excitation_types.items() if type_ == ExcitationType.FLOATING_CONDUCTOR])
         Nelem = self.get_number_of_active_elements()
-         
-        if self.mesh.symmetry == Symmetry.RADIAL:
-            return Nelem*N_QUAD_2D + Nfloating
-        elif self.mesh.symmetry == Symmetry.THREE_D:
-            assert Nfloating == 0, 'Floating elements not yet supported in FMM'
-            return Nelem
-        elif self.mesh.symmetry == Symmetry.THREE_D_HIGHER_ORDER:
-            return Nelem + Nfloating
-
+        return Nelem + Nfloating
 
 
         

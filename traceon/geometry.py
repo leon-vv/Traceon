@@ -61,22 +61,19 @@ class Symmetry(Enum):
     supported symmetries are radial symmetry (also called cylindrical symmetry) and general 3D geometries.
     """
     RADIAL = 0
-    THREE_D_HIGHER_ORDER = 1
     THREE_D = 2
 
     def __str__(self):
         if self == Symmetry.RADIAL:
             return 'radial'
-        elif self == Symmetry.THREE_D_HIGHER_ORDER:
-            return '3d higher order'
         elif self == Symmetry.THREE_D:
-            return '3d first order' 
+            return '3d' 
     
     def is_2d(self):
         return self == Symmetry.RADIAL
         
     def is_3d(self):
-        return self in [Symmetry.THREE_D_HIGHER_ORDER, Symmetry.THREE_D]
+        return self == Symmetry.THREE_D
 
 class Geometry(geo.Geometry):
     """
@@ -121,6 +118,9 @@ class Geometry(geo.Geometry):
         ----------------
         True if geometry is three dimensional, False if the geometry is two dimensional"""
         return self.symmetry.is_3d()
+
+    def is_2d(self):
+        return self.symmetry.is_2d()
      
     def add_physical(self, entities, name):
         """
@@ -140,7 +140,7 @@ class Geometry(geo.Geometry):
         else:
             self._physical_queue[name] = entities
 
-    def generate_mesh(self, *args, **kwargs):
+    def generate_mesh(self, dimension, higher_order=False, *args, **kwargs):
         """
         Generate the mesh, determining the mesh dimension (line elements or triangles) from the
         supplied symmetry. The arguments are passed directly to `pygmsh.geo.Geometry.generate_mesh`.
@@ -150,26 +150,31 @@ class Geometry(geo.Geometry):
         `Mesh`
 
         """
+        assert dimension == 1 or dimension == 2, "Currently only line and triangle meshes supported (dimension 1 or 2)"
+        
         for label, entities in self._physical_queue.items():
             super().add_physical(entities, label)
           
         if self.size_from_distance:
             self.set_mesh_size_callback(self._mesh_size_callback)
-         
-        if self.symmetry == Symmetry.RADIAL:
-            dim = 1
-            gmsh.option.setNumber('Mesh.ElementOrder', 3)
-        elif self.symmetry == Symmetry.THREE_D:
-            dim = 2
-            gmsh.option.setNumber('Mesh.ElementOrder', 1)
-        elif self.symmetry == Symmetry.THREE_D_HIGHER_ORDER:
-            dim = 2
-            gmsh.option.setNumber('Mesh.ElementOrder', 2)
-        else:
-            raise ValueError('Symmetry not valid: ', self.symmetry)
         
-        return Mesh.from_meshio(super().generate_mesh(dim=dim, *args, **kwargs), self.symmetry)
+        if dimension == 1 and higher_order:
+            gmsh.option.setNumber('Mesh.ElementOrder', 3)
+        elif dimension == 1 and not higher_order:
+            gmsh.option.setNumber('Mesh.ElementOrder', 1)
+        elif dimension == 2 and higher_order:
+            gmsh.option.setNumber('Mesh.ElementOrder', 2)
+        elif dimension == 2 and not higher_order:
+            gmsh.option.setNumber('Mesh.ElementOrder', 1)
+        
+        return Mesh.from_meshio(super().generate_mesh(dim=dimension, *args, **kwargs), self.symmetry)
 
+    def generate_line_mesh(self, higher_order, *args, **kwargs):
+        return self.generate_mesh(*args, higher_order=higher_order, dimension=1, **kwargs)
+    
+    def generate_triangle_mesh(self, higher_order, *args, **kwargs):
+        return self.generate_mesh(*args, higher_order=higher_order, dimension=2, **kwargs)
+    
     def set_mesh_size_factor(self, factor):
         """
         Set the mesh size factor. Which simply scales with the total number of elements in the mesh.
@@ -182,7 +187,7 @@ class Geometry(geo.Geometry):
         """
         if self.symmetry == Symmetry.RADIAL:
             gmsh.option.setNumber('Mesh.MeshSizeFactor', 1/factor)
-        elif self.symmetry == Symmetry.THREE_D_HIGHER_ORDER or self.symmetry == Symmetry.THREE_D:
+        else:
             # GMSH seems to produce meshes which contain way more elements for 3D geometries
             # with the same mesh factor. This is confusing for users and therefore we arbtrarily
             # increase the mesh size to roughly correspond with the 2D number of elements.
@@ -253,6 +258,9 @@ class Mesh(Saveable):
         assert np.all([np.all( (0 <= group) & (group < len(self.triangles)) ) for group in self.physical_to_triangles.values()])
         assert not len(self.lines) or self.lines.shape[1] in [2,4], "Lines should contain either 2 or 4 points."
         assert not len(self.triangles) or self.triangles.shape[1] in [3,6], "Triangles should contain either 3 or 6 points"
+    
+    def is_higher_order(self):
+        return (len(self.lines) and self.lines.shape[1] == 4) or (len(self.triangles) and self.triangles.shape[1] == 6)
     
     def move(self, vector):
         self.points += vector
@@ -338,7 +346,7 @@ class Mesh(Saveable):
         Parameters
         ----------
         symmetry: Symmetry
-            Specifies a radially symmetric geometry (RADIAL) or a general 3D geometry (THREE_D_HIGHER_ORDER).
+            Specifies a radially symmetric geometry (RADIAL) or a general 3D geometry (THREE_D).
         
         Returns
         ---------
@@ -431,7 +439,6 @@ class Mesh(Saveable):
         
         return points, elements
 
-    
     def _to_higher_order_mesh(self):
         # The matrix solver currently only works with higher order meshes.
         # We can however convert a simple mesh easily to a higher order mesh, and solve that.
@@ -489,14 +496,14 @@ class MEMSStack(Geometry):
     def __init__(self, *args, z0=0.0, revolve_factor=0.0, rmax=2, margin=0.5, margin_right=0.1, symmetry=None, **kwargs):
         
         if symmetry is None:
-            self.symmetry = Symmetry.RADIAL if revolve_factor == 0.0 else Symmetry.THREE_D_HIGHER_ORDER
+            symmetry = Symmetry.RADIAL if revolve_factor == 0.0 else Symmetry.THREE_D
         else:
-            self.symmetry = symmetry
+            symmetry = symmetry
             
-            if revolve_factor == 0.0:
+            if revolve_factor == 0.0 and symmetry.is_3d():
                 revolve_factor = 1.0
-         
-        super().__init__(self.symmetry, *args, **kwargs)
+
+        super().__init__(symmetry, *args, **kwargs)
         
         self.z0 = z0
         self.revolve_factor = revolve_factor
@@ -524,7 +531,7 @@ class MEMSStack(Geometry):
                   [self.rmax+self.margin_right, self._current_z+self.margin],
                   [self.rmax+self.margin_right, self.z0],
                   [0.0, self.z0]]
-        
+         
         self._add_lines_from_points(points, 'boundary')
         self._current_z += self.margin
      
@@ -565,6 +572,6 @@ class MEMSStack(Geometry):
     def generate_mesh(self, *args, **kwargs):
         self._add_boundary()
         return super().generate_mesh(*args, **kwargs)
-        
+    
         
 

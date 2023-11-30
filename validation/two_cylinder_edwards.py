@@ -29,7 +29,7 @@ class TwoCylinderEdwards(Validation):
         else:
             return [25, 100, 200, 400]
     
-    def create_mesh(self, MSF, symmetry):
+    def create_mesh(self, MSF, symmetry, higher_order):
         S = 0.2
         R = 1.0
         wall_thickness = 1
@@ -70,7 +70,7 @@ class TwoCylinderEdwards(Validation):
                     geom.add_physical(lines, key)
             
             geom.set_mesh_size_factor(MSF)
-            return geom.generate_mesh()
+            return geom.generate_line_mesh(higher_order) if geom.is_2d() else geom.generate_triangle_mesh(higher_order)
 
     def get_excitation(self, geom):
         exc = E.Excitation(geom)

@@ -26,7 +26,7 @@ class DohiMirror(Validation):
         self.plot_colors = dict(mirror='brown', lens='blue', ground='green', boundary='purple')
 
 
-    def create_mesh(self, MSF, symmetry):
+    def create_mesh(self, MSF, symmetry, higher_order):
             
         rmax = 1.0
         margin = 0.3
@@ -50,7 +50,7 @@ class DohiMirror(Validation):
             
             geom.set_mesh_size_factor(MSF)
             
-            return geom.generate_mesh()
+            return geom.generate_line_mesh(higher_order) if symmetry.is_2d() else geom.generate_triangle_mesh(higher_order)
 
     def get_excitation(self, mesh):
         exc = E.Excitation(mesh)
