@@ -119,7 +119,7 @@ def solve_iteratively(triangles, dielectric_indices, dielectric_values, right_ha
     charges, _ = gmres(LinearOperator(matvec=matvec, shape=(N, N)),
         right_hand_side,
         callback=increase_count,
-        restart=np.inf,
+        restart=500,
         atol=0., tol=tol)
     assert np.all(np.isfinite(charges))
     
