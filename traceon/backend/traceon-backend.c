@@ -1149,8 +1149,7 @@ trace_particle_3d_derivs(double *times_array, double *pos_array, double bounds[3
 enum ExcitationType{
     VOLTAGE_FIXED = 1,
     VOLTAGE_FUN = 2,
-    DIELECTRIC = 3,
-    FLOATING_CONDUCTOR = 4};
+    DIELECTRIC = 3};
 
 
 struct self_voltage_radial_args {
@@ -1285,7 +1284,7 @@ EXPORT void fill_matrix_radial(double *matrix,
 		
 		enum ExcitationType type_ = excitation_types[i];
 			
-		if (type_ == VOLTAGE_FIXED || type_ == VOLTAGE_FUN || type_ == FLOATING_CONDUCTOR) {
+		if (type_ == VOLTAGE_FIXED || type_ == VOLTAGE_FUN) {
 			for (int j = 0; j < N_lines; j++) {
 				
 				UNROLL
@@ -1458,7 +1457,7 @@ EXPORT void fill_matrix_3d(double *restrict matrix,
 			
         enum ExcitationType type_ = excitation_types[i];
 		 
-        if (type_ == VOLTAGE_FIXED || type_ == VOLTAGE_FUN || type_ == FLOATING_CONDUCTOR) {
+        if (type_ == VOLTAGE_FIXED || type_ == VOLTAGE_FUN) {
             for (int j = 0; j < N_lines; j++) {
 				
 				UNROLL

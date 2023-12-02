@@ -6,7 +6,6 @@ The possible excitations are as follows:
 - Fixed voltage (electrode connect to a power supply)
 - Voltage function (a generic Python function specifies the voltage as a function of position)
 - Dielectric, with arbitrary electric permittivity
-- Floating conductor, with an arbitrary total charge on the surface
 
 Once the excitation is specified, it can be passed to `traceon.solver.solve_bem` to compute the resulting field.
 """
@@ -24,7 +23,6 @@ class ExcitationType(IntEnum):
     VOLTAGE_FIXED = 1
     VOLTAGE_FUN = 2
     DIELECTRIC = 3
-    FLOATING_CONDUCTOR = 4
 
     def __str__(self):
         if self == ExcitationType.VOLTAGE_FIXED:
@@ -33,8 +31,6 @@ class ExcitationType(IntEnum):
             return 'voltage function'
         elif self == ExcitationType.DIELECTRIC:
             return 'dielectric'
-        elif self == ExcitationType.FLOATING_CONDUCTOR:
-            return 'floating conductor'
 
 
 class Excitation:
@@ -101,22 +97,6 @@ class Excitation:
         """
         self.add_dielectric(**{a:0 for a in args})
 
-    def add_floating_conductor(self, **kwargs):
-        """
-        Specify geometric elements as floating conductors, and specify the total charge on the conductor.
-         
-        Parameters
-        ----------
-        **kwargs : dict
-            The keys of the dictionary are the geometry names, while the values are the charge on the conductors. For example,
-            calling the function as `add_floating_conductor(spacer=10)` specifies the physical group `spacer` as a floating conductor with
-            a total charge on its surface equal to 10. For the unit of charge, see the section 'Units' on the `traceon` page.
-            
-        """
-        for name, charge in kwargs.items():
-            assert name in self.electrodes
-            self.excitation_types[name] = (ExcitationType.FLOATING_CONDUCTOR, charge)
-     
     def _split_for_superposition(self):
         
         # Names that have a fixed voltage excitation, not equal to 0.0
@@ -131,7 +111,6 @@ class Excitation:
              
             for n, (t, v) in types.items():
                 assert t != ExcitationType.VOLTAGE_FUN, "VOLTAGE_FUN excitation not supported for superposition."
-                assert (t != ExcitationType.FLOATING_CONDUCTOR or v == 0.0), "FLOATING_CONDUCTOR only supported in superposition if total charge equals zero."
                  
                 if n == name:
                     new_types_dict[n] = (t, 1.0)
@@ -204,11 +183,7 @@ class Excitation:
         ---------
         integer number
         """
-         
-        Nfloating = len([name for name, (type_, _) in self.excitation_types.items() if type_ == ExcitationType.FLOATING_CONDUCTOR])
-        Nelem = self.get_number_of_active_elements()
-        return Nelem + Nfloating
-
+        return self.get_number_of_active_elements()
 
         
 

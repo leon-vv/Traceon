@@ -61,16 +61,9 @@ FACTOR_AXIAL_DERIV_SAMPLING_3D = 0.06
 
 DERIV_ACCURACY = 6
 
-def _get_floating_conductor_names(exc):
-    return [n for n, (t, v) in exc.excitation_types.items() if t == E.ExcitationType.FLOATING_CONDUCTOR]
-
 def _excitation_to_right_hand_side(excitation, vertices, names):
-    floating_names = _get_floating_conductor_names(excitation)
-     
-    N_floating = len(floating_names)
-    N_lines = len(vertices)
-    N_matrix = N_lines + N_floating # Every floating conductor adds one constraint
-
+    N_matrix = len(vertices)
+    
     F = np.zeros( (N_matrix) )
      
     for name, indices in names.items():
@@ -81,13 +74,8 @@ def _excitation_to_right_hand_side(excitation, vertices, names):
         elif type_ == E.ExcitationType.VOLTAGE_FUN:
             positions = [backend.position_and_jacobian_radial(0, vertices[i, 0], vertices[i, 2], vertices[i, 3], vertices[i, 1])[1] for i in indices]
             F[indices] = [value(*p) for p in positions]
-        elif type_ == E.ExcitationType.DIELECTRIC or \
-                type_ == E.ExcitationType.FLOATING_CONDUCTOR:
+        elif type_ == E.ExcitationType.DIELECTRIC:
             F[indices] = 0
-    
-    # See comments in _add_floating_conductor_constraints_to_matrix
-    for i, f in enumerate(floating_names):
-        F[-N_floating+i] = excitation.excitation_types[f][1]
      
     assert np.all(np.isfinite(F))
     return F
@@ -98,32 +86,11 @@ def _area(symmetry, jacobian_buffer, pos_buffer, index):
     else:
         return np.sum(jacobian_buffer[index])
 
-def _add_floating_conductor_constraints_to_matrix(matrix, jac_buffer, pos_buffer, names, excitation):
-    floating = _get_floating_conductor_names(excitation)
-    N_matrix = matrix.shape[0]
-    assert matrix.shape == (N_matrix, N_matrix)
-     
-    for i, f in enumerate(floating):
-        for index in names[f]:
-            # An extra unknown voltage is added to the matrix for every floating conductor.
-            # The column related to this unknown voltage is positioned at the rightmost edge of the matrix.
-            # If multiple floating conductors are present the column lives at -len(floating) + i
-            matrix[ index, -len(floating) + i] = -1
-            # The unknown voltage is determined by the constraint on the total charge of the conductor.
-            # This constraint lives at the bottom edge of the matrix.
-            # The surface area of the respective line element (or triangle) is multiplied by the surface charge (unknown)
-            # to arrive at the total specified charge (right hand side).
-            matrix[ -len(floating) + i, index] = _area(excitation.mesh.symmetry, jac_buffer, pos_buffer, index)
-
 def _excitation_to_matrix(excitation, vertices, names):
-    floating_names = _get_floating_conductor_names(excitation)
-    
-    N_floating = len(floating_names)
-    N_lines = len(vertices)
-    N_matrix = N_lines + N_floating # Every floating conductor adds one constraint
+    N_matrix = len(vertices)
      
-    excitation_types = np.zeros(N_lines, dtype=np.uint8)
-    excitation_values = np.zeros(N_lines)
+    excitation_types = np.zeros(N_matrix, dtype=np.uint8)
+    excitation_values = np.zeros(N_matrix)
     
     for n, indices in names.items():
         excitation_types[indices] = int( excitation.excitation_types[n][0] )
@@ -135,7 +102,7 @@ def _excitation_to_matrix(excitation, vertices, names):
      
     st = time.time()
     matrix = np.zeros( (N_matrix, N_matrix) )
-    print(f'Using matrix solver, number of elements: {N_lines}, size of matrix: {N_matrix} ({matrix.nbytes/1e6:.0f} MB), symmetry: {excitation.mesh.symmetry}, higher order: {excitation.mesh.is_higher_order()}')
+    print(f'Using matrix solver, number of elements: {N_matrix}, size of matrix: {N_matrix} ({matrix.nbytes/1e6:.0f} MB), symmetry: {excitation.mesh.symmetry}, higher order: {excitation.mesh.is_higher_order()}')
 
     _3d = excitation.mesh.is_3d()
 
@@ -145,35 +112,23 @@ def _excitation_to_matrix(excitation, vertices, names):
     def fill_matrix_rows(rows):
         fill_fun(matrix, vertices, excitation_types, excitation_values, jac_buffer, pos_buffer, rows[0], rows[-1])
      
-    util.split_collect(fill_matrix_rows, np.arange(N_lines))    
+    util.split_collect(fill_matrix_rows, np.arange(N_matrix))    
 
     # Fill the difficult self voltages
     print(f'Time for building matrix: {(time.time()-st)*1000:.0f} ms')
 
     assert np.all(np.isfinite(matrix))
-    
-    _add_floating_conductor_constraints_to_matrix(matrix, jac_buffer, pos_buffer, names, excitation)
-        
+     
     return matrix, jac_buffer, pos_buffer
 
 
 def _charges_to_field(excitation, charges, vertices, names, jac_buffer, pos_buffer):
-    floating_names = _get_floating_conductor_names(excitation)
-    N_floating = len(floating_names)
-     
-    assert len(charges) == len(vertices) + N_floating
-    
-    floating_voltages = {n:charges[-N_floating+i] for i, n in enumerate(floating_names)}
-    if N_floating > 0:
-        charges = charges[:-N_floating]
-     
     assert len(charges) == len(vertices)
-    
+     
     field_class = FieldRadialBEM if not excitation.mesh.is_3d() else Field3D_BEM
-    return field_class(vertices, charges, jac_buffer, pos_buffer, floating_voltages=floating_voltages)
+    return field_class(vertices, charges, jac_buffer, pos_buffer)
 
 def _solve_fmm(excitation, superposition=False, precision=0):
-    assert E.ExcitationType.FLOATING_CONDUCTOR not in [t for t, _ in excitation.excitation_types.values()], 'Floating conductor not yet supported in FMM'
     assert excitation.mesh.symmetry == G.Symmetry.THREE_D, "Fast multipole method is only supported for simple 3D geometries (non higher order triangles)."
     assert isinstance(precision, int) and -2 <= precision <= 5
     
@@ -239,8 +194,7 @@ def solve_bem(excitation, superposition=False, use_fmm=False, fmm_precision=0):
         to be analyzed for many different voltage settings. In this case taking a linear superposition of the returned fields
         allows to select a different voltage 'setting' without inducing any computational cost. There is no computational cost
         involved in using `superposition=True` since a direct solver is used which easily allows for multiple right hand sides (the
-        matrix does not have to be inverted multiple times). However, some excitations are invalid in the superposition process: floating
-        conductor with a non-zero total charge and voltage functions (position dependent voltages).
+        matrix does not have to be inverted multiple times). However, voltage functions are invalid in the superposition process (position dependent voltages).
     
     use_fmm : bool
         Use the fast multipole method to calculate the charge distribution. This method is currently only implemented for 3D geometries without
@@ -312,11 +266,10 @@ class FieldBEM(Field):
     not initialize this class yourself, but it is used as a base class for the fields returned by the `solve_bem` function. 
     This base class overloads the +,*,- operators so it is very easy to take a superposition of different fields."""
     
-    def __init__(self, vertices, charges, jac_buffer, pos_buffer, floating_voltages={}):
+    def __init__(self, vertices, charges, jac_buffer, pos_buffer):
         assert len(vertices) == len(charges)
         self.vertices = vertices
         self.charges = charges
-        self.floating_voltages = floating_voltages
         self.jac_buffer = jac_buffer
         self.pos_buffer = pos_buffer
         self.field_bounds = None
@@ -334,10 +287,8 @@ class FieldBEM(Field):
             assert np.array_equal(self.jac_buffer, other.jac_buffer), "Cannot add FieldBEM if geometry is unequal"
             assert np.array_equal(self.pos_buffer, other.pos_buffer), "Cannot add FieldBEM if geometry is unequal"
             assert self.charges.shape == other.charges.shape, "Cannot add FieldBEM if charges have not equal shape."
-            assert set(self.floating_voltages.keys()) == set(other.floating_voltages.keys())
-            
-            floating = {n:self.floating_voltages[n]+other.floating_voltages[n] for n in self.floating_voltages.keys()}
-            return self.__class__(self.vertices, self.charges+other.charges, self.jac_buffer, self.pos_buffer, floating)
+             
+            return self.__class__(self.vertices, self.charges+other.charges, self.jac_buffer, self.pos_buffer)
          
         return NotImpemented
     
@@ -349,9 +300,8 @@ class FieldBEM(Field):
      
     def __mul__(self, other):
         if isinstance(other, int) or isinstance(other, float):
-            floating = {n:v*other for n, v in self.floating_voltages.items()}
-            return self.__class__(self.vertices, other*self.charges, self.jac_buffer, self.pos_buffer, floating)
-         
+            return self.__class__(self.vertices, other*self.charges, self.jac_buffer, self.pos_buffer)
+        
         return NotImpemented
 
     def __neg__(self):
@@ -398,8 +348,8 @@ class FieldRadialBEM(FieldBEM):
     """A radially symmetric electrostatic field. The field is a result of the surface charges as computed by the
     `solve_bem` function. See the comments in `FieldBEM`."""
     
-    def __init__(self, vertices, charges, jac_buffer, pos_buffer, floating_voltages={}):
-        super().__init__(vertices, charges, jac_buffer, pos_buffer, floating_voltages)
+    def __init__(self, vertices, charges, jac_buffer, pos_buffer):
+        super().__init__(vertices, charges, jac_buffer, pos_buffer)
         assert vertices.shape == (len(charges), 4, 3)
         assert charges.shape == (len(charges),)
         
@@ -493,8 +443,8 @@ class Field3D_BEM(FieldBEM):
     """An electrostatic field resulting from a general 3D geometry. The field is a result of the surface charges as computed by the
     `solve_bem` function. See the comments in `FieldBEM`."""
      
-    def __init__(self, vertices, charges, jac_buffer, pos_buffer, floating_voltages={}):
-        super().__init__(vertices, charges, jac_buffer, pos_buffer, floating_voltages)
+    def __init__(self, vertices, charges, jac_buffer, pos_buffer):
+        super().__init__(vertices, charges, jac_buffer, pos_buffer)
     
     def field_at_point(self, point):
         """

@@ -433,8 +433,7 @@ def fill_jacobian_buffer_radial(vertices):
 
 def fill_matrix_radial(matrix, lines, excitation_types, excitation_values, jac_buffer, pos_buffer, start_index, end_index):
     N = len(lines)
-    # Due to floating conductor constraints the matrix might actually be bigger than NxN
-    assert matrix.shape[0] >= N and matrix.shape[1] >= N and matrix.shape[0] == matrix.shape[1]
+    assert matrix.shape[0] == N and matrix.shape[1] == N and matrix.shape[0] == matrix.shape[1]
     assert lines.shape == (N, 4, 3)
     assert excitation_types.shape == (N,)
     assert excitation_values.shape == (N,)
@@ -469,8 +468,7 @@ def fill_jacobian_buffer_3d(vertices):
 
 def fill_matrix_3d(matrix, vertices, excitation_types, excitation_values, jac_buffer, pos_buffer, start_index, end_index):
     N = len(vertices)
-    # Due to floating conductor constraints the matrix might actually be bigger than NxN
-    assert matrix.shape[0] >= N and matrix.shape[1] >= N and matrix.shape[0] == matrix.shape[1]
+    assert matrix.shape[0] == N and matrix.shape[1] == N and matrix.shape[0] == matrix.shape[1]
     assert vertices.shape == (N, 6, 3)
     assert excitation_types.shape == (N,)
     assert excitation_values.shape == (N,)

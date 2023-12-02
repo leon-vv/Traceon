@@ -7,7 +7,6 @@ from edwards2007 import Edwards2007
 from einzel_lens import EinzelLens
 from simple_mirror import SimpleMirror
 from spherical_capacitor import SphericalCapacitor
-from spherical_capacitor_floating_conductor import SphericalFloatingConductor
 from two_cylinder_edwards import TwoCylinderEdwards
 
 validations = [CapacitanceSphere,
@@ -16,7 +15,6 @@ validations = [CapacitanceSphere,
                EinzelLens,
                SimpleMirror,
                SphericalCapacitor,
-               SphericalFloatingConductor,
                TwoCylinderEdwards]
 
 def run_all(symmetry, higher_order, use_fmm):
@@ -31,7 +29,7 @@ def run_all(symmetry, higher_order, use_fmm):
         
         validation.print_accuracy(MSF, symmetry, higher_order=higher_order, use_fmm=use_fmm)
 
-#run_all(G.Symmetry.RADIAL, True, False)
+run_all(G.Symmetry.RADIAL, True, False)
 run_all(G.Symmetry.RADIAL, False, False)
 
 run_all(G.Symmetry.THREE_D, False, False)
