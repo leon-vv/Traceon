@@ -141,8 +141,8 @@ class Solver:
     
     def get_matrix(self):
         assert self.is_higher_order(), "Can only produce matrix for higher order meshes. Consider upgrading your mesh."
-         
-        N_matrix = len(self.vertices)
+        
+        N_matrix = self.get_number_of_matrix_elements()
         matrix = np.zeros( (N_matrix, N_matrix) )
         print(f'Using matrix solver, number of elements: {N_matrix}, size of matrix: {N_matrix} ({matrix.nbytes/1e6:.0f} MB), symmetry: {self.excitation.mesh.symmetry}, higher order: {self.excitation.mesh.is_higher_order()}')
         
@@ -163,19 +163,26 @@ class Solver:
          
         return matrix
     
-    def solve_matrix(self):
-        F = self.get_right_hand_side()
+    def solve_matrix(self, right_hand_side=None):
+        F = np.array([self.get_right_hand_side()]) if right_hand_side is None else right_hand_side
+        assert all([f.shape == (self.get_number_of_matrix_elements(),) for f in F])
         matrix = self.get_matrix()
          
         st = time.time()
-        charges = np.linalg.solve(matrix, F)
+        charges = np.linalg.solve(matrix, F.T).T
         print(f'Time for solving matrix: {(time.time()-st)*1000:.0f} ms')
-        assert np.all(np.isfinite(charges))
+        assert np.all(np.isfinite(charges)) and charges.shape == F.shape
         
-        if self.is_3d():
-            return Field3D_BEM(self.vertices, charges, self.jac_buffer, self.pos_buffer)
-        else:
-            return FieldRadialBEM(self.vertices, charges, self.jac_buffer, self.pos_buffer)
+        result = []
+          
+        for c in charges:
+            if self.is_3d():
+                result.append(Field3D_BEM(self.vertices, c, self.jac_buffer, self.pos_buffer))
+            else:
+                result.append(FieldRadialBEM(self.vertices, c, self.jac_buffer, self.pos_buffer))
+        
+        assert len(result) == len(F)
+        return result
         
     def solve_fmm(self, precision=0):
         assert self.is_3d() and not self.is_higher_order(), "Fast multipole method is only supported for simple 3D geometries (non higher order triangles)."
@@ -230,23 +237,29 @@ def solve_bem(excitation, superposition=False, use_fmm=False, fmm_precision=0):
     dimensional geometry `Field3D_BEM` is returned. Alternatively, when `superposition=True` a dictionary is returned, where the keys
     are the physical groups with unity excitation, and the values are the resulting fields.
     """
-    assert not superposition, "TODO: bring back superposition support"
-    
     if use_fmm:
-        solver = Solver(excitation)
-        return solver.solve_fmm(fmm_precision)
+        if superposition:
+            excitations = excitation._split_for_superposition()
+            return {name:Solver(exc).solve_fmm(fmm_precision) for name, exc in excitations.items()}
+        else:
+            return Solver(excitation).solve_fmm(fmm_precision)
     else:
-        mesh = excitation.mesh
-         
-        if not mesh.is_higher_order():
+        if not excitation.mesh.is_higher_order():
             # Upgrade mesh, such that matrix solver will support it
             excitation = copy.copy(excitation)
+            mesh = copy.copy(excitation.mesh)
             excitation.mesh = mesh._to_higher_order_mesh()
             print('Upgrading mesh')
-         
-        solver = Solver(excitation)
-        return solver.solve_matrix()
-
+        
+        if superposition:
+            # Speedup: invert matrix only once, when using superposition
+            excitations = excitation._split_for_superposition()
+            names = excitations.keys()
+            right_hand_sides = np.array([Solver(excitations[n]).get_right_hand_side() for n in names])
+            solutions = Solver(excitation).solve_matrix(right_hand_sides)
+            return {n:s for n,s in zip(names, solutiosn)}
+        else:
+            return Solver(excitation).solve_matrix()[0]
 
 def _get_one_dimensional_high_order_ppoly(z, y, dydz, dydz2):
     bpoly = BPoly.from_derivatives(z, np.array([y, dydz, dydz2]).T)
