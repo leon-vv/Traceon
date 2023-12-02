@@ -59,124 +59,142 @@ from . import fast_multipole_method
 FACTOR_AXIAL_DERIV_SAMPLING_2D = 0.2
 FACTOR_AXIAL_DERIV_SAMPLING_3D = 0.06
 
-DERIV_ACCURACY = 6
-
-def _excitation_to_right_hand_side(excitation, vertices, names):
-    N_matrix = len(vertices)
+class Solver:
     
-    F = np.zeros( (N_matrix) )
-     
-    for name, indices in names.items():
-        type_, value  = excitation.excitation_types[name]
+    def __init__(self, excitation):
+        vertices, names = excitation.get_active_elements()
          
-        if type_ == E.ExcitationType.VOLTAGE_FIXED:
-            F[indices] = value
-        elif type_ == E.ExcitationType.VOLTAGE_FUN:
-            positions = [backend.position_and_jacobian_radial(0, vertices[i, 0], vertices[i, 2], vertices[i, 3], vertices[i, 1])[1] for i in indices]
-            F[indices] = [value(*p) for p in positions]
-        elif type_ == E.ExcitationType.DIELECTRIC:
-            F[indices] = 0
-     
-    assert np.all(np.isfinite(F))
-    return F
-
-def _area(symmetry, jacobian_buffer, pos_buffer, index):
-    if symmetry == G.Symmetry.RADIAL:
-        return 2*np.pi*np.sum(jacobian_buffer[index] * pos_buffer[index, :, 0])
-    else:
-        return np.sum(jacobian_buffer[index])
-
-def _excitation_to_matrix(excitation, vertices, names):
-    N_matrix = len(vertices)
-     
-    excitation_types = np.zeros(N_matrix, dtype=np.uint8)
-    excitation_values = np.zeros(N_matrix)
-    
-    for n, indices in names.items():
-        excitation_types[indices] = int( excitation.excitation_types[n][0] )
-        
-        if excitation.excitation_types[n][0] == E.ExcitationType.DIELECTRIC:
+        N = len(vertices)
+        excitation_types = np.zeros(N, dtype=np.uint8)
+        excitation_values = np.zeros(N)
+         
+        for n, indices in names.items():
+            excitation_types[indices] = int( excitation.excitation_types[n][0] )
             excitation_values[indices] = excitation.excitation_types[n][1]
-     
-    assert np.all(excitation_types != 0)
-     
-    st = time.time()
-    matrix = np.zeros( (N_matrix, N_matrix) )
-    print(f'Using matrix solver, number of elements: {N_matrix}, size of matrix: {N_matrix} ({matrix.nbytes/1e6:.0f} MB), symmetry: {excitation.mesh.symmetry}, higher order: {excitation.mesh.is_higher_order()}')
+         
+        self.excitation = excitation
+        self.vertices = vertices
+        self.names = names
+        self.excitation_types = excitation_types
+        self.excitation_values = excitation_values
 
-    _3d = excitation.mesh.is_3d()
-
-    jac_buffer, pos_buffer = backend.fill_jacobian_buffer_3d_higher_order(vertices) if _3d else backend.fill_jacobian_buffer_radial(vertices)
-    fill_fun = backend.fill_matrix_3d if _3d else backend.fill_matrix_radial
-     
-    def fill_matrix_rows(rows):
-        fill_fun(matrix, vertices, excitation_types, excitation_values, jac_buffer, pos_buffer, rows[0], rows[-1])
-     
-    util.split_collect(fill_matrix_rows, np.arange(N_matrix))    
-
-    # Fill the difficult self voltages
-    print(f'Time for building matrix: {(time.time()-st)*1000:.0f} ms')
-
-    assert np.all(np.isfinite(matrix))
-     
-    return matrix, jac_buffer, pos_buffer
-
-
-def _charges_to_field(excitation, charges, vertices, names, jac_buffer, pos_buffer):
-    assert len(charges) == len(vertices)
-     
-    field_class = FieldRadialBEM if not excitation.mesh.is_3d() else Field3D_BEM
-    return field_class(vertices, charges, jac_buffer, pos_buffer)
-
-def _solve_fmm(excitation, superposition=False, precision=0):
-    assert excitation.mesh.symmetry == G.Symmetry.THREE_D, "Fast multipole method is only supported for simple 3D geometries (non higher order triangles)."
-    assert isinstance(precision, int) and -2 <= precision <= 5
+        two_d = self.is_2d()
+        higher_order = self.is_higher_order()
+        
+        if two_d and higher_order:
+            jac, pos = backend.fill_jacobian_buffer_radial(vertices)
+        elif not two_d and higher_order:
+            jac, pos = backend.fill_jacobian_buffer_3d_higher_order(vertices)
+        elif not two_d and not higher_order:
+            jac, pos = backend.fill_jacobian_buffer_3d(vertices)
+        else:
+            raise ValueError('Input excitation is 2D but not higher order, this solver input is currently not supported. Consider upgrading mesh to higher order.')
+        
+        self.jac_buffer = jac
+        self.pos_buffer = pos
     
-    if superposition:
-        excs = excitation._split_for_superposition()
-        return {n:_solve_fmm(e, superposition=False) for n, e in excs.items()}
-    
-    triangles, names = excitation.get_active_elements()
-    
-    print(f'Using FMM solver, number of elements: {len(triangles)}, symmetry: {excitation.mesh.symmetry}, precision: {precision}')
-       
-    N = len(triangles)
-    assert triangles.shape == (N, 3, 3)
-     
-    F = _excitation_to_right_hand_side(excitation, triangles, names)
-    assert F.shape == (N,)
-     
-    st = time.time()
-    charges, count = fast_multipole_method.solve_iteratively(names, excitation, triangles, F, precision=precision)
-    print(f'Time for solving FMM: {(time.time()-st)*1000:.0f} ms (iterations: {count})')
-     
-    jac_buffer, pos_buffer = backend.fill_jacobian_buffer_3d(triangles)
-     
-    return Field3D_BEM(triangles, charges, jac_buffer, pos_buffer)
+        
+    def is_higher_order(self):
+        return self.excitation.mesh.is_higher_order()
+        
+    def get_number_of_matrix_elements(self):
+        return len(self.vertices)
 
-def _solve_matrix(excitation, superposition=False):
-    vertices, names = excitation.get_active_elements()
+    def is_3d(self):
+        return self.excitation.mesh.is_3d()
+    
+    def is_2d(self):
+        return self.excitation.mesh.is_2d()
      
-    if not superposition:
-        matrix, jac_buffer, pos_buffer = _excitation_to_matrix(excitation, vertices, names)
-          
-        F = _excitation_to_right_hand_side(excitation, vertices, names)
+    def get_dielectric_indices(self):
+        N = self.get_number_of_matrix_elements()
+        return np.arange(N)[self.excitation_types == int(E.ExcitationType.DIELECTRIC)]
+     
+    def get_center_of_element(self, index):
+        two_d = self.is_2d()
+        higher_order = self.is_higher_order()
+         
+        if not self.is_higher_order():
+            return np.mean(self.vertices[index], axis=0)
+        elif two_d:
+            return backend.position_and_jacobian_radial(0, vertices[i, 0], vertices[i, 2], vertices[i, 3], vertices[i, 1])[1]
+        else:
+            return backend.position_and_jacobian_3d(0.5, 0.5, vertices[i])[1]
+     
+    def get_right_hand_side(self):
+        N = self.get_number_of_matrix_elements()
+        F = np.zeros( (N,) )
+         
+        assert self.excitation_types.shape ==(N,) and self.excitation_values.shape == (N,)
+         
+        # TODO: optimize in backend?
+        for i, (type_, value) in enumerate(zip(self.excitation_types, self.excitation_values)):
+            if type_ == E.ExcitationType.VOLTAGE_FIXED:
+                F[i] = value
+            elif type_ == E.ExcitationType.VOLTAGE_FUN:
+                F[i] = value(self.get_center_of_element(i))
+            elif type_ == E.ExcitationType.DIELECTRIC:
+                F[i] = 0
+         
+        assert np.all(np.isfinite(F))
+        return F
+    
+    def get_matrix(self):
+        assert self.is_higher_order(), "Can only produce matrix for higher order meshes. Consider upgrading your mesh."
+         
+        N_matrix = len(self.vertices)
+        matrix = np.zeros( (N_matrix, N_matrix) )
+        print(f'Using matrix solver, number of elements: {N_matrix}, size of matrix: {N_matrix} ({matrix.nbytes/1e6:.0f} MB), symmetry: {self.excitation.mesh.symmetry}, higher order: {self.excitation.mesh.is_higher_order()}')
+        
+        fill_fun = backend.fill_matrix_3d if self.is_3d() else backend.fill_matrix_radial
+        
+        def fill_matrix_rows(rows):
+            fill_fun(matrix,
+                self.vertices,
+                self.excitation_types,
+                self.excitation_values,
+                self.jac_buffer, self.pos_buffer, rows[0], rows[-1])
+        
+        st = time.time()
+        util.split_collect(fill_matrix_rows, np.arange(N_matrix))    
+        print(f'Time for building matrix: {(time.time()-st)*1000:.0f} ms')
+        
+        assert np.all(np.isfinite(matrix))
+         
+        return matrix
+    
+    def solve_matrix(self):
+        F = self.get_right_hand_side()
+        matrix = self.get_matrix()
+         
         st = time.time()
         charges = np.linalg.solve(matrix, F)
-        assert np.all(np.isfinite(charges))
         print(f'Time for solving matrix: {(time.time()-st)*1000:.0f} ms')
+        assert np.all(np.isfinite(charges))
         
-        return _charges_to_field(excitation, charges, vertices, names, jac_buffer, pos_buffer)
-     
-    excs = excitation._split_for_superposition()
-    superposed_names = excs.keys()
-    matrix, jac_buffer, pos_buffer = _excitation_to_matrix(excitation, vertices, names)
-    F = np.array([_excitation_to_right_hand_side(excs[n], vertices, names) for n in superposed_names]).T
-    st = time.time()
-    charges = np.linalg.solve(matrix, F)
-    print(f'Time for solving matrix: {(time.time()-st)*1000:.0f} ms')
-    assert np.all(np.isfinite(charges))
-    return {n:_charges_to_field(excs[n], charges[:, i], vertices, names, jac_buffer, pos_buffer) for i, n in enumerate(superposed_names)}
+        if self.is_3d():
+            return Field3D_BEM(self.vertices, charges, self.jac_buffer, self.pos_buffer)
+        else:
+            return FieldRadialBEM(self.vertices, charges, self.jac_buffer, self.pos_buffer)
+        
+    def solve_fmm(self, precision=0):
+        assert self.is_3d() and not self.is_higher_order(), "Fast multipole method is only supported for simple 3D geometries (non higher order triangles)."
+        assert isinstance(precision, int) and -2 <= precision <= 5, "Precision should be an intenger -2 <= precision <= 5"
+         
+        triangles = self.vertices
+        print(f'Using FMM solver, number of elements: {len(triangles)}, symmetry: {self.excitation.mesh.symmetry}, precision: {precision}')
+        
+        N = len(triangles)
+        assert triangles.shape == (N, 3, 3)
+         
+        F = self.get_right_hand_side()
+        assert F.shape == (N,)
+         
+        st = time.time()
+        charges, count = fast_multipole_method.solve_iteratively(self.names, self.excitation, self.vertices, F, precision=precision)
+        print(f'Time for solving FMM: {(time.time()-st)*1000:.0f} ms (iterations: {count})')
+         
+        return Field3D_BEM(triangles, charges, self.jac_buffer, self.pos_buffer)
 
 def solve_bem(excitation, superposition=False, use_fmm=False, fmm_precision=0):
     """
@@ -212,21 +230,22 @@ def solve_bem(excitation, superposition=False, use_fmm=False, fmm_precision=0):
     dimensional geometry `Field3D_BEM` is returned. Alternatively, when `superposition=True` a dictionary is returned, where the keys
     are the physical groups with unity excitation, and the values are the resulting fields.
     """
-
+    assert not superposition, "TODO: bring back superposition support"
+    
     if use_fmm:
-        assert excitation.mesh.symmetry == G.Symmetry.THREE_D, "FMM solver only supports 3D meshes (geometry.Symmetry.THREE_D)"
-        assert not excitation.mesh.is_higher_order(), "FMM solver does not support higher order meshes"
-        return _solve_fmm(excitation, superposition=superposition, precision=fmm_precision)
+        solver = Solver(excitation)
+        return solver.solve_fmm(fmm_precision)
     else:
         mesh = excitation.mesh
-
+         
         if not mesh.is_higher_order():
             # Upgrade mesh, such that matrix solver will support it
             excitation = copy.copy(excitation)
             excitation.mesh = mesh._to_higher_order_mesh()
             print('Upgrading mesh')
          
-        return _solve_matrix(excitation, superposition=superposition)
+        solver = Solver(excitation)
+        return solver.solve_matrix()
 
 
 def _get_one_dimensional_high_order_ppoly(z, y, dydz, dydz2):
@@ -437,7 +456,7 @@ class FieldRadialBEM(FieldBEM):
         return FieldRadialAxial(z, coeffs)
     
     def area_of_element(self, i):
-        return _area(G.Symmetry.RADIAL, self.jac_buffer, self.pos_buffer, i)
+        return 2*np.pi*np.sum(self.jac_buffer[i] * self.pos_buffer[i, :, 0])
     
 class Field3D_BEM(FieldBEM):
     """An electrostatic field resulting from a general 3D geometry. The field is a result of the surface charges as computed by the
@@ -519,8 +538,7 @@ class Field3D_BEM(FieldBEM):
         return Field3DAxial(z, interpolated_coeffs)
     
     def area_of_element(self, i):
-        return _area(G.Symmetry.THREE_D, self.jac_buffer, self.pos_buffer, i)
-    
+        return np.sum(self.jac_buffer[i])
 
      
 

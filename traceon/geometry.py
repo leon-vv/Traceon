@@ -383,6 +383,15 @@ class Mesh(Saveable):
         True if mesh is three dimensional, False if the mesh is two dimensional"""
         return self.symmetry.is_3d()
     
+    def is_2d(self):
+        """Check if the mesh is two dimensional.
+        
+        Returns
+        ----------------
+        True if mesh is two dimensional, False if the mesh is three dimensional"""
+        return self.symmetry.is_2d()
+
+    
     def get_electrodes(self):
         """Get the names of all the electrodes in the geometry.
          
