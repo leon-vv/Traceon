@@ -198,9 +198,11 @@ class Solver:
         assert F.shape == (N,)
          
         st = time.time()
-        charges, count = fast_multipole_method.solve_iteratively(self.names, self.excitation, self.vertices, F, precision=precision)
+        dielectric_indices = self.get_dielectric_indices()
+        dielectric_values = self.excitation_values[dielectric_indices]
+        charges, count = fast_multipole_method.solve_iteratively(self.vertices, dielectric_indices, dielectric_values, F, precision=precision)
         print(f'Time for solving FMM: {(time.time()-st)*1000:.0f} ms (iterations: {count})')
-         
+        
         return Field3D_BEM(triangles, charges, self.jac_buffer, self.pos_buffer)
 
 def solve_bem(excitation, superposition=False, use_fmm=False, fmm_precision=0):
