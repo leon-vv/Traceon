@@ -177,9 +177,9 @@ class Solver:
           
         for c in charges:
             if self.is_3d():
-                result.append(Field3D_BEM(self.vertices, c, self.jac_buffer, self.pos_buffer))
+                result.append(Field3D_BEM(EffectivePointCharges(c, self.jac_buffer, self.pos_buffer)))
             else:
-                result.append(FieldRadialBEM(self.vertices, c, self.jac_buffer, self.pos_buffer))
+                result.append(FieldRadialBEM(EffectivePointCharges(c, self.jac_buffer, self.pos_buffer)))
         
         assert len(result) == len(F)
         return result
@@ -203,7 +203,44 @@ class Solver:
         charges, count = fast_multipole_method.solve_iteratively(self.vertices, dielectric_indices, dielectric_values, F, precision=precision)
         print(f'Time for solving FMM: {(time.time()-st)*1000:.0f} ms (iterations: {count})')
         
-        return Field3D_BEM(triangles, charges, self.jac_buffer, self.pos_buffer)
+        return Field3D_BEM(EffectivePointCharges(charges, self.jac_buffer, self.pos_buffer))
+
+
+class EffectivePointCharges:
+    def __init__(self, charges, jacobians, positions):
+        N = len(charges)
+        N_QUAD = jacobians.shape[1]
+        print(N, N_QUAD, charges.shape, jacobians.shape, positions.shape)
+        assert charges.shape == (N,) and jacobians.shape == (N, N_QUAD)
+        assert positions.shape == (N, N_QUAD, 3) or positions.shape == (N, N_QUAD, 2)
+        self.charges = charges
+        self.jacobians = jacobians
+        self.positions = positions
+     
+    def __len__(self):
+        return len(self.charges)
+     
+    def __add__(self, other):
+        if np.array_equal(self.positions, other.positions) and np.array_equal(self.jacobians, other.jacobians):
+            return EffectivePointCharges(self.charges + other.charges, self.jacobians, self.positions)
+        else:
+            return EffectivePointCharges(
+                np.concatenate([self.charges, other.charges]),
+                np.concatenate([self.jacobians, other.jacobians]),
+                np.concatenate([self.positions, other.positions]))
+    
+    def __mul__(self, other):
+        if isinstance(other, int) or isinstance(other, float):
+            return EffectivePointCharges(other*self.charges, self.jacobians, self.positions)
+        
+        return NotImpemented
+    
+    def __neg__(self):
+        return -1*self
+    
+    def __rmul__(self, other):
+        return self.__mul__(other)
+     
 
 def solve_bem(excitation, superposition=False, use_fmm=False, fmm_precision=0):
     """
@@ -294,56 +331,42 @@ def _quintic_spline_coefficients(z, derivs):
 class Field:
     def __call__(self, *args):
         return self.field_at_point(np.array(args))
+    
+    def __str__(self):
+        name = self.__class__.__name__
+        return f'<Traceon {name}, number of elements: {len(self.electrostatic_point_charges.charges)}>'
+
 
 class FieldBEM(Field):
     """An electrostatic field (resulting from surface charges) as computed from the Boundary Element Method. You should
     not initialize this class yourself, but it is used as a base class for the fields returned by the `solve_bem` function. 
     This base class overloads the +,*,- operators so it is very easy to take a superposition of different fields."""
     
-    def __init__(self, vertices, charges, jac_buffer, pos_buffer):
-        assert len(vertices) == len(charges)
-        self.vertices = vertices
-        self.charges = charges
-        self.jac_buffer = jac_buffer
-        self.pos_buffer = pos_buffer
+    def __init__(self, electrostatic_point_charges):
+        self.electrostatic_point_charges = electrostatic_point_charges
         self.field_bounds = None
-    
+     
     def set_bounds(self, bounds):
         self.field_bounds = np.array(bounds)
-
-    def __str__(self):
-        name = self.__class__.__name__
-        return f'<Traceon {name}, number of elements: {len(self.vertices)}>'
-     
+    
     def __add__(self, other):
-        if isinstance(other, FieldBEM):
-            assert np.array_equal(self.vertices, other.vertices), "Cannot add FieldBEM if geometry is unequal."
-            assert np.array_equal(self.jac_buffer, other.jac_buffer), "Cannot add FieldBEM if geometry is unequal"
-            assert np.array_equal(self.pos_buffer, other.pos_buffer), "Cannot add FieldBEM if geometry is unequal"
-            assert self.charges.shape == other.charges.shape, "Cannot add FieldBEM if charges have not equal shape."
-             
-            return self.__class__(self.vertices, self.charges+other.charges, self.jac_buffer, self.pos_buffer)
-         
-        return NotImpemented
+        return self.__class__(self.electrostatic_point_charges.__add__(other.electrostatic_point_charges))
     
     def __sub__(self, other):
-        return self.__add__(-other)
+        return self.__class__(self.electrostatic_point_charges.__sub__(other.electrostatic_point_charges))
      
     def __radd__(self, other):
-        return self.__add__(other)
+        return self.__class__(self.electrostatic_point_charges.__radd__(other.electrostatic_point_charges))
      
     def __mul__(self, other):
-        if isinstance(other, int) or isinstance(other, float):
-            return self.__class__(self.vertices, other*self.charges, self.jac_buffer, self.pos_buffer)
-        
-        return NotImpemented
-
+        return self.__class__(self.electrostatic_point_charges.__mul__(other.electrostatic_point_charges))
+    
     def __neg__(self):
-        return -1*self
+        return self.__class__(self.electrostatic_point_charges.__neg__())
     
     def __rmul__(self, other):
-        return self.__mul__(other)
-    
+        return self.__class__(self.electrostatic_point_charges.__rmul__(other.electrostatic_point_charges))
+     
     def area_of_elements(self, indices):
         """Compute the total area of the elements at the given indices.
         
@@ -359,7 +382,7 @@ class FieldBEM(Field):
         return sum(self.area_on_element(i) for i in indices) 
     
     def charge_on_element(self, i):
-        return self.area_of_element(i) * self.charges[i]
+        return self.area_of_element(i) * self.electrostatic_point_charges.charges[i]
     
     def charge_on_elements(self, indices):
         """Compute the sum of the charges present on the elements with the given indices. To
@@ -382,10 +405,12 @@ class FieldRadialBEM(FieldBEM):
     """A radially symmetric electrostatic field. The field is a result of the surface charges as computed by the
     `solve_bem` function. See the comments in `FieldBEM`."""
     
-    def __init__(self, vertices, charges, jac_buffer, pos_buffer):
-        super().__init__(vertices, charges, jac_buffer, pos_buffer)
-        assert vertices.shape == (len(charges), 4, 3)
-        assert charges.shape == (len(charges),)
+    def __init__(self, electrostatic_point_charges):
+        super().__init__(electrostatic_point_charges)
+        N = len(electrostatic_point_charges.charges)
+        assert electrostatic_point_charges.charges.shape == (N,)
+        assert electrostatic_point_charges.jacobians.shape == (N, backend.N_QUAD_2D)
+        assert electrostatic_point_charges.positions.shape == (N, backend.N_QUAD_2D, 2)
         
     def field_at_point(self, point):
         """
@@ -401,7 +426,10 @@ class FieldRadialBEM(FieldBEM):
         Numpy array containing the field strengths (in units of V/mm) in the r and z directions.   
         """
         assert point.shape == (2,) or point.shape == (3,)
-        return backend.field_radial(point, self.charges, self.jac_buffer, self.pos_buffer)
+        charges = self.electrostatic_point_charges.charges
+        jacobians = self.electrostatic_point_charges.jacobians
+        positions = self.electrostatic_point_charges.positions
+        return backend.field_radial(point, charges, jacobians, positions)
      
     def potential_at_point(self, point):
         """
@@ -417,7 +445,10 @@ class FieldRadialBEM(FieldBEM):
         Potential as a float value (in units of V).
         """
         assert point.shape == (2,) or point.shape == (3,)
-        return backend.potential_radial(point, self.charges, self.jac_buffer, self.pos_buffer)
+        charges = self.electrostatic_point_charges.charges
+        jacobians = self.electrostatic_point_charges.jacobians
+        positions = self.electrostatic_point_charges.positions
+        return backend.potential_radial(point, charges, jacobians, positions)
      
     def get_axial_potential_derivatives(self, z):
         """
@@ -434,7 +465,10 @@ class FieldRadialBEM(FieldBEM):
         Numpy array of shape (N, 9) containing the derivatives. At index i one finds the i-th derivative (so
         at position 0 the potential itself is returned). The highest derivative returned is a 
         constant currently set to 9."""
-        return backend.axial_derivatives_radial_ring(z, self.charges, self.jac_buffer, self.pos_buffer)
+        charges = self.electrostatic_point_charges.charges
+        jacobians = self.electrostatic_point_charges.jacobians
+        positions = self.electrostatic_point_charges.positions
+        return backend.axial_derivatives_radial_ring(z, charges, jacobians, positions)
      
     def axial_derivative_interpolation(self, zmin, zmax, N=None):
         """
@@ -460,7 +494,7 @@ class FieldRadialBEM(FieldBEM):
 
         """
         assert zmax > zmin
-        N = N if N is not None else int(FACTOR_AXIAL_DERIV_SAMPLING_2D*len(self.vertices))
+        N = N if N is not None else int(FACTOR_AXIAL_DERIV_SAMPLING_2D*len(self.electrostatic_point_charges.charges))
         z = np.linspace(zmin, zmax, N)
         
         st = time.time()
@@ -471,15 +505,21 @@ class FieldRadialBEM(FieldBEM):
         return FieldRadialAxial(z, coeffs)
     
     def area_of_element(self, i):
-        return 2*np.pi*np.sum(self.jac_buffer[i] * self.pos_buffer[i, :, 0])
+        jacobians = self.electrostatic_point_charges.jacobians
+        positions = self.electrostatic_point_charges.positions
+        return 2*np.pi*np.sum(jacobians[i] * positions[i, :, 0])
     
 class Field3D_BEM(FieldBEM):
     """An electrostatic field resulting from a general 3D geometry. The field is a result of the surface charges as computed by the
     `solve_bem` function. See the comments in `FieldBEM`."""
      
-    def __init__(self, vertices, charges, jac_buffer, pos_buffer):
-        super().__init__(vertices, charges, jac_buffer, pos_buffer)
-    
+    def __init__(self, electrostatic_point_charges):
+        super().__init__(electrostatic_point_charges)
+        N = len(electrostatic_point_charges.charges)
+        assert electrostatic_point_charges.charges.shape == (N,)
+        assert electrostatic_point_charges.jacobians.shape == (N, backend.N_TRIANGLE_QUAD)
+        assert electrostatic_point_charges.positions.shape == (N, backend.N_TRIANGLE_QUAD, 3)
+     
     def field_at_point(self, point):
         """
         Compute the electric field, \( \\vec{E} = -\\nabla \phi \)
@@ -494,7 +534,10 @@ class Field3D_BEM(FieldBEM):
         Numpy array containing the field strengths (in units of V/mm) in the x, y and z directions.
         """
         assert point.shape == (3,)
-        return backend.field_3d(point, self.charges, self.jac_buffer, self.pos_buffer)
+        charges = self.electrostatic_point_charges.charges
+        jacobians = self.electrostatic_point_charges.jacobians
+        positions = self.electrostatic_point_charges.positions
+        return backend.field_3d(point, charges, jacobians, positions)
      
     def potential_at_point(self, point):
         """
@@ -510,7 +553,10 @@ class Field3D_BEM(FieldBEM):
         Potential as a float value (in units of V).
         """
         assert point.shape == (3,)
-        return backend.potential_3d(point, self.charges, self.jac_buffer, self.pos_buffer)
+        charges = self.electrostatic_point_charges.charges
+        jacobians = self.electrostatic_point_charges.jacobians
+        positions = self.electrostatic_point_charges.positions
+        return backend.potential_3d(point, charges, jacobians, positions)
     
     def axial_derivative_interpolation(self, zmin, zmax, N=None):
         """
@@ -537,13 +583,15 @@ class Field3D_BEM(FieldBEM):
         """
         assert zmax > zmin
 
-        N = N if N is not None else int(FACTOR_AXIAL_DERIV_SAMPLING_3D*len(self.vertices))
+        N = N if N is not None else int(FACTOR_AXIAL_DERIV_SAMPLING_3D*len(self.electrostatic_point_charges.charges))
         z = np.linspace(zmin, zmax, N)
         
         print(f'Number of points on z-axis: {len(z)}')
         st = time.time()
-        jac_buffer, pos_buffer = self.jac_buffer, self.pos_buffer
-        coeffs = util.split_collect(lambda z: backend.axial_coefficients_3d(self.charges, jac_buffer, pos_buffer,  z), z)
+        charges = self.electrostatic_point_charges.charges
+        jacobians = self.electrostatic_point_charges.jacobians
+        positions = self.electrostatic_point_charges.positions
+        coeffs = util.split_collect(lambda z: backend.axial_coefficients_3d(charges, jacobians, positions, z), z)
         coeffs = np.concatenate(coeffs, axis=0)
         interpolated_coeffs = CubicSpline(z, coeffs).c
         interpolated_coeffs = np.moveaxis(interpolated_coeffs, 0, -1)
@@ -553,7 +601,8 @@ class Field3D_BEM(FieldBEM):
         return Field3DAxial(z, interpolated_coeffs)
     
     def area_of_element(self, i):
-        return np.sum(self.jac_buffer[i])
+        jacobians = self.electrostatic_point_charges.jacobians
+        return np.sum(jacobians[i])
 
      
 

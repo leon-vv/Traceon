@@ -79,9 +79,6 @@ class CapacitanceSphere(Validation):
         x = np.linspace(0.55, 0.95)
         f = [field.field_at_point(np.array([x_, 0.0, 0.0]))[0] for x_ in x]
         
-        vertices = field.vertices
-        charges = field.charges
-        
         # Find the charges
         _, names = exc.get_active_elements()
         Q = {n:field.charge_on_elements(i) for n, i in names.items()}
