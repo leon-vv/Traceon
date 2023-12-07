@@ -80,7 +80,7 @@ class CapacitanceSphere(Validation):
         f = [field.field_at_point(np.array([x_, 0.0, 0.0]))[0] for x_ in x]
         
         # Find the charges
-        _, names = exc.get_active_elements()
+        _, names = exc.get_electrostatic_active_elements()
         Q = {n:field.charge_on_elements(i) for n, i in names.items()}
           
         capacitance = (abs(Q['outer']) + abs(Q['inner']))/2

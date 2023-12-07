@@ -23,7 +23,14 @@ class ExcitationType(IntEnum):
     VOLTAGE_FIXED = 1
     VOLTAGE_FUN = 2
     DIELECTRIC = 3
+     
+    CURRENT = 4
 
+    def is_electrostatic(self):
+        return self in [ExcitationType.VOLTAGE_FIXED,
+                        ExcitationType.VOLTAGE_FUN,
+                        ExcitationType.DIELECTRIC]
+    
     def __str__(self):
         if self == ExcitationType.VOLTAGE_FIXED:
             return 'voltage fixed'
@@ -31,7 +38,8 @@ class ExcitationType(IntEnum):
             return 'voltage function'
         elif self == ExcitationType.DIELECTRIC:
             return 'dielectric'
-
+        elif self == ExcitationType.CURRENT:
+            return 'current'
 
 class Excitation:
     """ """
@@ -68,6 +76,16 @@ class Excitation:
             else:
                 raise NotImplementedError('Unrecognized voltage value')
 
+    def add_current(self, **kwargs):
+        assert self.mesh.symmetry == Symmetry.RADIAL, "Currently magnetostatics are only supported for radially symmetric meshes"
+         
+        for name, current in kwargs.items():
+            assert name in self.mesh.physical_to_triangles.keys(), "Current can only be applied to a triangle electrode"
+            self.excitation_types[name] = (ExcitationType.CURRENT, current)
+
+    def has_current(self):
+        return any([t == ExcitationType.CURRENT for t, _ in self.excitation_types.values()])
+     
     def add_dielectric(self, **kwargs):
         """
         Assign a dielectric constant to the geometries assigned the given name (or physical group in GMSH terminology).
@@ -126,7 +144,7 @@ class Excitation:
         assert len(non_zero_fixed) == len(excitations)
         return {n:e for (n,e) in zip(non_zero_fixed, excitations)}
 
-    def get_active_elements(self):
+    def get_electrostatic_active_elements(self):
         """Get elements in the mesh that are active, in the sense that
         an excitation to them has been applied. 
     
@@ -148,18 +166,22 @@ class Excitation:
             physicals = self.mesh.physical_to_triangles
          
         inactive = np.full(len(elements), True)
-        for name in self.excitation_types.keys():
+        for name, value in self.excitation_types.items():
+            if not value[0].is_electrostatic():
+                continue
+            
             inactive[ physicals[name] ] = False
          
         map_index = np.arange(len(elements)) - np.cumsum(inactive)
-        names = {n:map_index[i] for n, i in physicals.items() if n in self.excitation_types}
+        names = {n:map_index[i] for n, i in physicals.items() \
+                    if n in self.excitation_types and self.excitation_types[n][0].is_electrostatic()}
          
         return self.mesh.points[ elements[~inactive] ], names
     
-    def get_number_of_active_elements(self):
+    def get_number_of_electrostatic_active_elements(self):
         """Get elements in the mesh that are active, in the sense that
         an excitation to them has been applied. This is the length of the points
-        array returned by the `Excitation.get_active_elements`.
+        array returned by the `Excitation.get_electrostatic_active_elements`.
 
         Returns
         --------
@@ -172,9 +194,9 @@ class Excitation:
             elements = self.mesh.triangles
             physicals = self.mesh.physical_to_triangles
           
-        return sum(len(physicals[n]) for n in self.excitation_types.keys())
+        return sum(len(physicals[n]) for n, v in self.excitation_types.items() if v[0].is_electrostatic())
 
-    def get_number_of_matrix_elements(self):
+    def get_number_of_electrostatic_matrix_elements(self):
         """Gets the number of elements along one axis of the matrix. If this function returns N, the
         matrix will have size NxN. The matrix consists of 64bit float values. Therefore the size of the matrix
         in bytes is 8·NxN.
@@ -183,7 +205,7 @@ class Excitation:
         ---------
         integer number
         """
-        return self.get_number_of_active_elements()
+        return self.get_number_of_electrostatic_active_elements()
 
         
 

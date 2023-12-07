@@ -68,6 +68,7 @@ vertices = arr(ndim=3)
 lines = arr(ndim=3)
 charges_3d = arr(ndim=1)
 charges_2d = arr(ndim=1)
+currents_2d = arr(ndim=1)
 z_values = arr(ndim=1)
 
 jac_buffer_3d = arr(ndim=2)
@@ -115,6 +116,8 @@ backend_functions = {
     'trace_particle_3d': (sz, times_block, tracing_block, bounds, dbl, charges_3d, jac_buffer_3d, pos_buffer_3d, sz, dbl_p),
     'field_3d_derivs': (None, v3, v3, z_values, arr(ndim=5), sz),
     'trace_particle_3d_derivs': (sz, times_block, tracing_block, bounds, dbl, z_values, arr(ndim=5), sz),
+    'current_field_radial_ring': (None, dbl, dbl, dbl, dbl, v2),
+    'current_field': (None, v2, v2, currents_2d, jac_buffer_3d, pos_buffer_3d, sz),
     'fill_jacobian_buffer_radial': (None, jac_buffer_2d, pos_buffer_2d, vertices, sz),
     'fill_matrix_radial': (None, arr(ndim=2), lines, arr(dtype=C.c_uint8, ndim=1), arr(ndim=1), jac_buffer_2d, pos_buffer_2d, sz, sz, C.c_int, C.c_int),
     'fill_jacobian_buffer_3d_higher_order': (None, jac_buffer_3d, pos_buffer_3d, vertices, sz),
@@ -421,6 +424,24 @@ def field_3d_derivs(point, z, coeffs):
 
     field = np.zeros( (3,) )
     backend_lib.field_3d_derivs(point, field, z, coeffs, len(z))
+
+def current_field_radial_ring(x0, y0, x, y):
+    res = np.zeros( (2,) )
+    backend_lib.current_field_radial_ring(x0, y0, x, y, res)
+    return res
+
+def current_field(p0, currents, jac_buffer, pos_buffer):
+    assert p0.shape == (2,)
+    N = len(currents)
+    assert currents.shape == (N,)
+    assert jac_buffer.shape == (N, N_TRIANGLE_QUAD)
+    assert pos_buffer.shape == (N, N_TRIANGLE_QUAD, 3)
+     
+    assert np.all(pos_buffer[:, :, 2] == 0.)
+    
+    result = np.zeros( (2,) )
+    backend_lib.current_field(p0, result, currents, jac_buffer, pos_buffer, N)
+    return result
 
 def fill_jacobian_buffer_radial(vertices):
     N = len(vertices)

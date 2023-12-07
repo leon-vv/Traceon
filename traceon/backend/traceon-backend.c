@@ -591,8 +591,50 @@ axial_derivatives_radial_ring(double *derivs_p, double *charges, jacobian_buffer
 	}
 }
 
-//////////////////////////////// RADIAL SYMMETRY POTENTIAL EVALUATION
+//////////////////////////////// CURRENT
 
+EXPORT void
+current_field_radial_ring(double x0, double y0, double x, double y, double result[2]) {
+	// https://drive.google.com/file/d/0B5Hb04O3hlQSa0dGdlUtRnQ5OXM/view?resourcekey=0-VFNsHQLd7H9uMSRALuVwvw
+	// https://www.grant-trebbin.com/2012/04/off-axis-magnetic-field-of-circular.html
+	// https://patentimages.storage.googleapis.com/46/cb/4d/ed27deb544ce3a/EP0310212A2.pdf
+	double a = x;
+	double r = x0;
+	double z = y0 - y;
+
+	double A = pow(z, 2) + pow(a+r, 2);
+	double B = pow(z, 2) + pow(r-a, 2);
+	
+	double k = 4*r*a/A;
+		
+	result[0] = z/(2*r*sqrt(A)) * ( (pow(z,2) + pow(r,2) + pow(a,2))/B * ellipe(k) - ellipk(k) );
+	result[1] = 1/(2*sqrt(A)) * ( (pow(a,2) - pow(z,2) - pow(r,2))/B * ellipe(k) + ellipk(k) );
+}
+
+EXPORT void
+current_field(double point[2], double result[2], double *currents,
+	jacobian_buffer_3d jacobian_buffer, position_buffer_3d position_buffer, size_t N_vertices) {
+
+	double Br = 0., Bz = 0.;
+
+	for(int i = 0; i < N_vertices; i++) {
+		for(int k = 0; k < N_TRIANGLE_QUAD; k++) {
+			double *pos = &position_buffer[i][k][0];
+			double field[2];
+			current_field_radial_ring(point[0], point[1], pos[0], pos[1], field);
+			assert(pos[2] == 0.);
+				
+			Br += currents[i] * jacobian_buffer[i][k] * field[0];
+			Bz += currents[i] * jacobian_buffer[i][k] * field[1];
+		}
+	}
+		
+	result[0] = Br;
+	result[1] = Bz;
+}
+
+
+//////////////////////////////// RADIAL SYMMETRY POTENTIAL EVALUATION
 
 EXPORT double
 potential_radial(double point[3], double* charges, jacobian_buffer_2d jacobian_buffer, position_buffer_2d position_buffer, size_t N_vertices) {

@@ -31,7 +31,7 @@ exc = E.Excitation(mesh)
 exc.add_voltage(first=1)
 
 ## Result of matrix application by FMM
-vertices, names = exc.get_active_elements()
+vertices, names = exc.get_electrostatic_active_elements()
 geometry = FMM.get_geometry_in_fortran_layout(vertices)
 
 charges = np.ones(elements.shape[0])
@@ -74,7 +74,7 @@ mesh = G.Mesh(points, elements, physical_to_elements, G.Symmetry.THREE_D_HIGHER_
 exc = E.Excitation(mesh)
 exc.add_voltage(first=1)
 
-vertices, names = exc.get_active_elements()
+vertices, names = exc.get_electrostatic_active_elements()
 matrix, _, _ = S._excitation_to_matrix(exc, vertices, names)
 
 direct_matrix_apply = matrix @ charges
