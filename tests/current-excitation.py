@@ -12,7 +12,7 @@ with G.Geometry(G.Symmetry.RADIAL) as geom:
     points = [[1.0, 1.0], [2.0, 1.0], [2.0, 2.0], [1.0, 2.0]]
     poly = geom.add_polygon(points)
     geom.add_physical(poly, 'coil')
-    #geom.set_mesh_size_factor(3)
+    geom.set_mesh_size_factor(250)
     mesh = geom.generate_triangle_mesh(True)
 
 P.plot_mesh(mesh)
@@ -22,7 +22,7 @@ exc.add_current(coil=5)
 
 field = S.solve_bem(exc)
 
-z = np.linspace(-4, 6, 500)
+z = np.linspace(-7.5, 7.5, 500)
 r = 0.0
 
 mu_0 = 1.25663706212e-03

@@ -102,6 +102,7 @@ class Geometry(geo.Geometry):
         self.size_from_distance = size_from_distance
         self.zmin = zmin
         self.zmax = zmax
+        self.MSF = None
         self.symmetry = symmetry
         self._physical_queue = dict()
 
@@ -170,9 +171,16 @@ class Geometry(geo.Geometry):
         return Mesh.from_meshio(super().generate_mesh(dim=dimension, *args, **kwargs), self.symmetry)
 
     def generate_line_mesh(self, higher_order, *args, **kwargs):
+        if self.MSF is not None:
+            gmsh.option.setNumber('Mesh.MeshSizeFactor', 1/self.MSF)
         return self.generate_mesh(*args, higher_order=higher_order, dimension=1, **kwargs)
     
     def generate_triangle_mesh(self, higher_order, *args, **kwargs):
+        if self.MSF is not None:
+            # GMSH seems to produce meshes which contain way more elements for 3D geometries
+            # with the same mesh factor. This is confusing for users and therefore we arbtrarily
+            # increase the mesh size to roughly correspond with the 2D number of elements.
+            gmsh.option.setNumber('Mesh.MeshSizeFactor', 4*sqrt(1/self.MSF))
         return self.generate_mesh(*args, higher_order=higher_order, dimension=2, **kwargs)
     
     def set_mesh_size_factor(self, factor):
@@ -185,14 +193,8 @@ class Geometry(geo.Geometry):
             The mesh size factor to use. 
         
         """
-        if self.symmetry == Symmetry.RADIAL:
-            gmsh.option.setNumber('Mesh.MeshSizeFactor', 1/factor)
-        else:
-            # GMSH seems to produce meshes which contain way more elements for 3D geometries
-            # with the same mesh factor. This is confusing for users and therefore we arbtrarily
-            # increase the mesh size to roughly correspond with the 2D number of elements.
-            gmsh.option.setNumber('Mesh.MeshSizeFactor', 4*sqrt(1/factor))
-
+        self.MSF = factor
+     
     def set_minimum_mesh_size(self, size):
         """
         Set the minimum mesh size possible. Especially useful when geometric elements touch
