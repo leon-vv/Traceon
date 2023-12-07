@@ -222,6 +222,15 @@ class Geometry(geo.Geometry):
         else:
             return sqrt( x**2 + y**2 + (z-z_optical)**2 )
 
+def _concat_arrays(arr1, arr2):
+    if not len(arr1):
+        return np.copy(arr2)
+    if not len(arr2):
+        return np.copy(arr1)
+      
+    assert arr1.shape[1:] == arr2.shape[1:], "Cannot add meshes if one is higher order and the other is not"
+    
+    return np.concatenate( (arr1, arr2), axis=0)
 
 class Mesh(Saveable):
     """Class containing a mesh.
@@ -242,10 +251,22 @@ class Mesh(Saveable):
         assert isinstance(symmetry, Symmetry)
         self.symmetry = symmetry
         
-        self.points = np.array(points, dtype=np.float64)
-        self.lines = np.array(lines)
-        self.triangles = np.array(triangles)
-        
+        # Ensure the correct shape even if empty arrays
+        if len(points):
+            self.points = np.array(points, dtype=np.float64)
+        else:
+            self.points = np.empty((0,3), dtype=np.float64)
+         
+        if len(lines):
+            self.lines = np.array(lines)
+        else:
+            self.lines = np.empty((0,2), dtype=np.uint64)
+    
+        if len(triangles):
+            self.triangles = np.array(triangles)
+        else:
+            self.triangles = np.empty((0, 3), dtype=np.uint64)
+         
         self.physical_to_lines = physical_to_lines.copy()
         self.physical_to_triangles = physical_to_triangles.copy()
         
@@ -273,9 +294,9 @@ class Mesh(Saveable):
         N_lines = len(self.lines)
         N_triangles = len(self.triangles)
          
-        points = np.concatenate( (self.points, other.points), axis=0)
-        lines = np.concatenate( (self.lines, other.lines + N_points), axis=0)
-        triangles = np.concatenate( (self.triangles, other.triangles + N_points), axis=0)
+        points = _concat_arrays(self.points, other.points)
+        lines = _concat_arrays(self.lines, other.lines+N_points)
+        triangles = _concat_arrays(self.triangles, other.triangles+N_points)
          
         physical_lines = {**self.physical_to_lines, **{k:(v+N_lines) for k, v in other.physical_to_lines.items()}}
         physical_triangles = {**self.physical_to_triangles, **{k:(v+N_triangles) for k, v in other.physical_to_triangles.items()}}
@@ -391,7 +412,12 @@ class Mesh(Saveable):
         True if mesh is two dimensional, False if the mesh is three dimensional"""
         return self.symmetry.is_2d()
 
+    def remove_lines(self):
+        return Mesh(self.symmetry, self.points, triangles=self.triangles, physical_to_triangles=self.physical_to_triangles)
     
+    def remove_triangles(self):
+        return Mesh(self.symmetry, self.points, lines=self.lines, physical_to_lines=self.physical_to_lines)
+     
     def get_electrodes(self):
         """Get the names of all the electrodes in the geometry.
          
