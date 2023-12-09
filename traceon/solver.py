@@ -62,7 +62,8 @@ FACTOR_AXIAL_DERIV_SAMPLING_3D = 0.06
 class Solver:
     
     def __init__(self, excitation):
-        vertices, names = excitation.get_electrostatic_active_elements()
+        self.excitation = excitation
+        vertices, names = self.get_active_elements()
          
         N = len(vertices)
         excitation_types = np.zeros(N, dtype=np.uint8)
@@ -92,24 +93,28 @@ class Solver:
         
         self.jac_buffer = jac
         self.pos_buffer = pos
-    
+     
+    def get_active_elements(self):
+        pass
+
+    def get_number_of_matrix_elements(self):
+        return len(self.vertices)
         
     def is_higher_order(self):
         return self.excitation.mesh.is_higher_order()
         
-    def get_number_of_electrostatic_matrix_elements(self):
-        return len(self.vertices)
-
     def is_3d(self):
         return self.excitation.mesh.is_3d()
     
     def is_2d(self):
         return self.excitation.mesh.is_2d()
      
-    def get_dielectric_indices(self):
-        N = self.get_number_of_electrostatic_matrix_elements()
-        return np.arange(N)[self.excitation_types == int(E.ExcitationType.DIELECTRIC)]
-     
+    def get_flux_indices(self):
+        """Get the indices of the vertices that are of type DIELECTRIC or MAGNETIZABLE.
+        For these indices we don't compute the potential but the flux through the element (the inner 
+        product of the field with the normal of the vertex. The method is implemented in the derived classes."""
+        pass
+         
     def get_center_of_element(self, index):
         two_d = self.is_2d()
         higher_order = self.is_higher_order()
@@ -122,27 +127,12 @@ class Solver:
             return backend.position_and_jacobian_3d(0.5, 0.5, vertices[i])[1]
      
     def get_right_hand_side(self):
-        N = self.get_number_of_electrostatic_matrix_elements()
-        F = np.zeros( (N,) )
+        pass
          
-        assert self.excitation_types.shape ==(N,) and self.excitation_values.shape == (N,)
-         
-        # TODO: optimize in backend?
-        for i, (type_, value) in enumerate(zip(self.excitation_types, self.excitation_values)):
-            if type_ == E.ExcitationType.VOLTAGE_FIXED:
-                F[i] = value
-            elif type_ == E.ExcitationType.VOLTAGE_FUN:
-                F[i] = value(self.get_center_of_element(i))
-            elif type_ == E.ExcitationType.DIELECTRIC:
-                F[i] = 0
-         
-        assert np.all(np.isfinite(F))
-        return F
-    
     def get_matrix(self):
         assert self.is_higher_order(), "Can only produce matrix for higher order meshes. Consider upgrading your mesh."
         
-        N_matrix = self.get_number_of_electrostatic_matrix_elements()
+        N_matrix = self.get_number_of_matrix_elements()
         matrix = np.zeros( (N_matrix, N_matrix) )
         print(f'Using matrix solver, number of elements: {N_matrix}, size of matrix: {N_matrix} ({matrix.nbytes/1e6:.0f} MB), symmetry: {self.excitation.mesh.symmetry}, higher order: {self.excitation.mesh.is_higher_order()}')
         
@@ -162,7 +152,120 @@ class Solver:
         assert np.all(np.isfinite(matrix))
          
         return matrix
+    
+    def charges_to_field(self, charges):
+        pass
+         
+    def solve_matrix(self, right_hand_side=None):
+        F = np.array([self.get_right_hand_side()]) if right_hand_side is None else right_hand_side
+        
+        N = self.get_number_of_matrix_elements()
+         
+        if N == 0:
+            return [FieldRadialBEM()]
 
+        assert all([f.shape == (N,) for f in F])
+        matrix = self.get_matrix()
+         
+        st = time.time()
+        charges = np.linalg.solve(matrix, F.T).T
+        print(f'Time for solving matrix: {(time.time()-st)*1000:.0f} ms')
+        assert np.all(np.isfinite(charges)) and charges.shape == F.shape
+        
+        result = [self.charges_to_field(EffectivePointCharges(c, self.jac_buffer, self.pos_buffer)) for c in charges]
+         
+        assert len(result) == len(F)
+        return result
+        
+    def solve_fmm(self, precision=0):
+        assert self.is_3d() and not self.is_higher_order(), "Fast multipole method is only supported for simple 3D geometries (non higher order triangles)."
+        assert isinstance(precision, int) and -2 <= precision <= 5, "Precision should be an intenger -2 <= precision <= 5"
+         
+        triangles = self.vertices
+        print(f'Using FMM solver, number of elements: {len(triangles)}, symmetry: {self.excitation.mesh.symmetry}, precision: {precision}')
+        
+        N = len(triangles)
+        assert triangles.shape == (N, 3, 3)
+         
+        F = self.get_right_hand_side()
+        assert F.shape == (N,)
+         
+        st = time.time()
+        dielectric_indices = self.get_flux_indices()
+        dielectric_values = self.excitation_values[dielectric_indices]
+        charges, count = fast_multipole_method.solve_iteratively(self.vertices, dielectric_indices, dielectric_values, F, precision=precision)
+        print(f'Time for solving FMM: {(time.time()-st)*1000:.0f} ms (iterations: {count})')
+        
+        return self.charges_to_field(EffectivePointCharges(charges, self.jac_buffer, self.pos_buffer))
+
+class ElectrostaticSolver(Solver):
+    
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+    
+    def get_flux_indices(self):
+        N = self.get_number_of_matrix_elements()
+        return np.arange(N)[self.excitation_types == int(E.ExcitationType.DIELECTRIC)]
+
+    def get_active_elements(self):
+        return self.excitation.get_electrostatic_active_elements()
+     
+    def get_right_hand_side(self):
+        N = self.get_number_of_matrix_elements()
+        F = np.zeros( (N,) )
+         
+        assert self.excitation_types.shape ==(N,) and self.excitation_values.shape == (N,)
+         
+        # TODO: optimize in backend?
+        for i, (type_, value) in enumerate(zip(self.excitation_types, self.excitation_values)):
+            if type_ == E.ExcitationType.VOLTAGE_FIXED:
+                F[i] = value
+            elif type_ == E.ExcitationType.VOLTAGE_FUN:
+                F[i] = value(self.get_center_of_element(i))
+            elif type_ == E.ExcitationType.DIELECTRIC:
+                F[i] = 0
+         
+        assert np.all(np.isfinite(F))
+        return F
+
+    def charges_to_field(self, charges):
+        if self.is_3d():
+            return Field3D_BEM(electrostatic_point_charges=charges)
+        else:
+            return FieldRadialBEM(electrostatic_point_charges=charges)
+
+class MagnetostaticSolver(Solver):
+    
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+         
+        assert self.is_2d(), "3D solver not yet supported for magnetostatics"
+        
+        # Field produced by the current excitations on the coils
+        self.current_charges = self.get_current_charges()
+        self.current_field = FieldRadialBEM(current_point_charges=self.current_charges)
+         
+        # TODO: optimize in backend?
+        N = len(self.vertices) 
+        normals = np.zeros( (N, 2) if self.is_2d() else (N, 3) )
+        
+        for v in self.vertices:
+            if self.is_2d() and not self.is_higher_order():
+                normals[i] = backend.normal_2d(v[0], v[1])
+            elif self.is_2d() and self.is_higher_order():
+                normals[i] = backend.higher_order_normal_radial(0.0, *v[:, :2])
+            elif self.is_3d() and not self.is_higher_order():
+                normals[i] = backend.normal_3d(*v)
+            elif self.is_3d() and self.is_higher_order():
+                normals[i] = backend.higher_order_normal_3d(1/3, 1/3, v)
+    
+    def get_active_elements(self):
+        return self.excitation.get_magnetostatic_active_elements()
+    
+    def get_flux_indices(self):
+        N = self.get_number_of_matrix_elements()
+        return np.arange(N)[self.excitation_types == int(E.ExcitationType.MAGNETIZABLE)]
+     
     def get_current_charges(self):
         currents = []
         jacobians = []
@@ -193,65 +296,54 @@ class Solver:
         
         return EffectivePointCharges(np.array(currents), np.array(jacobians), np.array(positions))
      
-    def solve_matrix(self, right_hand_side=None):
-        F = np.array([self.get_right_hand_side()]) if right_hand_side is None else right_hand_side
-        
-        Nelectrostatic = self.get_number_of_electrostatic_matrix_elements()
-        
-        if Nelectrostatic == 0:
-            return [FieldRadialBEM()]
-
-        assert all([f.shape == (Nelectrostatic,) for f in F])
-        matrix = self.get_matrix()
+    def get_right_hand_side(self):
+        N = self.get_number_of_matrix_elements()
+        F = np.zeros( (N,) )
          
-        st = time.time()
-        charges = np.linalg.solve(matrix, F.T).T
-        print(f'Time for solving matrix: {(time.time()-st)*1000:.0f} ms')
-        assert np.all(np.isfinite(charges)) and charges.shape == F.shape
-        
-        result = []
-          
-        for c in charges:
-            if self.is_3d():
-                result.append(Field3D_BEM(EffectivePointCharges(c, self.jac_buffer, self.pos_buffer)))
-            else:
-                result.append(FieldRadialBEM(EffectivePointCharges(c, self.jac_buffer, self.pos_buffer)))
-        
-        assert len(result) == len(F)
-        return result
-        
-    def solve_fmm(self, precision=0):
-        assert self.is_3d() and not self.is_higher_order(), "Fast multipole method is only supported for simple 3D geometries (non higher order triangles)."
-        assert isinstance(precision, int) and -2 <= precision <= 5, "Precision should be an intenger -2 <= precision <= 5"
+        assert self.excitation_types.shape ==(N,) and self.excitation_values.shape == (N,)
          
-        triangles = self.vertices
-        print(f'Using FMM solver, number of elements: {len(triangles)}, symmetry: {self.excitation.mesh.symmetry}, precision: {precision}')
-        
-        N = len(triangles)
-        assert triangles.shape == (N, 3, 3)
+        # TODO: optimize in backend?
+        for i, (type_, value) in enumerate(zip(self.excitation_types, self.excitation_values)):
+            if type_ == E.ExcitationType.MAGNETOSTATIC_POT:
+                F[i] = value
+            elif type_ == E.ExcitationType.MAGNETIZABLE:
+                # Here we compute the inner product of the field generated by the current excitations
+                # and the normal vector of the vertex.
+                center = self.get_center_of_element(i)
+                field_at_center = self.current_field.field_at_point(center)
+                F[i] = backend.flux_density_to_charge_factor(value) * np.dot(field_at_center, normals[i])
          
-        F = self.get_right_hand_side()
-        assert F.shape == (N,)
-         
-        st = time.time()
-        dielectric_indices = self.get_dielectric_indices()
-        dielectric_values = self.excitation_values[dielectric_indices]
-        charges, count = fast_multipole_method.solve_iteratively(self.vertices, dielectric_indices, dielectric_values, F, precision=precision)
-        print(f'Time for solving FMM: {(time.time()-st)*1000:.0f} ms (iterations: {count})')
-        
-        return Field3D_BEM(EffectivePointCharges(charges, self.jac_buffer, self.pos_buffer))
+        assert np.all(np.isfinite(F))
+        return F
+     
+    def charges_to_field(self, charges):
+        assert not self.is_3d()
+        return FieldRadialBEM(magnetostatic_point_charges=charges, current_point_charges=self.current_charges)
 
 
 class EffectivePointCharges:
     def __init__(self, charges, jacobians, positions):
         N = len(charges)
         N_QUAD = jacobians.shape[1]
-        print(N, N_QUAD, charges.shape, jacobians.shape, positions.shape)
         assert charges.shape == (N,) and jacobians.shape == (N, N_QUAD)
         assert positions.shape == (N, N_QUAD, 3) or positions.shape == (N, N_QUAD, 2)
         self.charges = np.array(charges, dtype=np.float64)
         self.jacobians = np.array(jacobians, dtype=np.float64)
         self.positions = np.array(positions, dtype=np.float64)
+
+    def empty_2d():
+        N_QUAD_2D = backend.N_QUAD_2D
+        return EffectivePointCharges(np.empty((0,)), np.empty((0, N_QUAD_2D)), np.empty((0,N_QUAD_2D,2)))
+
+    def empty_3d():
+        N_TRIANGLE_QUAD = backend.N_TRIANGLE_QUAD
+        return EffectivePointCharges(np.empty((0,)), np.empty((0, N_TRIANGLE_QUAD)), np.empty((0, N_TRIANGLE_QUAD, 2)))
+
+    def is_2d(self):
+        return self.jacobians.shape[1] == backend.N_QUAD_2D
+    
+    def is_3d(self):
+        return self.jacobians.shape[1] == backend.N_TRIANGLE_QUAD
      
     def __len__(self):
         return len(self.charges)
@@ -317,9 +409,9 @@ def solve_bem(excitation, superposition=False, use_fmm=False, fmm_precision=0):
         
         if superposition:
             excitations = excitation._split_for_superposition()
-            return {name:Solver(exc).solve_fmm(fmm_precision) for name, exc in excitations.items()}
+            return {name:ElectrostaticSolver(exc).solve_fmm(fmm_precision) for name, exc in excitations.items()}
         else:
-            return Solver(excitation).solve_fmm(fmm_precision)
+            return ElectrostaticSolver(excitation).solve_fmm(fmm_precision)
     else:
         if not excitation.mesh.is_higher_order():
             # Upgrade mesh, such that matrix solver will support it
@@ -333,20 +425,12 @@ def solve_bem(excitation, superposition=False, use_fmm=False, fmm_precision=0):
             # Speedup: invert matrix only once, when using superposition
             excitations = excitation._split_for_superposition()
             names = excitations.keys()
-            right_hand_sides = np.array([Solver(excitations[n]).get_right_hand_side() for n in names])
-            solutions = Solver(excitation).solve_matrix(right_hand_sides)
+            right_hand_sides = np.array([ElectrostaticSolver(excitations[n]).get_right_hand_side() for n in names])
+            solutions = ElectrostaticSolver(excitation).solve_matrix(right_hand_sides)
             return {n:s for n,s in zip(names, solutiosn)}
         else:
-            solver = Solver(excitation)
-            current = None
-            
-            if excitation.has_current():
-                current = solver.get_current_charges()
-             
-            field = solver.solve_matrix()[0]
-            field.current_point_charges = current
-            
-            return field
+            solver = ElectrostaticSolver(excitation)
+            return solver.solve_matrix()[0]
 
 def _get_one_dimensional_high_order_ppoly(z, y, dydz, dydz2):
     bpoly = BPoly.from_derivatives(z, np.array([y, dydz, dydz2]).T)
@@ -390,8 +474,12 @@ class FieldBEM(Field):
     not initialize this class yourself, but it is used as a base class for the fields returned by the `solve_bem` function. 
     This base class overloads the +,*,- operators so it is very easy to take a superposition of different fields."""
     
-    def __init__(self, electrostatic_point_charges, current_point_charges=None):
+    def __init__(self, electrostatic_point_charges, magnetostatic_point_charges, current_point_charges):
+        assert all([isinstance(eff, EffectivePointCharges) for eff in [electrostatic_point_charges,
+                                                                       magnetostatic_point_charges,
+                                                                       current_point_charges]])
         self.electrostatic_point_charges = electrostatic_point_charges
+        self.magnetostatic_point_charges = magnetostatic_point_charges
         self.current_point_charges = current_point_charges
         self.field_bounds = None
      
@@ -454,26 +542,27 @@ class FieldRadialBEM(FieldBEM):
     """A radially symmetric electrostatic field. The field is a result of the surface charges as computed by the
     `solve_bem` function. See the comments in `FieldBEM`."""
     
-    def __init__(self, electrostatic_point_charges=None, current_point_charges=None):
-        super().__init__(electrostatic_point_charges, current_point_charges)
-        
-        for eff in [electrostatic_point_charges]:
-            if eff is None:
-                continue
-            
+    def __init__(self, electrostatic_point_charges=None, magnetostatic_point_charges=None, current_point_charges=None):
+        if electrostatic_point_charges is None:
+            electrostatic_point_charges = EffectivePointCharges.empty_2d()
+        if magnetostatic_point_charges is None:
+            magnetostatic_point_charges = EffectivePointCharges.empty_2d()
+        if current_point_charges is None:
+            current_point_charges = EffectivePointCharges.empty_3d()
+         
+        super().__init__(electrostatic_point_charges, magnetostatic_point_charges, current_point_charges)
+         
+        for eff in [electrostatic_point_charges, magnetostatic_point_charges]:
             N = len(eff.charges)
             assert eff.charges.shape == (N,)
             assert eff.jacobians.shape == (N, backend.N_QUAD_2D)
             assert eff.positions.shape == (N, backend.N_QUAD_2D, 2)
         
         for eff in [current_point_charges]:
-            if eff is None:
-                continue
-            
             N = len(eff.charges)
             assert eff.charges.shape == (N,)
             assert eff.jacobians.shape == (N, backend.N_TRIANGLE_QUAD)
-            assert eff.positions.shape == (N, backend.N_TRIANGLE_QUAD, 3)
+            assert eff.positions.shape == (N, backend.N_TRIANGLE_QUAD, 2)
     
     def current_field_at_point(self, point):
         assert point.shape == (2,)
@@ -584,7 +673,9 @@ class Field3D_BEM(FieldBEM):
     `solve_bem` function. See the comments in `FieldBEM`."""
      
     def __init__(self, electrostatic_point_charges):
-        super().__init__(electrostatic_point_charges)
+        assert isinstance(electrostatic_point_charges, EffectivePointCharges) and electrostatic_point_charges.is_3d()
+        super().__init__(electrostatic_point_charges, EffectivePointCharges.empty_3d(), EffectivePointCharges.empty_3d())
+         
         N = len(electrostatic_point_charges.charges)
         assert electrostatic_point_charges.charges.shape == (N,)
         assert electrostatic_point_charges.jacobians.shape == (N, backend.N_TRIANGLE_QUAD)

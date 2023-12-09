@@ -25,12 +25,18 @@ class ExcitationType(IntEnum):
     DIELECTRIC = 3
      
     CURRENT = 4
-
+    MAGNETOSTATIC_POT = 5
+    MAGNETIZABLE = 6
+     
     def is_electrostatic(self):
         return self in [ExcitationType.VOLTAGE_FIXED,
                         ExcitationType.VOLTAGE_FUN,
                         ExcitationType.DIELECTRIC]
-    
+
+    def is_magnetostatic(self):
+        return self in [ExcitationType.MAGNETOSTATIC_POT,
+                        ExcitationType.MAGNETIZABLE]
+     
     def __str__(self):
         if self == ExcitationType.VOLTAGE_FIXED:
             return 'voltage fixed'
@@ -85,6 +91,16 @@ class Excitation:
 
     def has_current(self):
         return any([t == ExcitationType.CURRENT for t, _ in self.excitation_types.values()])
+
+    def add_magnetostatic_potential(self, **kwargs):
+        for name, pot in kwargs.items():
+            assert name in self.electrodes
+            self.excitation_types[name] = (ExcitationType.MAGNETOSTATIC_POT, pot)
+
+    def add_magnetizable(self, **kwargs):
+        for name, permeability in kwargs.items():
+            assert name in self.electrodes
+            self.excitation_types[name] = (ExcitationType.MAGNETIZABLE, permeability)
      
     def add_dielectric(self, **kwargs):
         """
@@ -144,6 +160,51 @@ class Excitation:
         assert len(non_zero_fixed) == len(excitations)
         return {n:e for (n,e) in zip(non_zero_fixed, excitations)}
 
+    def get_active_elements(self, type_):
+        assert type_ in ['electrostatic', 'magnetostatic']
+        
+        if self.mesh.symmetry == Symmetry.RADIAL:
+            elements = self.mesh.lines
+            physicals = self.mesh.physical_to_lines
+        else:
+            elements = self.mesh.triangles
+            physicals = self.mesh.physical_to_triangles
+
+        def type_check(excitation_type):
+            if type_ == 'electrostatic':
+                return excitation_type.is_electrostatic()
+            else:
+                return excitation_type.is_magnetostatic()
+        
+        inactive = np.full(len(elements), True)
+        for name, value in self.excitation_types.items():
+            if type_check(value[0]):
+                inactive[ physicals[name] ] = False
+         
+        map_index = np.arange(len(elements)) - np.cumsum(inactive)
+        names = {n:map_index[i] for n, i in physicals.items() \
+                    if n in self.excitation_types and type_check(self.excitation_types[n][0])}
+         
+        return self.mesh.points[ elements[~inactive] ], names
+    
+    def get_number_of_active_elements(self, type_):
+        assert type_ in ['electrostatic', 'magnetostatic']
+         
+        if self.mesh.symmetry == Symmetry.RADIAL:
+            elements = self.mesh.lines
+            physicals = self.mesh.physical_to_lines
+        else:
+            elements = self.mesh.triangles
+            physicals = self.mesh.physical_to_triangles
+        
+        def type_check(excitation_type):
+            if type_ == 'electrostatic':
+                return excitation_type.is_electrostatic()
+            else:
+                return excitation_type.is_magnetostatic()
+         
+        return sum(len(physicals[n]) for n, v in self.excitation_types.items() if type_check(v[0]))
+    
     def get_electrostatic_active_elements(self):
         """Get elements in the mesh that are active, in the sense that
         an excitation to them has been applied. 
@@ -157,27 +218,11 @@ class Excitation:
         names is a dictionary, the keys being the names of the physical groups mentioned by this excitation, \
         while the values are Numpy arrays of indices that can be used to index the points array.
         """
-        
-        if self.mesh.symmetry == Symmetry.RADIAL:
-            elements = self.mesh.lines
-            physicals = self.mesh.physical_to_lines
-        else:
-            elements = self.mesh.triangles
-            physicals = self.mesh.physical_to_triangles
-         
-        inactive = np.full(len(elements), True)
-        for name, value in self.excitation_types.items():
-            if not value[0].is_electrostatic():
-                continue
-            
-            inactive[ physicals[name] ] = False
-         
-        map_index = np.arange(len(elements)) - np.cumsum(inactive)
-        names = {n:map_index[i] for n, i in physicals.items() \
-                    if n in self.excitation_types and self.excitation_types[n][0].is_electrostatic()}
-         
-        return self.mesh.points[ elements[~inactive] ], names
+        return self.get_active_elements('electrostatic')
     
+    def get_magnetostatic_active_elements(self):
+        return self.get_active_elements('magnetostatic')
+     
     def get_number_of_electrostatic_active_elements(self):
         """Get elements in the mesh that are active, in the sense that
         an excitation to them has been applied. This is the length of the points
@@ -186,16 +231,8 @@ class Excitation:
         Returns
         --------
         int, giving the number of elements. """
-        
-        if self.mesh.symmetry == Symmetry.RADIAL:
-            elements = self.mesh.lines
-            physicals = self.mesh.physical_to_lines
-        else:
-            elements = self.mesh.triangles
-            physicals = self.mesh.physical_to_triangles
-          
-        return sum(len(physicals[n]) for n, v in self.excitation_types.items() if v[0].is_electrostatic())
-
+        return self.get_number_of_active_elements('electrostatic')
+    
     def get_number_of_electrostatic_matrix_elements(self):
         """Gets the number of elements along one axis of the matrix. If this function returns N, the
         matrix will have size NxN. The matrix consists of 64bit float values. Therefore the size of the matrix
@@ -205,7 +242,7 @@ class Excitation:
         ---------
         integer number
         """
-        return self.get_number_of_electrostatic_active_elements()
+        return self.get_number_of_active_elements('magnetostatic')
 
         
 
