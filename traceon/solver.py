@@ -162,8 +162,9 @@ class Solver:
         N = self.get_number_of_matrix_elements()
          
         if N == 0:
-            return [FieldRadialBEM()]
-
+            return [self.charges_to_field(EffectivePointCharges.empty_2d() if self.is_2d() else EffectivePointCharges.empty_3d()) \
+                        for _ in range(len(F))]
+        
         assert all([f.shape == (N,) for f in F])
         matrix = self.get_matrix()
          
@@ -274,10 +275,10 @@ class MagnetostaticSolver(Solver):
         mesh = self.excitation.mesh
         
         if not len(mesh.triangles) or not self.excitation.has_current():
-            return None
+            return EffectivePointCharges.empty_3d()
          
         jac, pos = backend.fill_jacobian_buffer_3d_higher_order(mesh.points[mesh.triangles])
-         
+        
         for n, v in self.excitation.excitation_types.items():
             if not v[0] == E.ExcitationType.CURRENT or not n in mesh.physical_to_triangles:
                 continue
@@ -292,7 +293,7 @@ class MagnetostaticSolver(Solver):
             positions.extend(pos[indices])
         
         if not len(currents):
-            return None
+            return EffectivePointCharges.empty_3d()
         
         return EffectivePointCharges(np.array(currents), np.array(jacobians), np.array(positions))
      
@@ -337,7 +338,7 @@ class EffectivePointCharges:
 
     def empty_3d():
         N_TRIANGLE_QUAD = backend.N_TRIANGLE_QUAD
-        return EffectivePointCharges(np.empty((0,)), np.empty((0, N_TRIANGLE_QUAD)), np.empty((0, N_TRIANGLE_QUAD, 2)))
+        return EffectivePointCharges(np.empty((0,)), np.empty((0, N_TRIANGLE_QUAD)), np.empty((0, N_TRIANGLE_QUAD, 3)))
 
     def is_2d(self):
         return self.jacobians.shape[1] == backend.N_QUAD_2D
@@ -368,7 +369,23 @@ class EffectivePointCharges:
     
     def __rmul__(self, other):
         return self.__mul__(other)
+
+    def __str__(self):
+        dim = '2D' if self.is_2d() else '3D'
+        return f'<EffectivePointCharges {dim}\n' \
+               f'\tNumber of charges: {len(self.charges)}\n' \
+               f'\tJacobian shape:  {self.jacobians.shape}\n' \
+               f'\tPositions shape: {self.positions.shape}>'
+
+        
      
+def _excitation_to_higher_order(excitation):
+    print('Upgrading mesh to higher to be compatible with matrix solver')
+    # Upgrade mesh, such that matrix solver will support it
+    excitation = copy.copy(excitation)
+    mesh = copy.copy(excitation.mesh)
+    excitation.mesh = mesh._to_higher_order_mesh()
+    return excitation
 
 def solve_bem(excitation, superposition=False, use_fmm=False, fmm_precision=0):
     """
@@ -414,23 +431,30 @@ def solve_bem(excitation, superposition=False, use_fmm=False, fmm_precision=0):
             return ElectrostaticSolver(excitation).solve_fmm(fmm_precision)
     else:
         if not excitation.mesh.is_higher_order():
-            # Upgrade mesh, such that matrix solver will support it
-            excitation = copy.copy(excitation)
-            mesh = copy.copy(excitation.mesh)
-            excitation.mesh = mesh._to_higher_order_mesh()
-            print('Upgrading mesh to higher to be compatible with matrix solver')
-        
+            excitation = _excitation_to_higher_order(excitation)
+         
         if superposition:
-            assert not mesh.has_current(), "Magnetostatics not yet supported in superpositions"
             # Speedup: invert matrix only once, when using superposition
             excitations = excitation._split_for_superposition()
-            names = excitations.keys()
-            right_hand_sides = np.array([ElectrostaticSolver(excitations[n]).get_right_hand_side() for n in names])
+            
+            # Solve for elec fields
+            elec_names = [n for n, v in excitations.values() if not v.has_current()]
+            right_hand_sides = np.array([ElectrostaticSolver(excitations[n]).get_right_hand_side() for n in elec_names])
             solutions = ElectrostaticSolver(excitation).solve_matrix(right_hand_sides)
-            return {n:s for n,s in zip(names, solutiosn)}
+            elec_dict = {n:s for n, s in zip(elec_names, solutions)}
+            
+            # Solve for mag fields 
+            mag_names = [n for n, v in excitations.values() if v.has_current()]
+            right_hand_sides = np.array([MagnetostaticSolver(excitations[n]).get_right_hand_side() for n in mag_names])
+            solutions = MagnetostaticSolver(excitation).solve_matrix(right_hand_sides)
+            mag_dict = {n:s for n, s in zip(mag_names, solutions)}
+             
+            return {**elec_dict, **mag_dict}
         else:
-            solver = ElectrostaticSolver(excitation)
-            return solver.solve_matrix()[0]
+            elec_field = ElectrostaticSolver(excitation).solve_matrix()[0]
+            mag_field = MagnetostaticSolver(excitation).solve_matrix()[0]
+             
+            return elec_field + mag_field
 
 def _get_one_dimensional_high_order_ppoly(z, y, dydz, dydz2):
     bpoly = BPoly.from_derivatives(z, np.array([y, dydz, dydz2]).T)
@@ -487,22 +511,40 @@ class FieldBEM(Field):
         self.field_bounds = np.array(bounds)
     
     def __add__(self, other):
-        return self.__class__(self.electrostatic_point_charges.__add__(other.electrostatic_point_charges))
-    
+        return self.__class__(
+            self.electrostatic_point_charges.__add__(other.electrostatic_point_charges),
+            self.magnetostatic_point_charges.__add__(other.magnetostatic_point_charges),
+            self.current_point_charges.__add__(other.current_point_charges))
+     
     def __sub__(self, other):
-        return self.__class__(self.electrostatic_point_charges.__sub__(other.electrostatic_point_charges))
-     
+        return self.__class__(
+            self.electrostatic_point_charges.__sub__(other.electrostatic_point_charges),
+            self.magnetostatic_point_charges.__sub__(other.magnetostatic_point_charges),
+            self.current_point_charges.__sub__(other.current_point_charges))
+    
     def __radd__(self, other):
-        return self.__class__(self.electrostatic_point_charges.__radd__(other.electrostatic_point_charges))
-     
+        return self.__class__(
+            self.electrostatic_point_charges.__radd__(other.electrostatic_point_charges),
+            self.magnetostatic_point_charges.__radd__(other.magnetostatic_point_charges),
+            self.current_point_charges.__radd__(other.current_point_charges))
+    
     def __mul__(self, other):
-        return self.__class__(self.electrostatic_point_charges.__mul__(other.electrostatic_point_charges))
+        return self.__class__(
+            self.electrostatic_point_charges.__mul__(other.electrostatic_point_charges),
+            self.magnetostatic_point_charges.__mul__(other.magnetostatic_point_charges),
+            self.current_point_charges.__mul__(other.current_point_charges))
     
-    def __neg__(self):
-        return self.__class__(self.electrostatic_point_charges.__neg__())
-    
+    def __neg__(self, other):
+        return self.__class__(
+            self.electrostatic_point_charges.__neg__(other.electrostatic_point_charges),
+            self.magnetostatic_point_charges.__neg__(other.magnetostatic_point_charges),
+            self.current_point_charges.__neg__(other.current_point_charges))
+     
     def __rmul__(self, other):
-        return self.__class__(self.electrostatic_point_charges.__rmul__(other.electrostatic_point_charges))
+        return self.__class__(
+            self.electrostatic_point_charges.__rmul__(other.electrostatic_point_charges),
+            self.magnetostatic_point_charges.__rmul__(other.magnetostatic_point_charges),
+            self.current_point_charges.__rmul__(other.current_point_charges))
      
     def area_of_elements(self, indices):
         """Compute the total area of the elements at the given indices.
@@ -562,8 +604,8 @@ class FieldRadialBEM(FieldBEM):
             N = len(eff.charges)
             assert eff.charges.shape == (N,)
             assert eff.jacobians.shape == (N, backend.N_TRIANGLE_QUAD)
-            assert eff.positions.shape == (N, backend.N_TRIANGLE_QUAD, 2)
-    
+            assert eff.positions.shape == (N, backend.N_TRIANGLE_QUAD, 3)
+     
     def current_field_at_point(self, point):
         assert point.shape == (2,)
         currents = self.current_point_charges.charges

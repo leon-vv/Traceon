@@ -135,12 +135,13 @@ class Excitation:
         
         # Names that have a fixed voltage excitation, not equal to 0.0
         types = self.excitation_types
-        non_zero_fixed = [n for n, (t, v) in types.items() if t == ExcitationType.VOLTAGE_FIXED and v != 0.0]
+        non_zero_fixed = [n for n, (t, v) in types.items() if t in [ExcitationType.VOLTAGE_FIXED,
+                                                                    ExcitationType.CURRENT] and v != 0.0]
         
         excitations = []
          
         for name in non_zero_fixed:
-
+             
             new_types_dict = {}
              
             for n, (t, v) in types.items():
@@ -149,6 +150,8 @@ class Excitation:
                 if n == name:
                     new_types_dict[n] = (t, 1.0)
                 elif t == ExcitationType.VOLTAGE_FIXED:
+                    new_types_dict[n] = (t, 0.0)
+                elif t == ExcitationType.CURRENT:
                     new_types_dict[n] = (t, 0.0)
                 else:
                     new_types_dict[n] = (t, v)
