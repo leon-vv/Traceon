@@ -100,6 +100,7 @@ backend_functions = {
     'axial_derivatives_radial_ring': (None, arr(ndim=2), charges_2d, jac_buffer_2d, pos_buffer_2d, sz, z_values, sz),
     'potential_radial': (dbl, v3, charges_2d, jac_buffer_2d, pos_buffer_2d, sz),
     'potential_radial_derivs': (dbl, v2, z_values, arr(ndim=3), sz),
+    'flux_density_to_charge_factor': (dbl, dbl),
     'charge_radial': (dbl, arr(ndim=2), dbl),
     'field_radial': (None, v3, v3, charges_2d, jac_buffer_2d, pos_buffer_2d, sz),
     'trace_particle_radial': (sz, times_block, tracing_block, bounds, dbl, charges_2d, jac_buffer_2d, pos_buffer_2d, sz, dbl_p),
@@ -377,6 +378,7 @@ dx1_potential_3d_point = remove_arg(backend_lib.dx1_potential_3d_point)
 dy1_potential_3d_point = remove_arg(backend_lib.dy1_potential_3d_point)
 dz1_potential_3d_point = remove_arg(backend_lib.dz1_potential_3d_point)
 potential_3d_point = remove_arg(backend_lib.potential_3d_point)
+flux_density_to_charge_factor = backend_lib.flux_density_to_charge_factor
 
 def axial_coefficients_3d(charges, jacobian_buffer, pos_buffer, z):
     assert jacobian_buffer.shape == (len(charges), N_TRIANGLE_QUAD)

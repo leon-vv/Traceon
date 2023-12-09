@@ -682,6 +682,22 @@ potential_radial_derivs(double point[2], double *z_inter, double *coeff_p, size_
 
 //////////////////////////////// RADIAL SYMMETRY FIELD EVALUATION
 
+INLINE double flux_density_to_charge_factor(double K) {
+// There is quite some derivation to this factor.
+// In terms of the displacement field D, we have:
+// D2 - D1 = s (where s is the charge density, sigma)
+// This law follows directly from Gauss' law.
+// The electric field normal accross the inteface is continuous
+// E1 = E2 or D1/e1 = D2/e2 which gives e2/e1 D1 = D2.
+// If we let e1 be the permittivity of vacuum we have K D1 = D2 where K is 
+// the relative permittivity. Now our program can only compute the average
+// of the field in material 1 and the field in material 2, by the way the 
+// boundary charge integration works. So we compute 
+// D = (D1 + D2)/2 = (K+1)/2 D1.
+// We then have s = D2 - D1 = (K - 1) D1 = 2*(K-1)/(K+1) D.
+// A factor of 1/pi comes in because we have chosen to scale our charges with this factor.
+	return (2.0/M_PI)*(K - 1)/(1 + K);
+}
 
 double
 field_dot_normal_radial(double r0, double z0, double r, double z, void* args_p) {
@@ -692,7 +708,7 @@ field_dot_normal_radial(double r0, double z0, double r, double z, void* args_p) 
 	// calculated at the edge of the dielectric is basically the average of the
 	// field at either side of the surface of the dielecric (the field makes a jump).
 	double K = args->K;
-	double factor = (2*K - 2) / (M_PI*(1 + K));
+	double factor = flux_density_to_charge_factor(K);
 	
 	double Er = -dr1_potential_radial_ring(r0, z0, r, z, NULL);
 	double Ez = -dz1_potential_radial_ring(r0, z0, r, z, NULL);
@@ -1520,7 +1536,7 @@ EXPORT void fill_matrix_3d(double *restrict matrix,
 			// This factor is hard to derive. It takes into account that the field
 			// calculated at the edge of the dielectric is basically the average of the
 			// field at either side of the surface of the dielecric (the field makes a jump).
-			double factor = (2*K - 2) / (M_PI*(1 + K));  
+			double factor = flux_density_to_charge_factor(K);
 				
 			for (int j = 0; j < N_lines; j++) {  
 					
