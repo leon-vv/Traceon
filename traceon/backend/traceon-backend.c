@@ -607,8 +607,8 @@ current_field_radial_ring(double x0, double y0, double x, double y, double resul
 	
 	double k = 4*r*a/A;
 		
-	result[0] = z/(2*r*sqrt(A)) * ( (pow(z,2) + pow(r,2) + pow(a,2))/B * ellipe(k) - ellipk(k) );
-	result[1] = 1/(2*sqrt(A)) * ( (pow(a,2) - pow(z,2) - pow(r,2))/B * ellipe(k) + ellipk(k) );
+	result[0] = M_PI * z/(2*r*sqrt(A)) * ( (pow(z,2) + pow(r,2) + pow(a,2))/B * ellipe(k) - ellipk(k) );
+	result[1] = M_PI * 1/(2*sqrt(A)) * ( (pow(a,2) - pow(z,2) - pow(r,2))/B * ellipe(k) + ellipk(k) );
 }
 
 EXPORT void
@@ -1207,7 +1207,10 @@ trace_particle_3d_derivs(double *times_array, double *pos_array, double bounds[3
 enum ExcitationType{
     VOLTAGE_FIXED = 1,
     VOLTAGE_FUN = 2,
-    DIELECTRIC = 3};
+    DIELECTRIC = 3,
+	CURRENT=4,
+	MAGNETOSTATIC_POT=5,
+	MAGNETIZABLE=6};
 
 
 struct self_voltage_radial_args {
@@ -1268,7 +1271,7 @@ void fill_self_voltages_radial(double *matrix,
 			.line_points = &line_points[i][0],
 			.normal = normal,
 			.K = excitation_values[i],
-			.cb_fun = (type_ != DIELECTRIC) ? potential_radial_ring : field_dot_normal_radial
+			.cb_fun = (type_ != DIELECTRIC && type_ != MAGNETIZABLE) ? potential_radial_ring : field_dot_normal_radial
 		};
 			
 		gsl_function F;
@@ -1279,7 +1282,7 @@ void fill_self_voltages_radial(double *matrix,
 		double singular_points[3] = {-1, 0, 1};
 		gsl_integration_qagp(&F, singular_points, 3, 1e-9, 1e-9, ADAPTIVE_MAX_ITERATION, w, &result, &error);
 
-		if(type_ == DIELECTRIC) {
+		if(type_ == DIELECTRIC || type_ == MAGNETIZABLE) {
 			matrix[N_matrix*i + i] = result - 1;
 		}
 		else {
@@ -1342,7 +1345,7 @@ EXPORT void fill_matrix_radial(double *matrix,
 		
 		enum ExcitationType type_ = excitation_types[i];
 			
-		if (type_ == VOLTAGE_FIXED || type_ == VOLTAGE_FUN) {
+		if (type_ == VOLTAGE_FIXED || type_ == VOLTAGE_FUN || type_ == MAGNETOSTATIC_POT) {
 			for (int j = 0; j < N_lines; j++) {
 				
 				UNROLL
@@ -1354,7 +1357,7 @@ EXPORT void fill_matrix_radial(double *matrix,
 				}
             }
 		}
-		else if(type_ == DIELECTRIC) {
+		else if(type_ == DIELECTRIC || type_ == MAGNETIZABLE) {
 			for (int j = 0; j < N_lines; j++) {
 
 				double normal[2];
@@ -1373,7 +1376,7 @@ EXPORT void fill_matrix_radial(double *matrix,
 			}
 		}
 		else {
-		    printf("ExcitationType unknown");
+		    printf("ExcitationType unknown\n");
             exit(1);
 		}
 	}

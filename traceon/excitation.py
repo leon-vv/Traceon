@@ -130,6 +130,7 @@ class Excitation:
             The geometry names that should be considered a boundary.
         """
         self.add_dielectric(**{a:0 for a in args})
+        self.add_magnetizable(**{a:0 for a in args})
 
     def _split_for_superposition(self):
         
