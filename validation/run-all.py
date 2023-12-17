@@ -8,8 +8,10 @@ from einzel_lens import EinzelLens
 from simple_mirror import SimpleMirror
 from spherical_capacitor import SphericalCapacitor
 from two_cylinder_edwards import TwoCylinderEdwards
+from magnetic_torus import MagneticTorus
 
-validations = [CapacitanceSphere,
+validations = [MagneticTorus,
+               CapacitanceSphere,
                DohiMirror,
                Edwards2007,
                EinzelLens,
@@ -26,7 +28,10 @@ def run_all(symmetry, higher_order, use_fmm):
         if use_fmm and not validation.supports_fmm():
             print('Validation does not support FMM')
             continue
-        
+        if symmetry.is_3d() and not validation.supports_3d():
+            print('Validation does not support 3D')
+            continue
+         
         validation.print_accuracy(MSF, symmetry, higher_order=higher_order, use_fmm=use_fmm)
 
 run_all(G.Symmetry.RADIAL, True, False)

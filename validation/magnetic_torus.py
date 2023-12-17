@@ -24,18 +24,21 @@ class MagneticTorus(Validation):
             geom.add_physical(circle.curve_loop.curves, 'circle')
             
             geom.set_mesh_size_factor(MSF)
-            mesh1 = geom.generate_line_mesh(True)
+            mesh1 = geom.generate_line_mesh(higher_order)
         
         with G.Geometry(G.Symmetry.RADIAL) as geom:
             rect = geom.add_rectangle(2, 3, 2, 3, 0)
             geom.add_physical(rect.surface, 'coil')
              
             geom.set_mesh_size_factor(MSF)
-            mesh2 = geom.generate_triangle_mesh(True)
+            mesh2 = geom.generate_triangle_mesh(higher_order)
 
         return mesh1 + mesh2
     
     def supports_fmm(self):
+        return False
+
+    def supports_3d(self):
         return False
     
     def get_excitation(self, geometry):

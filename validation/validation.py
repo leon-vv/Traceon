@@ -47,6 +47,9 @@ class Validation:
 
     def supports_fmm(self):
         return True
+
+    def supports_3d(self):
+        return True
     
     def plot_geometry(self, MSF, symmetry, higher_order=False, use_fmm=False, plot_charges=False, plot_charge_density=False, plot_normals=False):
         geom = self.create_mesh(MSF, symmetry, higher_order)
