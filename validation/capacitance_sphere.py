@@ -71,7 +71,7 @@ class CapacitanceSphere(Validation):
         return exc
 
     def correct_value_of_interest(self):
-        return 4/( (1/r1 - 1/r3) + (1/r3 - 1/r4)/K + (1/r4 - 1/r2))
+        return 4*np.pi/( (1/r1 - 1/r3) + (1/r3 - 1/r4)/K + (1/r4 - 1/r2))
     
     def compute_value_of_interest(self, geometry, field):
         exc = self.get_excitation(geometry)
