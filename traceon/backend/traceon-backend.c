@@ -780,16 +780,17 @@ field_radial_traceable_bounds(double point[3], double result[3], void *args_p) {
 	struct field_evaluation_args *args = (struct field_evaluation_args*)args_p;
 
 	double (*bounds)[2] = (double (*)[2]) args->bounds;
+// Compute E + v x B, which is used in the Lorentz force law to calculate the force
+// on the particle. The magnetic field produced by magnetiziation and the magnetic field
+// produced by currents are passed in separately, but can simpy be summed to find the total
+// magnetic field.
+EXPORT void
+combine_elec_magnetic_field(double velocity[3], double elec_field[3],
+		double mag_field[3], double current_field[3], double result[3]) {
 		
-	if( (bounds[0][0] < point[0]) && (point[0] < bounds[0][1])
-		&& (bounds[1][0] < point[1]) && (point[1] < bounds[1][1]) ) {
-		field_radial(point, result, args->charges, (jacobian_buffer_2d) args->jacobian_buffer, (position_buffer_2d) args->position_buffer, args->N_vertices);
-	}
-	else {
-		result[0] = 0.0;
-		result[1] = 0.0;
-		result[2] = 0.0;
-	}
+	double total_mag[3] = {0.}; // Total magnetic field, produced by charges and currents
+		
+	result[1] = elec_field[1] + cross[1];
 }
 
 void
