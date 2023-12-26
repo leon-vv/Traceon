@@ -332,13 +332,15 @@ class MagnetostaticSolver(Solver):
 
 class EffectivePointCharges:
     def __init__(self, charges, jacobians, positions):
-        N = len(charges)
-        N_QUAD = jacobians.shape[1]
-        assert charges.shape == (N,) and jacobians.shape == (N, N_QUAD)
-        assert positions.shape == (N, N_QUAD, 3) or positions.shape == (N, N_QUAD, 2)
         self.charges = np.array(charges, dtype=np.float64)
         self.jacobians = np.array(jacobians, dtype=np.float64)
         self.positions = np.array(positions, dtype=np.float64)
+         
+        N = len(self.charges)
+        N_QUAD = self.jacobians.shape[1]
+        assert self.charges.shape == (N,) and self.jacobians.shape == (N, N_QUAD)
+        assert self.positions.shape == (N, N_QUAD, 3) or self.positions.shape == (N, N_QUAD, 2)
+
 
     def empty_2d():
         N_QUAD_2D = backend.N_QUAD_2D

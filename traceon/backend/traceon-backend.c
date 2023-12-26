@@ -298,7 +298,7 @@ INLINE double dot6(double *v1, double *v2) {
 }
 
 INLINE void
-cross_product_3d(double *v1, double *v2, double *out) {
+cross_product_3d(double v1[3], double v2[3], double out[3]) {
 	double v1x = v1[0], v1y = v1[1], v1z = v1[2];
 	double v2x = v2[0], v2y = v2[1], v2z = v2[2];
 
@@ -307,7 +307,7 @@ cross_product_3d(double *v1, double *v2, double *out) {
 	out[2] = v1x*v2y-v1y*v2x;
 }
 
-INLINE double norm_cross_product_3d(double *v1, double *v2) {
+INLINE double norm_cross_product_3d(double v1[3], double v2[3]) {
 	double out[3];
 	cross_product_3d(v1, v2, out);
 	return norm_3d(out[0], out[1], out[2]);
@@ -608,8 +608,14 @@ current_field_radial_ring(double x0, double y0, double x, double y, double resul
 	
 	double k = 4*r*a/A;
 		
-	result[0] = M_PI * z/(2*r*sqrt(A)) * ( (pow(z,2) + pow(r,2) + pow(a,2))/B * ellipe(k) - ellipk(k) );
-	result[1] = M_PI * 1/(2*sqrt(A)) * ( (pow(a,2) - pow(z,2) - pow(r,2))/B * ellipe(k) + ellipk(k) );
+	// TODO: figure out how to prevent singularity
+	if(x0 < MIN_DISTANCE_AXIS) {
+		result[0] = 0.;
+	}
+	else {
+		result[0] = 1./M_PI * z/(2*r*sqrt(A)) * ( (pow(z,2) + pow(r,2) + pow(a,2))/B * ellipe(k) - ellipk(k) );
+	}
+	result[1] = 1./M_PI * 1/(2*sqrt(A)) * ( (pow(a,2) - pow(z,2) - pow(r,2))/B * ellipe(k) + ellipk(k) );
 }
 
 EXPORT void
@@ -766,20 +772,20 @@ field_radial(double point[3], double result[3], double* charges, jacobian_buffer
 	result[2] = 0.0;
 }
 
-struct field_evaluation_args {
+struct effective_point_charges {
 	double *charges;
-	double *jacobian_buffer;
-	double *position_buffer;
-	size_t N_vertices;
+	double *jacobians;
+	double *positions;
+	size_t N;
+};
+
+struct field_evaluation_args {
+	struct effective_point_charges elec_charges;
+	struct effective_point_charges mag_charges;
+	struct effective_point_charges current_charges;
 	double *bounds;
 };
 
-void
-field_radial_traceable_bounds(double point[3], double result[3], void *args_p) {
-
-	struct field_evaluation_args *args = (struct field_evaluation_args*)args_p;
-
-	double (*bounds)[2] = (double (*)[2]) args->bounds;
 // Compute E + v x B, which is used in the Lorentz force law to calculate the force
 // on the particle. The magnetic field produced by magnetiziation and the magnetic field
 // produced by currents are passed in separately, but can simpy be summed to find the total
@@ -790,29 +796,94 @@ combine_elec_magnetic_field(double velocity[3], double elec_field[3],
 		
 	double total_mag[3] = {0.}; // Total magnetic field, produced by charges and currents
 		
+	total_mag[0] = mag_field[0] + current_field[0]; 
+	total_mag[1] = mag_field[1] + current_field[1]; 
+	total_mag[2] = mag_field[2] + current_field[2]; 
+	
+	double cross[3] = {0.};
+		
+	// Calculate v x B
+	cross_product_3d(velocity, total_mag, cross);
+	
+	result[0] = elec_field[0] + cross[0];
 	result[1] = elec_field[1] + cross[1];
+	result[2] = elec_field[2] + cross[2];
 }
 
+
 void
-field_radial_traceable(double point[3], double result[3], void *args_p) {
+field_radial_traceable(double point[6], double result[3], void *args_p) {
 	
-	struct field_evaluation_args *args = (struct field_evaluation_args*)args_p;
+	struct field_evaluation_args *args = (struct field_evaluation_args*) args_p;
+
+	double (*bounds)[2] = (double (*)[2]) args->bounds;
 	
-	field_radial(point, result, args->charges, (jacobian_buffer_2d) args->jacobian_buffer, (position_buffer_2d) args->position_buffer, args->N_vertices);
+	if(args->bounds == NULL || ((bounds[0][0] < point[0]) && (point[0] < bounds[0][1])
+						 && (bounds[1][0] < point[1]) && (point[1] < bounds[1][1]))) {
+		
+		double elec_field[3] = {0.};
+		double mag_field[3] = {0.};
+		double curr_field[3] = {0.};
+		
+		field_radial(point, elec_field,
+			args->elec_charges.charges,
+			(jacobian_buffer_2d) args->elec_charges.jacobians,
+			(position_buffer_2d) args->elec_charges.positions, args->elec_charges.N);
+			
+		field_radial(point, mag_field,
+			args->mag_charges.charges,
+			(jacobian_buffer_2d) args->mag_charges.jacobians,
+			(position_buffer_2d) args->mag_charges.positions, args->mag_charges.N);
+			
+		current_field(point, curr_field,
+			args->current_charges.charges,
+			(jacobian_buffer_3d) args->current_charges.jacobians,
+			(position_buffer_3d) args->current_charges.positions, args->current_charges.N);
+		
+		combine_elec_magnetic_field(&point[3], elec_field, mag_field, curr_field, result);
+	}
+	else {
+		result[0] = 0.;
+		result[1] = 0.;
+		result[2] = 0.;
+	}
 }
 
 EXPORT size_t
-trace_particle_radial(double *times_array, double *pos_array, double tracer_bounds[3][2], double atol,
-	double *charges, jacobian_buffer_2d jac_buffer, position_buffer_2d pos_buffer, size_t N_vertices, double *field_bounds) {
-
-	struct field_evaluation_args args = {charges, (double*)jac_buffer, (double*)pos_buffer, N_vertices, field_bounds };
+trace_particle_radial(double *times_array, double *pos_array, double tracer_bounds[3][2], double atol, double *field_bounds,
+		// Electric field
+		double *elec_charges, jacobian_buffer_2d elec_jacobians, position_buffer_2d elec_positions, size_t N_elec,
+		// Magnetization field
+		double *mag_charges, jacobian_buffer_2d mag_jacobians, position_buffer_2d mag_positions, size_t N_mag,
+		// Current field
+		double *current_charges, jacobian_buffer_3d current_jacobians, position_buffer_3d current_positions, size_t N_current) {
+	
+	struct effective_point_charges eff_elec = {
+		.charges = elec_charges,
+		.jacobians = (double*) elec_jacobians,
+		.positions = (double*) elec_positions,
+		.N = N_elec};
 		
-	if (field_bounds == NULL) {
-		return trace_particle(times_array, pos_array, field_radial_traceable, tracer_bounds, atol, (void*) &args);
-	}
-	else {
-		return trace_particle(times_array, pos_array, field_radial_traceable_bounds, tracer_bounds, atol, (void*) &args);
-	}
+	struct effective_point_charges eff_mag = {
+		.charges = mag_charges,
+		.jacobians = (double*) mag_jacobians,
+		.positions = (double*) mag_positions,
+		.N = N_mag};
+		
+	struct effective_point_charges eff_current = {
+		.charges = current_charges,
+		.jacobians = (double*) current_jacobians,
+		.positions = (double*) current_positions,
+		.N = N_current};
+			
+	struct field_evaluation_args args = {
+		.elec_charges = eff_elec,
+		.mag_charges = eff_mag,
+		.current_charges = eff_current,
+		.bounds = field_bounds
+	};
+
+	return trace_particle(times_array, pos_array, field_radial_traceable, tracer_bounds, atol, (void*) &args);
 }
 
 EXPORT void
@@ -1100,7 +1171,11 @@ field_3d_traceable_bounds(double point[3], double result[3], void *args_p) {
 		&& (bounds[1][0] < point[1]) && (point[1] < bounds[1][1])
 		&& (bounds[2][0] < point[2]) && (point[2] < bounds[2][1]) ) {
 
-		field_3d(point, result, args->charges, (jacobian_buffer_3d) args->jacobian_buffer, (position_buffer_3d) args->position_buffer, args->N_vertices);
+		field_3d(point, result,
+			args->elec_charges.charges,
+			(jacobian_buffer_3d) args->elec_charges.jacobians,
+			(position_buffer_3d) args->elec_charges.positions,
+			args->elec_charges.N);
 	}
 	else {
 		result[0] = 0.0;
@@ -1113,15 +1188,26 @@ void
 field_3d_traceable(double point[3], double result[3], void *args_p) {
 
 	struct field_evaluation_args *args = (struct field_evaluation_args*)args_p;
-	field_3d(point, result, args->charges, (jacobian_buffer_3d) args->jacobian_buffer, (position_buffer_3d) args->position_buffer, args->N_vertices);
+	field_3d(point, result,
+		args->elec_charges.charges,
+		(jacobian_buffer_3d) args->elec_charges.jacobians,
+		(position_buffer_3d) args->elec_charges.positions,
+		args->elec_charges.N);
 }
 
 EXPORT size_t
 trace_particle_3d(double *times_array, double *pos_array, double tracer_bounds[3][2], double atol,
-	double* charges, jacobian_buffer_3d jacobian_buffer, position_buffer_3d position_buffer, size_t N_vertices, double *field_bounds) {
+	double* charges, jacobian_buffer_3d jacobians, position_buffer_3d positions, size_t N_vertices, double *field_bounds) {
+	
+	struct effective_point_charges elec = {
+		.charges = charges,
+		.jacobians = (double*) jacobians,
+		.positions = (double*) positions,
+		.N = N_vertices
+	};
 
-	struct field_evaluation_args args = {charges, (double*) jacobian_buffer, (double*) position_buffer, N_vertices, field_bounds};
-				
+	struct field_evaluation_args args = {.elec_charges = elec, .bounds = field_bounds};
+		
 	if(field_bounds == NULL) {
 		return trace_particle(times_array, pos_array, field_3d_traceable, tracer_bounds, atol, (void*) &args);
 	}

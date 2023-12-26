@@ -103,6 +103,7 @@ backend_functions = {
     'flux_density_to_charge_factor': (dbl, dbl),
     'charge_radial': (dbl, arr(ndim=2), dbl),
     'field_radial': (None, v3, v3, charges_2d, jac_buffer_2d, pos_buffer_2d, sz),
+    'combine_elec_magnetic_field': (None, v3, v3, v3, v3, v3),
     'trace_particle_radial': (sz, times_block, tracing_block, bounds, dbl, charges_2d, jac_buffer_2d, pos_buffer_2d, sz, dbl_p),
     'field_radial_derivs': (None, v3, v3, z_values, arr(ndim=3), sz),
     'trace_particle_radial_derivs': (sz, times_block, tracing_block, bounds, dbl, z_values, arr(ndim=3), sz),
@@ -366,6 +367,11 @@ def field_radial(point, charges, jac_buffer, pos_buffer):
     field = np.zeros( (3,) )
     backend_lib.field_radial(point, field, charges, jac_buffer, pos_buffer, len(charges))
     return field[:2]
+
+def combine_elec_magnetic_field(vel, elec, mag, current):
+    result = np.zeros( (3,) )
+    backend_lib.combine_elec_magnetic_field(vel, elec, mag, current, result)
+    return result
 
 def field_radial_derivs(point, z, coeffs):
     point = _vec_2d_to_3d(point)
