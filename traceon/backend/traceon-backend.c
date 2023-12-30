@@ -431,9 +431,8 @@ INLINE double potential_3d_point(double x0, double y0, double z0, double x, doub
 
 //////////////////////////////// PARTICLE TRACING
 
-// Physics constants
-// Units expressed in mm and ns
-const double EM = -0.1758820022723908; // e/m units ns and mm
+// python -c "from scipy.constants import m_e, e; print(-e/m_e);"
+const double EM = -175882001077.2163; // Electron charge over electron mass
 
 const double A[]  = {0.0, 2./9., 1./3., 3./4., 1., 5./6.};	// https://en.wikipedia.org/wiki/Runge%E2%80%93Kutta%E2%80%93Fehlberg_method
 const double B6[] = {65./432., -5./16., 13./16., 4./27., 5./144.};
@@ -482,7 +481,7 @@ trace_particle(double *times_array, double *pos_array, field_fun field, double b
 	
 	double y[6];
 	for(int i = 0; i < 6; i++) y[i] = positions[0][i];
-
+	
     double V = norm_3d(y[3], y[4], y[5]);
     double hmax = TRACING_STEP_MAX/V;
     double h = hmax;
