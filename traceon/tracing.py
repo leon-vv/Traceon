@@ -145,14 +145,12 @@ class Tracer:
         dimensional geometries. The last two or three (depending on symmetry) elements in `positions[i]` contain the corresponding
         velocity vector.
         """
-
-                
+         
+        f = self.field
+         
         if isinstance(self.field, S.FieldRadialBEM):
-            jacobians = self.field.electrostatic_point_charges.jacobians
-            positions = self.field.electrostatic_point_charges.positions
-            charges = self.field.electrostatic_point_charges.charges
-            bounds = self.field.field_bounds
-            return backend.trace_particle_radial(position, velocity, self.bounds, self.atol, charges, jacobians, positions, bounds)
+            return backend.trace_particle_radial(position, velocity, self.bounds, self.atol, 
+                f.electrostatic_point_charges, f.magnetostatic_point_charges, f.current_point_charges, field_bounds=f.field_bounds)
         elif isinstance(self.field, S.FieldRadialAxial):
             return backend.trace_particle_radial_derivs(position, velocity, self.bounds, self.atol, self.field.z, self.field.coeffs)
         elif isinstance(self.field, S.Field3D_BEM):

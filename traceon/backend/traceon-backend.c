@@ -607,7 +607,14 @@ current_field_radial_ring(double x0, double y0, double x, double y, double resul
 	double B = pow(z, 2) + pow(r-a, 2);
 	
 	double k = 4*r*a/A;
-		
+	
+	if(x < MIN_DISTANCE_AXIS) {
+		// Unphysical situation, infinitely small ring
+		result[0] = 0.;
+		result[1] = 0.;
+		return;
+	}
+			
 	// TODO: figure out how to prevent singularity
 	if(x0 < MIN_DISTANCE_AXIS) {
 		result[0] = 0.;
@@ -619,16 +626,24 @@ current_field_radial_ring(double x0, double y0, double x, double y, double resul
 }
 
 EXPORT void
-current_field(double point[2], double result[2], double *currents,
+current_field(double point[3], double result[3], double *currents,
 	jacobian_buffer_3d jacobian_buffer, position_buffer_3d position_buffer, size_t N_vertices) {
 
 	double Br = 0., Bz = 0.;
+	double r = norm_2d(point[0], point[1]);
+
+	if(r < MIN_DISTANCE_AXIS) {
+		result[0] = 0.;
+		result[1] = 0.;
+		result[2] = 0.;
+		return;
+	}
 
 	for(int i = 0; i < N_vertices; i++) {
 		for(int k = 0; k < N_TRIANGLE_QUAD; k++) {
 			double *pos = &position_buffer[i][k][0];
 			double field[2];
-			current_field_radial_ring(point[0], point[1], pos[0], pos[1], field);
+			current_field_radial_ring(r, point[2], pos[0], pos[1], field);
 			assert(pos[2] == 0.);
 				
 			Br += currents[i] * jacobian_buffer[i][k] * field[0];
@@ -636,15 +651,16 @@ current_field(double point[2], double result[2], double *currents,
 		}
 	}
 		
-	result[0] = Br;
-	result[1] = Bz;
+	result[0] = point[0]/r * Br;
+	result[1] = point[1]/r * Br;
+	result[2] = Bz;
 }
 
 
 //////////////////////////////// RADIAL SYMMETRY POTENTIAL EVALUATION
 
 EXPORT double
-potential_radial(double point[3], double* charges, jacobian_buffer_2d jacobian_buffer, position_buffer_2d position_buffer, size_t N_vertices) {
+potential_radial(double point[2], double* charges, jacobian_buffer_2d jacobian_buffer, position_buffer_2d position_buffer, size_t N_vertices) {
 
 	double sum_ = 0.0;  
 	
@@ -772,17 +788,24 @@ field_radial(double point[3], double result[3], double* charges, jacobian_buffer
 	result[2] = 0.0;
 }
 
-struct effective_point_charges {
+struct effective_point_charges_2d {
 	double *charges;
-	double *jacobians;
-	double *positions;
+	jacobian_buffer_2d jacobians;
+	position_buffer_2d positions;
+	size_t N;
+};
+
+struct effective_point_charges_3d {
+	double *charges;
+	jacobian_buffer_3d jacobians;
+	position_buffer_3d positions;
 	size_t N;
 };
 
 struct field_evaluation_args {
-	struct effective_point_charges elec_charges;
-	struct effective_point_charges mag_charges;
-	struct effective_point_charges current_charges;
+	void *elec_charges;
+	void *mag_charges;
+	void *current_charges;
 	double *bounds;
 };
 
@@ -816,6 +839,10 @@ field_radial_traceable(double point[6], double result[3], void *args_p) {
 	
 	struct field_evaluation_args *args = (struct field_evaluation_args*) args_p;
 
+	struct effective_point_charges_2d *elec_charges = (struct effective_point_charges_2d*) args->elec_charges;
+	struct effective_point_charges_2d *mag_charges = (struct effective_point_charges_2d*) args->mag_charges;
+	struct effective_point_charges_3d *current_charges = (struct effective_point_charges_3d*) args->current_charges;
+	
 	double (*bounds)[2] = (double (*)[2]) args->bounds;
 	
 	if(args->bounds == NULL || ((bounds[0][0] < point[0]) && (point[0] < bounds[0][1])
@@ -826,21 +853,22 @@ field_radial_traceable(double point[6], double result[3], void *args_p) {
 		double curr_field[3] = {0.};
 		
 		field_radial(point, elec_field,
-			args->elec_charges.charges,
-			(jacobian_buffer_2d) args->elec_charges.jacobians,
-			(position_buffer_2d) args->elec_charges.positions, args->elec_charges.N);
-			
+			elec_charges->charges, elec_charges->jacobians, elec_charges->positions, elec_charges->N);
+		
 		field_radial(point, mag_field,
-			args->mag_charges.charges,
-			(jacobian_buffer_2d) args->mag_charges.jacobians,
-			(position_buffer_2d) args->mag_charges.positions, args->mag_charges.N);
+			mag_charges->charges, mag_charges->jacobians, mag_charges->positions, mag_charges->N);
 			
 		current_field(point, curr_field,
-			args->current_charges.charges,
-			(jacobian_buffer_3d) args->current_charges.jacobians,
-			(position_buffer_3d) args->current_charges.positions, args->current_charges.N);
-		
-		combine_elec_magnetic_field(&point[3], elec_field, mag_field, curr_field, result);
+			current_charges->charges, current_charges->jacobians, current_charges->positions, current_charges->N);
+			
+		//printf("=======");
+		//printf("elec_field: %f, %f, %f\n", elec_field[0], elec_field[1], elec_field[2]);
+		//printf("mag_field: %f, %f, %f\n", mag_field[0], mag_field[1], mag_field[2]);
+		//printf("curr_field: %f, %f, %f\n", curr_field[0], curr_field[1], curr_field[2]);
+		combine_elec_magnetic_field(point + 3, elec_field, mag_field, curr_field, result);
+		//printf("velocity: %f, %f, %f\n", point[3], point[4], point[5]);
+		//printf("result: %f, %f, %f\n", result[0], result[1], result[2]);
+		//exit(0);
 	}
 	else {
 		result[0] = 0.;
@@ -851,38 +879,17 @@ field_radial_traceable(double point[6], double result[3], void *args_p) {
 
 EXPORT size_t
 trace_particle_radial(double *times_array, double *pos_array, double tracer_bounds[3][2], double atol, double *field_bounds,
-		// Electric field
-		double *elec_charges, jacobian_buffer_2d elec_jacobians, position_buffer_2d elec_positions, size_t N_elec,
-		// Magnetization field
-		double *mag_charges, jacobian_buffer_2d mag_jacobians, position_buffer_2d mag_positions, size_t N_mag,
-		// Current field
-		double *current_charges, jacobian_buffer_3d current_jacobians, position_buffer_3d current_positions, size_t N_current) {
+		struct effective_point_charges_2d eff_elec,
+		struct effective_point_charges_2d eff_mag,
+		struct effective_point_charges_3d eff_current) {
 	
-	struct effective_point_charges eff_elec = {
-		.charges = elec_charges,
-		.jacobians = (double*) elec_jacobians,
-		.positions = (double*) elec_positions,
-		.N = N_elec};
-		
-	struct effective_point_charges eff_mag = {
-		.charges = mag_charges,
-		.jacobians = (double*) mag_jacobians,
-		.positions = (double*) mag_positions,
-		.N = N_mag};
-		
-	struct effective_point_charges eff_current = {
-		.charges = current_charges,
-		.jacobians = (double*) current_jacobians,
-		.positions = (double*) current_positions,
-		.N = N_current};
-			
 	struct field_evaluation_args args = {
-		.elec_charges = eff_elec,
-		.mag_charges = eff_mag,
-		.current_charges = eff_current,
+		.elec_charges = (void*) &eff_elec,
+		.mag_charges = (void*) &eff_mag,
+		.current_charges = (void*) &eff_current,
 		.bounds = field_bounds
 	};
-
+		
 	return trace_particle(times_array, pos_array, field_radial_traceable, tracer_bounds, atol, (void*) &args);
 }
 
@@ -1164,18 +1171,15 @@ void
 field_3d_traceable_bounds(double point[3], double result[3], void *args_p) {
 
 	struct field_evaluation_args *args = (struct field_evaluation_args*)args_p;
-
+	struct effective_point_charges_3d *elec_charges = (struct effective_point_charges_3d*) args->elec_charges;
+	
 	double (*bounds)[2] = (double (*)[2]) args->bounds;
 	
 	if(	   (bounds[0][0] < point[0]) && (point[0] < bounds[0][1])
 		&& (bounds[1][0] < point[1]) && (point[1] < bounds[1][1])
 		&& (bounds[2][0] < point[2]) && (point[2] < bounds[2][1]) ) {
 
-		field_3d(point, result,
-			args->elec_charges.charges,
-			(jacobian_buffer_3d) args->elec_charges.jacobians,
-			(position_buffer_3d) args->elec_charges.positions,
-			args->elec_charges.N);
+		field_3d(point, result, elec_charges->charges, elec_charges->jacobians, elec_charges->positions, elec_charges->N);
 	}
 	else {
 		result[0] = 0.0;
@@ -1188,25 +1192,23 @@ void
 field_3d_traceable(double point[3], double result[3], void *args_p) {
 
 	struct field_evaluation_args *args = (struct field_evaluation_args*)args_p;
-	field_3d(point, result,
-		args->elec_charges.charges,
-		(jacobian_buffer_3d) args->elec_charges.jacobians,
-		(position_buffer_3d) args->elec_charges.positions,
-		args->elec_charges.N);
+	struct effective_point_charges_3d *elec_charges = (struct effective_point_charges_3d*) args->elec_charges;
+	
+	field_3d(point, result, elec_charges->charges, elec_charges->jacobians, elec_charges->positions, elec_charges->N);
 }
 
 EXPORT size_t
 trace_particle_3d(double *times_array, double *pos_array, double tracer_bounds[3][2], double atol,
 	double* charges, jacobian_buffer_3d jacobians, position_buffer_3d positions, size_t N_vertices, double *field_bounds) {
 	
-	struct effective_point_charges elec = {
+	struct effective_point_charges_3d elec = {
 		.charges = charges,
-		.jacobians = (double*) jacobians,
-		.positions = (double*) positions,
+		.jacobians = jacobians,
+		.positions = positions,
 		.N = N_vertices
 	};
 
-	struct field_evaluation_args args = {.elec_charges = elec, .bounds = field_bounds};
+	struct field_evaluation_args args = {.elec_charges = (void*) &elec, .bounds = field_bounds};
 		
 	if(field_bounds == NULL) {
 		return trace_particle(times_array, pos_array, field_3d_traceable, tracer_bounds, atol, (void*) &args);

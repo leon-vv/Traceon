@@ -6,10 +6,10 @@ import ctypes as C
 import os.path as path
 import platform
 
-from numpy.ctypeslib import ndpointer, as_array
+from numpy.ctypeslib import ndpointer
 import numpy as np
 
-DEBUG = False
+DEBUG = True
 
 ## Attempt 1: load local
 if platform.system() in ['Linux', 'Darwin']:
@@ -77,6 +77,41 @@ pos_buffer_3d = arr(ndim=3)
 jac_buffer_2d = arr(ndim=2)
 pos_buffer_2d = arr(ndim=3)
 
+
+class EffectivePointCharges2D(C.Structure):
+    _fields_ = [
+        ("charges", dbl_p),
+        ("jacobians", dbl_p),
+        ("positions", dbl_p),
+        ("N", C.c_size_t)
+    ]
+
+    def __init__(self, eff, *args, **kwargs):
+        assert eff.is_2d()
+        super(EffectivePointCharges2D, self).__init__(*args, **kwargs)
+         
+        self.charges = ensure_contiguous_aligned(eff.charges).ctypes.data_as(dbl_p)
+        self.jacobians = ensure_contiguous_aligned(eff.jacobians).ctypes.data_as(dbl_p)
+        self.positions = ensure_contiguous_aligned(eff.positions).ctypes.data_as(dbl_p)
+        self.N = len(eff)
+        
+class EffectivePointCharges3D(C.Structure):
+    _fields_ = [
+        ("charges", dbl_p),
+        ("jacobians", dbl_p),
+        ("positions", dbl_p),
+        ("N", C.c_size_t)
+    ]
+    
+    def __init__(self, eff, *args, **kwargs):
+        assert eff.is_3d()
+        super(EffectivePointCharges3D, self).__init__(*args, **kwargs)
+         
+        self.charges = ensure_contiguous_aligned(eff.charges).ctypes.data_as(dbl_p)
+        self.jacobians = ensure_contiguous_aligned(eff.jacobians).ctypes.data_as(dbl_p)
+        self.positions = ensure_contiguous_aligned(eff.positions).ctypes.data_as(dbl_p)
+        self.N = len(eff)
+
 bounds = arr(shape=(3, 2))
 
 times_block = arr(shape=(TRACING_BLOCK_SIZE,))
@@ -98,13 +133,13 @@ backend_functions = {
     'dr1_potential_radial_ring': (dbl, dbl, dbl, dbl, dbl, vp), 
     'dz1_potential_radial_ring': (dbl, dbl, dbl, dbl, dbl, vp), 
     'axial_derivatives_radial_ring': (None, arr(ndim=2), charges_2d, jac_buffer_2d, pos_buffer_2d, sz, z_values, sz),
-    'potential_radial': (dbl, v3, charges_2d, jac_buffer_2d, pos_buffer_2d, sz),
+    'potential_radial': (dbl, v2, charges_2d, jac_buffer_2d, pos_buffer_2d, sz),
     'potential_radial_derivs': (dbl, v2, z_values, arr(ndim=3), sz),
     'flux_density_to_charge_factor': (dbl, dbl),
     'charge_radial': (dbl, arr(ndim=2), dbl),
     'field_radial': (None, v3, v3, charges_2d, jac_buffer_2d, pos_buffer_2d, sz),
     'combine_elec_magnetic_field': (None, v3, v3, v3, v3, v3),
-    'trace_particle_radial': (sz, times_block, tracing_block, bounds, dbl, charges_2d, jac_buffer_2d, pos_buffer_2d, sz, dbl_p),
+    'trace_particle_radial': (sz, times_block, tracing_block, bounds, dbl, dbl_p, EffectivePointCharges2D, EffectivePointCharges2D, EffectivePointCharges3D),
     'field_radial_derivs': (None, v3, v3, z_values, arr(ndim=3), sz),
     'trace_particle_radial_derivs': (sz, times_block, tracing_block, bounds, dbl, z_values, arr(ndim=3), sz),
     'dx1_potential_3d_point': (dbl, dbl, dbl, dbl, dbl, dbl, dbl, vp),
@@ -119,7 +154,7 @@ backend_functions = {
     'field_3d_derivs': (None, v3, v3, z_values, arr(ndim=5), sz),
     'trace_particle_3d_derivs': (sz, times_block, tracing_block, bounds, dbl, z_values, arr(ndim=5), sz),
     'current_field_radial_ring': (None, dbl, dbl, dbl, dbl, v2),
-    'current_field': (None, v2, v2, currents_2d, jac_buffer_3d, pos_buffer_3d, sz),
+    'current_field': (None, v3, v3, currents_2d, jac_buffer_3d, pos_buffer_3d, sz),
     'fill_jacobian_buffer_radial': (None, jac_buffer_2d, pos_buffer_2d, vertices, sz),
     'fill_matrix_radial': (None, arr(ndim=2), lines, arr(dtype=C.c_uint8, ndim=1), arr(ndim=1), jac_buffer_2d, pos_buffer_2d, sz, sz, C.c_int, C.c_int),
     'fill_jacobian_buffer_3d_higher_order': (None, jac_buffer_3d, pos_buffer_3d, vertices, sz),
@@ -130,23 +165,17 @@ backend_functions = {
 }
 
 
+def ensure_contiguous_aligned(arr):
+    assert isinstance(arr, np.ndarray)
+    new_arr = np.require(arr, requirements=('C_CONTIGUOUS', 'ALIGNED'));
+    assert not DEBUG or (new_arr is arr), "Made copy while ensuring contiguous array"
+    return new_arr
+
 for (fun, (res, *args)) in backend_functions.items():
     libfun = getattr(backend_lib, fun)
 
     def backend_check_numpy_requirements_wrapper(*args, _cfun_reference=libfun, _cfun_name=fun):
-        new_args = []
-        
-        for a in args:
-            if isinstance(a, np.ndarray):
-                new_arr = np.require(a, requirements=('C_CONTIGUOUS', 'ALIGNED'));
-                
-                if DEBUG and not (new_arr is a):
-                    print('WARNING: copied Numpy array while making call to C backend function: ' + _cfun_name)
-                new_args.append(new_arr)
-            else:
-                new_args.append(a)
-         
-        assert len(args) == len(new_args)
+        new_args = [ (ensure_contiguous_aligned(a) if isinstance(a, np.ndarray) else a) for a in args ]
         return _cfun_reference(*new_args)
       
     setattr(backend_lib, fun, backend_check_numpy_requirements_wrapper)
@@ -192,7 +221,7 @@ def _vec_2d_to_3d(vec):
     assert vec.shape == (2,) or vec.shape == (3,)
      
     if vec.shape == (2,):
-        return np.array([vec[0], vec[1], 0.0])
+        return np.array([vec[0], 0., vec[1]])
     
     return vec
 
@@ -277,23 +306,23 @@ def trace_particle(position, velocity, field, bounds, atol):
     return trace_particle_wrapper(position, velocity,
         lambda T, P: backend_lib.trace_particle(T, P, wrap_field_fun(field), bounds, atol, None))
 
-def trace_particle_radial(position, velocity, bounds, atol, charges, jac_buffer, pos_buffer, field_bounds=None):
-    assert jac_buffer.shape == (len(charges), N_QUAD_2D)
-    assert pos_buffer.shape == (len(charges), N_QUAD_2D, 2)
-    assert charges.shape == (len(charges),)
-    assert field_bounds is None or field_bounds.shape == (2,2)
+def trace_particle_radial(position, velocity, bounds, atol, eff_elec, eff_mag, eff_current, field_bounds=None):
+    
+    eff_elec = EffectivePointCharges2D(eff_elec)
+    eff_mag = EffectivePointCharges2D(eff_mag)
+    eff_current = EffectivePointCharges3D(eff_current)
     
     bounds = np.array(bounds)
      
     if bounds.shape[0] == 2:
-        bounds = np.array([bounds[0], bounds[1], [-1.0, 0.0]])
-
+        bounds = np.array([bounds[0], [-1.0, 1.0], bounds[1]])
+    
     field_bounds = field_bounds.ctypes.data_as(dbl_p) if field_bounds is not None else None
      
     times, positions = trace_particle_wrapper(position, velocity,
-        lambda T, P: backend_lib.trace_particle_radial(T, P, bounds, atol, charges, jac_buffer, pos_buffer, len(charges), field_bounds))
+        lambda T, P: backend_lib.trace_particle_radial(T, P, bounds, atol, field_bounds, eff_elec, eff_mag, eff_current))
     
-    return times, positions[:, [0,1,3,4]]
+    return times, positions
 
 def trace_particle_radial_derivs(position, velocity, bounds, atol, z, coeffs):
     assert coeffs.shape == (len(z)-1, DERIV_2D_MAX, 6)
@@ -305,7 +334,7 @@ def trace_particle_radial_derivs(position, velocity, bounds, atol, z, coeffs):
     times, positions = trace_particle_wrapper(position, velocity,
         lambda T, P: backend_lib.trace_particle_radial_derivs(T, P, bounds, atol, z, coeffs, len(z)))
     
-    return times, positions[:, [0,1,3,4]]
+    return times, positions
 
 def trace_particle_3d(position, velocity, bounds, atol, charges, jac_buffer, pos_buffer, field_bounds=None):
     N = len(charges)
@@ -346,7 +375,7 @@ def axial_derivatives_radial_ring(z, charges, jac_buffer, pos_buffer):
     return derivs
 
 def potential_radial(point, charges, jac_buffer, pos_buffer):
-    point = _vec_2d_to_3d(point)
+    assert point.shape == (2,)
     assert jac_buffer.shape == (len(charges), N_QUAD_2D)
     assert pos_buffer.shape == (len(charges), N_QUAD_2D, 2)
     return backend_lib.potential_radial(point, charges, jac_buffer, pos_buffer, len(charges))
@@ -439,7 +468,7 @@ def current_field_radial_ring(x0, y0, x, y):
     return res
 
 def current_field(p0, currents, jac_buffer, pos_buffer):
-    assert p0.shape == (2,)
+    assert p0.shape == (3,)
     N = len(currents)
     assert currents.shape == (N,)
     assert jac_buffer.shape == (N, N_TRIANGLE_QUAD)
@@ -447,7 +476,7 @@ def current_field(p0, currents, jac_buffer, pos_buffer):
      
     assert np.all(pos_buffer[:, :, 2] == 0.)
     
-    result = np.zeros( (2,) )
+    result = np.zeros( (3,) )
     backend_lib.current_field(p0, result, currents, jac_buffer, pos_buffer, N)
     return result
 
