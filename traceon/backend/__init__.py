@@ -348,11 +348,11 @@ def potential_radial(point, charges, jac_buffer, pos_buffer):
     point = _vec_2d_to_3d(point)
     assert jac_buffer.shape == (len(charges), N_QUAD_2D)
     assert pos_buffer.shape == (len(charges), N_QUAD_2D, 2)
-    return backend_lib.potential_radial(point, charges, jac_buffer, pos_buffer, len(charges))
+    return backend_lib.potential_radial(point.astype(np.float64), charges, jac_buffer, pos_buffer, len(charges))
 
 def potential_radial_derivs(point, z, coeffs):
     assert coeffs.shape == (len(z)-1, DERIV_2D_MAX, 6)
-    return backend_lib.potential_radial_derivs(point, z, coeffs, len(z))
+    return backend_lib.potential_radial_derivs(point.astype(np.float64), z, coeffs, len(z))
 
 def charge_radial(vertices, charge):
     assert vertices.shape == (len(vertices), 3)
@@ -364,14 +364,14 @@ def field_radial(point, charges, jac_buffer, pos_buffer):
     assert pos_buffer.shape == (len(charges), N_QUAD_2D, 2)
     assert charges.shape == (len(charges),)
     field = np.zeros( (3,) )
-    backend_lib.field_radial(point, field, charges, jac_buffer, pos_buffer, len(charges))
+    backend_lib.field_radial(point.astype(np.float64), field, charges, jac_buffer, pos_buffer, len(charges))
     return field[:2]
 
 def field_radial_derivs(point, z, coeffs):
     point = _vec_2d_to_3d(point)
     assert coeffs.shape == (len(z)-1, DERIV_2D_MAX, 6)
     field = np.zeros( (3,) )
-    backend_lib.field_radial_derivs(point, field, z, coeffs, len(z))
+    backend_lib.field_radial_derivs(point.astype(np.float64), field, z, coeffs, len(z))
     return field[:2]
 
 dx1_potential_3d_point = remove_arg(backend_lib.dx1_potential_3d_point)
@@ -402,13 +402,13 @@ def potential_3d(point, charges, jac_buffer, pos_buffer):
     assert jac_buffer.shape == (N, N_TRIANGLE_QUAD)
     assert pos_buffer.shape == (N, N_TRIANGLE_QUAD, 3)
     
-    return backend_lib.potential_3d(point, charges, jac_buffer, pos_buffer, N)
+    return backend_lib.potential_3d(point.astype(np.float64), charges, jac_buffer, pos_buffer, N)
 
 def potential_3d_derivs(point, z, coeffs):
     assert coeffs.shape == (len(z)-1, 2, NU_MAX, M_MAX, 4)
     assert point.shape == (3,)
     
-    return backend_lib.potential_3d_derivs(point, z, coeffs, len(z))
+    return backend_lib.potential_3d_derivs(point.astype(np.float64), z, coeffs, len(z))
 
 def field_3d(point, charges, jacobian_buffer, position_buffer):
     N = len(charges)
@@ -417,7 +417,7 @@ def field_3d(point, charges, jacobian_buffer, position_buffer):
     assert position_buffer.shape == (N, N_TRIANGLE_QUAD, 3)
      
     field = np.zeros( (3,) )
-    backend_lib.field_3d(point, field, charges, jacobian_buffer, position_buffer, N)
+    backend_lib.field_3d(point.astype(np.float64), field, charges, jacobian_buffer, position_buffer, N)
     return field
 
 def field_3d_derivs(point, z, coeffs):
@@ -425,7 +425,7 @@ def field_3d_derivs(point, z, coeffs):
     assert coeffs.shape == (len(z)-1, 2, NU_MAX, M_MAX, 4)
 
     field = np.zeros( (3,) )
-    backend_lib.field_3d_derivs(point, field, z, coeffs, len(z))
+    backend_lib.field_3d_derivs(point.astype(np.float64), field, z, coeffs, len(z))
 
 def current_field_radial_ring(x0, y0, x, y):
     res = np.zeros( (2,) )
