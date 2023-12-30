@@ -11,6 +11,10 @@ import traceon.tracing as T
 import traceon.solver as S
 import traceon.backend as B
 
+q = -1.60217662e-19
+m = 9.10938356e-31
+EM = -0.1758820022723908 # e/m units ns and mm
+
 # This function is known to give the correct values for the magnetic
 # field for the 'unit loop' (loop with radius 1, in the xy-plane, centered around the origin).
 # Very useful to test against values produced by Traceon.
@@ -90,8 +94,6 @@ class TestBackend(unittest.TestCase):
         def field(x, y, z, vx, vy, vz):
             p, v = np.array([x,y,z]), np.array([vx, vy, vz])
             mag_field = np.array([0, 0, -1.])
-            EM = -0.1758820022723908 # e/m units ns and mm
-            
             return np.cross(v, mag_field) / EM # Return acceleration
         
         times, positions = B.trace_particle(x0, v0, field, bounds, 1e-10)
@@ -144,6 +146,7 @@ class TestBackend(unittest.TestCase):
     def test_current_field_arbitrary(self):
                  
         positions = np.array([
+            [0., 0., 0.],
             [0.5, 0., 0.],
             [0.0, 0., 0.5],
             [0.5, 0., 0.5],
@@ -173,21 +176,279 @@ class TestBackend(unittest.TestCase):
             # We loop counterclockwise, while positive current is defined 'into the page' which results
             # in a clockwise magnetic field. Add minus sign to compensate.
             return -np.dot(dl, [field[0], 0., field[1]])
-        print(quad(to_integrate, 0, 2*pi)[0], current * mu_0)
+        
         assert np.isclose(quad(to_integrate, 0, 2*pi)[0], current * mu_0)
+
+    def test_tracing_constant_acceleration(self):
+        def acceleration(*_):
+            return np.array([3., 0., 0.])
+
+        def field(*_):
+            acceleration_x = 3 # mm/ns
+            return acceleration() / EM
+
+        bounds = ((-2.0, 2.0), (-2.0, 2.0), (-2.0, np.sqrt(12)+1))
+        times, positions = B.trace_particle(np.zeros( (3,) ), np.array([0., 0., 3.]), field, bounds, 1e-10)
+
+        correct_x = 3/2*times**2
+        correct_z = 3*times
+
+        assert np.allclose(correct_x, positions[:, 0])
+        assert np.allclose(correct_z, positions[:, 2])
+
+    def test_tracing_helix_against_scipy(self):
+        def acceleration(_, y):
+            v = y[3:]
+            B = np.array([0, 0, 1])
+            return np.hstack( (v, np.cross(v, B)) )
+         
+        def traceon_acc(*y):
+            EM = -0.1758820022723908 # e/m units ns and mm
+            return acceleration(0., y)[3:] / EM
+        
+        p0 = np.zeros(3)
+        v0 = np.array([0., 1, -1.])
+        
+        bounds = ((-5.0, 5.0), (-5.0, 5.0), (-40.0, 10.0))
+        times, positions = B.trace_particle(p0, v0, traceon_acc, bounds, 1e-10)
+        
+        sol = solve_ivp(acceleration, (0, 30), np.hstack( (p0, v0) ), method='DOP853', rtol=1e-10, atol=1e-10)
+
+        interp = CubicSpline(positions[::-1, 2], np.array([positions[::-1, 0], positions[::-1, 1]]).T)
+
+        assert np.allclose(interp(sol.y[2]), np.array([sol.y[0], sol.y[1]]).T)
+    
+    def test_tracing_against_scipy_current_loop(self):
+        # Constants
+        current = 100 # Ampere on current loop
+        
+        # Lorentz force function
+        def lorentz_force(_, y):
+            v = y[3:]  # Velocity vector
+            B = biot_savart_loop(current, y[:3])
+            dvdt = q / m * np.cross(v, B)
+            return np.hstack((v, dvdt))
+        
+        eV = 1e3 # Energy is 1keV
+        v = sqrt(2*abs(eV*q)/m)
+         
+        initial_conditions = np.array([0.1, 0, 15, 0, 0, -v])
+        sol = solve_ivp(lorentz_force, (0, 1.35e-6), initial_conditions, method='DOP853', rtol=1e-6, atol=1e-6)
+         
+        def traceon_acc(*y):
+            print('Traceon acc..', y[2])
+            return lorentz_force(0., y)[3:] / EM
+
+        p0 = initial_conditions[:3]
+        v0 = initial_conditions[3:]
+         
+        bounds = ((-0.4,0.4), (-0.4, 0.4), (-15, 15))
+        times, positions = B.trace_particle(p0, v0, traceon_acc, bounds, 1e-3)
+        
+        fig = plt.figure()
+        ax = fig.add_subplot(111, projection='3d')
+        ax.plot(sol.y[0], sol.y[1], sol.y[2])
+        ax.plot(positions[:, 0], positions[:, 1], positions[:, 2])
+        ax.plot([0., 0.], [0., 0.], [-15, 15], linestyle='--', color='black')
+        ax.set_xlabel('X Axis')
+        ax.set_ylabel('Y Axis')
+        ax.set_zlabel('Z Axis')
+        plt.show()
+
+    def test_tracing_against_scipy_current_loop2(self):
+        # Constants
+        current = 100 # Ampere on current loop
+        
+        # Lorentz force function
+        def lorentz_force(_, y):
+            v = y[3:]  # Velocity vector
+            B = biot_savart_loop(current, y[:3])
+            dvdt = q / m * np.cross(v, B)
+            return np.hstack((v, dvdt))
+        
+        eV = 1e3 # Energy is 1keV
+        v = sqrt(2*abs(eV*q)/m)
+         
+        initial_conditions = np.array([0.1, 0, 15, 0, 0, -v])
+        sol = solve_ivp(lorentz_force, (0, 1.35e-6), initial_conditions, method='DOP853', rtol=1e-6, atol=1e-6)
+        
+        eff = S.EffectivePointCharges(
+            [current],
+            [[1., 0., 0., 0.]],
+            [[ [1., 0., 0.],
+              [1., 0., 0.],
+              [1., 0., 0.],
+              [1., 0., 0.]]])
+         
+        def traceon_acc(*y):
+            print('Traceon acc..', y[2])
+            v = y[3:]  # Velocity vector
+            field = mu_0 * B.current_field(np.array(y[:3]), eff.charges, eff.jacobians, eff.positions)
+            return 1e6 * np.cross(v, field)
+            dvdt = q / m * np.cross(v, field)
+            return dvdt / EM
+
+        def traceon_acc(*y):
+            v = y[3:]
+            field = mu_0 * B.current_field(np.array(y[:3]), eff.charges, eff.jacobians, eff.positions)
+            return 1e6 * np.cross(v, field)
+         
+        p0 = initial_conditions[:3]
+        v0 = T.velocity_vec(1e3, [0,0,-1])
+         
+        bounds = ((-0.4,0.4), (-0.4, 0.4), (-15, 15))
+        times, positions = B.trace_particle(p0, v0, traceon_acc, bounds, 1e-3)
+        
+        fig = plt.figure()
+        ax = fig.add_subplot(111, projection='3d')
+        ax.plot(sol.y[0], sol.y[1], sol.y[2])
+        ax.plot(positions[:, 0], positions[:, 1], positions[:, 2])
+        ax.plot([0., 0.], [0., 0.], [-15, 15], linestyle='--', color='black')
+        ax.set_xlabel('X Axis')
+        ax.set_ylabel('Y Axis')
+        ax.set_zlabel('Z Axis')
+        plt.show()
+    
+
+    
+    def test_tracing_effective_point_charges_solve_ivp(self):
+        # Constants
+        current = 100 # Ampere on current loop
+        
+        def lorentz_force_slow(_, y):
+            v = y[3:]  # Velocity vector
+            B = biot_savart_loop(current, y[:3])
+            dvdt = q / m * np.cross(v, B)
+            return np.hstack((v, dvdt))
+        
+        eff = S.EffectivePointCharges(
+            [current],
+            [[1., 0., 0., 0.]],
+            [[ [1., 0., 0.],
+              [1., 0., 0.],
+              [1., 0., 0.],
+              [1., 0., 0.]]])
+         
+        def lorentz_force_fast(_, y):
+            v = y[3:]  # Velocity vector
+            field = mu_0 * B.current_field(y[:3], eff.charges, eff.jacobians, eff.positions)
+            dvdt = q / m * np.cross(v, field)
+            return np.hstack((v, dvdt))
+        
+        assert all([np.allclose(lorentz_force_fast(0., p), lorentz_force_slow(0., p)) for p in np.random.rand(10, 6)])
+        
+        eV = 1e3 # Energy is 1keV
+        v = sqrt(2*abs(eV*q)/m)
+        initial_conditions = np.array([0.1, 0, 15, 0, 0, -v])
+        
+        sol1 = solve_ivp(lorentz_force_slow, (0, 1.35e-6), initial_conditions, method='DOP853', rtol=1e-6, atol=1e-6)
+        sol2 = solve_ivp(lorentz_force_fast, (0, 1.35e-6), initial_conditions, method='DOP853', rtol=1e-6, atol=1e-6)
+
+        interp = CubicSpline(sol1.y[2, ::-1], np.array([sol1.y[0, ::-1], sol1.y[1, ::-1]]).T)
+        
+        # TODO: check why does not work with smaller atol, rtol
+        assert np.allclose(interp(sol2.y[2, :-3]), np.array([sol2.y[0, :-3], sol2.y[1, :-3]]).T, atol=1e-5, rtol=1e-7)
+        
+        fig = plt.figure()
+        ax = fig.add_subplot(111, projection='3d')
+        ax.plot(sol1.y[0], sol1.y[1], sol1.y[2])
+        ax.plot(sol2.y[0], sol2.y[1], sol2.y[2])
+        ax.plot([0., 0.], [0., 0.], [-15, 15], linestyle='--', color='black')
+        ax.set_xlabel('X Axis')
+        ax.set_ylabel('Y Axis')
+        ax.set_zlabel('Z Axis')
+        plt.show()
+      
+    def test_current_field_ring(self):
+        current = 2.5
+        
+        eff = S.EffectivePointCharges(
+            [current],
+            [[1., 0., 0., 0.]],
+            [[ [1., 0., 0.],
+              [1., 0., 0.],
+              [1., 0., 0.],
+              [1., 0., 0.]]])
+         
+        for p in np.random.rand(10, 3):
+            field = mu_0 * B.current_field(p, eff.charges, eff.jacobians, eff.positions)
+            correct = biot_savart_loop(current, p)
+            assert np.allclose(field, correct)
+
+    def test_tracing_FieldRadialBEM_current_loop(self):
+        current = 100 # Ampere on current loop
+        
+        eff = S.EffectivePointCharges(
+            [current],
+            [[1., 0., 0., 0.]],
+            [[ [1., 0., 0.],
+              [1., 0., 0.],
+              [1., 0., 0.],
+              [1., 0., 0.]]])
+         
+        def lorentz_force(*y):
+            field = B.current_field(np.array(y[:3]), eff.charges, eff.jacobians, eff.positions)
+            return np.cross(y[3:], field)
+        
+        def lorentz_force2(*y):
+            v = y[3:]  # Velocity vector
+            field = mu_0 * B.current_field(np.array(y[:3]), eff.charges, eff.jacobians, eff.positions)
+            dvdt = q / m * np.cross(v, field)
+            return dvdt/EM
+        
+        # Lorentz force function
+        def lorentz_force3(*y):
+            v = y[3:]  # Velocity vector
+            field = mu_0 * B.current_field(np.array(y[:3]), eff.charges, eff.jacobians, eff.positions)
+            dvdt = q / m * np.cross(v, field)
+            return dvdt / EM
+        
+        traceon_field = S.FieldRadialBEM(current_point_charges=eff)
+         
+        bounds = ((-0.4,0.4), (-0.4, 0.4), (-15, 15))
+        tracer = T.Tracer(traceon_field, bounds)
+        pos = np.array([0.1, 0., 15])
+        v0 = T.velocity_vec(1e3, [0, 0, -1.])
+         
+        times1, positions1 = B.trace_particle(pos, v0, lorentz_force, bounds, 1e-6)
+        times2, positions2 = tracer(pos, v0)
+        
+        fig = plt.figure()
+        ax = fig.add_subplot(111, projection='3d')
+        ax.plot(positions1[:, 0], positions1[:, 1], positions1[:, 2])
+        ax.plot(positions2[:, 0], positions2[:, 1], positions2[:, 2])
+        ax.plot([0., 0.], [0., 0.], [-15, 15], linestyle='--', color='black')
+        ax.set_xlabel('X Axis')
+        ax.set_ylabel('Y Axis')
+        ax.set_zlabel('Z Axis')
+        #plt.figure()
+        #plt.plot(sol.y[2], np.sqrt(sol.y[0]**2 + sol.y[1]**2))
+        plt.show()
+
+
+
 
      
     def test_electron_trajectory_in_current_loop_field(self):
         # Constants
-        q = -1.602e-19  # Charge of electron in Coulombs
-        m = 9.109e-31   # Mass of electron in kg
         current = 100 # Ampere on current loop
         
+        eff = S.EffectivePointCharges(
+            [current],
+            [[1., 0., 0., 0.]],
+            [[ [1., 0., 0.],
+              [0., 0., 0.],
+              [0., 0., 0.],
+              [0., 0., 0.]]])
+         
         # Lorentz force function
         def lorentz_force(t, y):
             v = y[3:]  # Velocity vector
-            B = biot_savart_loop(current, y[:3])
-            dvdt = q / m * np.cross(v, B)
+            #integrated = biot_savart_loop(current, y[:3])
+            #mag = mu_0*B.current_field_radial_ring(y[0], y[2], 1., 0.)
+            field = mu_0 * B.current_field(y[:3], eff.charges, eff.jacobians, eff.positions)
+            #assert np.allclose(integrated, field)
+            dvdt = q / m * np.cross(v, field)
             return np.hstack((v, dvdt))
         
         eV = 1e3 # Energy is 1keV
@@ -198,7 +459,7 @@ class TestBackend(unittest.TestCase):
         t_span = (0, 1.35e-6)
         
         # Solve the differential equation
-        sol = solve_ivp(lorentz_force, t_span, initial_conditions, method='DOP853', dense_output=True, rtol=1e-5, atol=1e-5)#, rtol=1e-5, atol=1e-5)
+        sol = solve_ivp(lorentz_force, t_span, initial_conditions, method='RK45', dense_output=True, rtol=1e-11, atol=1e-11)#, rtol=1e-5, atol=1e-5)
         
         # Position of electron exactly z=-10m under the loop. This is close to the optical axis
         # as the focal length of the loop is close to 10m.
@@ -206,35 +467,26 @@ class TestBackend(unittest.TestCase):
         pos_ten = interp(-10.)
         print(pos_ten)
 
-        # Bit of a hack. We have only one currentloop but we still
-        # need to define four integration points (N_QUAD_3D == 4)
-        charges = S.EffectivePointCharges(
-            [100],
-            [[1., 0., 0., 0.]],
-            [[ [1., 0., 0.],
-              [0., 0., 0.],
-              [0., 0., 0.],
-              [0., 0., 0.]]])
-        
-        traceon_field = S.FieldRadialBEM(current_point_charges=charges)
+                
+        traceon_field = S.FieldRadialBEM(current_point_charges=eff)
          
-        tracer = T.Tracer(traceon_field, ((-0.2,0.2), (-0.2, 0.2), (-20, 20)))
-        pos = np.array([0., 0., 15])
-        v0 = T.velocity_vec(1e3, [0., 0., -1])
+        tracer = T.Tracer(traceon_field, ((-0.4,0.4), (-0.4, 0.4), (-20, 20)), atol=1e-15)
+        pos = np.array([0.1, 0., 15])
+        v0 = initial_conditions[3:]*1e-6
          
         times, positions = tracer(pos, v0)
-        print(positions)
-        
+        print(positions.shape, sol.y[0].shape)
+
         fig = plt.figure()
         ax = fig.add_subplot(111, projection='3d')
-        #ax.plot(sol.y[0], sol.y[1], sol.y[2])
+        ax.plot(sol.y[0], sol.y[1], sol.y[2])
         ax.plot(positions[:, 0], positions[:, 1], positions[:, 2])
         ax.plot([0., 0.], [0., 0.], [-15, 15], linestyle='--', color='black')
         ax.set_xlabel('X Axis')
         ax.set_ylabel('Y Axis')
         ax.set_zlabel('Z Axis')
-        plt.figure()
-        plt.plot(sol.y[2], np.sqrt(sol.y[0]**2 + sol.y[1]**2))
+        #plt.figure()
+        #plt.plot(sol.y[2], np.sqrt(sol.y[0]**2 + sol.y[1]**2))
         plt.show()
 
     
