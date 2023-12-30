@@ -912,8 +912,8 @@ axial_coefficients_3d(double *restrict charges,
 			
 		// The integration factor needs to be adjusted for m=0, since the
 		// cos(m*phi) term in the integral vanishes.
-		trig_cos_buffer[h][k][m] = cos(m*mu) * (m == 0 ? 1/2. : 1.);
-		trig_sin_buffer[h][k][m] = sin(m*mu);
+		trig_cos_buffer[h][k][m] = (1./M_PI) * cos(m*mu) * (m == 0 ? 1/2. : 1.);
+		trig_sin_buffer[h][k][m] = (1./M_PI) * sin(m*mu);
 	}
 		
 	for (int i=0; i < N_z; i++) 
