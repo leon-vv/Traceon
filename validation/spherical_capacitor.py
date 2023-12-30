@@ -85,11 +85,11 @@ class SphericalCapacitor(Validation):
         if not mesh.is_3d():
             bounds = ((-0.1, 12.5), (-12.5, 12.5))
             position = np.array([0.0, 10.0]) 
-            vel = np.array([np.cos(angle), -np.sin(angle)])*0.5930969604919433
+            vel = np.array([np.cos(angle), -np.sin(angle)])
         else:
             bounds = ((-0.1, 12.5), (-0.1, 0.1), (-12.5, 12.5))
             position = np.array([0.0, 0.0, 10.0]) 
-            vel = np.array([np.cos(angle), 0.0, -np.sin(angle)])*0.5930969604919433
+            vel = np.array([np.cos(angle), 0.0, -np.sin(angle)])
         
         tracer = T.Tracer(field, bounds)
         print('Starting electron trace...')

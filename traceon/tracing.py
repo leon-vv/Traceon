@@ -16,12 +16,10 @@ import matplotlib.pyplot as plt
 import numpy as np
 import scipy
 from scipy.integrate import *
+from scipy.constants import m_e, e
 
 from . import solver as S
 from . import backend
-
-EM = -0.1758820022723908 # e/m units ns and mm
-
 
 def velocity_vec(eV, direction):
     """Compute an initial velocity vector in the correct units and direction.
@@ -36,17 +34,15 @@ def velocity_vec(eV, direction):
 
     Returns
     -------
-    Initial velocity vector with magnitude corresponding to the supplied energy and correct units (mm/ns).
+    Initial velocity vector with magnitude corresponding to the supplied energy (in eV).
     The shape of the resulting vector is the same as the shape of `direction`.
     """
     assert eV > 0.0
     
     if eV > 40000:
         print(f'WARNING: velocity vector with large energy ({eV} eV) requested. Note that relativistic tracing is not yet implemented.')
-     
-    # From electronvolt to mm/ns
-    V = 0.5930969604919433*sqrt(eV)
-    return V* np.array(direction)/np.linalg.norm(direction)
+    
+    return eV * np.array(direction)/np.linalg.norm(direction)
 
 def velocity_vec_spherical(eV, theta, phi):
     """Compute initial velocity vector given energy and direction computed from spherical coordinates.
@@ -62,7 +58,7 @@ def velocity_vec_spherical(eV, theta, phi):
 
     Returns
     ------
-    Initial velocity vector of shape (3,) with magnitude corresponding to the supplied energy and correct units (mm/ns).
+    Initial velocity vector of shape (3,) with magnitude corresponding to the supplied energy (in eV).
     """
     return velocity_vec(eV, [sin(theta)*cos(phi), sin(theta)*sin(phi), cos(theta)])
 
@@ -82,7 +78,7 @@ def velocity_vec_xz_plane(eV, angle, downward=True, three_dimensional=False):
      
     Returns
     ------
-    Initial velocity vector with magnitude corresponding to the supplied energy and correct units (mm/ns).
+    Initial velocity vector with magnitude corresponding to the supplied energy (in eV).
     """
     sign = -1 if downward else 1
     direction = [sin(angle), sign*cos(angle)] if not three_dimensional else [sin(angle), 0.0, sign*cos(angle)]
@@ -134,7 +130,7 @@ class Tracer:
         position: (2,) or (3,) np.ndarray of float64
             Initial position of electron.
         velocity: (2,) or (3,) np.ndarray of float64
-            Initial velocity (in units of mm/ns). Use one of the utility functions documented
+            Initial velocity (expressed in a vector whose magnitude has units of eV). Use one of the utility functions documented
             above to create the initial velocity vector.
         
         Returns
@@ -148,6 +144,12 @@ class Tracer:
          
         f = self.field
          
+        # Convert the velocity in eV to m/s
+        speed_eV = np.linalg.norm(velocity)
+        speed = sqrt(2*speed_eV*e/m_e)
+        direction = velocity / speed_eV
+        velocity = speed * direction
+        
         if isinstance(self.field, S.FieldRadialBEM):
             return backend.trace_particle_radial(position, velocity, self.bounds, self.atol, 
                 f.electrostatic_point_charges, f.magnetostatic_point_charges, f.current_point_charges, field_bounds=f.field_bounds)

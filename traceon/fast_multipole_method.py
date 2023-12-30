@@ -1,4 +1,4 @@
-from math import sqrt
+from math import sqrt, pi
 from scipy.sparse.linalg import LinearOperator, gmres
 import numpy as np
 
@@ -31,9 +31,9 @@ def apply_fast_multipole_method(charges, geometry, precision=1, return_field=Fal
     assert result[0] == 0
      
     if return_field:
-        return result[1].real/4, result[2].real/4
+        return result[1].real/(4*pi), result[2].real/(4*pi)
     else:
-        return result[1].real/4
+        return result[1].real/(4*pi)
 
 def apply_matrix(charges, geometry, precision, dielectric_indices, dielectric_factors):
     # Compute the result of the matrix, without actually building the matrix
