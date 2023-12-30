@@ -629,11 +629,17 @@ class FieldRadialBEM(FieldBEM):
         super().__init__(electrostatic_point_charges, magnetostatic_point_charges, current_point_charges)
          
     def current_field_at_point(self, point):
-        assert point.shape == (2,)
         currents = self.current_point_charges.charges
         jacobians = self.current_point_charges.jacobians
         positions = self.current_point_charges.positions
-        return backend.current_field(point, currents, jacobians, positions)
+         
+        if point.shape == (2,):
+            # Input point is 2D, so return a 2D point
+            result = backend.current_field(backend._vec_2d_to_3d(point), currents, jacobians, positions)
+            assert np.isclose(result[1], 0.)
+            return backend._vec_3d_to_2d(result)
+        else:
+            return backend.current_field(point, currents, jacobians, positions)
      
     def electrostatic_field_at_point(self, point):
         """

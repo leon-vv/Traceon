@@ -630,14 +630,7 @@ current_field(double point[3], double result[3], double *currents,
 
 	double Br = 0., Bz = 0.;
 	double r = norm_2d(point[0], point[1]);
-
-	if(r < MIN_DISTANCE_AXIS) {
-		result[0] = 0.;
-		result[1] = 0.;
-		result[2] = 0.;
-		return;
-	}
-
+	
 	for(int i = 0; i < N_vertices; i++) {
 		for(int k = 0; k < N_TRIANGLE_QUAD; k++) {
 			double *pos = &position_buffer[i][k][0];
@@ -650,8 +643,14 @@ current_field(double point[3], double result[3], double *currents,
 		}
 	}
 		
-	result[0] = point[0]/r * Br;
-	result[1] = point[1]/r * Br;
+	if(r >= MIN_DISTANCE_AXIS) {
+		result[0] = point[0]/r * Br;
+		result[1] = point[1]/r * Br;
+	}
+	else {
+		result[0] = 0.;
+		result[1] = 0.;
+	}
 	result[2] = Bz;
 }
 

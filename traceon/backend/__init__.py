@@ -225,6 +225,15 @@ def _vec_2d_to_3d(vec):
     
     return vec
 
+def _vec_3d_to_2d(vec):
+    assert vec.shape == (2,) or vec.shape == (3,)
+     
+    if vec.shape == (3,):
+        return np.array([vec[0], vec[2]])
+    
+    return vec
+
+
 def trace_particle_wrapper(position, velocity, fill_positions_fun):
     position = _vec_2d_to_3d(position)
     velocity = _vec_2d_to_3d(velocity)
