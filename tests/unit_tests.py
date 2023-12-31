@@ -8,6 +8,8 @@ from scipy.interpolate import CubicSpline
 from scipy.integrate import quad, solve_ivp
 from scipy.constants import m_e, e, mu_0, epsilon_0
 
+import traceon.geometry as G
+import traceon.excitation as E
 import traceon.tracing as T
 import traceon.solver as S
 import traceon.backend as B
@@ -120,6 +122,34 @@ class TestBackend(unittest.TestCase):
             dr = r0/5e4
             deriv = (potential_of_ring_arbitrary(1., r0+dr, z0, r, z) - potential_of_ring_arbitrary(1., r0-dr, z0, r, z)) / (2*dr)
             assert np.isclose(B.dr1_potential_radial_ring(r0, z0, r, z)/epsilon_0, deriv, atol=0., rtol=1e-4), (r0, z0, r, z)
+
+    def test_rectangular_current_loop(self):
+        with G.Geometry(G.Symmetry.RADIAL) as geom:
+            points = [[1.0, 1.0], [2.0, 1.0], [2.0, 2.0], [1.0, 2.0]]
+            poly = geom.add_polygon(points)
+            geom.add_physical(poly, 'coil')
+            geom.set_mesh_size_factor(50)
+            mesh = geom.generate_triangle_mesh(False)
+        
+        exc = E.Excitation(mesh)
+        exc.add_current(coil=5)
+
+        field = S.solve_bem(exc)
+        
+        z = np.linspace(-0.5, 3.5, 300)
+        r = 0.0
+        
+        axial_field = np.array([field.current_field_at_point(np.array([r, z_]))[1] for z_ in z])
+        
+        file_ = path.join(path.dirname(__file__), 'axial magnetic field.txt')
+        reference_data = np.loadtxt(file_, delimiter=',')
+        reference = CubicSpline(reference_data[:, 0], reference_data[:, 1]*1e-3)
+         
+        assert np.allclose(reference(z), axial_field, atol=0., rtol=2e-2)
+        #plt.plot(z, reference(z))
+        #plt.plot(z, axial_field, 'k--')
+        #plt.show()
+     
     def test_combine_elec_magnetic(self):
         
         for i in range(20):
