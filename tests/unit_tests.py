@@ -1,11 +1,12 @@
 import unittest
 from math import *
+import os.path as path
 
 import numpy as np
 import matplotlib.pyplot as plt
 from scipy.interpolate import CubicSpline
 from scipy.integrate import quad, solve_ivp
-from scipy.constants import m_e, e, mu_0
+from scipy.constants import m_e, e, mu_0, epsilon_0
 
 import traceon.tracing as T
 import traceon.solver as S
@@ -74,8 +75,51 @@ class TestBiotSavartLoop(unittest.TestCase):
         assert np.isclose(quad(to_integrate, 0, 2*pi)[0], current * mu_0)
 
 
+def potential_of_ring_arbitrary(dq, r0, z0, r, z):
+    def integrand(theta):
+        r_prime = np.sqrt(r**2 + r0**2 + (z0-z)**2 - 2*r*r0*np.cos(theta))
+        return dq * r / r_prime # r comes from jacobian r * dtheta
+    return quad(integrand, 0, 2*np.pi, epsabs=5e-13, epsrel=5e-13)[0] / (4 * np.pi * epsilon_0)
+
+
+class TestPotentialRing(unittest.TestCase):
+    
+    def test_axial(self):
+        z = np.linspace(-10, 10, 200)
+        r = 1.5
+        dq = 0.25
+            
+        # http://hyperphysics.phy-astr.gsu.edu/hbase/electric/potlin.html
+        k = 1/(4*pi*epsilon_0)
+        Q = dq * 2*pi*r
+        correct = k * Q / np.sqrt(z**2 + r**2)
+         
+        pot = [potential_of_ring_arbitrary(dq, 0., z0, r, 0.) for z0 in z]
+        traceon = [dq/epsilon_0*B.potential_radial_ring(0., z0, r, 0.) for z0 in z]
+         
+        assert np.allclose(pot, correct)
+        assert np.allclose(traceon, correct)
+
+
 class TestBackend(unittest.TestCase):
     
+    def test_potential_radial_ring(self):
+        for r0, z0, r, z in np.random.rand(10, 4):
+            assert np.isclose(B.potential_radial_ring(r0, z0, r, z)/epsilon_0, potential_of_ring_arbitrary(1., r0, z0, r, z))
+    
+    def test_field_radial_ring(self):
+        for r0, z0, r, z in np.random.rand(100, 4):
+             
+            dz = z0/5e4
+            deriv = (potential_of_ring_arbitrary(1., r0, z0+dz, r, z) - potential_of_ring_arbitrary(1., r0, z0-dz, r, z)) / (2*dz)
+            assert np.isclose(B.dz1_potential_radial_ring(r0, z0, r, z)/epsilon_0, deriv, atol=0., rtol=1e-4), (r0, z0, r, z)
+            
+            if r0 < 1e-3:
+                continue
+            
+            dr = r0/5e4
+            deriv = (potential_of_ring_arbitrary(1., r0+dr, z0, r, z) - potential_of_ring_arbitrary(1., r0-dr, z0, r, z)) / (2*dr)
+            assert np.isclose(B.dr1_potential_radial_ring(r0, z0, r, z)/epsilon_0, deriv, atol=0., rtol=1e-4), (r0, z0, r, z)
     def test_combine_elec_magnetic(self):
         
         for i in range(20):
