@@ -567,10 +567,11 @@ EXPORT double dz1_potential_radial_ring(double r0, double z0, double r, double z
 }
 
 
+// TODO: fix name, radial_ring is not consistent with other naming
 EXPORT void
 axial_derivatives_radial_ring(double *derivs_p, double *charges, jacobian_buffer_2d jac_buffer, position_buffer_2d pos_buffer, size_t N_lines, double *z, size_t N_z) {
 
-	double (*derivs)[9] = (double (*)[9]) derivs_p;	
+	double (*derivs)[DERIV_2D_MAX] = (double (*)[DERIV_2D_MAX]) derivs_p;	
 		
 	for(int i = 0; i < N_z; i++) 
 	for(int j = 0; j < N_lines; j++)
@@ -580,14 +581,14 @@ axial_derivatives_radial_ring(double *derivs_p, double *charges, jacobian_buffer
 		
 		double R = norm_2d(z0-z, r);
 		
-		double D[9] = {0.}; // Derivatives of the currently considered line element.
+		double D[DERIV_2D_MAX] = {0.}; // Derivatives of the currently considered line element.
 		D[0] = 1/R;
 		D[1] = -(z0-z)/pow(R, 3);
 			
 		for(int n = 1; n+1 < DERIV_2D_MAX; n++)
 			D[n+1] = -1./pow(R,2) *( (2*n + 1)*(z0-z)*D[n] + pow(n,2)*D[n-1]);
 			
-		for(int l = 0; l < 9; l++) derivs[i][l] += jac_buffer[j][k] * charges[j] * r/2 * D[l];
+		for(int l = 0; l < DERIV_2D_MAX; l++) derivs[i][l] += jac_buffer[j][k] * charges[j] * r/2 * D[l];
 	}
 }
 
@@ -675,6 +676,35 @@ current_field(double point[3], double result[3], double *currents,
 	}
 	result[2] = Bz;
 }
+
+// TODO: fix name, radial_ring is not consistent with other naming
+EXPORT void
+current_axial_derivatives_radial_ring(double *derivs_p,
+		double *currents, jacobian_buffer_3d jac_buffer, position_buffer_3d pos_buffer, size_t N_vertices, double *z, size_t N_z) {
+
+	double (*derivs)[DERIV_2D_MAX] = (double (*)[DERIV_2D_MAX]) derivs_p;	
+		
+	for(int i = 0; i < N_z; i++) 
+	for(int j = 0; j < N_vertices; j++)
+	for(int k = 0; k < N_TRIANGLE_QUAD; k++) {
+		double z0 = z[i];
+		double r = pos_buffer[j][k][0], z = pos_buffer[j][k][1];
+
+		double dz = z0-z;	
+		double R = norm_2d(dz, r);
+		double mu = dz/R;
+		
+		double D[DERIV_2D_MAX] = {0.}; // Derivatives of the currently considered line element.
+		D[0] = -dz/(2*sqrt(dz*dz + r*r));
+		D[1] = -r*r/(2*pow(dz*dz + r*r, 1.5));
+			
+		for(int n = 2; n < DERIV_2D_MAX; n++)
+			D[n] = -(2*n-1)*mu/R*D[n-1] - (n*n - 2*n)/(R*R)*D[n-2];
+			
+		for(int l = 0; l < DERIV_2D_MAX; l++) derivs[i][l] += jac_buffer[j][k] * currents[j] * D[l];
+	}
+}
+
 
 
 //////////////////////////////// RADIAL SYMMETRY POTENTIAL EVALUATION

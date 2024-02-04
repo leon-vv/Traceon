@@ -157,6 +157,7 @@ backend_functions = {
     'current_potential_axial': (dbl, dbl, currents_2d, jac_buffer_3d, pos_buffer_3d, sz),
     'current_field_radial_ring': (None, dbl, dbl, dbl, dbl, v2),
     'current_field': (None, v3, v3, currents_2d, jac_buffer_3d, pos_buffer_3d, sz),
+    'current_axial_derivatives_radial_ring': (None, arr(ndim=2), currents_2d, jac_buffer_3d, pos_buffer_3d, sz, z_values, sz),
     'fill_jacobian_buffer_radial': (None, jac_buffer_2d, pos_buffer_2d, vertices, sz),
     'fill_matrix_radial': (None, arr(ndim=2), lines, arr(dtype=C.c_uint8, ndim=1), arr(ndim=1), jac_buffer_2d, pos_buffer_2d, sz, sz, C.c_int, C.c_int),
     'fill_jacobian_buffer_3d_higher_order': (None, jac_buffer_3d, pos_buffer_3d, vertices, sz),
@@ -502,6 +503,20 @@ def current_field(p0, currents, jac_buffer, pos_buffer):
     result = np.zeros( (3,) )
     backend_lib.current_field(p0, result, currents, jac_buffer, pos_buffer, N)
     return result
+
+def current_axial_derivatives_radial_ring(z, currents, jac_buffer, pos_buffer):
+    N_z = len(z)
+    N_vertices = len(currents)
+
+    assert z.shape == (N_z,)
+    assert currents.shape == (N_vertices,)
+    assert jac_buffer.shape == (N_vertices, N_TRIANGLE_QUAD)
+    assert pos_buffer.shape == (N_vertices, N_TRIANGLE_QUAD, 3)
+    
+    derivs = np.zeros( (z.size, DERIV_2D_MAX) )
+    backend_lib.current_axial_derivatives_radial_ring(derivs, currents, jac_buffer, pos_buffer, N_vertices, z, N_z)
+    return derivs
+
 
 def fill_jacobian_buffer_radial(vertices):
     N = len(vertices)

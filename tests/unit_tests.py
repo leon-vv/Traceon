@@ -374,7 +374,6 @@ class TestAxialInterpolation(unittest.TestCase):
               [1., 0., 0.],
               [1., 0., 0.]]])
         
-        bounds = ((-0.4,0.4), (-0.4, 0.4), (-15, 15))
         traceon_field = S.FieldRadialBEM(current_point_charges=eff)
          
         z = np.linspace(-6, 6, 250)
@@ -384,6 +383,39 @@ class TestAxialInterpolation(unittest.TestCase):
         numerical_derivative = CubicSpline(z, pot).derivative()(z)
         
         assert np.allclose(field, -numerical_derivative)
+    
+    def test_derivatives(self):
+        current = 2.5
+        
+        eff = S.EffectivePointCharges(
+            [current],
+            [[1., 0., 0., 0.]],
+            [[ [1., 0., 0.],
+              [1., 0., 0.],
+              [1., 0., 0.],
+              [1., 0., 0.]]])
+        
+        traceon_field = S.FieldRadialBEM(current_point_charges=eff)
+         
+        z = np.linspace(-6, 6, 500)
+        derivatives = traceon_field.get_current_axial_potential_derivatives(z)
+
+        pot = [traceon_field.current_potential_axial(z_) for z_ in z]
+        
+        assert np.allclose(pot, derivatives[:, 0])
+
+        interp = CubicSpline(z, pot)
+        d1 = interp.derivative()
+        assert np.allclose(d1(z), derivatives[:, 1])
+        
+        for i in range(0, derivatives.shape[1]-1):
+            interp = CubicSpline(z, derivatives[:, i])
+            deriv = interp.derivative()(z)
+            #plt.plot(z, deriv)
+            #plt.plot(z, derivatives[:, i+1], linestyle='dashed')
+            #plt.show()
+            assert np.allclose(deriv, derivatives[:, i+1], atol=1e-5, rtol=5e-3)
+
 
 if __name__ == '__main__':
     unittest.main()
