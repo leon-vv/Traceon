@@ -591,7 +591,29 @@ axial_derivatives_radial_ring(double *derivs_p, double *charges, jacobian_buffer
 	}
 }
 
-//////////////////////////////// CURRENT
+//////////////////////////////// CURRENT AND MAGNETOSTATICS
+
+EXPORT double current_potential_axial_radial_ring(double z0, double r, double z) {
+	double dz = z0 - z;
+	return -dz / (2*sqrt(dz*dz + r*r));
+}
+
+EXPORT double
+current_potential_axial(double z0, double *currents,
+	jacobian_buffer_3d jacobian_buffer, position_buffer_3d position_buffer, size_t N_vertices) {
+
+	double result = 0.;
+
+	for(int i = 0; i < N_vertices; i++) 
+	for(int k = 0; k < N_TRIANGLE_QUAD; k++) {
+		double *pos = &position_buffer[i][k][0];
+		assert(pos[2] == 0.);
+			
+		result += currents[i] * jacobian_buffer[i][k] * current_potential_axial_radial_ring(z0, pos[0], pos[1]);
+	}
+
+	return result;
+}
 
 EXPORT void
 current_field_radial_ring(double x0, double y0, double x, double y, double result[2]) {

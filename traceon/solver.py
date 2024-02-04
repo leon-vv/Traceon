@@ -696,9 +696,16 @@ class FieldRadialBEM(FieldBEM):
         charges = self.magnetostatic_point_charges.charges
         jacobians = self.magnetostatic_point_charges.jacobians
         positions = self.magnetostatic_point_charges.positions
-        
-        # TODO: add potential produced by the current too
+         
         return backend.potential_radial(point, charges, jacobians, positions)
+
+    def current_potential_axial(self, z):
+        assert isinstance(z, float)
+        currents = self.current_point_charges.charges
+        jacobians = self.current_point_charges.jacobians
+        positions = self.current_point_charges.positions
+         
+        return backend.current_potential_axial(z, currents, jacobians, positions)
      
     def get_axial_potential_derivatives(self, z):
         """

@@ -340,8 +340,66 @@ class TestBackend(unittest.TestCase):
             correct = biot_savart_loop(current, p)
             assert np.allclose(field, correct)
 
+
+class TestAxialInterpolation(unittest.TestCase):
+
+    def test_current_axial(self):
+        # http://hyperphysics.phy-astr.gsu.edu/hbase/magnetic/curloo.html
+        r_ring = 2
+        z_ring = 0
+        
+        z = np.linspace(-5, 5, 250)
+        dz = z - z_ring
+         
+        pot_correct = -dz / (2*np.sqrt(dz**2 + r_ring**2))
+        field_correct = r_ring**2 / (2*((z-z_ring)**2 + r_ring**2)**(3/2))
+        
+        pot_z = np.array([B.current_potential_axial_radial_ring(z_, r_ring, z_ring) for z_ in z])
+        field_z = np.array([B.current_field_radial_ring(0., z_, r_ring, z_ring)[1] for z_ in z])
+        
+        assert np.allclose(pot_correct, pot_z)
+        assert np.allclose(field_correct, field_z)
+        
+        numerical_derivative = CubicSpline(z, pot_correct).derivative()(z)
+        assert np.allclose(-numerical_derivative, field_z)
+    
+    def test_current_loop(self):
+        current = 2.5
+        
+        eff = S.EffectivePointCharges(
+            [current],
+            [[1., 0., 0., 0.]],
+            [[ [1., 0., 0.],
+              [1., 0., 0.],
+              [1., 0., 0.],
+              [1., 0., 0.]]])
+        
+        bounds = ((-0.4,0.4), (-0.4, 0.4), (-15, 15))
+        traceon_field = S.FieldRadialBEM(current_point_charges=eff)
+         
+        z = np.linspace(-6, 6, 250)
+        pot = [traceon_field.current_potential_axial(z_) for z_ in z]
+        field = [traceon_field.current_field_at_point(np.array([0.0, z_]))[1] for z_ in z]
+
+        numerical_derivative = CubicSpline(z, pot).derivative()(z)
+        
+        assert np.allclose(field, -numerical_derivative)
+
 if __name__ == '__main__':
     unittest.main()
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 

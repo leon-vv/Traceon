@@ -153,6 +153,8 @@ backend_functions = {
     'trace_particle_3d': (sz, times_block, tracing_block, bounds, dbl, charges_3d, jac_buffer_3d, pos_buffer_3d, sz, dbl_p),
     'field_3d_derivs': (None, v3, v3, z_values, arr(ndim=5), sz),
     'trace_particle_3d_derivs': (sz, times_block, tracing_block, bounds, dbl, z_values, arr(ndim=5), sz),
+    'current_potential_axial_radial_ring': (dbl, dbl, dbl, dbl),
+    'current_potential_axial': (dbl, dbl, currents_2d, jac_buffer_3d, pos_buffer_3d, sz),
     'current_field_radial_ring': (None, dbl, dbl, dbl, dbl, v2),
     'current_field': (None, v3, v3, currents_2d, jac_buffer_3d, pos_buffer_3d, sz),
     'fill_jacobian_buffer_radial': (None, jac_buffer_2d, pos_buffer_2d, vertices, sz),
@@ -470,6 +472,18 @@ def field_3d_derivs(point, z, coeffs):
 
     field = np.zeros( (3,) )
     backend_lib.field_3d_derivs(point.astype(np.float64), field, z, coeffs, len(z))
+
+current_potential_axial_radial_ring = backend_lib.current_potential_axial_radial_ring
+
+def current_potential_axial(z, currents, jac_buffer, pos_buffer):
+    N = len(currents)
+    assert currents.shape == (N,)
+    assert jac_buffer.shape == (N, N_TRIANGLE_QUAD)
+    assert pos_buffer.shape == (N, N_TRIANGLE_QUAD, 3)
+      
+    assert np.all(pos_buffer[:, :, 2] == 0.)
+    
+    return backend_lib.current_potential_axial(z, currents, jac_buffer, pos_buffer, N)
 
 def current_field_radial_ring(x0, y0, x, y):
     res = np.zeros( (2,) )
