@@ -707,15 +707,14 @@ class FieldRadialBEM(FieldBEM):
          
         return backend.current_potential_axial(z, currents, jacobians, positions)
      
-    def get_axial_potential_derivatives(self, z):
+    def get_electrostatic_axial_potential_derivatives(self, z):
         """
-        Compute the derivatives of the potential at a point on the optical axis (z-axis). 
+        Compute the derivatives of the electrostatic potential at a point on the optical axis (z-axis). 
          
         Parameters
         ----------
         z : (N,) np.ndarray of float64
             Positions on the optical axis at which to compute the derivatives.
-        
 
         Returns
         ------- 
@@ -727,6 +726,28 @@ class FieldRadialBEM(FieldBEM):
         positions = self.electrostatic_point_charges.positions
         return backend.axial_derivatives_radial_ring(z, charges, jacobians, positions)
     
+    def get_magnetostatic_axial_potential_derivatives(self, z):
+        """
+        Compute the derivatives of the magnetostatic potential at a point on the optical axis (z-axis). 
+         
+        Parameters
+        ----------
+        z : (N,) np.ndarray of float64
+            Positions on the optical axis at which to compute the derivatives.
+
+        Returns
+        ------- 
+        Numpy array of shape (N, 9) containing the derivatives. At index i one finds the i-th derivative (so
+        at position 0 the potential itself is returned). The highest derivative returned is a 
+        constant currently set to 9."""
+        charges = self.magnetostatic_point_charges.charges
+        jacobians = self.magnetostatic_point_charges.jacobians
+        positions = self.magnetostatic_point_charges.positions
+         
+        derivs_magnetic = backend.axial_derivatives_radial_ring(z, charges, jacobians, positions)
+        derivs_current = self.get_current_axial_potential_derivatives(z)
+        return derivs_magnetic + derivs_current
+     
     def get_current_axial_potential_derivatives(self, z):
         currents = self.current_point_charges.charges
         jacobians = self.current_point_charges.jacobians
@@ -761,11 +782,15 @@ class FieldRadialBEM(FieldBEM):
         z = np.linspace(zmin, zmax, N)
         
         st = time.time()
-        derivs = np.concatenate(util.split_collect(self.get_axial_potential_derivatives, z), axis=0)
-        coeffs = _quintic_spline_coefficients(z, derivs.T)
+        elec_derivs = np.concatenate(util.split_collect(self.get_electrostatic_axial_potential_derivatives, z), axis=0)
+        elec_coeffs = _quintic_spline_coefficients(z, elec_derivs.T)
+        
+        mag_derivs = np.concatenate(util.split_collect(self.get_magnetostatic_axial_potential_derivatives, z), axis=0)
+        mag_coeffs = _quintic_spline_coefficients(z, mag_derivs.T)
+        
         print(f'Computing derivative interpolation took {(time.time()-st)*1000:.2f} ms ({len(z)} items)')
         
-        return FieldRadialAxial(z, coeffs)
+        return FieldRadialAxial(z, elec_coeffs, mag_coeffs)
     
     def area_of_element(self, i):
         jacobians = self.electrostatic_point_charges.jacobians
@@ -876,11 +901,18 @@ class FieldAxial(Field):
     not initialize this class yourself, but it is used as a base class for the fields returned by the `axial_derivative_interpolation` methods. 
     This base class overloads the +,*,- operators so it is very easy to take a superposition of different fields."""
     
-    def __init__(self, z, coeffs):
-        assert len(z)-1 == len(coeffs)
+    def __init__(self, z, electrostatic_coeffs=None, magnetostatic_coeffs=None):
+        N = len(z)
+        assert z.shape == (N,)
+        assert electrostatic_coeffs is None or len(electrostatic_coeffs)== N-1
+        assert magnetostatic_coeffs is None or len(magnetostatic_coeffs) == N-1
+        assert electrostatic_coeffs is not None or magnetostatic_coeffs is not None
+        
         assert z[0] < z[-1], "z values in axial interpolation should be ascending"
+         
         self.z = z
-        self.coeffs = coeffs
+        self.electrostatic_coeffs = electrostatic_coeffs if electrostatic_coeffs is not None else np.zeros_like(magnetostatic_coeffs)
+        self.magnetostatic_coeffs = magnetostatic_coeffs if magnetostatic_coeffs is not None else np.zeros_like(electrostatic_coeffs)
      
     def __str__(self):
         name = self.__class__.__name__
@@ -888,12 +920,13 @@ class FieldAxial(Field):
      
     def __add__(self, other):
         if isinstance(other, FieldAxial):
-            assert np.array_equal(self.z, other.z), "Cannot add Field3DAxial if optical axis sampling is different."
-            assert self.coeffs.shape == other.coeffs.shape, "Cannot add Field3DAxial if shape of axial coefficients is unequal."
-            return self.__class__(self.z, self.coeffs+other.coeffs)
+            assert np.array_equal(self.z, other.z), "Cannot add FieldAxial if optical axis sampling is different."
+            assert self.electrostatic_coeffs.shape == other.electrostatic_coeffs.shape, "Cannot add FieldAxial if shape of axial coefficients is unequal."
+            assert self.magnetostatic_coeffs.shape == other.magnetostatic_coeffs.shape, "Cannot add FieldAxial if shape of axial coefficients is unequal."
+            return self.__class__(self.z, self.electrostatic_coeffs+other.electrostatic_coeffs, self.magnetostatic_coeffs + other.magnetostatic_coeffs)
          
         return NotImpemented
-     
+    
     def __sub__(self, other):
         return self.__add__(-other)
     
@@ -902,10 +935,10 @@ class FieldAxial(Field):
      
     def __mul__(self, other):
         if isinstance(other, int) or isinstance(other, float):
-            return self.__class__(self.z, other*self.coeffs)
+            return self.__class__(self.z, other*self.electrostatic_coeffs, other*self.magnetostatic_coeffs)
          
         return NotImpemented
-
+    
     def __neg__(self):
         return -1*self
     
@@ -915,11 +948,13 @@ class FieldAxial(Field):
                 
 class FieldRadialAxial(FieldAxial):
     """ """
-    def __init__(self, z, coeffs):
-        super().__init__(z, coeffs)
-        assert coeffs.shape == (len(z)-1, backend.DERIV_2D_MAX, 6)
+    def __init__(self, z, electrostatic_coeffs=None, magnetostatic_coeffs=None):
+        super().__init__(z, electrostatic_coeffs, magnetostatic_coeffs)
+        
+        assert self.electrostatic_coeffs.shape == (len(z)-1, backend.DERIV_2D_MAX, 6)
+        assert self.magnetostatic_coeffs.shape == (len(z)-1, backend.DERIV_2D_MAX, 6)
     
-    def field_at_point(self, point):
+    def electrostatic_field_at_point(self, point):
         """
         Compute the electric field, \( \\vec{E} = -\\nabla \phi \)
         
@@ -933,11 +968,27 @@ class FieldRadialAxial(FieldAxial):
         Numpy array containing the field strengths (in units of V/mm) in the r and z directions.
         """
         assert point.shape == (2,)
-        return backend.field_radial_derivs(point, self.z, self.coeffs)
-     
-    def potential_at_point(self, point):
+        return backend.field_radial_derivs(point, self.z, self.electrostatic_coeffs)
+    
+    def magnetostatic_field_at_point(self, point):
         """
-        Compute the potential.
+        Compute the magnetic field
+        
+        Parameters
+        ----------
+        point: (2,) array of float64
+            Position at which to compute the field.
+             
+        Returns
+        -------
+        Numpy array containing the field strengths (in units of T/m) in the r and z directions.
+        """
+        assert point.shape == (2,)
+        return backend.field_radial_derivs(point, self.z, self.magnetostatic_coeffs)
+     
+    def electrostatic_potential_at_point(self, point):
+        """
+        Compute the electrostatic potential (close to the axis).
 
         Parameters
         ----------
@@ -949,8 +1000,23 @@ class FieldRadialAxial(FieldAxial):
         Potential as a float value (in units of V).
         """
         assert point.shape == (2,)
-        return backend.potential_radial_derivs(point, self.z, self.coeffs)
+        return backend.potential_radial_derivs(point, self.z, self.electrostatic_coeffs)
     
+    def magnetostatic_potential_at_point(self, point):
+        """
+        Compute the magnetostatic potential (close to the axis).
+
+        Parameters
+        ----------
+        point: (2,) array of float64
+            Position at which to compute the potential.
+        
+        Returns
+        -------
+        Potential as a float value.
+        """
+        assert point.shape == (2,)
+        return backend.potential_radial_derivs(point, self.z, self.magnetostatic_coeffs)
 
 class Field3DAxial(FieldAxial):
     """Field computed using a radial series expansion around the optical axis (z-axis). See comments at the start of this page.

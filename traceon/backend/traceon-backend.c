@@ -948,7 +948,7 @@ field_radial_derivs(double point[3], double field[3], double *z_inter, double *c
 	
 	double (*coeff)[DERIV_2D_MAX][6] = (double (*)[DERIV_2D_MAX][6]) coeff_p;
 	
-	double r = point[0], z = point[1];
+	double r = point[0], z = point[2];
 	double z0 = z_inter[0], zlast = z_inter[N_z-1];
 	
 	if(!(z0 < z && z < zlast)) {

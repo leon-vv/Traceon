@@ -416,6 +416,33 @@ class TestAxialInterpolation(unittest.TestCase):
             #plt.show()
             assert np.allclose(deriv, derivatives[:, i+1], atol=1e-5, rtol=5e-3)
 
+    def test_interpolation_current_loop(self):
+        current = 2.5
+        
+        eff = S.EffectivePointCharges(
+            [current],
+            [[1., 0., 0., 0.]],
+            [[ [1., 0., 0.],
+              [1., 0., 0.],
+              [1., 0., 0.],
+              [1., 0., 0.]]])
+        
+        traceon_field = S.FieldRadialBEM(current_point_charges=eff)
+        interp = traceon_field.axial_derivative_interpolation(-5, 5, N=300)
+
+        z = interp.z[1:-1]
+
+        pot = [traceon_field.current_potential_axial(z_) for z_ in z]
+        pot_interp = [interp.magnetostatic_potential_at_point(np.array([0., z_])) for z_ in z]
+
+        assert np.allclose(pot, pot_interp)
+         
+        r = np.linspace(-0.5, 0.5, 5)
+        
+        for r_ in r:
+            field = [traceon_field.magnetostatic_field_at_point(np.array([r_, z_]))[1] for z_ in z]
+            field_interp = [interp.magnetostatic_field_at_point(np.array([r_, z_]))[1] for z_ in z]
+            assert np.allclose(field, field_interp, atol=1e-3, rtol=5e-3)
 
 if __name__ == '__main__':
     unittest.main()
