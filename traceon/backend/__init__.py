@@ -77,6 +77,8 @@ pos_buffer_3d = arr(ndim=3)
 jac_buffer_2d = arr(ndim=2)
 pos_buffer_2d = arr(ndim=3)
 
+radial_coeffs = arr(ndim=3)
+
 
 class EffectivePointCharges2D(C.Structure):
     _fields_ = [
@@ -141,7 +143,7 @@ backend_functions = {
     'combine_elec_magnetic_field': (None, v3, v3, v3, v3, v3),
     'trace_particle_radial': (sz, times_block, tracing_block, bounds, dbl, dbl_p, EffectivePointCharges2D, EffectivePointCharges2D, EffectivePointCharges3D),
     'field_radial_derivs': (None, v3, v3, z_values, arr(ndim=3), sz),
-    'trace_particle_radial_derivs': (sz, times_block, tracing_block, bounds, dbl, z_values, arr(ndim=3), sz),
+    'trace_particle_radial_derivs': (sz, times_block, tracing_block, bounds, dbl, z_values, radial_coeffs, radial_coeffs, sz),
     'dx1_potential_3d_point': (dbl, dbl, dbl, dbl, dbl, dbl, dbl, vp),
     'dy1_potential_3d_point': (dbl, dbl, dbl, dbl, dbl, dbl, dbl, vp),
     'dz1_potential_3d_point': (dbl, dbl, dbl, dbl, dbl, dbl, dbl, vp),
@@ -336,15 +338,17 @@ def trace_particle_radial(position, velocity, bounds, atol, eff_elec, eff_mag, e
     
     return times, positions
 
-def trace_particle_radial_derivs(position, velocity, bounds, atol, z, coeffs):
-    assert coeffs.shape == (len(z)-1, DERIV_2D_MAX, 6)
+def trace_particle_radial_derivs(position, velocity, bounds, atol, z, elec_coeffs, mag_coeffs):
+    assert elec_coeffs.shape == (len(z)-1, DERIV_2D_MAX, 6)
+    assert mag_coeffs.shape == (len(z)-1, DERIV_2D_MAX, 6)
+    
     bounds = np.array(bounds)
 
     if bounds.shape[0] == 2:
         bounds = np.array([bounds[0], bounds[1], [-1.0, 0.0]])
     
     times, positions = trace_particle_wrapper(position, velocity,
-        lambda T, P: backend_lib.trace_particle_radial_derivs(T, P, bounds, atol, z, coeffs, len(z)))
+        lambda T, P: backend_lib.trace_particle_radial_derivs(T, P, bounds, atol, z, elec_coeffs, mag_coeffs, len(z)))
     
     return times, positions
 
@@ -419,7 +423,7 @@ def field_radial_derivs(point, z, coeffs):
     assert coeffs.shape == (len(z)-1, DERIV_2D_MAX, 6)
     field = np.zeros( (3,) )
     backend_lib.field_radial_derivs(point.astype(np.float64), field, z, coeffs, len(z))
-    return field[:2]
+    return field[ [0, 2] ]
 
 dx1_potential_3d_point = remove_arg(backend_lib.dx1_potential_3d_point)
 dy1_potential_3d_point = remove_arg(backend_lib.dy1_potential_3d_point)

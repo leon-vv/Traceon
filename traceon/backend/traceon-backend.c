@@ -948,7 +948,7 @@ field_radial_derivs(double point[3], double field[3], double *z_inter, double *c
 	
 	double (*coeff)[DERIV_2D_MAX][6] = (double (*)[DERIV_2D_MAX][6]) coeff_p;
 	
-	double r = point[0], z = point[2];
+	double r = norm_2d(point[0], point[1]), z = point[2];
 	double z0 = z_inter[0], zlast = z_inter[N_z-1];
 	
 	if(!(z0 < z && z < zlast)) {
@@ -968,28 +968,41 @@ field_radial_derivs(double point[3], double field[3], double *z_inter, double *c
 		derivs[i] = C[i][0]*pow(diffz, 5) + C[i][1]*pow(diffz, 4) + C[i][2]*pow(diffz, 3)
 			      +	C[i][3]*pow(diffz, 2) + C[i][4]*diffz		  + C[i][5];
 		
-	field[0] = r/2*(derivs[2] - pow(r,2)/8*derivs[4] + pow(r,4)/192*derivs[6] - pow(r,6)/9216*derivs[8]);
-	field[1] = -derivs[1] + pow(r,2)/4*derivs[3] - pow(r,4)/64*derivs[5] + pow(r,6)/2304*derivs[7];
-	field[2] = 0.0;
+	// Field radial is already divided by r, such that x/r*field and y/r*field below do not cause divide by zero errors
+	double field_radial= 1.0/2*(derivs[2] - r/8*derivs[4] + pow(r,3)/192*derivs[6] - pow(r,5)/9216*derivs[8]);
+	double field_z = -derivs[1] + pow(r,2)/4*derivs[3] - pow(r,4)/64*derivs[5] + pow(r,6)/2304*derivs[7];
+
+	field[0] = point[0]*field_radial;
+	field[1] = point[1]*field_radial;
+	field[2] = field_z;
 }
 
 struct field_derivs_args {
 	double *z_interpolation;
-	double *axial_coefficients;
+	double *electrostatic_axial_coeffs;
+	double *magnetostatic_axial_coeffs;
 	size_t N_z;
 };
 
 void
-field_radial_derivs_traceable(double point[3], double field[3], void *args_p) {
+field_radial_derivs_traceable(double point[6], double field[3], void *args_p) {
 	struct field_derivs_args *args = (struct field_derivs_args*) args_p;
-	field_radial_derivs(point, field, args->z_interpolation, args->axial_coefficients, args->N_z);
+
+	double elec_field[3];
+	field_radial_derivs(point, elec_field, args->z_interpolation, args->electrostatic_axial_coeffs, args->N_z);
+	
+	double mag_field[3];
+	field_radial_derivs(point, mag_field, args->z_interpolation, args->magnetostatic_axial_coeffs, args->N_z);
+
+	double curr_field[3] = {0., 0., 0.};
+	combine_elec_magnetic_field(point + 3, elec_field, mag_field, curr_field, field);
 }
 
 EXPORT size_t
 trace_particle_radial_derivs(double *times_array, double *pos_array, double bounds[3][2], double atol,
-	double *z_interpolation, double *axial_coefficients, size_t N_z) {
+	double *z_interpolation, double *electrostatic_coeffs, double *magnetostatic_coeffs, size_t N_z) {
 
-	struct field_derivs_args args = { z_interpolation, axial_coefficients, N_z };
+	struct field_derivs_args args = { z_interpolation, electrostatic_coeffs, magnetostatic_coeffs, N_z };
 		
 	return trace_particle(times_array, pos_array, field_radial_derivs_traceable, bounds, atol, (void*) &args);
 }
@@ -1329,14 +1342,14 @@ field_3d_derivs(double point[3], double field[3], double *restrict zs, double *r
 void
 field_3d_derivs_traceable(double point[3], double field[3], void *args_p) {
 	struct field_derivs_args *args = (struct field_derivs_args*) args_p;
-	field_3d_derivs(point, field, args->z_interpolation, args->axial_coefficients, args->N_z);
+	field_3d_derivs(point, field, args->z_interpolation, args->electrostatic_axial_coeffs, args->N_z);
 }
 
 EXPORT size_t
 trace_particle_3d_derivs(double *times_array, double *pos_array, double bounds[3][2], double atol,
 	double *z_interpolation, double *axial_coefficients, size_t N_z) {
 
-	struct field_derivs_args args = { z_interpolation, axial_coefficients, N_z };
+	struct field_derivs_args args = { z_interpolation, axial_coefficients, NULL, N_z };
 	
 	return trace_particle(times_array, pos_array, field_3d_derivs_traceable, bounds, atol, (void*) &args);
 }

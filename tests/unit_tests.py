@@ -443,6 +443,40 @@ class TestAxialInterpolation(unittest.TestCase):
             field = [traceon_field.magnetostatic_field_at_point(np.array([r_, z_]))[1] for z_ in z]
             field_interp = [interp.magnetostatic_field_at_point(np.array([r_, z_]))[1] for z_ in z]
             assert np.allclose(field, field_interp, atol=1e-3, rtol=5e-3)
+    
+    def test_interpolated_tracing_against_scipy_current_loop(self):
+        # Constants
+        current = 100 # Ampere on current loop
+        
+        # Lorentz force function
+        def lorentz_force(_, y):
+            v = y[3:]  # Velocity vector
+            B = biot_savart_loop(current, y[:3])
+            dvdt = EM * np.cross(v, B)
+            return np.hstack((v, dvdt))
+        
+        eV = 1e3 # Energy is 1keV
+        v = sqrt(2*abs(eV*q)/m_e)
+         
+        initial_conditions = np.array([0.05, 0, 15, 0, 0, -v])
+        sol = solve_ivp(lorentz_force, (0, 1.35e-6), initial_conditions, method='DOP853', rtol=1e-6, atol=1e-6)
+        
+        eff = S.EffectivePointCharges(
+            [mu_0 * current],
+            [[1., 0., 0., 0.]],
+            [[ [1., 0., 0.],
+              [1., 0., 0.],
+              [1., 0., 0.],
+              [1., 0., 0.]]])
+        
+        bounds = ((-0.4,0.4), (-0.4, 0.4), (-15, 15))
+        traceon_field = S.FieldRadialBEM(current_point_charges=eff).axial_derivative_interpolation(-15, 15, N=500)
+        tracer = T.Tracer(traceon_field, bounds, atol=1e-6)
+        times, positions = tracer(initial_conditions[:3], T.velocity_vec(eV, [0, 0, -1]))
+        
+        interp = CubicSpline(positions[::-1, 2], np.array([positions[::-1, 0], positions[::-1, 1]]).T)
+        
+        assert np.allclose(interp(sol.y[2]), np.array([sol.y[0], sol.y[1]]).T, atol=1e-4, rtol=5e-5)
 
 if __name__ == '__main__':
     unittest.main()
