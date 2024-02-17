@@ -152,9 +152,9 @@ backend_functions = {
     'potential_3d': (dbl, v3, charges_3d, jac_buffer_3d, pos_buffer_3d, sz),
     'potential_3d_derivs': (dbl, v3, z_values, arr(ndim=5), sz),
     'field_3d': (None, v3, v3, charges_3d, jac_buffer_3d, pos_buffer_3d, sz),
-    'trace_particle_3d': (sz, times_block, tracing_block, bounds, dbl, charges_3d, jac_buffer_3d, pos_buffer_3d, sz, dbl_p),
+    'trace_particle_3d': (sz, times_block, tracing_block, bounds, dbl, EffectivePointCharges3D, EffectivePointCharges3D, dbl_p),
     'field_3d_derivs': (None, v3, v3, z_values, arr(ndim=5), sz),
-    'trace_particle_3d_derivs': (sz, times_block, tracing_block, bounds, dbl, z_values, arr(ndim=5), sz),
+    'trace_particle_3d_derivs': (sz, times_block, tracing_block, bounds, dbl, z_values, arr(ndim=5), arr(ndim=5), sz),
     'current_potential_axial_radial_ring': (dbl, dbl, dbl, dbl),
     'current_potential_axial': (dbl, dbl, currents_2d, jac_buffer_3d, pos_buffer_3d, sz),
     'current_field_radial_ring': (None, dbl, dbl, dbl, dbl, v2),
@@ -352,29 +352,29 @@ def trace_particle_radial_derivs(position, velocity, bounds, atol, z, elec_coeff
     
     return times, positions
 
-def trace_particle_3d(position, velocity, bounds, atol, charges, jac_buffer, pos_buffer, field_bounds=None):
+def trace_particle_3d(position, velocity, bounds, atol, eff_elec, eff_mag, field_bounds=None):
     N = len(charges)
     assert position.shape == (3,)
     assert velocity.shape == (3,)
-    assert jac_buffer.shape == (N, N_TRIANGLE_QUAD)
-    assert pos_buffer.shape == (N, N_TRIANGLE_QUAD, 3)
     assert field_bounds is None or field_bounds.shape == (3,2)
-    
+     
     bounds = np.array(bounds)
     
     field_bounds = field_bounds.ctypes.data_as(dbl_p) if field_bounds is not None else None
      
     return trace_particle_wrapper(position, velocity,
-        lambda T, P: backend_lib.trace_particle_3d(T, P, bounds, atol, charges, jac_buffer, pos_buffer, len(charges), field_bounds))
+        lambda T, P: backend_lib.trace_particle_3d(T, P, bounds, atol, eff_elec, eff_mag, field_bounds))
 
-def trace_particle_3d_derivs(position, velocity, bounds, atol, z, coeffs):
+def trace_particle_3d_derivs(position, velocity, bounds, atol, z, electrostatic_coeffs, magnetostatic_coeffs):
     assert position.shape == (3,)
     assert velocity.shape == (3,)
-    assert coeffs.shape == (len(z)-1, 2, NU_MAX, M_MAX, 4)
+    assert electrostatic_coeffs.shape == (len(z)-1, 2, NU_MAX, M_MAX, 4)
+    assert magnetostatic_coeffs.shape == (len(z)-1, 2, NU_MAX, M_MAX, 4)
+    
     bounds = np.array(bounds)
      
     return trace_particle_wrapper(position, velocity,
-        lambda T, P: backend_lib.trace_particle_3d_derivs(T, P, bounds, atol, z, coeffs, len(z)))
+        lambda T, P: backend_lib.trace_particle_3d_derivs(T, P, bounds, atol, z, electrostatic_coeffs, magnetostatic_coeffs, len(z)))
 
 potential_radial_ring = lambda *args: backend_lib.potential_radial_ring(*args, None)
 dr1_potential_radial_ring = lambda *args: backend_lib.dr1_potential_radial_ring(*args, None)

@@ -232,7 +232,7 @@ class ElectrostaticSolver(Solver):
 
     def charges_to_field(self, charges):
         if self.is_3d():
-            return Field3D_BEM(charges)
+            return Field3D_BEM(electrostatic_point_charges=charges)
         else:
             return FieldRadialBEM(electrostatic_point_charges=charges)
 
@@ -325,8 +325,7 @@ class MagnetostaticSolver(Solver):
      
     def charges_to_field(self, charges):
         if self.is_3d():
-            assert len(charges) == 0, "Magnetostatic 3D not yet supported"
-            return Field3D_BEM(EffectivePointCharges.empty_3d())
+            return Field3D_BEM(magnetostatic_point_charges=charges)
         else:
             return FieldRadialBEM(magnetostatic_point_charges=charges, current_point_charges=self.current_charges)
 
@@ -801,16 +800,17 @@ class Field3D_BEM(FieldBEM):
     """An electrostatic field resulting from a general 3D geometry. The field is a result of the surface charges as computed by the
     `solve_bem` function. See the comments in `FieldBEM`."""
      
-    def __init__(self, electrostatic_point_charges):
+    def __init__(self, electrostatic_point_charges=None, magnetostatic_point_charges=None):
         assert isinstance(electrostatic_point_charges, EffectivePointCharges) and electrostatic_point_charges.is_3d()
-        super().__init__(electrostatic_point_charges, EffectivePointCharges.empty_3d(), EffectivePointCharges.empty_3d())
-         
-        N = len(electrostatic_point_charges.charges)
-        assert electrostatic_point_charges.charges.shape == (N,)
-        assert electrostatic_point_charges.jacobians.shape == (N, backend.N_TRIANGLE_QUAD)
-        assert electrostatic_point_charges.positions.shape == (N, backend.N_TRIANGLE_QUAD, 3)
+        super().__init__(electrostatic_point_charges, magnetostatic_point_charges, EffectivePointCharges.empty_3d())
+
+        for eff in [electrostatic_point_charges, magnetostatic_point_charges]:
+            N = len(eff.charges)
+            assert eff.charges.shape == (N,)
+            assert eff.jacobians.shape == (N, backend.N_TRIANGLE_QUAD)
+            assert eff.positions.shape == (N, backend.N_TRIANGLE_QUAD, 3)
      
-    def field_at_point(self, point):
+    def electrostatic_field_at_point(self, point):
         """
         Compute the electric field, \( \\vec{E} = -\\nabla \phi \)
         
@@ -829,9 +829,9 @@ class Field3D_BEM(FieldBEM):
         positions = self.electrostatic_point_charges.positions
         return backend.field_3d(point, charges, jacobians, positions)
      
-    def potential_at_point(self, point):
+    def electrostatic_potential_at_point(self, point):
         """
-        Compute the potential.
+        Compute the electrostatic potential.
 
         Parameters
         ----------
@@ -847,6 +847,45 @@ class Field3D_BEM(FieldBEM):
         jacobians = self.electrostatic_point_charges.jacobians
         positions = self.electrostatic_point_charges.positions
         return backend.potential_3d(point, charges, jacobians, positions)
+     
+    def magnetostatic_field_at_point(self, point):
+        """
+        Compute the magnetic field
+        
+        Parameters
+        ----------
+        point: (3,) array of float64
+            Position at which to compute the field.
+             
+        Returns
+        -------
+        Numpy array containing the field strengths (in units of V/mm) in the x, y and z directions.
+        """
+        assert point.shape == (3,)
+        charges = self.magnetostatic_point_charges.charges
+        jacobians = self.magnetostatic_point_charges.jacobians
+        positions = self.magnetostatic_point_charges.positions
+        return backend.field_3d(point, charges, jacobians, positions)
+     
+    def magnetostatic_potential_at_point(self, point):
+        """
+        Compute the magnetostatic potential.
+
+        Parameters
+        ----------
+        point: (3,) array of float64
+            Position at which to compute the field.
+        
+        Returns
+        -------
+        Potential as a float value (in units of V).
+        """
+        assert point.shape == (3,)
+        charges = self.magnetostatic_point_charges.charges
+        jacobians = self.magnetostatic_point_charges.jacobians
+        positions = self.magnetostatic_point_charges.positions
+        return backend.potential_3d(point, charges, jacobians, positions)
+    
     
     def axial_derivative_interpolation(self, zmin, zmax, N=None):
         """
@@ -1022,14 +1061,16 @@ class Field3DAxial(FieldAxial):
     """Field computed using a radial series expansion around the optical axis (z-axis). See comments at the start of this page.
      """
     
-    def __init__(self, z, coeffs):
-        super().__init__(z, coeffs)
-        assert coeffs.shape == (len(z)-1, 2, backend.NU_MAX, backend.M_MAX, 4)
+    def __init__(self, z, electrostatic_coeffs=None, magnetostatic_coeffs=None):
+        super().__init__(z, electrostatic_coeffs, magnetostatic_coeffs)
+        
+        assert electrostatic_coeffs.shape == (len(z)-1, 2, backend.NU_MAX, backend.M_MAX, 4)
+        assert magnetostatic_coeffs.shape == (len(z)-1, 2, backend.NU_MAX, backend.M_MAX, 4)
     
     def __call__(self, point):
         return self.field_at_point(point)
 
-    def field_at_point(self, point):
+    def electrostatic_field_at_point(self, point):
         """
         Compute the electric field, \( \\vec{E} = -\\nabla \phi \)
         
@@ -1043,11 +1084,11 @@ class Field3DAxial(FieldAxial):
         Numpy array containing the field strengths (in units of V/mm) in the x, y and z directions.
         """
         assert point.shape == (3,)
-        return backend.field_3d_derivs(point, self.z, self.coeffs)
+        return backend.field_3d_derivs(point, self.z, self.electrostatic_coeffs)
      
-    def potential_at_point(self, point):
+    def electrostatic_potential_at_point(self, point):
         """
-        Compute the potential.
+        Compute the electrostatic potential.
 
         Parameters
         ----------
@@ -1059,6 +1100,40 @@ class Field3DAxial(FieldAxial):
         Potential as a float value (in units of V).
         """
         assert point.shape == (3,)
-        return backend.potential_3d_derivs(point, self.z, self.coeffs)
+        return backend.potential_3d_derivs(point, self.z, self.electrostatic_coeffs)
+    
+    def magnetostatic_field_at_point(self, point):
+        """
+        Compute the electric field, \( \\vec{E} = -\\nabla \phi \)
+        
+        Parameters
+        ----------
+        point: (3,) array of float64
+            Position at which to compute the field.
+             
+        Returns
+        -------
+        Numpy array containing the field strengths (in units of V/mm) in the x, y and z directions.
+        """
+        assert point.shape == (3,)
+        return backend.field_3d_derivs(point, self.z, self.magnetostatic_coeffs)
+     
+    def magnetostatic_potential_at_point(self, point):
+        """
+        Compute the magnetostatic potential.
+
+        Parameters
+        ----------
+        point: (3,) array of float64
+            Position at which to compute the potential.
+        
+        Returns
+        -------
+        Potential as a float value (in units of V).
+        """
+        assert point.shape == (3,)
+        return backend.potential_3d_derivs(point, self.z, self.magnetostatic_coeffs)
+    
+
     
 

@@ -162,7 +162,8 @@ class Tracer:
             bounds = self.field.field_bounds
             return backend.trace_particle_3d(position, velocity, self.bounds, self.atol, charges, jacobians, positions, bounds)
         elif isinstance(self.field, S.Field3DAxial):
-            return backend.trace_particle_3d_derivs(position, velocity, self.bounds, self.atol, self.field.z, self.field.coeffs)
+            return backend.trace_particle_3d_derivs(position, velocity, self.bounds, self.atol,
+                    self.field.z, self.field.electrostatic_coeffs, self.field.magnetostatic_coeffs)
  
 
 def plane_intersection(positions, p0, normal):
