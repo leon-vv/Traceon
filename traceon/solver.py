@@ -241,8 +241,6 @@ class MagnetostaticSolver(Solver):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
          
-        assert self.is_2d() or not self.excitation.has_current(), "3D solver not yet supported for magnetostatics"
-        
         # Field produced by the current excitations on the coils
         self.current_charges = self.get_current_charges()
         self.current_field = FieldRadialBEM(current_point_charges=self.current_charges)
@@ -447,27 +445,31 @@ def solve_bem(excitation, superposition=False, use_fmm=False, fmm_precision=0):
             excitations = excitation._split_for_superposition()
             
             # Solve for elec fields
-            elec_names = [n for n, v in excitations.values() if not v.has_current()]
+            elec_names = [n for n, v in excitations.values() if v.is_electrostatic()]
             right_hand_sides = np.array([ElectrostaticSolver(excitations[n]).get_right_hand_side() for n in elec_names])
             solutions = ElectrostaticSolver(excitation).solve_matrix(right_hand_sides)
             elec_dict = {n:s for n, s in zip(elec_names, solutions)}
             
             # Solve for mag fields 
-            mag_names = [n for n, v in excitations.values() if v.has_current()]
+            mag_names = [n for n, v in excitations.values() if v.is_magnetostatic()]
             right_hand_sides = np.array([MagnetostaticSolver(excitations[n]).get_right_hand_side() for n in mag_names])
             solutions = MagnetostaticSolver(excitation).solve_matrix(right_hand_sides)
             mag_dict = {n:s for n, s in zip(mag_names, solutions)}
              
             return {**elec_dict, **mag_dict}
         else:
-            elec_field = ElectrostaticSolver(excitation).solve_matrix()[0]
-            
-            # TODO: add support for 3D magnetostatic
-            if excitation.has_current():
+            mag, elec = excitation.is_magnetostatic(), excitation.is_electrostatic()
+
+            assert mag or elec, "Solving for an empty excitation"
+             
+            if mag and elec:
+                elec_field = ElectrostaticSolver(excitation).solve_matrix()[0]
                 mag_field = MagnetostaticSolver(excitation).solve_matrix()[0]
                 return elec_field + mag_field
-            else:
-                return elec_field
+            elif elec and not mag:
+                return ElectrostaticSolver(excitation).solve_matrix()[0]
+            elif mag and not elec:
+                return MagnetostaticSolver(excitation).solve_matrix()[0]
 
 def _get_one_dimensional_high_order_ppoly(z, y, dydz, dydz2):
     bpoly = BPoly.from_derivatives(z, np.array([y, dydz, dydz2]).T)

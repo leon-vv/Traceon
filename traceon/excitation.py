@@ -35,7 +35,8 @@ class ExcitationType(IntEnum):
 
     def is_magnetostatic(self):
         return self in [ExcitationType.MAGNETOSTATIC_POT,
-                        ExcitationType.MAGNETIZABLE]
+                        ExcitationType.MAGNETIZABLE,
+                        ExcitationType.CURRENT]
      
     def __str__(self):
         if self == ExcitationType.VOLTAGE_FIXED:
@@ -91,7 +92,13 @@ class Excitation:
 
     def has_current(self):
         return any([t == ExcitationType.CURRENT for t, _ in self.excitation_types.values()])
-
+    
+    def is_electrostatic(self):
+        return any([t.is_electrostatic() for t, _ in self.excitation_types.values()])
+    
+    def is_magnetostatic(self):
+        return any([t.is_magnetostatic() for t, _ in self.excitation_types.values()])
+    
     def add_magnetostatic_potential(self, **kwargs):
         for name, pot in kwargs.items():
             assert name in self.electrodes
@@ -178,7 +185,7 @@ class Excitation:
             if type_ == 'electrostatic':
                 return excitation_type.is_electrostatic()
             else:
-                return excitation_type.is_magnetostatic()
+                return excitation_type in [ExcitationType.MAGNETIZABLE, ExcitationType.MAGNETOSTATIC_POT]
         
         inactive = np.full(len(elements), True)
         for name, value in self.excitation_types.items():

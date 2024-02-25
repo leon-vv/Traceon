@@ -433,6 +433,8 @@ INLINE double potential_3d_point(double x0, double y0, double z0, double x, doub
 
 // python -c "from scipy.constants import m_e, e; print(-e/m_e);"
 const double EM = -175882001077.2163; // Electron charge over electron mass
+// python -c "from scipy.constants import mu_0; print(mu_0);"
+const double MU_0 = 1.25663706212e-06;
 
 const double A[]  = {0.0, 2./9., 1./3., 3./4., 1., 5./6.};	// https://en.wikipedia.org/wiki/Runge%E2%80%93Kutta%E2%80%93Fehlberg_method
 const double B6[] = {65./432., -5./16., 13./16., 4./27., 5./144.};
@@ -872,10 +874,13 @@ combine_elec_magnetic_field(double velocity[3], double elec_field[3],
 		
 	double total_mag[3] = {0.}; // Total magnetic field, produced by charges and currents
 		
-	total_mag[0] = mag_field[0] + current_field[0]; 
-	total_mag[1] = mag_field[1] + current_field[1]; 
-	total_mag[2] = mag_field[2] + current_field[2]; 
-	
+	// Important: Traceon always computes the H field
+	// Therefore when converting from H to B we need to multiply
+	// by mu_0.
+	total_mag[0] = MU_0*(mag_field[0] + current_field[0]);
+	total_mag[1] = MU_0*(mag_field[1] + current_field[1]);
+	total_mag[2] = MU_0*(mag_field[2] + current_field[2]);
+			
 	double cross[3] = {0.};
 		
 	// Calculate v x B

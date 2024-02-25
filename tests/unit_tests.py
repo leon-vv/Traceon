@@ -170,7 +170,7 @@ class TestBackend(unittest.TestCase):
         
         exc = E.Excitation(mesh)
         exc.add_current(coil=5)
-
+        
         field = S.solve_bem(exc)
         
         z = np.linspace(-0.5, 3.5, 300)
@@ -193,7 +193,7 @@ class TestBackend(unittest.TestCase):
             vel, elec, mag, current = np.random.rand(4, 3)
             
             result = B.combine_elec_magnetic_field(vel, elec, mag, current)
-            assert np.allclose(result, elec + np.cross(vel, mag + current))
+            assert np.allclose(result, elec + mu_0*np.cross(vel, mag + current))
       
     def test_cyclotron_radius(self):
          
@@ -346,7 +346,7 @@ class TestBackend(unittest.TestCase):
         sol = solve_ivp(lorentz_force, (0, 1.35e-6), initial_conditions, method='DOP853', rtol=1e-6, atol=1e-6)
         
         eff = S.EffectivePointCharges(
-            [mu_0 * current],
+            [current],
             [[1., 0., 0., 0.]],
             [[ [1., 0., 0.],
               [1., 0., 0.],
@@ -500,7 +500,7 @@ class TestAxialInterpolation(unittest.TestCase):
         sol = solve_ivp(lorentz_force, (0, 1.35e-6), initial_conditions, method='DOP853', rtol=1e-6, atol=1e-6)
         
         eff = S.EffectivePointCharges(
-            [mu_0 * current],
+            [current],
             [[1., 0., 0., 0.]],
             [[ [1., 0., 0.],
               [1., 0., 0.],
