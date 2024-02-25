@@ -530,15 +530,21 @@ class FieldBEM(Field):
         elif not elec and mag:
             return self.magnetostatic_field_at_point(*args, **kwargs)
          
+        raise RuntimeError("Cannot use field_at_point when both electric and magnetic fields are present, " \
+            "use electrostatic_field_at_point or magnetostatic_potential_at_point")
+     
     def potential_at_point(self, *args, **kwargs):
         elec, mag = len(self.electrostatic_point_charges) > 0,  \
                         len(self.magnetostatic_point_charges) > 0 or len(self.current_point_charges) > 0
-        
+         
         if elec and not mag:
             return self.electrostatic_potential_at_point(*args, **kwargs)
         elif not elec and mag:
             return self.magnetostatic_potential_at_point(*args, **kwargs)
-    
+         
+        raise RuntimeError("Cannot use potential_at_point when both electric and magnetic fields are present, " \
+            "use electrostatic_potential_at_point or magnetostatic_potential_at_point")
+     
     def __add__(self, other):
         return self.__class__(
             self.electrostatic_point_charges.__add__(other.electrostatic_point_charges),
@@ -779,7 +785,8 @@ class FieldRadialBEM(FieldBEM):
 
         """
         assert zmax > zmin
-        N = N if N is not None else int(FACTOR_AXIAL_DERIV_SAMPLING_2D*len(self.electrostatic_point_charges.charges))
+        N_charges = max(len(self.electrostatic_point_charges.charges), len(self.magnetostatic_point_charges.charges))
+        N = N if N is not None else int(FACTOR_AXIAL_DERIV_SAMPLING_2D*N_charges)
         z = np.linspace(zmin, zmax, N)
         
         st = time.time()
@@ -913,8 +920,8 @@ class Field3D_BEM(FieldBEM):
 
         """
         assert zmax > zmin
-
-        N = N if N is not None else int(FACTOR_AXIAL_DERIV_SAMPLING_3D*len(self.electrostatic_point_charges.charges))
+        N_charges = max(len(self.electrostatic_point_charges.charges), len(self.magnetostatic_point_charges.charges))
+        N = N if N is not None else int(FACTOR_AXIAL_DERIV_SAMPLING_3D*N_charges)
         z = np.linspace(zmin, zmax, N)
         
         print(f'Number of points on z-axis: {len(z)}')
@@ -1058,6 +1065,29 @@ class FieldRadialAxial(FieldAxial):
         """
         assert point.shape == (2,)
         return backend.potential_radial_derivs(point, self.z, self.magnetostatic_coeffs)
+    
+    def field_at_point(self, *args, **kwargs):
+        elec, mag = np.any(self.electrostatic_coeffs != 0.), np.any(self.magnetostatic_coeffs != 0.)
+         
+        if elec and not mag:
+            return self.electrostatic_field_at_point(*args, **kwargs)
+        elif not elec and mag:
+            return self.magnetostatic_field_at_point(*args, **kwargs)
+          
+        raise RuntimeError("Cannot use field_at_point when both electric and magnetic fields are present, " \
+            "use electrostatic_field_at_point or magnetostatic_potential_at_point")
+     
+    def potential_at_point(self, *args, **kwargs):
+        elec, mag = np.any(self.electrostatic_coeffs != 0.), np.any(self.magnetostatic_coeffs != 0.)
+          
+        if elec and not mag:
+            return self.electrostatic_potential_at_point(*args, **kwargs)
+        elif not elec and mag:
+            return self.magnetostatic_potential_at_point(*args, **kwargs)
+          
+        raise RuntimeError("Cannot use potential_at_point when both electric and magnetic fields are present, " \
+            "use electrostatic_potential_at_point or magnetostatic_potential_at_point")
+ 
 
 class Field3DAxial(FieldAxial):
     """Field computed using a radial series expansion around the optical axis (z-axis). See comments at the start of this page.
