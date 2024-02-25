@@ -810,7 +810,12 @@ class Field3D_BEM(FieldBEM):
     `solve_bem` function. See the comments in `FieldBEM`."""
      
     def __init__(self, electrostatic_point_charges=None, magnetostatic_point_charges=None):
-        assert isinstance(electrostatic_point_charges, EffectivePointCharges) and electrostatic_point_charges.is_3d()
+        
+        if electrostatic_point_charges is None:
+            electrostatic_point_charges = EffectivePointCharges.empty_3d()
+        if magnetostatic_point_charges is None:
+            magnetostatic_point_charges = EffectivePointCharges.empty_3d()
+         
         super().__init__(electrostatic_point_charges, magnetostatic_point_charges, EffectivePointCharges.empty_3d())
 
         for eff in [electrostatic_point_charges, magnetostatic_point_charges]:
@@ -926,17 +931,21 @@ class Field3D_BEM(FieldBEM):
         
         print(f'Number of points on z-axis: {len(z)}')
         st = time.time()
-        charges = self.electrostatic_point_charges.charges
-        jacobians = self.electrostatic_point_charges.jacobians
-        positions = self.electrostatic_point_charges.positions
+        elec_coeff = self._effective_point_charges_to_coeff(self.electrostatic_point_charges, z)
+        mag_coeff = self._effective_point_charges_to_coeff(self.magnetostatic_point_charges, z)
+        print(f'Time for calculating radial series expansion coefficients: {(time.time()-st)*1000:.0f} ms ({len(z)} items)')
+        
+        return Field3DAxial(z, elec_coeff, mag_coeff)
+    
+    def _effective_point_charges_to_coeff(self, eff, z): 
+        charges = eff.charges
+        jacobians = eff.jacobians
+        positions = eff.positions
         coeffs = util.split_collect(lambda z: backend.axial_coefficients_3d(charges, jacobians, positions, z), z)
         coeffs = np.concatenate(coeffs, axis=0)
         interpolated_coeffs = CubicSpline(z, coeffs).c
         interpolated_coeffs = np.moveaxis(interpolated_coeffs, 0, -1)
-        interpolated_coeffs = np.require(interpolated_coeffs, requirements=('C_CONTIGUOUS', 'ALIGNED'))
-        print(f'Time for calculating radial series expansion coefficients: {(time.time()-st)*1000:.0f} ms ({len(z)} items)')
-
-        return Field3DAxial(z, interpolated_coeffs)
+        return np.require(interpolated_coeffs, requirements=('C_CONTIGUOUS', 'ALIGNED'))
     
     def area_of_element(self, i):
         jacobians = self.electrostatic_point_charges.jacobians

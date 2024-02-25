@@ -353,7 +353,6 @@ def trace_particle_radial_derivs(position, velocity, bounds, atol, z, elec_coeff
     return times, positions
 
 def trace_particle_3d(position, velocity, bounds, atol, eff_elec, eff_mag, field_bounds=None):
-    N = len(charges)
     assert position.shape == (3,)
     assert velocity.shape == (3,)
     assert field_bounds is None or field_bounds.shape == (3,2)
@@ -361,6 +360,9 @@ def trace_particle_3d(position, velocity, bounds, atol, eff_elec, eff_mag, field
     bounds = np.array(bounds)
     
     field_bounds = field_bounds.ctypes.data_as(dbl_p) if field_bounds is not None else None
+
+    eff_elec = EffectivePointCharges3D(eff_elec)
+    eff_mag = EffectivePointCharges3D(eff_mag)
      
     return trace_particle_wrapper(position, velocity,
         lambda T, P: backend_lib.trace_particle_3d(T, P, bounds, atol, eff_elec, eff_mag, field_bounds))

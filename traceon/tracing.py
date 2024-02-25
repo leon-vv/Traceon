@@ -154,13 +154,12 @@ class Tracer:
             return backend.trace_particle_radial(position, velocity, self.bounds, self.atol, 
                 f.electrostatic_point_charges, f.magnetostatic_point_charges, f.current_point_charges, field_bounds=f.field_bounds)
         elif isinstance(self.field, S.FieldRadialAxial):
-            return backend.trace_particle_radial_derivs(position, velocity, self.bounds, self.atol, self.field.z, self.field.electrostatic_coeffs, self.field.magnetostatic_coeffs)
+            elec, mag = self.field.electrostatic_point_charges, self.field.magnetostatic_point_charges
+            return backend.trace_particle_radial_derivs(position, velocity, self.bounds, self.atol, self.field.z, elec, mag)
         elif isinstance(self.field, S.Field3D_BEM):
-            jacobians = self.field.electrostatic_point_charges.jacobians
-            positions = self.field.electrostatic_point_charges.positions
-            charges = self.field.electrostatic_point_charges.charges
             bounds = self.field.field_bounds
-            return backend.trace_particle_3d(position, velocity, self.bounds, self.atol, charges, jacobians, positions, bounds)
+            elec, mag = self.field.electrostatic_point_charges, self.field.magnetostatic_point_charges
+            return backend.trace_particle_3d(position, velocity, self.bounds, self.atol, elec, mag)
         elif isinstance(self.field, S.Field3DAxial):
             return backend.trace_particle_3d_derivs(position, velocity, self.bounds, self.atol,
                     self.field.z, self.field.electrostatic_coeffs, self.field.magnetostatic_coeffs)

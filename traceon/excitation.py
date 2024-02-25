@@ -94,11 +94,11 @@ class Excitation:
         return any([t == ExcitationType.CURRENT for t, _ in self.excitation_types.values()])
     
     def is_electrostatic(self):
-        return any([t.is_electrostatic() for t, _ in self.excitation_types.values()])
-    
+        return any([t in [ExcitationType.VOLTAGE_FIXED, ExcitationType.VOLTAGE_FUN] for t, _ in self.excitation_types.values()])
+     
     def is_magnetostatic(self):
-        return any([t.is_magnetostatic() for t, _ in self.excitation_types.values()])
-    
+        return any([t in [ExcitationType.MAGNETOSTATIC_POT, ExcitationType.CURRENT] for t, _ in self.excitation_types.values()])
+     
     def add_magnetostatic_potential(self, **kwargs):
         for name, pot in kwargs.items():
             assert name in self.electrodes

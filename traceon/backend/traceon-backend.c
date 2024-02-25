@@ -1252,9 +1252,9 @@ field_3d_traceable(double point[6], double result[3], void *args_p) {
 		double elec_field[3] = {0.};
 		double mag_field[3] = {0.};
 		double curr_field[3] = {0.};
-		
-		field_3d(point, result, elec_charges->charges, elec_charges->jacobians, elec_charges->positions, elec_charges->N);
-		field_3d(point, result, mag_charges->charges, mag_charges->jacobians, mag_charges->positions, mag_charges->N);
+			
+		field_3d(point, elec_field, elec_charges->charges, elec_charges->jacobians, elec_charges->positions, elec_charges->N);
+		field_3d(point, mag_field, mag_charges->charges, mag_charges->jacobians, mag_charges->positions, mag_charges->N);
 		combine_elec_magnetic_field(point + 3, elec_field, mag_field, curr_field, result);
 	}
 	else {
@@ -1583,7 +1583,7 @@ void fill_self_voltages_3d(double *matrix,
 			{ v[5][0], v[5][1], v[5][2] },
 			{ s0[0], s0[1], s0[2] } };
 
-		if(excitation_types[i] != DIELECTRIC) {
+		if(excitation_types[i] != DIELECTRIC && excitation_types[i] != MAGNETIZABLE) {
 			matrix[i*N_matrix + i] = 0.0;
 			matrix[i*N_matrix + i] += triangle_integral_adaptive(t, triangle1, potential_3d_point, NULL);
 			matrix[i*N_matrix + i] += triangle_integral_adaptive(t, triangle2, potential_3d_point, NULL);
@@ -1671,7 +1671,7 @@ EXPORT void fill_matrix_3d(double *restrict matrix,
 			
         enum ExcitationType type_ = excitation_types[i];
 		 
-        if (type_ == VOLTAGE_FIXED || type_ == VOLTAGE_FUN) {
+        if (type_ == VOLTAGE_FIXED || type_ == VOLTAGE_FUN || type_ == MAGNETOSTATIC_POT) {
             for (int j = 0; j < N_lines; j++) {
 				
 				UNROLL
@@ -1683,7 +1683,7 @@ EXPORT void fill_matrix_3d(double *restrict matrix,
 				}
             }
         } 
-		else if (type_ == DIELECTRIC) {  
+		else if (type_ == DIELECTRIC || type_ == MAGNETIZABLE) {  
 			
 			double normal[3];  
 			higher_order_normal_3d(1/3., 1/3., &triangle_points[i][0], normal);
@@ -1706,7 +1706,7 @@ EXPORT void fill_matrix_3d(double *restrict matrix,
 			}  
 		}  
         else {
-            printf("ExcitationType unknown");
+            printf("ExcitationType unknown\n");
             exit(1);
         }
     }
