@@ -49,10 +49,11 @@ class MagneticTorus(Validation):
         return exc
     
     def correct_value_of_interest(self):
-        return 0.15454131081
-    
+        return 154.54131081/1e4
+     
     def compute_value_of_interest(self, geometry, field):
-        return field.magnetostatic_field_at_point(np.array([2.5, 4]))[0]
+        result = field.magnetostatic_field_at_point(np.array([2.5, 4]))[0]
+        return result
 
 if __name__ == '__main__':
     MagneticTorus().run_validation()
