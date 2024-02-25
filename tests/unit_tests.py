@@ -5,7 +5,7 @@ import os.path as path
 import numpy as np
 import matplotlib.pyplot as plt
 from scipy.interpolate import CubicSpline
-from scipy.integrate import quad, solve_ivp
+from scipy.integrate import quad, solve_ivp, dblquad
 from scipy.constants import m_e, e, mu_0, epsilon_0
 
 import traceon.geometry as G
@@ -13,6 +13,7 @@ import traceon.excitation as E
 import traceon.tracing as T
 import traceon.solver as S
 import traceon.backend as B
+import traceon.plotting as P
 
 q = -e
 EM = q/m_e
@@ -30,11 +31,14 @@ def biot_savart_loop(current, r_point):
         return db[axis]
         
     # Magnetic field components
-    Bx, _ = quad(biot_savart_integrand, 0, 2*np.pi, args=(0,))
-    By, _ = quad(biot_savart_integrand, 0, 2*np.pi, args=(1,))
-    Bz, _ = quad(biot_savart_integrand, 0, 2*np.pi, args=(2,))
+    Bx, _ = quad(biot_savart_integrand, 0, 2*np.pi, args=(0,), epsabs=5e-13)
+    By, _ = quad(biot_savart_integrand, 0, 2*np.pi, args=(1,), epsabs=5e-13)
+    Bz, _ = quad(biot_savart_integrand, 0, 2*np.pi, args=(2,), epsabs=5e-13)
     
     return current * mu_0 / (4 * np.pi) * np.array([Bx, By, Bz])
+
+def magnetic_field_of_loop(current, radius, point):
+    return biot_savart_loop(current, point/radius)/radius
 
 
 class TestBiotSavartLoop(unittest.TestCase):
@@ -61,6 +65,39 @@ class TestBiotSavartLoop(unittest.TestCase):
         ])
         
         assert np.allclose(values, [biot_savart_loop(current, p) for p in positions])
+    
+    def test_magnetic_field_of_loop_against_online_calculator(self):
+        # Current, radius, x, y, z
+        test_cases = np.array([
+            [0.5, 2.5, 2.5, 0, 1.5],
+            [0.5, 2.5, 1.0, 0, 1.0],
+            [1.0, 2.5, 2.5, 0., 4.],
+            [1.25, 5, 1.0, 1.0, 1.0]])
+        
+        theta = np.pi/4
+        rad_vector = np.array([np.cos(theta), np.sin(theta), 0.])
+        axial_vector = np.array([0., 0., 1.])
+         
+        correct = np.array([
+            [5.1469970601554224e-8, 0., 3.02367391882467e-8],
+            [2.4768749699767386e-8, 0., 1.0287875364876885e-7],
+            [1.7146963475789695e-8, 0., 2.083787779958955e-8],
+            rad_vector * 1.3835602159875731e-8 + axial_vector * 1.553134392842064e-7])
+        
+        for t, c in zip(test_cases, correct):
+            assert np.allclose(magnetic_field_of_loop(t[0], t[1], t[2:]), c, atol=1e-9), (magnetic_field_of_loop(t[0], t[1], t[2:]), c)
+
+    def test_magnetic_field_of_loop_against_backend2(self):
+        N = 50
+        test_cases = 10*np.random.rand(N, 4)
+        
+        for x0, y0, x, y in test_cases:
+            traceon_field = mu_0*B.current_field_radial_ring(x0, y0, x, y)
+            correct_field = magnetic_field_of_loop(1., x, np.array([x0, 0., y0-y]))
+            
+            assert np.isclose(traceon_field[0], correct_field[0], atol=1e-10)
+            assert np.isclose(traceon_field[1], correct_field[2], atol=1e-10)
+            
     
     def test_ampere_law(self):
         current = 2.5
@@ -194,6 +231,7 @@ class TestBackend(unittest.TestCase):
         field_correct = r_ring**2 / (2*((z-z_ring)**2 + r_ring**2)**(3/2))
         field_z = np.array([B.current_field_radial_ring(0., z_, r_ring, z_ring)[1] for z_ in z])
         
+        print(field_correct, field_z)
         assert np.allclose(field_correct, field_z)
     
     def test_current_field_in_plane(self):
@@ -235,8 +273,8 @@ class TestBackend(unittest.TestCase):
         traceon_fields = np.array([mu_0*B.current_field_radial_ring(p_[0], p_[2]+z_ring, 1., z_ring) for p_ in positions])
         correct_fields = np.array([biot_savart_loop(1., p_) for p_ in positions])
         
-        assert np.allclose(traceon_fields[:, 0], correct_fields[:, 0])
-        assert np.allclose(traceon_fields[:, 1], correct_fields[:, 2])
+        assert np.allclose(traceon_fields[:, 0], correct_fields[:, 0], atol=1e-10)
+        assert np.allclose(traceon_fields[:, 1], correct_fields[:, 2], atol=1e-10)
     
     def test_ampere_law(self):
         current = 2.5
@@ -477,6 +515,36 @@ class TestAxialInterpolation(unittest.TestCase):
         interp = CubicSpline(positions[::-1, 2], np.array([positions[::-1, 0], positions[::-1, 1]]).T)
         
         assert np.allclose(interp(sol.y[2]), np.array([sol.y[0], sol.y[1]]).T, atol=1e-4, rtol=5e-5)
+
+class TestMagnetic(unittest.TestCase):
+
+    def test_rectangular_coil(self):
+        # Field produced by a 1mm x 1mm coil, with inner radius 2mm, 1ampere total current
+        # What is the field produced at (2.5mm, 4mm)
+        with G.Geometry(G.Symmetry.RADIAL) as geom:
+            rect = geom.add_rectangle(2, 3, 2, 3, 0)
+            geom.add_physical(rect.surface, 'coil')
+            geom.set_mesh_size_factor(5)
+            mesh = geom.generate_triangle_mesh(False)
+        
+        exc = E.Excitation(mesh)
+        exc.add_current(coil=1)
+        field = S.solve_bem(exc)
+
+        assert np.isclose(np.sum(field.current_point_charges.jacobians), 1.0) # Area is 1.0
+        assert np.isclose(np.sum(field.current_point_charges.charges[:, np.newaxis]*field.current_point_charges.jacobians), 1.0) # Total current is 1.0
+        
+        target = np.array([2.5, 0., 4.0])
+        correct_r = dblquad(lambda x, y: magnetic_field_of_loop(1.0, x, np.array([target[0], 0.,target[2]-y]))[0], 2, 3, 2, 3)[0]
+        correct_z = dblquad(lambda x, y: magnetic_field_of_loop(1.0, x, np.array([target[0], 0., target[2]-y]))[2], 2, 3, 2, 3)[0]
+        
+        computed = mu_0*field.current_field_at_point(np.array([target[0], target[2]]))
+        correct = np.array([correct_r, correct_z])
+        
+        assert np.allclose(computed, correct, atol=1e-11)
+
+        
+
 
 if __name__ == '__main__':
     unittest.main()
