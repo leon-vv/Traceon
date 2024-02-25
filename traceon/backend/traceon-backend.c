@@ -768,7 +768,6 @@ INLINE double flux_density_to_charge_factor(double K) {
 // boundary charge integration works. So we compute 
 // D = (D1 + D2)/2 = (K+1)/2 D1.
 // We then have s = D2 - D1 = (K - 1) D1 = 2*(K-1)/(K+1) D.
-// A factor of 1/pi comes in because we have chosen to scale our charges with this factor.
 	return 2.0*(K - 1)/(1 + K);
 }
 
@@ -820,22 +819,26 @@ charge_radial(double *vertices_p, double charge) {
 EXPORT void
 field_radial(double point[3], double result[3], double* charges, jacobian_buffer_2d jacobian_buffer, position_buffer_2d position_buffer, size_t N_vertices) {
 	
-	double Ex = 0.0, Ey = 0.0;
+	double Er = 0.0, Ez = 0.0;
+	double r = norm_2d(point[0], point[1]);
 	
 	for(int i = 0; i < N_vertices; i++) {  
 		for(int k = 0; k < N_QUAD_2D; k++) {
 			double *pos = &position_buffer[i][k][0];
-			Ex -= charges[i] * jacobian_buffer[i][k] * dr1_potential_radial_ring(point[0], point[1], pos[0], pos[1], NULL);
-			Ey -= charges[i] * jacobian_buffer[i][k] * dz1_potential_radial_ring(point[0], point[1], pos[0], pos[1], NULL);
+			Er -= charges[i] * jacobian_buffer[i][k] * dr1_potential_radial_ring(r, point[2], pos[0], pos[1], NULL);
+			Ez -= charges[i] * jacobian_buffer[i][k] * dz1_potential_radial_ring(r, point[2], pos[0], pos[1], NULL);
 		}
 	}
-			
-	assert(!isnan(Ex));
-	assert(!isnan(Ey));
-	
-	result[0] = Ex;
-	result[1] = Ey;
-	result[2] = 0.0;
+				
+	if(r >= MIN_DISTANCE_AXIS) {
+		result[0] = point[0]/r * Er;
+		result[1] = point[1]/r * Er;
+	}
+	else {
+		result[0] = 0.;
+		result[1] = 0.;
+	}
+	result[2] = Ez;
 }
 
 struct effective_point_charges_2d {

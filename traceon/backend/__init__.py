@@ -9,7 +9,7 @@ import platform
 from numpy.ctypeslib import ndpointer
 import numpy as np
 
-DEBUG = True
+DEBUG = False
 
 ## Attempt 1: load local
 if platform.system() in ['Linux', 'Darwin']:
@@ -411,7 +411,7 @@ def field_radial(point, charges, jac_buffer, pos_buffer):
     assert charges.shape == (len(charges),)
     field = np.zeros( (3,) )
     backend_lib.field_radial(point.astype(np.float64), field, charges, jac_buffer, pos_buffer, len(charges))
-    return field[:2]
+    return _vec_3d_to_2d(field)
 
 def combine_elec_magnetic_field(vel, elec, mag, current):
     result = np.zeros( (3,) )
@@ -423,7 +423,7 @@ def field_radial_derivs(point, z, coeffs):
     assert coeffs.shape == (len(z)-1, DERIV_2D_MAX, 6)
     field = np.zeros( (3,) )
     backend_lib.field_radial_derivs(point.astype(np.float64), field, z, coeffs, len(z))
-    return field[ [0, 2] ]
+    return _vec_3d_to_2d(field)
 
 dx1_potential_3d_point = remove_arg(backend_lib.dx1_potential_3d_point)
 dy1_potential_3d_point = remove_arg(backend_lib.dy1_potential_3d_point)
