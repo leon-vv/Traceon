@@ -345,7 +345,7 @@ def trace_particle_radial_derivs(position, velocity, bounds, atol, z, elec_coeff
     bounds = np.array(bounds)
 
     if bounds.shape[0] == 2:
-        bounds = np.array([bounds[0], bounds[1], [-1.0, 0.0]])
+        bounds = np.array([bounds[0], bounds[0], bounds[1]])
     
     times, positions = trace_particle_wrapper(position, velocity,
         lambda T, P: backend_lib.trace_particle_radial_derivs(T, P, bounds, atol, z, elec_coeffs, mag_coeffs, len(z)))

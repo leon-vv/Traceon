@@ -516,6 +516,45 @@ class TestAxialInterpolation(unittest.TestCase):
         
         assert np.allclose(interp(sol.y[2]), np.array([sol.y[0], sol.y[1]]).T, atol=1e-4, rtol=5e-5)
 
+    def test_mag_pot_derivatives(self):
+        with G.Geometry(G.Symmetry.RADIAL) as geom:
+            points = [[0, 5], [5, 5], [5, -5], [0, -5]]
+            lines = [geom.add_line(geom.add_point(p1), geom.add_point(p2)) for p1, p2 in zip(points, points[1:])]
+            geom.add_physical(lines, 'boundary')
+            
+            r1 = geom.add_rectangle(1, 2, 2, 3, 0)
+            r2 = geom.add_rectangle(1, 2, -3, -2, 0)
+            
+            geom.add_physical(r1.curves, 'r1')
+            geom.add_physical(r2.curves, 'r2')
+            geom.set_mesh_size_factor(10)
+            mesh = geom.generate_line_mesh(False)
+        
+        e = E.Excitation(mesh)
+        e.add_magnetostatic_potential(r1 = 10)
+        e.add_magnetostatic_potential(r2 = -10)
+         
+        field = S.solve_bem(e)
+        field_axial = field.axial_derivative_interpolation(-4.5, 4.5, N=1000)
+          
+        z = np.linspace(-4.5, 4.5, 300)
+        derivs = field.get_magnetostatic_axial_potential_derivatives(z)
+        z = z[5:-5]
+           
+        r = 0.3
+        pot = np.array([field.potential_at_point(np.array([r, z_])) for z_ in z])
+        pot_interp = np.array([field_axial.potential_at_point(np.array([r, z_])) for z_ in z])
+        
+        assert np.allclose(pot, pot_interp, rtol=1e-6)
+          
+        fr_direct = np.array([field.field_at_point(np.array([r, z_]))[0] for z_ in z])
+        fz_direct = np.array([field.field_at_point(np.array([r, z_]))[1] for z_ in z])
+        fr_interp = np.array([field_axial.field_at_point(np.array([r, z_]))[0] for z_ in z])
+        fz_interp = np.array([field_axial.field_at_point(np.array([r, z_]))[1] for z_ in z])
+
+        assert np.allclose(fr_direct, fr_interp, rtol=1e-3)
+        assert np.allclose(fz_direct, fz_interp, rtol=1e-3)
+
 class TestMagnetic(unittest.TestCase):
 
     def test_rectangular_coil(self):

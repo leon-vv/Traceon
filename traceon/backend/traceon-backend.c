@@ -751,7 +751,7 @@ potential_radial_derivs(double point[2], double *z_inter, double *coeff_p, size_
 		derivs[i] = C[i][0]*pow(diffz, 5) + C[i][1]*pow(diffz, 4) + C[i][2]*pow(diffz, 3)
 			      +	C[i][3]*pow(diffz, 2) + C[i][4]*diffz		  + C[i][5];
 		
-	return derivs[0] - pow(r,2)*derivs[2] + pow(r,4)/64.*derivs[4] - pow(r,6)/2304.*derivs[6] + pow(r,8)/147456.*derivs[8];
+	return derivs[0] - pow(r,2)/4*derivs[2] + pow(r,4)/64.*derivs[4] - pow(r,6)/2304.*derivs[6] + pow(r,8)/147456.*derivs[8];
 }
 
 
@@ -953,14 +953,13 @@ trace_particle_radial(double *times_array, double *pos_array, double tracer_boun
 
 EXPORT void
 field_radial_derivs(double point[3], double field[3], double *z_inter, double *coeff_p, size_t N_z) {
-	
 	double (*coeff)[DERIV_2D_MAX][6] = (double (*)[DERIV_2D_MAX][6]) coeff_p;
 	
 	double r = norm_2d(point[0], point[1]), z = point[2];
 	double z0 = z_inter[0], zlast = z_inter[N_z-1];
 	
 	if(!(z0 < z && z < zlast)) {
-		field[0] = 0.0, field[1] = 0.0; field[2] = 0.0;
+		field[0] = 0.0; field[1] = 0.0; field[2] = 0.0;
 		return;
 	}
 	
@@ -977,7 +976,7 @@ field_radial_derivs(double point[3], double field[3], double *z_inter, double *c
 			      +	C[i][3]*pow(diffz, 2) + C[i][4]*diffz		  + C[i][5];
 		
 	// Field radial is already divided by r, such that x/r*field and y/r*field below do not cause divide by zero errors
-	double field_radial= 1.0/2*(derivs[2] - r/8*derivs[4] + pow(r,3)/192*derivs[6] - pow(r,5)/9216*derivs[8]);
+	double field_radial = 0.5*(derivs[2] - pow(r,2)/8*derivs[4] + pow(r,4)/192*derivs[6] - pow(r,6)/9216*derivs[8]);
 	double field_z = -derivs[1] + pow(r,2)/4*derivs[3] - pow(r,4)/64*derivs[5] + pow(r,6)/2304*derivs[7];
 
 	field[0] = point[0]*field_radial;
