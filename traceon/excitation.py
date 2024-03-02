@@ -212,7 +212,7 @@ class Excitation:
             if type_ == 'electrostatic':
                 return excitation_type.is_electrostatic()
             else:
-                return excitation_type.is_magnetostatic()
+                return excitation_type in [ExcitationType.MAGNETOSTATIC_POT, ExcitationType.MAGNETIZABLE]
          
         return sum(len(physicals[n]) for n, v in self.excitation_types.items() if type_check(v[0]))
     
