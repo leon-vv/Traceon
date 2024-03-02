@@ -289,7 +289,10 @@ class MagnetostaticSolver(Solver):
             if not len(indices):
                 continue
              
-            currents.extend(np.full(len(indices), v[1]))
+            # Current supplied is total current, not a current density, therefore
+            # divide by the area.
+            area = np.sum(jac[indices])
+            currents.extend(np.full(len(indices), v[1]/area))
             jacobians.extend(jac[indices])
             positions.extend(pos[indices])
         

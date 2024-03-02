@@ -26,7 +26,7 @@ class TwoCurrentCoils(Validation):
             geom.add_physical(circle1.plane_surface, 'coil1')
             geom.add_physical(circle2.plane_surface, 'coil2')
             
-            geom.set_mesh_size_factor(10*MSF)
+            geom.set_mesh_size_factor(20*MSF)
             mesh1 = geom.generate_triangle_mesh(higher_order)
 
         with G.Geometry(G.Symmetry.RADIAL) as geom:
@@ -50,7 +50,7 @@ class TwoCurrentCoils(Validation):
     
     def get_excitation(self, geometry):
         exc = E.Excitation(geometry)
-        exc.add_current(coil1= 10/(np.pi*(1e-3)**2), coil2=-10/(np.pi*(1e-3)**2))
+        exc.add_current(coil1= 10, coil2=-10)
         exc.add_magnetizable(block=25)
         exc.add_magnetostatic_boundary('boundary')
         return exc
