@@ -12,7 +12,7 @@ this consider the `axial_derivative_interpolation` methods documented below.
 Let \( \phi_0(z) \) be the potential along the optical axis. We can express the potential around the optical axis as:
 
 $$
-\phi = \phi_0(z_0) - r^2 \\frac{\\partial \phi_0^2}{\\partial z^2} + \\frac{r^4}{64} \\frac{\\partial^4 \phi_0}{\\partial z^4} - \\frac{r^6}{2304} \\frac{\\partial \phi_0^6}{\\partial z^6} + \\cdots
+\phi = \phi_0(z_0) - \\frac{r^2}{4} \\frac{\\partial \phi_0^2}{\\partial z^2} + \\frac{r^4}{64} \\frac{\\partial^4 \phi_0}{\\partial z^4} - \\frac{r^6}{2304} \\frac{\\partial \phi_0^6}{\\partial z^6} + \\cdots
 $$
 
 Therefore, if we can efficiently compute the axial potential derivatives \( \\frac{\\partial \phi_0^n}{\\partial z^n} \) we can compute the potential and therefore the fields around the optical axis.
@@ -429,8 +429,7 @@ def solve_bem(excitation, superposition=False, use_fmm=False, fmm_precision=0):
     are the physical groups with unity excitation, and the values are the resulting fields.
     """
     if use_fmm:
-        assert not excitation.has_current(), "Magnetostatics not yet supported for FMM"
-        
+        assert not excitation.is_magnetostatic(), "Magnetostatic not yet supported for FMM"
         if superposition:
             excitations = excitation._split_for_superposition()
             return {name:ElectrostaticSolver(exc).solve_fmm(fmm_precision) for name, exc in excitations.items()}
@@ -445,13 +444,13 @@ def solve_bem(excitation, superposition=False, use_fmm=False, fmm_precision=0):
             excitations = excitation._split_for_superposition()
             
             # Solve for elec fields
-            elec_names = [n for n, v in excitations.values() if v.is_electrostatic()]
+            elec_names = [n for n, v in excitations.items() if v.is_electrostatic()]
             right_hand_sides = np.array([ElectrostaticSolver(excitations[n]).get_right_hand_side() for n in elec_names])
             solutions = ElectrostaticSolver(excitation).solve_matrix(right_hand_sides)
             elec_dict = {n:s for n, s in zip(elec_names, solutions)}
             
             # Solve for mag fields 
-            mag_names = [n for n, v in excitations.values() if v.is_magnetostatic()]
+            mag_names = [n for n, v in excitations.items() if v.is_magnetostatic()]
             right_hand_sides = np.array([MagnetostaticSolver(excitations[n]).get_right_hand_side() for n in mag_names])
             solutions = MagnetostaticSolver(excitation).solve_matrix(right_hand_sides)
             mag_dict = {n:s for n, s in zip(mag_names, solutions)}
