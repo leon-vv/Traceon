@@ -30,10 +30,10 @@ with G.MEMSStack(z0=z0, zmin=-1, zmax=2, size_from_distance=True) as geom:
     
     # Actually generate the mesh, which takes the boundaries in the
     # geometry and produces many line elements.
-    mesh = geom.generate_mesh()
+    mesh = geom.generate_line_mesh(False)
 
 # Show the generated mesh, with the given electrode colors.
-P.plot_mesh(mesh, ground='green', lens='blue')
+P.plot_mesh(mesh, ground='green', lens='blue', show_normals=True)
 
 excitation = E.Excitation(mesh)
 
@@ -86,7 +86,7 @@ for i, r0 in enumerate(r_start):
     _, positions = tracer(np.array([r0, 5]), velocity)
     # Plot the z position of the electrons vs the r position.
     # C0 produces the default matplotlib color (a shade of blue).
-    plt.plot(positions[:, 0], positions[:, 1], color='C0')
+    plt.plot(positions[:, 0], positions[:, 2], color='C0')
 
 plt.xlabel('r (mm)')
 plt.ylabel('z (mm)')
