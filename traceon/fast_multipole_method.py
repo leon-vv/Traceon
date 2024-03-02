@@ -104,8 +104,8 @@ def solve_iteratively(triangles, dielectric_indices, dielectric_values, right_ha
     
     # See the comment about this factor in traceon-backend.c
     K = dielectric_values
-    dielectric_factors = (2*K - 2) / (np.pi*(1+K))
-    
+    dielectric_factors = np.array([backend.flux_density_to_charge_factor(k) for k in K])
+     
     def matvec(charges):
         assert charges.shape == (N,)
         return apply_matrix(charges, geometry, precision, dielectric_indices, dielectric_factors)
