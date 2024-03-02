@@ -55,7 +55,7 @@ class DohiMirror(Validation):
     def get_excitation(self, mesh):
         exc = E.Excitation(mesh)
         exc.add_voltage(ground=0.0, mirror=-1250, lens=710.0126605741955)
-        exc.add_boundary('boundary')
+        exc.add_electrostatic_boundary('boundary')
         return exc
 
     def correct_value_of_interest(self):

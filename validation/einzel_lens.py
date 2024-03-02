@@ -33,7 +33,8 @@ class EinzelLens(Validation):
     def get_excitation(self, mesh):
         excitation = E.Excitation(mesh)
         excitation.add_voltage(ground=0.0, lens=1000)
-        excitation.add_boundary('boundary')
+        excitation.add_electrostatic_boundary('boundary')
+        print(excitation)
         return excitation
      
     def correct_value_of_interest(self):

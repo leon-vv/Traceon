@@ -39,7 +39,7 @@ excitation = E.Excitation(mesh)
 
 # Excite the geometry, put ground at 0V and the lens electrode at 1000V.
 excitation.add_voltage(ground=0.0, lens=1000)
-excitation.add_boundary('boundary')
+excitation.add_electrostatic_boundary('boundary')
 
 # Use the Boundary Element Method (BEM) to calculate the surface charges,
 # the surface charges gives rise to a electrostatic field.

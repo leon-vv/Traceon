@@ -35,7 +35,7 @@ class MagneticEinzelLens(Validation):
     def get_excitation(self, mesh):
         excitation = E.Excitation(mesh)
         excitation.add_magnetostatic_potential(ground=0.0, lens=50.)
-        excitation.add_boundary('boundary')
+        excitation.add_magnetostatic_boundary('boundary')
         return excitation
      
     def correct_value_of_interest(self):

@@ -47,6 +47,13 @@ class ExcitationType(IntEnum):
             return 'dielectric'
         elif self == ExcitationType.CURRENT:
             return 'current'
+        elif self == ExcitationType.MAGNETOSTATIC_POT:
+            return 'magnetostatic potential'
+        elif self == ExcitationType.MAGNETIZABLE:
+            return 'magnetizable'
+         
+        raise RuntimeError('ExcitationType not understood in __str__ method')
+     
 
 class Excitation:
     """ """
@@ -124,7 +131,7 @@ class Excitation:
             assert name in self.electrodes
             self.excitation_types[name] = (ExcitationType.DIELECTRIC, permittivity)
 
-    def add_boundary(self, *args):
+    def add_electrostatic_boundary(self, *args):
         """
         Specify geometry elements as boundary elements. At the boundary we require E·n = 0 at every point on the boundary. This
         is equivalent to stating that the directional derivative of the potential through the boundary is zero. Placing boundaries between
@@ -137,8 +144,10 @@ class Excitation:
             The geometry names that should be considered a boundary.
         """
         self.add_dielectric(**{a:0 for a in args})
+    
+    def add_magnetostatic_boundary(self, *args):
         self.add_magnetizable(**{a:0 for a in args})
-
+    
     def _split_for_superposition(self):
         
         # Names that have a fixed voltage excitation, not equal to 0.0

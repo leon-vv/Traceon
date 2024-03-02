@@ -41,7 +41,7 @@ class RectangularCoil(Validation):
     def get_excitation(self, mesh):
         exc = E.Excitation(mesh)
         exc.add_current(coil=1)
-        exc.add_boundary('boundary')
+        exc.add_magnetostatic_boundary('boundary')
         exc.add_magnetizable(circle=10)
         return exc
      

@@ -52,7 +52,7 @@ class TwoCurrentCoils(Validation):
         exc = E.Excitation(geometry)
         exc.add_current(coil1= 10/(np.pi*(1e-3)**2), coil2=-10/(np.pi*(1e-3)**2))
         exc.add_magnetizable(block=25)
-        exc.add_boundary('boundary')
+        exc.add_magnetostatic_boundary('boundary')
         return exc
     
     def correct_value_of_interest(self):
