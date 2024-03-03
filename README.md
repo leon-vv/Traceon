@@ -11,7 +11,9 @@ Traceon is completely free to use and open source. The source code is distribute
 [Examples](https://github.com/leon-vv/Traceon/tree/main/examples)
 
 [API documentation v0.5.0](https://traceon.org/docs/v0.5.0/index.html)
+
 [API documentation v0.4.0](https://traceon.org/docs/v0.4.0/index.html)
+
 [API documentation v0.3.1](https://traceon.org/docs/v0.3.1/index.html)
 
 ## Citation
