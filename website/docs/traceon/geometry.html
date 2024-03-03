@@ -204,7 +204,7 @@ class Geometry(geo.Geometry):
         elif dimension == 2 and not higher_order:
             gmsh.option.setNumber(&#39;Mesh.ElementOrder&#39;, 1)
         
-        return Mesh.from_meshio(super()._generate_mesh(dim=dimension, *args, **kwargs), self.symmetry)
+        return Mesh.from_meshio(super().generate_mesh(dim=dimension, *args, **kwargs), self.symmetry)
 
     def generate_line_mesh(self, higher_order, *args, **kwargs):
         &#34;&#34;&#34;Generate boundary mesh in 2D, by splitting the boundary in line elements.
@@ -864,7 +864,7 @@ This prevents singularities.</dd>
         elif dimension == 2 and not higher_order:
             gmsh.option.setNumber(&#39;Mesh.ElementOrder&#39;, 1)
         
-        return Mesh.from_meshio(super()._generate_mesh(dim=dimension, *args, **kwargs), self.symmetry)
+        return Mesh.from_meshio(super().generate_mesh(dim=dimension, *args, **kwargs), self.symmetry)
 
     def generate_line_mesh(self, higher_order, *args, **kwargs):
         &#34;&#34;&#34;Generate boundary mesh in 2D, by splitting the boundary in line elements.
