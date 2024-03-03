@@ -47,47 +47,7 @@ executed as follows:</p>
     python3 ./validation/edwards2007.py --help
 </code></pre>
 <h1 id="units">Units</h1>
-<p>The units used throughout the code base are as follows:</p>
-<table>
-<thead>
-<tr>
-<th><strong>Name</strong></th>
-<th><strong>Unit</strong></th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td>Length</td>
-<td>mm</td>
-</tr>
-<tr>
-<td>Time</td>
-<td>ns</td>
-</tr>
-<tr>
-<td>Velocity</td>
-<td>mm/ns</td>
-</tr>
-<tr>
-<td>Potential</td>
-<td>V</td>
-</tr>
-<tr>
-<td>Electric field</td>
-<td>V/mm</td>
-</tr>
-<tr>
-<td>Charge</td>
-<td>see below</td>
-</tr>
-<tr>
-<td></td>
-<td></td>
-</tr>
-</tbody>
-</table>
-<p>To keep the charge values from becoming very small, the charge values are always saved as <span><span class="MathJax_Preview"> \frac{ \sigma}{ \epsilon_0 \pi} </span><script type="math/tex"> \frac{ \sigma}{ \epsilon_0 \pi} </script></span>. Since this term appears
-in the formulas for the potential (and thus also in the formulas for the electric field) the actual <span><span class="MathJax_Preview"> \sigma </span><script type="math/tex"> \sigma </script></span> values themselves are never computed.</p>
+<p>SI units are used throughout the codebase. Except for charge, which is stored as <span><span class="MathJax_Preview"> \frac{ \sigma}{ \epsilon_0} </span><script type="math/tex"> \frac{ \sigma}{ \epsilon_0} </script></span>.</p>
 <details class="source">
 <summary>
 <span>Expand source code</span>
@@ -126,30 +86,16 @@ executed as follows:
 
 # Units
 
-The units used throughout the code base are as follows:
-
-| **Name**              | **Unit**      |
-|----------------       |----------     |
-| Length                | mm            |
-| Time                  | ns            |
-| Velocity              | mm/ns         |
-| Potential             | V             |
-| Electric field        | V/mm          |
-| Charge                | see below     |
-|                       |               |
-
-To keep the charge values from becoming very small, the charge values are always saved as \( \\frac{ \\sigma}{ \\epsilon_0 \\pi} \). Since this term appears
-in the formulas for the potential (and thus also in the formulas for the electric field) the actual \( \\sigma \) values themselves are never computed.
-
+SI units are used throughout the codebase. Except for charge, which is stored as \( \\frac{ \\sigma}{ \\epsilon_0} \).
 &#34;&#34;&#34;
 
 import warnings
 
 __pdoc__ = {}
-__pdoc__[&#39;traceon.util&#39;] = False
-__pdoc__[&#39;traceon.backend&#39;] = False
-__pdoc__[&#39;traceon.data&#39;] = False
-__pdoc__[&#39;traceon.fast_multipole_method&#39;] = False
+__pdoc__[&#39;util&#39;] = False
+__pdoc__[&#39;backend&#39;] = False
+__pdoc__[&#39;data&#39;] = False
+__pdoc__[&#39;fast_multipole_method&#39;] = False
 __pdoc__[&#39;traceon.tracing.Tracer.__call__&#39;] = True
 
 warnings.filterwarnings(&#39;ignore&#39;, &#39;.*The value of the smallest subnormal for.* type is zero.&#39;)</code></pre>
@@ -165,7 +111,7 @@ created with the …</p></div>
 </dd>
 <dt><code class="name"><a title="traceon.focus" href="focus.html">traceon.focus</a></code></dt>
 <dd>
-<div class="desc"></div>
+<div class="desc"><p>Module containing a single function to find the focus of a beam of electron trajecories.</p></div>
 </dd>
 <dt><code class="name"><a title="traceon.geometry" href="geometry.html">traceon.geometry</a></code></dt>
 <dd>

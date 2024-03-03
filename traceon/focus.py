@@ -1,3 +1,7 @@
+"""
+Module containing a single function to find the focus of a beam of electron trajecories.
+"""
+
 import numpy as np
 
 

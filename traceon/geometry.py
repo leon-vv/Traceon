@@ -121,6 +121,12 @@ class Geometry(geo.Geometry):
         return self.symmetry.is_3d()
 
     def is_2d(self):
+        """Check if the geometry is two dimensional.
+
+        Returns
+        ----------------
+        True if geometry is two dimensional, False if the geometry is three dimensional"""
+
         return self.symmetry.is_2d()
      
     def add_physical(self, entities, name):
@@ -141,16 +147,7 @@ class Geometry(geo.Geometry):
         else:
             self._physical_queue[name] = entities
 
-    def generate_mesh(self, dimension, higher_order=False, *args, **kwargs):
-        """
-        Generate the mesh, determining the mesh dimension (line elements or triangles) from the
-        supplied symmetry. The arguments are passed directly to `pygmsh.geo.Geometry.generate_mesh`.
-        
-        Returns
-        -------
-        `Mesh`
-
-        """
+    def _generate_mesh(self, dimension, higher_order=False, *args, **kwargs):
         assert dimension == 1 or dimension == 2, "Currently only line and triangle meshes supported (dimension 1 or 2)"
         
         for label, entities in self._physical_queue.items():
@@ -171,17 +168,39 @@ class Geometry(geo.Geometry):
         return Mesh.from_meshio(super().generate_mesh(dim=dimension, *args, **kwargs), self.symmetry)
 
     def generate_line_mesh(self, higher_order, *args, **kwargs):
+        """Generate boundary mesh in 2D, by splitting the boundary in line elements.
+
+        Parameters
+        -----------------
+        higher_order: bool
+            Whether to use higher order (curved) line elements.
+
+        Returns
+        ----------------
+        `Mesh`
+        """
         if self.MSF is not None:
             gmsh.option.setNumber('Mesh.MeshSizeFactor', 1/self.MSF)
-        return self.generate_mesh(*args, higher_order=higher_order, dimension=1, **kwargs)
+        return self._generate_mesh(*args, higher_order=higher_order, dimension=1, **kwargs)
     
     def generate_triangle_mesh(self, higher_order, *args, **kwargs):
+        """Generate triangle mesh. Note that also 2D meshes can have triangles, which can current coils.
+        
+        Parameters
+        -----------------
+        higher_order: bool
+            Whether to use higher order (curved) line elements.
+        
+        Returns
+        ----------------
+        `Mesh`
+        """
         if self.MSF is not None:
             # GMSH seems to produce meshes which contain way more elements for 3D geometries
             # with the same mesh factor. This is confusing for users and therefore we arbtrarily
             # increase the mesh size to roughly correspond with the 2D number of elements.
             gmsh.option.setNumber('Mesh.MeshSizeFactor', 4*sqrt(1/self.MSF))
-        return self.generate_mesh(*args, higher_order=higher_order, dimension=2, **kwargs)
+        return self._generate_mesh(*args, higher_order=higher_order, dimension=2, **kwargs)
     
     def set_mesh_size_factor(self, factor):
         """
@@ -606,9 +625,14 @@ class MEMSStack(Geometry):
         self._add_lines_from_points(points, name)
         self._current_z += thickness
 
-    def generate_mesh(self, *args, **kwargs):
+    def generate_line_mesh(self, *args, **kwargs):
         self._add_boundary()
-        return super().generate_mesh(*args, **kwargs)
+        return super().generate_line_mesh(*args, **kwargs)
+    
+    def generate_triangle_mesh(self, *args, **kwargs):
+        self._add_boundary()
+        return super().generate_triangle_mesh(*args, **kwargs)
+ 
     
         
 

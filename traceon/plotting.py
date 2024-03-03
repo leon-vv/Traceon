@@ -22,7 +22,17 @@ def _create_point_to_physical_dict(mesh):
 
 
 def plot_mesh(mesh, show_normals=False, show_legend=True, **colors):
-      
+    """Plot mesh using the Vedo library. Optionally showing normal vectors.
+
+    Parameters
+    ---------------------
+    show_normals: bool
+        Whether to show the normal vectors at every element
+    show_legend: bool
+        Whether to show the legend
+    colors: dict of (string, string)
+        Use keyword arguments to specify colors, for example `plot_mesh(mesh, lens='blue', ground='green')`
+    """
     plotter = vedo.Plotter()
     points_to_physical = _create_point_to_physical_dict(mesh)
     legend_entries = []

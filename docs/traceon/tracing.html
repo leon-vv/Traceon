@@ -53,12 +53,10 @@ import matplotlib.pyplot as plt
 import numpy as np
 import scipy
 from scipy.integrate import *
+from scipy.constants import m_e, e
 
 from . import solver as S
 from . import backend
-
-EM = -0.1758820022723908 # e/m units ns and mm
-
 
 def velocity_vec(eV, direction):
     &#34;&#34;&#34;Compute an initial velocity vector in the correct units and direction.
@@ -73,17 +71,15 @@ def velocity_vec(eV, direction):
 
     Returns
     -------
-    Initial velocity vector with magnitude corresponding to the supplied energy and correct units (mm/ns).
+    Initial velocity vector with magnitude corresponding to the supplied energy (in eV).
     The shape of the resulting vector is the same as the shape of `direction`.
     &#34;&#34;&#34;
     assert eV &gt; 0.0
     
     if eV &gt; 40000:
         print(f&#39;WARNING: velocity vector with large energy ({eV} eV) requested. Note that relativistic tracing is not yet implemented.&#39;)
-     
-    # From electronvolt to mm/ns
-    V = 0.5930969604919433*sqrt(eV)
-    return V* np.array(direction)/np.linalg.norm(direction)
+    
+    return eV * np.array(direction)/np.linalg.norm(direction)
 
 def velocity_vec_spherical(eV, theta, phi):
     &#34;&#34;&#34;Compute initial velocity vector given energy and direction computed from spherical coordinates.
@@ -99,7 +95,7 @@ def velocity_vec_spherical(eV, theta, phi):
 
     Returns
     ------
-    Initial velocity vector of shape (3,) with magnitude corresponding to the supplied energy and correct units (mm/ns).
+    Initial velocity vector of shape (3,) with magnitude corresponding to the supplied energy (in eV).
     &#34;&#34;&#34;
     return velocity_vec(eV, [sin(theta)*cos(phi), sin(theta)*sin(phi), cos(theta)])
 
@@ -119,7 +115,7 @@ def velocity_vec_xz_plane(eV, angle, downward=True, three_dimensional=False):
      
     Returns
     ------
-    Initial velocity vector with magnitude corresponding to the supplied energy and correct units (mm/ns).
+    Initial velocity vector with magnitude corresponding to the supplied energy (in eV).
     &#34;&#34;&#34;
     sign = -1 if downward else 1
     direction = [sin(angle), sign*cos(angle)] if not three_dimensional else [sin(angle), 0.0, sign*cos(angle)]
@@ -140,10 +136,8 @@ class Tracer:
     ----------
     field: traceon.solver.Field (or any class inheriting Field)
         The field used to compute the force felt by the electron.
-    bounds: (2, 3) or (3, 3) np.ndarray of float64
-        Once the electron reaches one of the boundaries the tracing stops. The bounds are either of the form
-        ( (rmin, rmax), (zmin, zmax) ) for radial symmetric geometries or 
-        ( (xmin, xmax), (ymin, ymax), (zmin, zmax) ) for 3D geometries.
+    bounds: (3, 2) np.ndarray of float64
+        Once the electron reaches one of the boundaries the tracing stops. The bounds are of the form ( (xmin, xmax), (ymin, ymax), (zmin, zmax) ).
     atol: float
         Absolute tolerance determining the accuracy of the trace.
     &#34;&#34;&#34;
@@ -154,6 +148,8 @@ class Tracer:
         assert isinstance(field, S.FieldRadialBEM) or isinstance(field, S.FieldRadialAxial) or \
                isinstance(field, S.Field3D_BEM)    or isinstance(field, S.Field3DAxial)
          
+        bounds = np.array(bounds).astype(np.float64)
+        assert bounds.shape == (3,2)
         self.bounds = bounds
         self.atol = atol
     
@@ -171,26 +167,39 @@ class Tracer:
         position: (2,) or (3,) np.ndarray of float64
             Initial position of electron.
         velocity: (2,) or (3,) np.ndarray of float64
-            Initial velocity (in units of mm/ns). Use one of the utility functions documented
+            Initial velocity (expressed in a vector whose magnitude has units of eV). Use one of the utility functions documented
             above to create the initial velocity vector.
         
         Returns
         -------
         `(times, positions)` which is a tuple of two numpy arrays. `times` is one dimensional and contains the times
         (in ns) at which the positions have been computed. The `positions` array is two dimensional, `positions[i]` correspond
-        to time step `times[i]`. One element of the positions array has either shape (4,) in radial symmetry or (6,) in three
-        dimensional geometries. The last two or three (depending on symmetry) elements in `positions[i]` contain the corresponding
-        velocity vector.
+        to time step `times[i]`. One element of the positions array has shape (6,).
+        The first three elements in the `positions[i]` array contain the x,y,z positions.
+        The last three elements in `positions[i]` contain the vx,vy,vz velocities.
         &#34;&#34;&#34;
-
+         
+        f = self.field
+         
+        # Convert the velocity in eV to m/s
+        speed_eV = np.linalg.norm(velocity)
+        speed = sqrt(2*speed_eV*e/m_e)
+        direction = velocity / speed_eV
+        velocity = speed * direction
+        
         if isinstance(self.field, S.FieldRadialBEM):
-            return backend.trace_particle_radial(position, velocity, self.bounds, self.atol, self.field.charges, self.field.jac_buffer, self.field.pos_buffer, self.field.field_bounds)
+            return backend.trace_particle_radial(position, velocity, self.bounds, self.atol, 
+                f.electrostatic_point_charges, f.magnetostatic_point_charges, f.current_point_charges, field_bounds=f.field_bounds)
         elif isinstance(self.field, S.FieldRadialAxial):
-            return backend.trace_particle_radial_derivs(position, velocity, self.bounds, self.atol, self.field.z, self.field.coeffs)
+            elec, mag = self.field.electrostatic_coeffs, self.field.magnetostatic_coeffs
+            return backend.trace_particle_radial_derivs(position, velocity, self.bounds, self.atol, self.field.z, elec, mag)
         elif isinstance(self.field, S.Field3D_BEM):
-            return backend.trace_particle_3d(position, velocity, self.bounds, self.atol, self.field.charges, self.field.jac_buffer, self.field.pos_buffer, self.field.field_bounds)
+            bounds = self.field.field_bounds
+            elec, mag = self.field.electrostatic_point_charges, self.field.magnetostatic_point_charges
+            return backend.trace_particle_3d(position, velocity, self.bounds, self.atol, elec, mag)
         elif isinstance(self.field, S.Field3DAxial):
-            return backend.trace_particle_3d_derivs(position, velocity, self.bounds, self.atol, self.field.z, self.field.coeffs)
+            return backend.trace_particle_3d_derivs(position, velocity, self.bounds, self.atol,
+                    self.field.z, self.field.electrostatic_coeffs, self.field.magnetostatic_coeffs)
  
 
 def plane_intersection(positions, p0, normal):
@@ -488,7 +497,7 @@ dot is the dot product.</dd>
 have to be a unit vector as it is always normalized.</dd>
 </dl>
 <h2 id="returns">Returns</h2>
-<p>Initial velocity vector with magnitude corresponding to the supplied energy and correct units (mm/ns).
+<p>Initial velocity vector with magnitude corresponding to the supplied energy (in eV).
 The shape of the resulting vector is the same as the shape of <code>direction</code>.</p></div>
 <details class="source">
 <summary>
@@ -507,17 +516,15 @@ The shape of the resulting vector is the same as the shape of <code>direction</c
 
     Returns
     -------
-    Initial velocity vector with magnitude corresponding to the supplied energy and correct units (mm/ns).
+    Initial velocity vector with magnitude corresponding to the supplied energy (in eV).
     The shape of the resulting vector is the same as the shape of `direction`.
     &#34;&#34;&#34;
     assert eV &gt; 0.0
     
     if eV &gt; 40000:
         print(f&#39;WARNING: velocity vector with large energy ({eV} eV) requested. Note that relativistic tracing is not yet implemented.&#39;)
-     
-    # From electronvolt to mm/ns
-    V = 0.5930969604919433*sqrt(eV)
-    return V* np.array(direction)/np.linalg.norm(direction)</code></pre>
+    
+    return eV * np.array(direction)/np.linalg.norm(direction)</code></pre>
 </details>
 </dd>
 <dt id="traceon.tracing.velocity_vec_spherical"><code class="name flex">
@@ -535,7 +542,7 @@ The shape of the resulting vector is the same as the shape of <code>direction</c
 <dd>angle with the x-axis (same definition as phi in a spherical coordinate system)</dd>
 </dl>
 <h2 id="returns">Returns</h2>
-<p>Initial velocity vector of shape (3,) with magnitude corresponding to the supplied energy and correct units (mm/ns).</p></div>
+<p>Initial velocity vector of shape (3,) with magnitude corresponding to the supplied energy (in eV).</p></div>
 <details class="source">
 <summary>
 <span>Expand source code</span>
@@ -554,7 +561,7 @@ The shape of the resulting vector is the same as the shape of <code>direction</c
 
     Returns
     ------
-    Initial velocity vector of shape (3,) with magnitude corresponding to the supplied energy and correct units (mm/ns).
+    Initial velocity vector of shape (3,) with magnitude corresponding to the supplied energy (in eV).
     &#34;&#34;&#34;
     return velocity_vec(eV, [sin(theta)*cos(phi), sin(theta)*sin(phi), cos(theta)])</code></pre>
 </details>
@@ -576,7 +583,7 @@ The shape of the resulting vector is the same as the shape of <code>direction</c
 <dd>whether the resulting velocity vector has shape (2,) or shape (3,)</dd>
 </dl>
 <h2 id="returns">Returns</h2>
-<p>Initial velocity vector with magnitude corresponding to the supplied energy and correct units (mm/ns).</p></div>
+<p>Initial velocity vector with magnitude corresponding to the supplied energy (in eV).</p></div>
 <details class="source">
 <summary>
 <span>Expand source code</span>
@@ -597,7 +604,7 @@ The shape of the resulting vector is the same as the shape of <code>direction</c
      
     Returns
     ------
-    Initial velocity vector with magnitude corresponding to the supplied energy and correct units (mm/ns).
+    Initial velocity vector with magnitude corresponding to the supplied energy (in eV).
     &#34;&#34;&#34;
     sign = -1 if downward else 1
     direction = [sin(angle), sign*cos(angle)] if not three_dimensional else [sin(angle), 0.0, sign*cos(angle)]
@@ -736,10 +743,8 @@ does not make sense in 2D (where we consider (r,z) as (x,z) and therefore the y-
 <dl>
 <dt><strong><code>field</code></strong> :&ensp;<code><a title="traceon.solver.Field" href="solver.html#traceon.solver.Field">Field</a> (or any class inheriting Field)</code></dt>
 <dd>The field used to compute the force felt by the electron.</dd>
-<dt><strong><code>bounds</code></strong> :&ensp;<code>(2, 3)</code> or <code>(3, 3) np.ndarray</code> of <code>float64</code></dt>
-<dd>Once the electron reaches one of the boundaries the tracing stops. The bounds are either of the form
-( (rmin, rmax), (zmin, zmax) ) for radial symmetric geometries or
-( (xmin, xmax), (ymin, ymax), (zmin, zmax) ) for 3D geometries.</dd>
+<dt><strong><code>bounds</code></strong> :&ensp;<code>(3, 2) np.ndarray</code> of <code>float64</code></dt>
+<dd>Once the electron reaches one of the boundaries the tracing stops. The bounds are of the form ( (xmin, xmax), (ymin, ymax), (zmin, zmax) ).</dd>
 <dt><strong><code>atol</code></strong> :&ensp;<code>float</code></dt>
 <dd>Absolute tolerance determining the accuracy of the trace.</dd>
 </dl></div>
@@ -754,10 +759,8 @@ does not make sense in 2D (where we consider (r,z) as (x,z) and therefore the y-
     ----------
     field: traceon.solver.Field (or any class inheriting Field)
         The field used to compute the force felt by the electron.
-    bounds: (2, 3) or (3, 3) np.ndarray of float64
-        Once the electron reaches one of the boundaries the tracing stops. The bounds are either of the form
-        ( (rmin, rmax), (zmin, zmax) ) for radial symmetric geometries or 
-        ( (xmin, xmax), (ymin, ymax), (zmin, zmax) ) for 3D geometries.
+    bounds: (3, 2) np.ndarray of float64
+        Once the electron reaches one of the boundaries the tracing stops. The bounds are of the form ( (xmin, xmax), (ymin, ymax), (zmin, zmax) ).
     atol: float
         Absolute tolerance determining the accuracy of the trace.
     &#34;&#34;&#34;
@@ -768,6 +771,8 @@ does not make sense in 2D (where we consider (r,z) as (x,z) and therefore the y-
         assert isinstance(field, S.FieldRadialBEM) or isinstance(field, S.FieldRadialAxial) or \
                isinstance(field, S.Field3D_BEM)    or isinstance(field, S.Field3DAxial)
          
+        bounds = np.array(bounds).astype(np.float64)
+        assert bounds.shape == (3,2)
         self.bounds = bounds
         self.atol = atol
     
@@ -785,26 +790,39 @@ does not make sense in 2D (where we consider (r,z) as (x,z) and therefore the y-
         position: (2,) or (3,) np.ndarray of float64
             Initial position of electron.
         velocity: (2,) or (3,) np.ndarray of float64
-            Initial velocity (in units of mm/ns). Use one of the utility functions documented
+            Initial velocity (expressed in a vector whose magnitude has units of eV). Use one of the utility functions documented
             above to create the initial velocity vector.
         
         Returns
         -------
         `(times, positions)` which is a tuple of two numpy arrays. `times` is one dimensional and contains the times
         (in ns) at which the positions have been computed. The `positions` array is two dimensional, `positions[i]` correspond
-        to time step `times[i]`. One element of the positions array has either shape (4,) in radial symmetry or (6,) in three
-        dimensional geometries. The last two or three (depending on symmetry) elements in `positions[i]` contain the corresponding
-        velocity vector.
+        to time step `times[i]`. One element of the positions array has shape (6,).
+        The first three elements in the `positions[i]` array contain the x,y,z positions.
+        The last three elements in `positions[i]` contain the vx,vy,vz velocities.
         &#34;&#34;&#34;
-
+         
+        f = self.field
+         
+        # Convert the velocity in eV to m/s
+        speed_eV = np.linalg.norm(velocity)
+        speed = sqrt(2*speed_eV*e/m_e)
+        direction = velocity / speed_eV
+        velocity = speed * direction
+        
         if isinstance(self.field, S.FieldRadialBEM):
-            return backend.trace_particle_radial(position, velocity, self.bounds, self.atol, self.field.charges, self.field.jac_buffer, self.field.pos_buffer, self.field.field_bounds)
+            return backend.trace_particle_radial(position, velocity, self.bounds, self.atol, 
+                f.electrostatic_point_charges, f.magnetostatic_point_charges, f.current_point_charges, field_bounds=f.field_bounds)
         elif isinstance(self.field, S.FieldRadialAxial):
-            return backend.trace_particle_radial_derivs(position, velocity, self.bounds, self.atol, self.field.z, self.field.coeffs)
+            elec, mag = self.field.electrostatic_coeffs, self.field.magnetostatic_coeffs
+            return backend.trace_particle_radial_derivs(position, velocity, self.bounds, self.atol, self.field.z, elec, mag)
         elif isinstance(self.field, S.Field3D_BEM):
-            return backend.trace_particle_3d(position, velocity, self.bounds, self.atol, self.field.charges, self.field.jac_buffer, self.field.pos_buffer, self.field.field_bounds)
+            bounds = self.field.field_bounds
+            elec, mag = self.field.electrostatic_point_charges, self.field.magnetostatic_point_charges
+            return backend.trace_particle_3d(position, velocity, self.bounds, self.atol, elec, mag)
         elif isinstance(self.field, S.Field3DAxial):
-            return backend.trace_particle_3d_derivs(position, velocity, self.bounds, self.atol, self.field.z, self.field.coeffs)</code></pre>
+            return backend.trace_particle_3d_derivs(position, velocity, self.bounds, self.atol,
+                    self.field.z, self.field.electrostatic_coeffs, self.field.magnetostatic_coeffs)</code></pre>
 </details>
 <h3>Methods</h3>
 <dl>
@@ -818,15 +836,15 @@ does not make sense in 2D (where we consider (r,z) as (x,z) and therefore the y-
 <dt><strong><code>position</code></strong> :&ensp;<code>(2,)</code> or <code>(3,) np.ndarray</code> of <code>float64</code></dt>
 <dd>Initial position of electron.</dd>
 <dt><strong><code>velocity</code></strong> :&ensp;<code>(2,)</code> or <code>(3,) np.ndarray</code> of <code>float64</code></dt>
-<dd>Initial velocity (in units of mm/ns). Use one of the utility functions documented
+<dd>Initial velocity (expressed in a vector whose magnitude has units of eV). Use one of the utility functions documented
 above to create the initial velocity vector.</dd>
 </dl>
 <h2 id="returns">Returns</h2>
 <p><code>(times, positions)</code> which is a tuple of two numpy arrays. <code>times</code> is one dimensional and contains the times
 (in ns) at which the positions have been computed. The <code>positions</code> array is two dimensional, <code>positions[i]</code> correspond
-to time step <code>times[i]</code>. One element of the positions array has either shape (4,) in radial symmetry or (6,) in three
-dimensional geometries. The last two or three (depending on symmetry) elements in <code>positions[i]</code> contain the corresponding
-velocity vector.</p></div>
+to time step <code>times[i]</code>. One element of the positions array has shape (6,).
+The first three elements in the <code>positions[i]</code> array contain the x,y,z positions.
+The last three elements in <code>positions[i]</code> contain the vx,vy,vz velocities.</p></div>
 <details class="source">
 <summary>
 <span>Expand source code</span>
@@ -839,26 +857,39 @@ velocity vector.</p></div>
     position: (2,) or (3,) np.ndarray of float64
         Initial position of electron.
     velocity: (2,) or (3,) np.ndarray of float64
-        Initial velocity (in units of mm/ns). Use one of the utility functions documented
+        Initial velocity (expressed in a vector whose magnitude has units of eV). Use one of the utility functions documented
         above to create the initial velocity vector.
     
     Returns
     -------
     `(times, positions)` which is a tuple of two numpy arrays. `times` is one dimensional and contains the times
     (in ns) at which the positions have been computed. The `positions` array is two dimensional, `positions[i]` correspond
-    to time step `times[i]`. One element of the positions array has either shape (4,) in radial symmetry or (6,) in three
-    dimensional geometries. The last two or three (depending on symmetry) elements in `positions[i]` contain the corresponding
-    velocity vector.
+    to time step `times[i]`. One element of the positions array has shape (6,).
+    The first three elements in the `positions[i]` array contain the x,y,z positions.
+    The last three elements in `positions[i]` contain the vx,vy,vz velocities.
     &#34;&#34;&#34;
-
+     
+    f = self.field
+     
+    # Convert the velocity in eV to m/s
+    speed_eV = np.linalg.norm(velocity)
+    speed = sqrt(2*speed_eV*e/m_e)
+    direction = velocity / speed_eV
+    velocity = speed * direction
+    
     if isinstance(self.field, S.FieldRadialBEM):
-        return backend.trace_particle_radial(position, velocity, self.bounds, self.atol, self.field.charges, self.field.jac_buffer, self.field.pos_buffer, self.field.field_bounds)
+        return backend.trace_particle_radial(position, velocity, self.bounds, self.atol, 
+            f.electrostatic_point_charges, f.magnetostatic_point_charges, f.current_point_charges, field_bounds=f.field_bounds)
     elif isinstance(self.field, S.FieldRadialAxial):
-        return backend.trace_particle_radial_derivs(position, velocity, self.bounds, self.atol, self.field.z, self.field.coeffs)
+        elec, mag = self.field.electrostatic_coeffs, self.field.magnetostatic_coeffs
+        return backend.trace_particle_radial_derivs(position, velocity, self.bounds, self.atol, self.field.z, elec, mag)
     elif isinstance(self.field, S.Field3D_BEM):
-        return backend.trace_particle_3d(position, velocity, self.bounds, self.atol, self.field.charges, self.field.jac_buffer, self.field.pos_buffer, self.field.field_bounds)
+        bounds = self.field.field_bounds
+        elec, mag = self.field.electrostatic_point_charges, self.field.magnetostatic_point_charges
+        return backend.trace_particle_3d(position, velocity, self.bounds, self.atol, elec, mag)
     elif isinstance(self.field, S.Field3DAxial):
-        return backend.trace_particle_3d_derivs(position, velocity, self.bounds, self.atol, self.field.z, self.field.coeffs)</code></pre>
+        return backend.trace_particle_3d_derivs(position, velocity, self.bounds, self.atol,
+                self.field.z, self.field.electrostatic_coeffs, self.field.magnetostatic_coeffs)</code></pre>
 </details>
 </dd>
 </dl>

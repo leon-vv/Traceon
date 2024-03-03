@@ -99,10 +99,8 @@ class Tracer:
     ----------
     field: traceon.solver.Field (or any class inheriting Field)
         The field used to compute the force felt by the electron.
-    bounds: (2, 3) or (3, 3) np.ndarray of float64
-        Once the electron reaches one of the boundaries the tracing stops. The bounds are either of the form
-        ( (rmin, rmax), (zmin, zmax) ) for radial symmetric geometries or 
-        ( (xmin, xmax), (ymin, ymax), (zmin, zmax) ) for 3D geometries.
+    bounds: (3, 2) np.ndarray of float64
+        Once the electron reaches one of the boundaries the tracing stops. The bounds are of the form ( (xmin, xmax), (ymin, ymax), (zmin, zmax) ).
     atol: float
         Absolute tolerance determining the accuracy of the trace.
     """
@@ -113,6 +111,8 @@ class Tracer:
         assert isinstance(field, S.FieldRadialBEM) or isinstance(field, S.FieldRadialAxial) or \
                isinstance(field, S.Field3D_BEM)    or isinstance(field, S.Field3DAxial)
          
+        bounds = np.array(bounds).astype(np.float64)
+        assert bounds.shape == (3,2)
         self.bounds = bounds
         self.atol = atol
     
@@ -137,9 +137,9 @@ class Tracer:
         -------
         `(times, positions)` which is a tuple of two numpy arrays. `times` is one dimensional and contains the times
         (in ns) at which the positions have been computed. The `positions` array is two dimensional, `positions[i]` correspond
-        to time step `times[i]`. One element of the positions array has either shape (4,) in radial symmetry or (6,) in three
-        dimensional geometries. The last two or three (depending on symmetry) elements in `positions[i]` contain the corresponding
-        velocity vector.
+        to time step `times[i]`. One element of the positions array has shape (6,).
+        The first three elements in the `positions[i]` array contain the x,y,z positions.
+        The last three elements in `positions[i]` contain the vx,vy,vz velocities.
         """
          
         f = self.field

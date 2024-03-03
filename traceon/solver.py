@@ -38,6 +38,11 @@ mathematics of calculating these coefficients quickly and accurately gets quite 
 
 """
 
+__pdoc__ = {}
+__pdoc__['EffectivePointCharges'] = False
+__pdoc__['ElectrostaticSolver'] = False
+__pdoc__['MagnetostaticSolver'] = False
+__pdoc__['Solver'] = False
 
 import math as m
 import time
@@ -508,6 +513,18 @@ def _quintic_spline_coefficients(z, derivs):
 
 class Field:
     def field_at_point(self, point):
+        """Convenience function for getting the field in the case that the field is purely electrostatic
+        or magneotstatic. Automatically picks one of `electrostatic_field_at_point` or `magnetostatic_field_at_point`.
+        Throws an exception when the field is both electrostatic and magnetostatic.
+
+        Parameters
+        ---------------------
+        point: (2,) or (3,) np.ndarray of float64
+
+        Returns
+        --------------------
+        (2,) or (3,) np.ndarray of float64. The electrostatic field \\(\\vec{E}\\) or the magnetostatic field \\(\\vec{H}\\).
+        """
         elec, mag = self.is_electrostatic(), self.is_magnetostatic()
         
         if elec and not mag:
@@ -519,6 +536,18 @@ class Field:
             "use electrostatic_field_at_point or magnetostatic_potential_at_point")
      
     def potential_at_point(self, point):
+        """Convenience function for getting the potential in the case that the field is purely electrostatic
+        or magneotstatic. Automatically picks one of `electrostatic_potential_at_point` or `magnetostatic_potential_at_point`.
+        Throws an exception when the field is both electrostatic and magnetostatic.
+         
+        Parameters
+        ---------------------
+        point: (2,) or (3,) np.ndarray of float64
+
+        Returns
+        --------------------
+        float. The electrostatic potential (unit Volt) or magnetostaic scalar potential (unit Ampere)
+        """
         elec, mag = self.is_electrostatic(), self.is_magnetostatic()
          
         if elec and not mag:
@@ -546,6 +575,15 @@ class FieldBEM(Field):
         self.field_bounds = None
      
     def set_bounds(self, bounds):
+        """Set the field bounds. Outside the field bounds the field always returns zero (i.e. no field). Note
+        that even in 2D the field bounds needs to be specified for x,y and z axis. The trajectories in the presence
+        of magnetostatic field are in general 3D even in radial symmetric geometries.
+        
+        Parameters
+        -------------------
+        bounds: (3, 2) np.ndarray of float64
+            The min, max value of x, y, z respectively within the field is still computed.
+        """
         self.field_bounds = np.array(bounds)
         assert self.field_bounds.shape == (3,2)
     
@@ -679,8 +717,8 @@ class FieldRadialBEM(FieldBEM):
      
     def electrostatic_potential_at_point(self, point):
         """
-        Compute the potential.
-
+        Compute the electrostatic potential.
+        
         Parameters
         ----------
         point: (2,) array of float64
@@ -698,6 +736,19 @@ class FieldRadialBEM(FieldBEM):
         return backend.potential_radial(point, charges, jacobians, positions)
     
     def magnetostatic_field_at_point(self, point):
+        """
+        Compute the magnetic field \\( \\vec{H} \\)
+        
+        Parameters
+        ----------
+        point: (2,) array of float64
+            Position at which to compute the field.
+             
+        Returns
+        -------
+        (2,) np.ndarray of float64 containing the field strength (in units of A/m) in the x, y and z directions.
+        """
+        point = np.array(point).astype(np.float64)
         assert point.shape == (2,)
         current_field = self.current_field_at_point(point)
         
@@ -710,6 +761,19 @@ class FieldRadialBEM(FieldBEM):
         return current_field + mag_field
 
     def magnetostatic_potential_at_point(self, point):
+        """
+        Compute the magnetostatic scalar potential (satisfying \\(\\vec{H} = -\\nabla \\phi \\))
+        
+        Parameters
+        ----------
+        point: (2,) array of float64
+            Position at which to compute the field.
+        
+        Returns
+        -------
+        Potential as a float value (in units of A).
+        """
+
         assert point.shape == (2,)
         charges = self.magnetostatic_point_charges.charges
         jacobians = self.magnetostatic_point_charges.jacobians
@@ -744,7 +808,7 @@ class FieldRadialBEM(FieldBEM):
     
     def get_magnetostatic_axial_potential_derivatives(self, z):
         """
-        Compute the derivatives of the magnetostatic potential at a point on the optical axis (z-axis). 
+        Compute the derivatives of the magnetostatic potential at points on the optical axis (z-axis). 
          
         Parameters
         ----------
@@ -765,6 +829,20 @@ class FieldRadialBEM(FieldBEM):
         return derivs_magnetic + derivs_current
      
     def get_current_axial_potential_derivatives(self, z):
+        """
+        Compute the derivatives of the current magnetostatic scalar potential at points on the optical axis.
+         
+        Parameters
+        ----------
+        z : (N,) np.ndarray of float64
+            Positions on the optical axis at which to compute the derivatives.
+         
+        Returns
+        ------- 
+        Numpy array of shape (N, 9) containing the derivatives. At index i one finds the i-th derivative (so
+        at position 0 the potential itself is returned). The highest derivative returned is a 
+        constant currently set to 9."""
+
         currents = self.current_point_charges.charges
         jacobians = self.current_point_charges.jacobians
         positions = self.current_point_charges.positions
@@ -874,7 +952,7 @@ class Field3D_BEM(FieldBEM):
      
     def magnetostatic_field_at_point(self, point):
         """
-        Compute the magnetic field
+        Compute the magnetic field \\( \\vec{H} \\)
         
         Parameters
         ----------
@@ -883,7 +961,7 @@ class Field3D_BEM(FieldBEM):
              
         Returns
         -------
-        Numpy array containing the field strengths (in units of V/mm) in the x, y and z directions.
+        (3,) np.ndarray of float64 containing the field strength (in units of A/m) in the x, y and z directions.
         """
         point = np.array(point).astype(np.float64)
         assert point.shape == (3,)
@@ -894,8 +972,8 @@ class Field3D_BEM(FieldBEM):
      
     def magnetostatic_potential_at_point(self, point):
         """
-        Compute the magnetostatic potential.
-
+        Compute the magnetostatic scalar potential (satisfying \\(\\vec{H} = -\\nabla \\phi \\))
+        
         Parameters
         ----------
         point: (3,) array of float64
@@ -903,7 +981,7 @@ class Field3D_BEM(FieldBEM):
         
         Returns
         -------
-        Potential as a float value (in units of V).
+        Potential as a float value (in units of A).
         """
         assert point.shape == (3,)
         charges = self.magnetostatic_point_charges.charges
@@ -1049,7 +1127,7 @@ class FieldRadialAxial(FieldAxial):
     
     def magnetostatic_field_at_point(self, point):
         """
-        Compute the magnetic field
+        Compute the magnetic field \\( \\vec{H} \\)
         
         Parameters
         ----------
@@ -1058,7 +1136,7 @@ class FieldRadialAxial(FieldAxial):
              
         Returns
         -------
-        Numpy array containing the field strengths (in units of T/m) in the r and z directions.
+        (2,) np.ndarray of float64 containing the field strength (in units of A/m) in the x, y and z directions.
         """
         point = np.array(point).astype(np.float64)
         assert point.shape == (2,)
@@ -1083,16 +1161,16 @@ class FieldRadialAxial(FieldAxial):
     
     def magnetostatic_potential_at_point(self, point):
         """
-        Compute the magnetostatic potential (close to the axis).
-
+        Compute the magnetostatic scalar potential (satisfying \\(\\vec{H} = -\\nabla \\phi \\)) close to the axis
+        
         Parameters
         ----------
         point: (2,) array of float64
-            Position at which to compute the potential.
+            Position at which to compute the field.
         
         Returns
         -------
-        Potential as a float value.
+        Potential as a float value (in units of A).
         """
         assert point.shape == (2,)
         return backend.potential_radial_derivs(point, self.z, self.magnetostatic_coeffs)
@@ -1142,7 +1220,7 @@ class Field3DAxial(FieldAxial):
     
     def magnetostatic_field_at_point(self, point):
         """
-        Compute the electric field, \( \\vec{E} = -\\nabla \phi \)
+        Compute the magnetic field \\( \\vec{H} \\)
         
         Parameters
         ----------
@@ -1151,7 +1229,7 @@ class Field3DAxial(FieldAxial):
              
         Returns
         -------
-        Numpy array containing the field strengths (in units of V/mm) in the x, y and z directions.
+        (3,) np.ndarray of float64 containing the field strength (in units of A/m) in the x, y and z directions.
         """
         point = np.array(point).astype(np.float64)
         assert point.shape == (3,)
@@ -1159,16 +1237,16 @@ class Field3DAxial(FieldAxial):
      
     def magnetostatic_potential_at_point(self, point):
         """
-        Compute the magnetostatic potential.
-
+        Compute the magnetostatic scalar potential (satisfying \\(\\vec{H} = -\\nabla \\phi \\)) close to the axis.
+        
         Parameters
         ----------
         point: (3,) array of float64
-            Position at which to compute the potential.
+            Position at which to compute the field.
         
         Returns
         -------
-        Potential as a float value (in units of V).
+        Potential as a float value (in units of A).
         """
         assert point.shape == (3,)
         return backend.potential_3d_derivs(point, self.z, self.magnetostatic_coeffs)

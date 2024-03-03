@@ -32,30 +32,16 @@ executed as follows:
 
 # Units
 
-The units used throughout the code base are as follows:
-
-| **Name**       	| **Unit** 	|
-|----------------	|----------	|
-| Length         	| mm       	|
-| Time           	| ns       	|
-| Velocity       	| mm/ns    	|
-| Potential      	| V        	|
-| Electric field 	| V/mm     	|
-| Charge         	| see below 	|
-|                	|          	|
-
-To keep the charge values from becoming very small, the charge values are always saved as \( \\frac{ \\sigma}{ \\epsilon_0 \\pi} \). Since this term appears
-in the formulas for the potential (and thus also in the formulas for the electric field) the actual \( \\sigma \) values themselves are never computed.
-
+SI units are used throughout the codebase. Except for charge, which is stored as \( \\frac{ \\sigma}{ \\epsilon_0} \).
 """
 
 import warnings
 
 __pdoc__ = {}
-__pdoc__['traceon.util'] = False
-__pdoc__['traceon.backend'] = False
-__pdoc__['traceon.data'] = False
-__pdoc__['traceon.fast_multipole_method'] = False
+__pdoc__['util'] = False
+__pdoc__['backend'] = False
+__pdoc__['data'] = False
+__pdoc__['fast_multipole_method'] = False
 __pdoc__['traceon.tracing.Tracer.__call__'] = True
 
 warnings.filterwarnings('ignore', '.*The value of the smallest subnormal for.* type is zero.')
