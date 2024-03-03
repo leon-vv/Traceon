@@ -6,16 +6,20 @@ Traceon is completely free to use and open source. The source code is distribute
 
 ## Documentation
 
+[Website](https://traceon.org/)
+
 [Examples](https://github.com/leon-vv/Traceon/tree/main/examples)
 
-[API documentation](https://leon.science/traceon/index.html)
+[API documentation v0.5.0](https://traceon.org/docs/v0.5.0/index.html)
+[API documentation v0.4.0](https://traceon.org/docs/v0.4.0/index.html)
+[API documentation v0.3.1](https://traceon.org/docs/v0.3.1/index.html)
 
 ## Citation
 
 Please cite the software as follows:
 
 ```
-L.B. van Velzen. Traceon software (version 0.4.0). 2023. https://doi.org/10.5281/zenodo.10035301
+L.B. van Velzen. Traceon software (version 0.5.0). 2023. https://doi.org/10.5281/zenodo.10775276
 ```
 
 ## Installation
@@ -54,6 +58,11 @@ Don't worry. You can reach me.
 ![Image of 3D deflector](https://raw.githubusercontent.com/leon-vv/traceon/main/images/deflector-image.png)
 
 ## Features
+
+v0.5.0:
+- Add preliminary support for magnetostatics
+- Improve and generalize mesh class (allow import/export)
+- Make consistent use of SI units
 
 v0.4.0:
 - Introduce Fast Multipole Method (FMM) for large 3D problems
