@@ -12,7 +12,7 @@ import traceon.tracing as T
 
 from validation import Validation
 
-class RectangularCoil(Validation):
+class RectangularCoilWithCircle(Validation):
 
     def __init__(self):
         super().__init__('Calculate current field of rectangular coil in presence of dielectric torus.')
@@ -37,7 +37,10 @@ class RectangularCoil(Validation):
             mesh2 = geom.generate_triangle_mesh(higher_order)
 
         return mesh1 + mesh2
-    
+
+    def supports_3d(self):
+        return False
+     
     def get_excitation(self, mesh):
         exc = E.Excitation(mesh)
         exc.add_current(coil=1)
@@ -54,5 +57,5 @@ class RectangularCoil(Validation):
         return fr
 
 if __name__ == '__main__':
-    RectangularCoil().run_validation()
+    RectangularCoilWithCircle().run_validation()
 

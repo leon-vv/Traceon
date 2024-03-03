@@ -34,7 +34,6 @@ class EinzelLens(Validation):
         excitation = E.Excitation(mesh)
         excitation.add_voltage(ground=0.0, lens=1000)
         excitation.add_electrostatic_boundary('boundary')
-        print(excitation)
         return excitation
      
     def correct_value_of_interest(self):
@@ -43,7 +42,7 @@ class EinzelLens(Validation):
     def compute_value_of_interest(self, geom, field):
         _3d = geom.is_3d()
         
-        field.set_bounds( ((-RADIUS, RADIUS), (-1.5, 1.5)) if not _3d else ((-RADIUS, RADIUS), (-RADIUS, RADIUS), (-1.5,1.5)) )
+        field.set_bounds( ((-RADIUS, RADIUS), (-RADIUS, RADIUS), (-1.5,1.5)) )
         field_axial = field.axial_derivative_interpolation(-1.5, 1.5, 600)
         
         z = np.linspace(-1.5, 1.5, 150)
@@ -51,7 +50,7 @@ class EinzelLens(Validation):
         #plt.plot(z, pot)
         #plt.show()
         
-        bounds = ((-RADIUS, RADIUS), (-5, 3.5)) if not _3d else ((-RADIUS, RADIUS), (-RADIUS, RADIUS), (-5, 3.5))
+        bounds = ((-RADIUS, RADIUS), (-RADIUS, RADIUS), (-5, 3.5))
         tracer = T.Tracer(field_axial, bounds)
         
         p0 = np.array([RADIUS/3, 3]) if not _3d else np.array([RADIUS/3, 0.0, 3])

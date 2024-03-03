@@ -83,15 +83,13 @@ class SphericalCapacitor(Validation):
     
     def compute_value_of_interest(self, mesh, field):
         if not mesh.is_3d():
-            bounds = ((-0.1, 12.5), (-12.5, 12.5))
             position = np.array([0.0, 10.0]) 
             vel = np.array([np.cos(angle), -np.sin(angle)])
         else:
-            bounds = ((-0.1, 12.5), (-0.1, 0.1), (-12.5, 12.5))
             position = np.array([0.0, 0.0, 10.0]) 
             vel = np.array([np.cos(angle), 0.0, -np.sin(angle)])
         
-        tracer = T.Tracer(field, bounds)
+        tracer = T.Tracer(field, ((-0.1, 12.5), (-0.1, 0.1), (-12.5, 12.5)))
         print('Starting electron trace...')
         times, pos = tracer(position, vel)
         

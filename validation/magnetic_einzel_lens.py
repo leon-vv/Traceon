@@ -37,16 +37,19 @@ class MagneticEinzelLens(Validation):
         excitation.add_magnetostatic_potential(ground=0.0, lens=50.)
         excitation.add_magnetostatic_boundary('boundary')
         return excitation
+
+    def supports_fmm(self):
+        return False
      
     def correct_value_of_interest(self):
         return 4.08641734
       
     def compute_value_of_interest(self, geom, field):
         _3d = geom.is_3d()
-        field.set_bounds( ((-RADIUS, RADIUS), (-1.5, 1.5)) if not _3d else ((-RADIUS, RADIUS), (-RADIUS, RADIUS), (-1.5,1.5)) )
+        field.set_bounds( ((-RADIUS, RADIUS), (-RADIUS, RADIUS), (-1.5,1.5)) )
         field_axial = field.axial_derivative_interpolation(-1.5, 1.5, 1000)
          
-        bounds = ((-RADIUS, RADIUS), (-5, 3.5)) if not _3d else ((-RADIUS, RADIUS), (-RADIUS, RADIUS), (-5, 3.5))
+        bounds = ((-RADIUS, RADIUS), (-RADIUS, RADIUS), (-5, 3.5))
         tracer = T.Tracer(field_axial, bounds)
         
         p0 = np.array([RADIUS/5, 3]) if not _3d else np.array([RADIUS/5, 0.0, 3])

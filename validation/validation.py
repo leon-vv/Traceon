@@ -120,6 +120,7 @@ class Validation:
          
         duration = (time.time() - st)*1000
         print_info([MSF], [exc.get_number_of_electrostatic_matrix_elements()], [duration], [correct], [computed], [err])
+        return duration, err
      
     def args_to_symmetry(args):
         if args.symmetry == 'radial':

@@ -507,8 +507,28 @@ def _quintic_spline_coefficients(z, derivs):
     return c
 
 class Field:
-    def __call__(self, *args):
-        return self.field_at_point(np.array(args))
+    def field_at_point(self, point):
+        elec, mag = self.is_electrostatic(), self.is_magnetostatic()
+        
+        if elec and not mag:
+            return self.electrostatic_field_at_point(point)
+        elif not elec and mag:
+            return self.magnetostatic_field_at_point(point)
+         
+        raise RuntimeError("Cannot use field_at_point when both electric and magnetic fields are present, " \
+            "use electrostatic_field_at_point or magnetostatic_potential_at_point")
+     
+    def potential_at_point(self, point):
+        elec, mag = self.is_electrostatic(), self.is_magnetostatic()
+         
+        if elec and not mag:
+            return self.electrostatic_potential_at_point(point)
+        elif not elec and mag:
+            return self.magnetostatic_potential_at_point(point)
+         
+        raise RuntimeError("Cannot use potential_at_point when both electric and magnetic fields are present, " \
+            "use electrostatic_potential_at_point or magnetostatic_potential_at_point")
+     
     
     
 class FieldBEM(Field):
@@ -527,30 +547,13 @@ class FieldBEM(Field):
      
     def set_bounds(self, bounds):
         self.field_bounds = np.array(bounds)
+        assert self.field_bounds.shape == (3,2)
+    
+    def is_electrostatic(self):
+        return len(self.electrostatic_point_charges) > 0
 
-    def field_at_point(self, *args, **kwargs):
-        elec, mag = len(self.electrostatic_point_charges) > 0,  \
-                        len(self.magnetostatic_point_charges) > 0 or len(self.current_point_charges) > 0
-         
-        if elec and not mag:
-            return self.electrostatic_field_at_point(*args, **kwargs)
-        elif not elec and mag:
-            return self.magnetostatic_field_at_point(*args, **kwargs)
-         
-        raise RuntimeError("Cannot use field_at_point when both electric and magnetic fields are present, " \
-            "use electrostatic_field_at_point or magnetostatic_potential_at_point")
-     
-    def potential_at_point(self, *args, **kwargs):
-        elec, mag = len(self.electrostatic_point_charges) > 0,  \
-                        len(self.magnetostatic_point_charges) > 0 or len(self.current_point_charges) > 0
-         
-        if elec and not mag:
-            return self.electrostatic_potential_at_point(*args, **kwargs)
-        elif not elec and mag:
-            return self.magnetostatic_potential_at_point(*args, **kwargs)
-         
-        raise RuntimeError("Cannot use potential_at_point when both electric and magnetic fields are present, " \
-            "use electrostatic_potential_at_point or magnetostatic_potential_at_point")
+    def is_magnetostatic(self):
+        return len(self.magnetostatic_point_charges) > 0 or len(self.current_point_charges) > 0 
      
     def __add__(self, other):
         return self.__class__(
@@ -687,6 +690,7 @@ class FieldRadialBEM(FieldBEM):
         -------
         Potential as a float value (in units of V).
         """
+        point = np.array(point).astype(np.float64)
         assert point.shape == (2,) or point.shape == (3,)
         charges = self.electrostatic_point_charges.charges
         jacobians = self.electrostatic_point_charges.jacobians
@@ -710,20 +714,18 @@ class FieldRadialBEM(FieldBEM):
         charges = self.magnetostatic_point_charges.charges
         jacobians = self.magnetostatic_point_charges.jacobians
         positions = self.magnetostatic_point_charges.positions
-         
         return backend.potential_radial(point, charges, jacobians, positions)
-
+    
     def current_potential_axial(self, z):
         assert isinstance(z, float)
         currents = self.current_point_charges.charges
         jacobians = self.current_point_charges.jacobians
         positions = self.current_point_charges.positions
-         
         return backend.current_potential_axial(z, currents, jacobians, positions)
      
     def get_electrostatic_axial_potential_derivatives(self, z):
         """
-        Compute the derivatives of the electrostatic potential at a point on the optical axis (z-axis). 
+        Compute the derivatives of the electrostatic potential a points on the optical axis (z-axis). 
          
         Parameters
         ----------
@@ -863,6 +865,7 @@ class Field3D_BEM(FieldBEM):
         -------
         Potential as a float value (in units of V).
         """
+        point = np.array(point).astype(np.float64)
         assert point.shape == (3,)
         charges = self.electrostatic_point_charges.charges
         jacobians = self.electrostatic_point_charges.jacobians
@@ -882,6 +885,7 @@ class Field3D_BEM(FieldBEM):
         -------
         Numpy array containing the field strengths (in units of V/mm) in the x, y and z directions.
         """
+        point = np.array(point).astype(np.float64)
         assert point.shape == (3,)
         charges = self.magnetostatic_point_charges.charges
         jacobians = self.magnetostatic_point_charges.jacobians
@@ -977,6 +981,15 @@ class FieldAxial(Field):
         self.z = z
         self.electrostatic_coeffs = electrostatic_coeffs if electrostatic_coeffs is not None else np.zeros_like(magnetostatic_coeffs)
         self.magnetostatic_coeffs = magnetostatic_coeffs if magnetostatic_coeffs is not None else np.zeros_like(electrostatic_coeffs)
+        
+        self.has_electrostatic = np.any(self.electrostatic_coeffs != 0.)
+        self.has_magnetostatic = np.any(self.magnetostatic_coeffs != 0.)
+     
+    def is_electrostatic(self):
+        return self.has_electrostatic
+
+    def is_magnetostatic(self):
+        return self.has_magnetostatic
      
     def __str__(self):
         name = self.__class__.__name__
@@ -1047,6 +1060,7 @@ class FieldRadialAxial(FieldAxial):
         -------
         Numpy array containing the field strengths (in units of T/m) in the r and z directions.
         """
+        point = np.array(point).astype(np.float64)
         assert point.shape == (2,)
         return backend.field_radial_derivs(point, self.z, self.magnetostatic_coeffs)
      
@@ -1063,6 +1077,7 @@ class FieldRadialAxial(FieldAxial):
         -------
         Potential as a float value (in units of V).
         """
+        point = np.array(point).astype(np.float64)
         assert point.shape == (2,)
         return backend.potential_radial_derivs(point, self.z, self.electrostatic_coeffs)
     
@@ -1082,29 +1097,6 @@ class FieldRadialAxial(FieldAxial):
         assert point.shape == (2,)
         return backend.potential_radial_derivs(point, self.z, self.magnetostatic_coeffs)
     
-    def field_at_point(self, *args, **kwargs):
-        elec, mag = np.any(self.electrostatic_coeffs != 0.), np.any(self.magnetostatic_coeffs != 0.)
-         
-        if elec and not mag:
-            return self.electrostatic_field_at_point(*args, **kwargs)
-        elif not elec and mag:
-            return self.magnetostatic_field_at_point(*args, **kwargs)
-          
-        raise RuntimeError("Cannot use field_at_point when both electric and magnetic fields are present, " \
-            "use electrostatic_field_at_point or magnetostatic_potential_at_point")
-     
-    def potential_at_point(self, *args, **kwargs):
-        elec, mag = np.any(self.electrostatic_coeffs != 0.), np.any(self.magnetostatic_coeffs != 0.)
-          
-        if elec and not mag:
-            return self.electrostatic_potential_at_point(*args, **kwargs)
-        elif not elec and mag:
-            return self.magnetostatic_potential_at_point(*args, **kwargs)
-          
-        raise RuntimeError("Cannot use potential_at_point when both electric and magnetic fields are present, " \
-            "use electrostatic_potential_at_point or magnetostatic_potential_at_point")
- 
-
 class Field3DAxial(FieldAxial):
     """Field computed using a radial series expansion around the optical axis (z-axis). See comments at the start of this page.
      """
@@ -1114,10 +1106,7 @@ class Field3DAxial(FieldAxial):
         
         assert electrostatic_coeffs.shape == (len(z)-1, 2, backend.NU_MAX, backend.M_MAX, 4)
         assert magnetostatic_coeffs.shape == (len(z)-1, 2, backend.NU_MAX, backend.M_MAX, 4)
-    
-    def __call__(self, point):
-        return self.field_at_point(point)
-
+     
     def electrostatic_field_at_point(self, point):
         """
         Compute the electric field, \( \\vec{E} = -\\nabla \phi \)
@@ -1147,6 +1136,7 @@ class Field3DAxial(FieldAxial):
         -------
         Potential as a float value (in units of V).
         """
+        point = np.array(point).astype(np.float64)
         assert point.shape == (3,)
         return backend.potential_3d_derivs(point, self.z, self.electrostatic_coeffs)
     
@@ -1163,6 +1153,7 @@ class Field3DAxial(FieldAxial):
         -------
         Numpy array containing the field strengths (in units of V/mm) in the x, y and z directions.
         """
+        point = np.array(point).astype(np.float64)
         assert point.shape == (3,)
         return backend.field_3d_derivs(point, self.z, self.magnetostatic_coeffs)
      

@@ -68,8 +68,8 @@ plt.show()
 
 # An instance of the tracer class allows us to easily find the trajectories of 
 # electrons. Here we specify that the interpolated field should be used, and that
-# the tracing should stop if the r value goes outside ±RADIUS/2 or the z value outside ±10 mm.
-tracer = T.Tracer(field_axial, ((-RADIUS/2, RADIUS/2), (-10, 10)) )
+# the tracing should stop if the x,y value goes outside ±RADIUS/2 or the z value outside ±10 mm.
+tracer = T.Tracer(field_axial, ((-RADIUS/2, RADIUS/2), (-RADIUS/2,RADIUS/2),  (-10, 10)) )
 
 # Start tracing from z=7mm
 r_start = np.linspace(-RADIUS/5, RADIUS/5, 7)

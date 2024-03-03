@@ -37,6 +37,9 @@ class RectangularCoil(Validation):
             mesh2 = geom.generate_triangle_mesh(higher_order)
 
         return mesh1 + mesh2
+
+    def supports_3d(self):
+        return False
     
     def get_excitation(self, mesh):
         exc = E.Excitation(mesh)

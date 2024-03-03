@@ -69,10 +69,10 @@ class DohiMirror(Validation):
 
         _3d = geom.is_3d()
          
-        bounds = ((-0.1, 0.1), (-0.1, 0.1), (0.05, 1.7)) if _3d else ((-0.1, 0.1), (0.05, 1.7))
+        bounds = ((-0.1, 0.1), (-0.1, 0.1), (0.05, 1.7))
         field.set_bounds(bounds)
         
-        bounds = ((-0.1, 0.1), (-0.03, 0.03), (0.05, 19.0)) if _3d else ((-0.03, 0.03), (0.05, 19.0))
+        bounds = ((-0.1, 0.1), (-0.03, 0.03), (0.05, 19.0))
         tracer_derivs = T.Tracer(axial_field, bounds)
         
         angle = 0.5e-3

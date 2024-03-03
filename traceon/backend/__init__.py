@@ -328,9 +328,6 @@ def trace_particle_radial(position, velocity, bounds, atol, eff_elec, eff_mag, e
     
     bounds = np.array(bounds)
      
-    if bounds.shape[0] == 2:
-        bounds = np.array([bounds[0], [-1.0, 1.0], bounds[1]])
-    
     field_bounds = field_bounds.ctypes.data_as(dbl_p) if field_bounds is not None else None
      
     times, positions = trace_particle_wrapper(position, velocity,

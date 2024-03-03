@@ -72,10 +72,7 @@ class SimpleMirror(Validation):
 
     def compute_value_of_interest(self, geometry, field):
         _3d = geometry.is_3d()
-        bounds = ((-0.22, 0.22), (0.02, 11))
-        
-        if _3d:
-            bounds = ((-0.22, 0.22), (-0.22, 0.22), (0.02, 11))
+        bounds = ((-0.22, 0.22), (-0.22, 0.22), (0.02, 11))
          
         axial_field = field.axial_derivative_interpolation(0.02, 4)
         tracer = T.Tracer(axial_field, bounds)
