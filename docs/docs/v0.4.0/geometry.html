@@ -1,0 +1,1696 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, minimum-scale=1" />
+<meta name="generator" content="pdoc 0.10.0" />
+<title>traceon.geometry API documentation</title>
+<meta name="description" content="The geometry module allows the creation of general geometries in 2D and 3D and generate
+the resulting meshes. The heavy lifting is done by the …" />
+<link rel="preload stylesheet" as="style" href="https://cdnjs.cloudflare.com/ajax/libs/10up-sanitize.css/11.0.1/sanitize.min.css" integrity="sha256-PK9q560IAAa6WVRRh76LtCaI8pjTJ2z11v0miyNNjrs=" crossorigin>
+<link rel="preload stylesheet" as="style" href="https://cdnjs.cloudflare.com/ajax/libs/10up-sanitize.css/11.0.1/typography.min.css" integrity="sha256-7l/o7C8jubJiy74VsKTidCy1yBkRtiUGbVkYBylBqUg=" crossorigin>
+<link rel="stylesheet preload" as="style" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/10.1.1/styles/github.min.css" crossorigin>
+<style>:root{--highlight-color:#fe9}.flex{display:flex !important}body{line-height:1.5em}#content{padding:20px}#sidebar{padding:30px;overflow:hidden}#sidebar > *:last-child{margin-bottom:2cm}.http-server-breadcrumbs{font-size:130%;margin:0 0 15px 0}#footer{font-size:.75em;padding:5px 30px;border-top:1px solid #ddd;text-align:right}#footer p{margin:0 0 0 1em;display:inline-block}#footer p:last-child{margin-right:30px}h1,h2,h3,h4,h5{font-weight:300}h1{font-size:2.5em;line-height:1.1em}h2{font-size:1.75em;margin:1em 0 .50em 0}h3{font-size:1.4em;margin:25px 0 10px 0}h4{margin:0;font-size:105%}h1:target,h2:target,h3:target,h4:target,h5:target,h6:target{background:var(--highlight-color);padding:.2em 0}a{color:#058;text-decoration:none;transition:color .3s ease-in-out}a:hover{color:#e82}.title code{font-weight:bold}h2[id^="header-"]{margin-top:2em}.ident{color:#900}pre code{background:#f8f8f8;font-size:.8em;line-height:1.4em}code{background:#f2f2f1;padding:1px 4px;overflow-wrap:break-word}h1 code{background:transparent}pre{background:#f8f8f8;border:0;border-top:1px solid #ccc;border-bottom:1px solid #ccc;margin:1em 0;padding:1ex}#http-server-module-list{display:flex;flex-flow:column}#http-server-module-list div{display:flex}#http-server-module-list dt{min-width:10%}#http-server-module-list p{margin-top:0}.toc ul,#index{list-style-type:none;margin:0;padding:0}#index code{background:transparent}#index h3{border-bottom:1px solid #ddd}#index ul{padding:0}#index h4{margin-top:.6em;font-weight:bold}@media (min-width:200ex){#index .two-column{column-count:2}}@media (min-width:300ex){#index .two-column{column-count:3}}dl{margin-bottom:2em}dl dl:last-child{margin-bottom:4em}dd{margin:0 0 1em 3em}#header-classes + dl > dd{margin-bottom:3em}dd dd{margin-left:2em}dd p{margin:10px 0}.name{background:#eee;font-weight:bold;font-size:.85em;padding:5px 10px;display:inline-block;min-width:40%}.name:hover{background:#e0e0e0}dt:target .name{background:var(--highlight-color)}.name > span:first-child{white-space:nowrap}.name.class > span:nth-child(2){margin-left:.4em}.inherited{color:#999;border-left:5px solid #eee;padding-left:1em}.inheritance em{font-style:normal;font-weight:bold}.desc h2{font-weight:400;font-size:1.25em}.desc h3{font-size:1em}.desc dt code{background:inherit}.source summary,.git-link-div{color:#666;text-align:right;font-weight:400;font-size:.8em;text-transform:uppercase}.source summary > *{white-space:nowrap;cursor:pointer}.git-link{color:inherit;margin-left:1em}.source pre{max-height:500px;overflow:auto;margin:0}.source pre code{font-size:12px;overflow:visible}.hlist{list-style:none}.hlist li{display:inline}.hlist li:after{content:',\2002'}.hlist li:last-child:after{content:none}.hlist .hlist{display:inline;padding-left:1em}img{max-width:100%}td{padding:0 .5em}.admonition{padding:.1em .5em;margin-bottom:1em}.admonition-title{font-weight:bold}.admonition.note,.admonition.info,.admonition.important{background:#aef}.admonition.todo,.admonition.versionadded,.admonition.tip,.admonition.hint{background:#dfd}.admonition.warning,.admonition.versionchanged,.admonition.deprecated{background:#fd4}.admonition.error,.admonition.danger,.admonition.caution{background:lightpink}</style>
+<style media="screen and (min-width: 700px)">@media screen and (min-width:700px){#sidebar{width:30%;height:100vh;overflow:auto;position:sticky;top:0}#content{width:70%;max-width:100ch;padding:3em 4em;border-left:1px solid #ddd}pre code{font-size:1em}.item .name{font-size:1em}main{display:flex;flex-direction:row-reverse;justify-content:flex-end}.toc ul ul,#index ul{padding-left:1.5em}.toc > ul > li{margin-top:.5em}}</style>
+<style media="print">@media print{#sidebar h1{page-break-before:always}.source{display:none}}@media print{*{background:transparent !important;color:#000 !important;box-shadow:none !important;text-shadow:none !important}a[href]:after{content:" (" attr(href) ")";font-size:90%}a[href][title]:after{content:none}abbr[title]:after{content:" (" attr(title) ")"}.ir a:after,a[href^="javascript:"]:after,a[href^="#"]:after{content:""}pre,blockquote{border:1px solid #999;page-break-inside:avoid}thead{display:table-header-group}tr,img{page-break-inside:avoid}img{max-width:100% !important}@page{margin:0.5cm}p,h2,h3{orphans:3;widows:3}h1,h2,h3,h4,h5,h6{page-break-after:avoid}}</style>
+<script async src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.7/latest.js?config=TeX-AMS_CHTML" integrity="sha256-kZafAc6mZvK3W3v1pHOcUix30OHQN6pU/NO2oFkqZVw=" crossorigin></script>
+<script defer src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/10.1.1/highlight.min.js" integrity="sha256-Uv3H6lx7dJmRfRvH8TH6kJD1TSK1aFcwgx+mdg3epi8=" crossorigin></script>
+<script>window.addEventListener('DOMContentLoaded', () => hljs.initHighlighting())</script>
+</head>
+<body>
+<main>
+<article id="content">
+<header>
+<h1 class="title">Module <code>traceon.geometry</code></h1>
+</header>
+<section id="section-intro">
+<p>The geometry module allows the creation of general geometries in 2D and 3D and generate
+the resulting meshes. The heavy lifting is done by the powerful <a href="https://gmsh.info/">GMSH</a> library, and we access this library
+through the convenient <a href="https://github.com/nschloe/pygmsh">pygmsh</a> library.</p>
+<p>The GMSH library has the concept of <em>physical groups</em>. These are simply elements inside your geometry which
+are assigned a given name. When using Traceon, usually every electrode gets assigned its
+own name (or physical group) with which it can be referenced when later specifying the excitation
+of this electrode.</p>
+<p>From this module you will likely use either the <code><a title="traceon.geometry.Geometry" href="#traceon.geometry.Geometry">Geometry</a></code> class when creating arbitrary geometries,
+or the <code><a title="traceon.geometry.MEMSStack" href="#traceon.geometry.MEMSStack">MEMSStack</a></code> class, if your geometry consists of a stack of MEMS fabricated elements.</p>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">&#34;&#34;&#34;The geometry module allows the creation of general geometries in 2D and 3D and generate
+the resulting meshes. The heavy lifting is done by the powerful [GMSH](https://gmsh.info/) library, and we access this library
+through the convenient [pygmsh](https://github.com/nschloe/pygmsh) library.
+
+The GMSH library has the concept of _physical groups_. These are simply elements inside your geometry which
+are assigned a given name. When using Traceon, usually every electrode gets assigned its
+own name (or physical group) with which it can be referenced when later specifying the excitation
+of this electrode.
+
+From this module you will likely use either the `Geometry` class when creating arbitrary geometries,
+or the `MEMSStack` class, if your geometry consists of a stack of MEMS fabricated elements.
+&#34;&#34;&#34;
+
+
+import numpy as np
+from math import sqrt
+from pygmsh import *
+import gmsh
+from enum import Enum
+import copy
+
+import pickle
+
+from .util import Saveable
+from .backend import N_QUAD_2D, position_and_jacobian_radial, position_and_jacobian_3d, normal_3d
+
+def revolve_around_optical_axis(geom, elements, factor=1.0):
+    &#34;&#34;&#34;
+    Revolve geometry elements around the optical axis. Useful when you
+    want to generate 3D geometries from a cylindrically symmetric 2D geometry.
+    
+    Parameters
+    ----------
+    geom : Geometry
+         
+    elements : list of GMSH elements
+        The geometry elements to revolve. These should have been returned previously from for example
+        a call to geom.add_line(...).
+        
+    factor : float
+         How far the elements should be revolved around the optical axis. factor=1.0 corresponds
+         to a full revolution ( \(2\pi \) radians) around the optical axis, while for example 0.5
+         corresponds to a revolution of only \(\pi\) radians. (Default value = 1.0).
+
+    Returns
+    -------
+    A list of surface elements representing the revolution around the optical axis.
+    &#34;&#34;&#34;
+    revolved = []
+    
+    for e in (elements if isinstance(elements, list) else [elements]):
+        
+        top = e
+        for i in range(4):
+            top, extruded, lateral = geom.revolve(top, [0.0, 0.0, 1.0], [0.0, 0.0, 0.0], factor*0.5*np.pi)
+            revolved.append(extruded)
+     
+    return revolved
+
+class Symmetry(Enum):
+    &#34;&#34;&#34;
+    Symmetry of the geometry. Used when deciding which formulas to use in the Boundary Element Method. The currently
+    supported symmetries are radial symmetry (also called cylindrical symmetry) and general 3D geometries.
+    &#34;&#34;&#34;
+    RADIAL = 0
+    THREE_D_HIGHER_ORDER = 1
+    THREE_D = 2
+
+    def __str__(self):
+        if self == Symmetry.RADIAL:
+            return &#39;radial&#39;
+        elif self == Symmetry.THREE_D_HIGHER_ORDER:
+            return &#39;3d higher order&#39;
+        elif self == Symmetry.THREE_D:
+            return &#39;3d first order&#39; 
+    
+    def is_3d(self):
+        return self in [Symmetry.THREE_D_HIGHER_ORDER, Symmetry.THREE_D]
+
+class Geometry(geo.Geometry):
+    &#34;&#34;&#34;
+    Small wrapper class around pygmsh.geo.Geometry which itself is a small wrapper around the powerful GMSH library.
+    See the GMSH and pygmsh documentation to learn how to build any 2D or 3D geometry. This class makes it easier to control
+    the mesh size (using the _mesh size factor_) and optionally allows to scale the mesh size with the distance from the optical
+    axis. It also add support for multiple calls to the `add_physical` method with the same name.
+    
+    Parameters
+    ---------
+    symmetry: Symmetry
+
+    size_from_distance: bool, optional
+        Scale the mesh size with the distance from the optical axis (z-axis).
+
+    zmin: float, optional
+    zmax: float, optional
+        When `size_from_distance=True` geometric elements that touch the optical axis (as in electrostatic mirrors)
+        will imply a zero mesh size and therefore cause singularities. The zmin and zmax arguments
+        allow to specify which section of the optical axis will be reachable by the electrons. When
+        calculating the mesh size the distance from the closest point on this section of the optical axis is used.
+        This prevents singularities.
+    &#34;&#34;&#34;
+    def __init__(self, symmetry, size_from_distance=False, zmin=None, zmax=None, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.size_from_distance = size_from_distance
+        self.zmin = zmin
+        self.zmax = zmax
+        self.symmetry = symmetry
+        self._physical_queue = dict()
+
+    def __str__(self):
+        if self.zmin is not None and self.zmax is not None:
+            return f&#39;&lt;Traceon Geometry {self.symmetry}, zmin={self.zmin:.2f} mm, zmax={self.zmax:.2f} mm&#39;
+        else:
+            return f&#39;&lt;Traceon Geometry {self.symmetry}&gt;&#39;
+
+    def is_3d(self):
+        &#34;&#34;&#34;Check if the geometry is three dimensional.
+
+        Returns
+        ----------------
+        True if geometry is three dimensional, False if the geometry is two dimensional&#34;&#34;&#34;
+        return self.symmetry.is_3d()
+     
+    def add_physical(self, entities, name):
+        &#34;&#34;&#34;
+
+        Parameters
+        ----------
+        entities : list of GMSH elements or GMSH element
+            Geometric entities to assign the given name (the given _physical group_ in GMSH terminology).
+        name : string
+            Name of the physical group.
+        &#34;&#34;&#34;
+        if not isinstance(entities, list):
+            entities = [entities]
+        
+        if name in self._physical_queue:
+            self._physical_queue[name].extend(entities)
+        else:
+            self._physical_queue[name] = entities
+
+    def generate_mesh(self, *args, **kwargs):
+        &#34;&#34;&#34;
+        Generate the mesh, determining the mesh dimension (line elements or triangles) from the
+        supplied symmetry. The arguments are passed directly to `pygmsh.geo.Geometry.generate_mesh`.
+        
+        Returns
+        -------
+        `Mesh`
+
+        &#34;&#34;&#34;
+        for label, entities in self._physical_queue.items():
+            super().add_physical(entities, label)
+          
+        if self.size_from_distance:
+            self.set_mesh_size_callback(self._mesh_size_callback)
+         
+        if self.symmetry == Symmetry.RADIAL:
+            dim = 1
+            gmsh.option.setNumber(&#39;Mesh.ElementOrder&#39;, 3)
+        elif self.symmetry == Symmetry.THREE_D:
+            dim = 2
+            gmsh.option.setNumber(&#39;Mesh.ElementOrder&#39;, 1)
+        elif self.symmetry == Symmetry.THREE_D_HIGHER_ORDER:
+            dim = 2
+            gmsh.option.setNumber(&#39;Mesh.ElementOrder&#39;, 2)
+        else:
+            raise ValueError(&#39;Symmetry not valid: &#39;, self.symmetry)
+        
+        return Mesh.from_meshio(super().generate_mesh(dim=dim, *args, **kwargs), self.symmetry)
+
+    def set_mesh_size_factor(self, factor):
+        &#34;&#34;&#34;
+        Set the mesh size factor. Which simply scales with the total number of elements in the mesh.
+        
+        Parameters
+        ----------
+        factor : float
+            The mesh size factor to use. 
+        
+        &#34;&#34;&#34;
+        if self.symmetry == Symmetry.RADIAL:
+            gmsh.option.setNumber(&#39;Mesh.MeshSizeFactor&#39;, 1/factor)
+        elif self.symmetry == Symmetry.THREE_D_HIGHER_ORDER or self.symmetry == Symmetry.THREE_D:
+            # GMSH seems to produce meshes which contain way more elements for 3D geometries
+            # with the same mesh factor. This is confusing for users and therefore we arbtrarily
+            # increase the mesh size to roughly correspond with the 2D number of elements.
+            gmsh.option.setNumber(&#39;Mesh.MeshSizeFactor&#39;, 4*sqrt(1/factor))
+
+    def set_minimum_mesh_size(self, size):
+        &#34;&#34;&#34;
+        Set the minimum mesh size possible. Especially useful when geometric elements touch
+        the optical axis and cause singularities when used with `size_from_distance=True`.
+        
+        Parameters
+        ----------
+        size : float
+            The minimum mesh size.  
+
+        &#34;&#34;&#34;
+        gmsh.option.setNumber(&#39;Mesh.MeshSizeMin&#39;, size)
+     
+    def _mesh_size_callback(self, dim, tag, x, y, z, _):
+        # Scale mesh size with distance to optical axis, but only the part of the optical
+        # axis that lies between zmin and zmax
+        
+        z_optical = y if self.symmetry == Symmetry.RADIAL else z
+         
+        if self.zmin is not None:
+            z_optical = max(z_optical, self.zmin)
+        if self.zmax is not None:
+            z_optical = min(z_optical, self.zmax)
+         
+        if self.symmetry == Symmetry.RADIAL:
+            return sqrt( x**2 + (y-z_optical)**2 )
+        else:
+            return sqrt( x**2 + y**2 + (z-z_optical)**2 )
+
+
+class Mesh(Saveable):
+    &#34;&#34;&#34;Class containing a mesh and related metadata.&#34;&#34;&#34;
+    
+    def __init__(self, points, elements, physical_to_elements, symmetry, metadata={}):
+        assert isinstance(symmetry, Symmetry)
+        self.points = points
+        self.elements = elements
+        self.physical_to_elements = physical_to_elements
+        self.symmetry = symmetry
+        self.metadata = metadata
+            
+    def from_meshio(mesh, symmetry, metadata={}):
+        &#34;&#34;&#34;Generate a Traceon Mesh from a [meshio](https://github.com/nschloe/meshio) mesh.
+        
+        Parameters
+        ----------
+        symmetry: Symmetry
+            Specifies a radially symmetric geometry (RADIAL) or a general 3D geometry (THREE_D_HIGHER_ORDER).
+        
+        Returns
+        ---------
+        Mesh
+        &#34;&#34;&#34;
+        if symmetry == Symmetry.RADIAL:
+            type_ = &#39;line4&#39;
+        elif symmetry == Symmetry.THREE_D:
+            type_ = &#39;triangle&#39;
+        elif symmetry == Symmetry.THREE_D_HIGHER_ORDER:
+            type_ = &#39;triangle6&#39;
+        else:
+            raise ValueError(&#39;Symmetry passed to from_meshio(..) not valid: &#39; + str(symmetry))
+         
+        points = mesh.points
+        elements = mesh.cells_dict[type_]
+        physical_to_elements = {k:v[type_] for k, v in mesh.cell_sets_dict.items() if type_ in v}
+        
+        return Mesh(points, elements, physical_to_elements, symmetry, metadata)
+     
+    def is_3d(self):
+        &#34;&#34;&#34;Check if the mesh is three dimensional.
+
+        Returns
+        ----------------
+        True if mesh is three dimensional, False if the mesh is two dimensional&#34;&#34;&#34;
+        return self.symmetry.is_3d()
+    
+    def get_electrodes(self):
+        &#34;&#34;&#34;Get the names of all the electrodes in the geometry.
+         
+        Returns
+        ---------
+        List of electrode names
+
+        &#34;&#34;&#34;
+        return list(self.physical_to_elements.keys())
+    
+    def _invert_physical_dict(self):
+        lookup = np.full(len(self.elements), None)
+
+        for k, v in self.physical_to_elements.items():
+            lookup[v] = k
+        
+        return lookup
+     
+    def _split_indices_radial(self, indices):
+        assert self.symmetry == Symmetry.RADIAL
+         
+        elements = copy.deepcopy(self.elements)
+        N_elements = len(elements)
+         
+        N = len(self.points)
+        lines_to_add = []
+        physicals = []
+        points_to_add = []
+         
+        physical_lookup = self._invert_physical_dict()
+        to_pos = lambda alpha, line: [*position_and_jacobian_radial(alpha, line[0], line[2], line[3], line[1])[1], 0.0]
+        
+        for idx in indices:
+            pi = elements[idx]
+            line = self.points[pi]
+             
+            points_to_add.append(to_pos(-2/3, line))
+            points_to_add.append(to_pos(0.0, line))
+            points_to_add.append(to_pos(2/3, line))
+            l = len(points_to_add)
+            lines_to_add.append( (N+l-2, pi[1].item(), pi[3].item(), N+l-1) )
+            elements[idx] = (pi[0], N+l-2, N+l-3, pi[2])
+            physicals.append(physical_lookup[idx])
+        
+        # Now actually alter the mesh
+        new_points = np.concatenate( (self.points, points_to_add), axis=0)
+        new_elements = np.concatenate( (elements, np.array(lines_to_add, dtype=np.uint64)), axis=0)
+        new_dict = copy.copy(self.physical_to_elements)
+        
+        for name in [p for p in np.unique(physicals) if p is not None]:   
+            old_indices = new_dict[name]
+            (added_indices,) = (np.array(physicals) == name).nonzero()
+            new_dict[name] = np.concatenate( (old_indices.astype(np.int64), N_elements + added_indices) )
+         
+        new_mesh = Mesh(new_points, new_elements, new_dict, self.symmetry, self.metadata)
+        return new_mesh
+         
+    def _split_indices_3d(self, indices):
+        assert self.symmetry == Symmetry.THREE_D_HIGHER_ORDER
+         
+        elements = copy.deepcopy(self.elements)
+        N_elements = len(elements)
+         
+        N = len(self.points)
+        triangles_to_add = []
+        physicals = []
+        points_to_add = []
+         
+        physical_lookup = self._invert_physical_dict()
+        to_pos = lambda alpha, beta, triangle: position_and_jacobian_3d(alpha, beta, triangle)[1]
+        
+        for idx in indices:
+            pi = elements[idx]
+            triangle = self.points[pi]
+             
+            points_to_add.append(to_pos(1/3, 1/3, triangle)) # Middle
+            points_to_add.append(to_pos(1/6, 1/6, triangle)) # s0
+            points_to_add.append(to_pos(4/6, 1/6, triangle)) # s1
+            points_to_add.append(to_pos(1/6, 4/6, triangle)) # s2
+            l = len(points_to_add)
+            # Same ordering as in C backend function &#39;fill_self_voltages_3d&#39;
+            t, s0, s1, s2 = N+l-4, N+l-3, N+l-2, N+l-1
+            triangles_to_add.append( (t, pi[1], pi[2], s1, pi[4], s2) )
+            triangles_to_add.append( (t, pi[2], pi[0], s2, pi[5], s0) )
+            elements[idx] = (t, pi[0], pi[1], s0, pi[3], s1)
+            
+            physicals.append(physical_lookup[idx])
+            physicals.append(physical_lookup[idx])
+        
+        # Now actually alter the mesh
+        new_points = np.concatenate( (self.points, points_to_add), axis=0)
+        new_elements = np.concatenate( (elements, np.array(triangles_to_add, dtype=np.uint64)), axis=0)
+        new_dict = copy.copy(self.physical_to_elements)
+        
+        for name in [p for p in np.unique(physicals) if p is not None]:   
+            old_indices = new_dict[name]
+            (added_indices,) = (np.array(physicals) == name).nonzero()
+            new_dict[name] = np.concatenate( (old_indices.astype(np.int64), N_elements + added_indices) )
+         
+        new_mesh = Mesh(new_points, new_elements, new_dict, self.symmetry, self.metadata)
+        return new_mesh
+     
+    def split_indices(self, indices):
+        if self.symmetry == Symmetry.RADIAL:
+            return self._split_indices_radial(indices)
+        else:
+            return self._split_indices_3d(indices)
+
+    def split_elements_based_on_charges(self, excitation, field, max_splits, mesh_factor):
+        active = excitation.get_active_element_mask()
+        assert np.sum(active) == len(field.vertices), &#34;Excitation did not produce the given field&#34;
+
+        map_index = active.nonzero()[0]
+        
+        charges = np.array([field.charge_on_element(i) for i in map_index])
+        charges = np.abs( np.array([field.charge_on_element(i) for i in range(len(field.vertices))]) )
+         
+        # In max_splits iterations, increase the number of elements in the
+        # mesh by mesh_factor. The split_facotr then gives us the amount
+        # of elements we need to split in every iteration.
+        split_factor = mesh_factor**(1/max_splits) - 1
+        
+        if self.symmetry == Symmetry.THREE_D_HIGHER_ORDER:
+            split_factor /= 2 # For triangles, a splitting gives two extra elements, instead of one
+        
+        new_mesh = self
+              
+        for _ in range(max_splits):
+            to_split = np.argsort(charges)[-round(split_factor*len(charges)):]
+            print(&#39;Splitting &#39;, len(to_split), &#39; elements&#39;)
+            charges[to_split] /= 2 if self.symmetry == Symmetry.RADIAL else 3
+            charges = np.concatenate( (charges, np.repeat(charges[to_split], 2)), axis=0 )
+            new_mesh = new_mesh.split_indices(to_split)
+        
+        return new_mesh
+     
+    def __str__(self):
+        physicals = self.physical_to_elements.keys()
+        physical_names = &#39;, &#39;.join(physicals)
+        physical_nums = &#39;, &#39;.join([str(len(self.physical_to_elements[n])) for n in physicals])
+        
+        return f&#39;&lt;Traceon Mesh {self.symmetry},\n&#39; \
+            f&#39;\tPhysical groups: {physical_names}\n&#39; \
+            f&#39;\tElements in physical groups: {physical_nums}\n&#39; \
+            f&#39;\tNumber of points: {len(self.points)}&gt;&#39;
+
+    def write_gmsh(self, filename):
+        self.mesh.write(filename)
+
+
+
+class MEMSStack(Geometry):
+    &#34;&#34;&#34;Geometry consisting of a stack of MEMS fabricated elements. This geometry is modelled using a stack
+    of rectangularly shaped elements with a variable spacing in between. Useful when doing calculations on MEMS fabricated
+    lenses and mirrors.
+    
+    Parameters
+    ----------
+    z0: float
+        Starting z-value to begin building up the MEMS elements from.
+    revolve_factor: float
+        Revolve the resulting geometry around the optical axis to generate a 3D geometry. When `revolve_factor=0.0` a
+        2D geometry is returned. For `0 &lt; revolve_factor &lt;= 1.0` see the documentation of `revolve_around_optical_axis`.
+    rmax: float
+        The rectangular MEMS objects extend to \( r = r_{max} \).
+    margin: float
+        The distance between the electrodes and the top and bottom boundary.
+    margin_right: float
+        Distance between the boundary on the right and the MEMS electrodes.
+    symmetry: `Symmetry`
+        What symmetry to use for the resulting geometry
+    &#34;&#34;&#34;
+    
+    def __init__(self, *args, z0=0.0, revolve_factor=0.0, rmax=2, margin=0.5, margin_right=0.1, symmetry=None, **kwargs):
+        
+        if symmetry is None:
+            self.symmetry = Symmetry.RADIAL if revolve_factor == 0.0 else Symmetry.THREE_D_HIGHER_ORDER
+        else:
+            self.symmetry = symmetry
+            
+            if revolve_factor == 0.0:
+                revolve_factor = 1.0
+         
+        super().__init__(self.symmetry, *args, **kwargs)
+        
+        self.z0 = z0
+        self.revolve_factor = revolve_factor
+        self.rmax = rmax
+        
+        self.margin = margin
+        self.margin_right = margin_right
+         
+        self._current_z = z0 + margin
+        self._last_name = None
+    
+    def add_spacer(self, thickness):
+        &#34;&#34;&#34;
+
+        Parameters
+        ----------
+        thickness : float
+            Add the given amount of space between the previous and next electrode.
+
+        &#34;&#34;&#34;
+        self._current_z += thickness
+    
+    def _add_boundary(self):
+        points = [[0.0, self._current_z+self.margin],
+                  [self.rmax+self.margin_right, self._current_z+self.margin],
+                  [self.rmax+self.margin_right, self.z0],
+                  [0.0, self.z0]]
+        
+        self._add_lines_from_points(points, &#39;boundary&#39;)
+        self._current_z += self.margin
+     
+    def _add_lines_from_points(self, points, name):
+        if self.is_3d():
+            points = [self.add_point([p[0], 0.0, p[1]]) for p in points[::-1]]
+        else:
+            points = [self.add_point(p) for p in points]
+        
+        Np = len(points)
+        lines = [self.add_line(points[i], points[j]) for i, j in zip(range(0,Np-1), range(1,Np))]
+         
+        if self.is_3d():
+            revolved = revolve_around_optical_axis(self, lines, self.revolve_factor)
+            self.add_physical(revolved, name)
+        else:
+            self.add_physical(lines, name)
+
+    def add_electrode(self, radius, thickness, name):
+        &#34;&#34;&#34;
+
+        Parameters
+        ----------
+        radius : float
+            Distance from the electrode to the optical axis (in mm).
+            
+        thickness : float
+            Thickness of the electrode (in mm).
+            
+        name : str
+            Name to assign to the electode. Needed to later specify the correct excitation.
+        &#34;&#34;&#34;
+        cz = self._current_z
+        points = [[self.rmax, cz], [radius, cz], [radius, cz+thickness], [self.rmax, cz+thickness]]
+        self._add_lines_from_points(points, name)
+        self._current_z += thickness
+
+    def generate_mesh(self, *args, **kwargs):
+        self._add_boundary()
+        return super().generate_mesh(*args, **kwargs)
+        
+        </code></pre>
+</details>
+</section>
+<section>
+</section>
+<section>
+</section>
+<section>
+<h2 class="section-title" id="header-functions">Functions</h2>
+<dl>
+<dt id="traceon.geometry.revolve_around_optical_axis"><code class="name flex">
+<span>def <span class="ident">revolve_around_optical_axis</span></span>(<span>geom, elements, factor=1.0)</span>
+</code></dt>
+<dd>
+<div class="desc"><p>Revolve geometry elements around the optical axis. Useful when you
+want to generate 3D geometries from a cylindrically symmetric 2D geometry.</p>
+<h2 id="parameters">Parameters</h2>
+<dl>
+<dt><strong><code>geom</code></strong> :&ensp;<code><a title="traceon.geometry.Geometry" href="#traceon.geometry.Geometry">Geometry</a></code></dt>
+<dd>&nbsp;</dd>
+<dt><strong><code>elements</code></strong> :&ensp;<code>list</code> of <code>GMSH elements</code></dt>
+<dd>The geometry elements to revolve. These should have been returned previously from for example
+a call to geom.add_line(&hellip;).</dd>
+<dt><strong><code>factor</code></strong> :&ensp;<code>float</code></dt>
+<dd>How far the elements should be revolved around the optical axis. factor=1.0 corresponds
+to a full revolution ( <span><span class="MathJax_Preview">2\pi </span><script type="math/tex">2\pi </script></span> radians) around the optical axis, while for example 0.5
+corresponds to a revolution of only <span><span class="MathJax_Preview">\pi</span><script type="math/tex">\pi</script></span> radians. (Default value = 1.0).</dd>
+</dl>
+<h2 id="returns">Returns</h2>
+<p>A list of surface elements representing the revolution around the optical axis.</p></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def revolve_around_optical_axis(geom, elements, factor=1.0):
+    &#34;&#34;&#34;
+    Revolve geometry elements around the optical axis. Useful when you
+    want to generate 3D geometries from a cylindrically symmetric 2D geometry.
+    
+    Parameters
+    ----------
+    geom : Geometry
+         
+    elements : list of GMSH elements
+        The geometry elements to revolve. These should have been returned previously from for example
+        a call to geom.add_line(...).
+        
+    factor : float
+         How far the elements should be revolved around the optical axis. factor=1.0 corresponds
+         to a full revolution ( \(2\pi \) radians) around the optical axis, while for example 0.5
+         corresponds to a revolution of only \(\pi\) radians. (Default value = 1.0).
+
+    Returns
+    -------
+    A list of surface elements representing the revolution around the optical axis.
+    &#34;&#34;&#34;
+    revolved = []
+    
+    for e in (elements if isinstance(elements, list) else [elements]):
+        
+        top = e
+        for i in range(4):
+            top, extruded, lateral = geom.revolve(top, [0.0, 0.0, 1.0], [0.0, 0.0, 0.0], factor*0.5*np.pi)
+            revolved.append(extruded)
+     
+    return revolved</code></pre>
+</details>
+</dd>
+</dl>
+</section>
+<section>
+<h2 class="section-title" id="header-classes">Classes</h2>
+<dl>
+<dt id="traceon.geometry.Geometry"><code class="flex name class">
+<span>class <span class="ident">Geometry</span></span>
+<span>(</span><span>symmetry, size_from_distance=False, zmin=None, zmax=None, *args, **kwargs)</span>
+</code></dt>
+<dd>
+<div class="desc"><p>Small wrapper class around pygmsh.geo.Geometry which itself is a small wrapper around the powerful GMSH library.
+See the GMSH and pygmsh documentation to learn how to build any 2D or 3D geometry. This class makes it easier to control
+the mesh size (using the <em>mesh size factor</em>) and optionally allows to scale the mesh size with the distance from the optical
+axis. It also add support for multiple calls to the <code>add_physical</code> method with the same name.</p>
+<h2 id="parameters">Parameters</h2>
+<dl>
+<dt><strong><code>symmetry</code></strong> :&ensp;<code><a title="traceon.geometry.Symmetry" href="#traceon.geometry.Symmetry">Symmetry</a></code></dt>
+<dd>&nbsp;</dd>
+<dt><strong><code>size_from_distance</code></strong> :&ensp;<code>bool</code>, optional</dt>
+<dd>Scale the mesh size with the distance from the optical axis (z-axis).</dd>
+<dt><strong><code>zmin</code></strong> :&ensp;<code>float</code>, optional</dt>
+<dd>&nbsp;</dd>
+<dt><strong><code>zmax</code></strong> :&ensp;<code>float</code>, optional</dt>
+<dd>When <code>size_from_distance=True</code> geometric elements that touch the optical axis (as in electrostatic mirrors)
+will imply a zero mesh size and therefore cause singularities. The zmin and zmax arguments
+allow to specify which section of the optical axis will be reachable by the electrons. When
+calculating the mesh size the distance from the closest point on this section of the optical axis is used.
+This prevents singularities.</dd>
+</dl></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class Geometry(geo.Geometry):
+    &#34;&#34;&#34;
+    Small wrapper class around pygmsh.geo.Geometry which itself is a small wrapper around the powerful GMSH library.
+    See the GMSH and pygmsh documentation to learn how to build any 2D or 3D geometry. This class makes it easier to control
+    the mesh size (using the _mesh size factor_) and optionally allows to scale the mesh size with the distance from the optical
+    axis. It also add support for multiple calls to the `add_physical` method with the same name.
+    
+    Parameters
+    ---------
+    symmetry: Symmetry
+
+    size_from_distance: bool, optional
+        Scale the mesh size with the distance from the optical axis (z-axis).
+
+    zmin: float, optional
+    zmax: float, optional
+        When `size_from_distance=True` geometric elements that touch the optical axis (as in electrostatic mirrors)
+        will imply a zero mesh size and therefore cause singularities. The zmin and zmax arguments
+        allow to specify which section of the optical axis will be reachable by the electrons. When
+        calculating the mesh size the distance from the closest point on this section of the optical axis is used.
+        This prevents singularities.
+    &#34;&#34;&#34;
+    def __init__(self, symmetry, size_from_distance=False, zmin=None, zmax=None, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.size_from_distance = size_from_distance
+        self.zmin = zmin
+        self.zmax = zmax
+        self.symmetry = symmetry
+        self._physical_queue = dict()
+
+    def __str__(self):
+        if self.zmin is not None and self.zmax is not None:
+            return f&#39;&lt;Traceon Geometry {self.symmetry}, zmin={self.zmin:.2f} mm, zmax={self.zmax:.2f} mm&#39;
+        else:
+            return f&#39;&lt;Traceon Geometry {self.symmetry}&gt;&#39;
+
+    def is_3d(self):
+        &#34;&#34;&#34;Check if the geometry is three dimensional.
+
+        Returns
+        ----------------
+        True if geometry is three dimensional, False if the geometry is two dimensional&#34;&#34;&#34;
+        return self.symmetry.is_3d()
+     
+    def add_physical(self, entities, name):
+        &#34;&#34;&#34;
+
+        Parameters
+        ----------
+        entities : list of GMSH elements or GMSH element
+            Geometric entities to assign the given name (the given _physical group_ in GMSH terminology).
+        name : string
+            Name of the physical group.
+        &#34;&#34;&#34;
+        if not isinstance(entities, list):
+            entities = [entities]
+        
+        if name in self._physical_queue:
+            self._physical_queue[name].extend(entities)
+        else:
+            self._physical_queue[name] = entities
+
+    def generate_mesh(self, *args, **kwargs):
+        &#34;&#34;&#34;
+        Generate the mesh, determining the mesh dimension (line elements or triangles) from the
+        supplied symmetry. The arguments are passed directly to `pygmsh.geo.Geometry.generate_mesh`.
+        
+        Returns
+        -------
+        `Mesh`
+
+        &#34;&#34;&#34;
+        for label, entities in self._physical_queue.items():
+            super().add_physical(entities, label)
+          
+        if self.size_from_distance:
+            self.set_mesh_size_callback(self._mesh_size_callback)
+         
+        if self.symmetry == Symmetry.RADIAL:
+            dim = 1
+            gmsh.option.setNumber(&#39;Mesh.ElementOrder&#39;, 3)
+        elif self.symmetry == Symmetry.THREE_D:
+            dim = 2
+            gmsh.option.setNumber(&#39;Mesh.ElementOrder&#39;, 1)
+        elif self.symmetry == Symmetry.THREE_D_HIGHER_ORDER:
+            dim = 2
+            gmsh.option.setNumber(&#39;Mesh.ElementOrder&#39;, 2)
+        else:
+            raise ValueError(&#39;Symmetry not valid: &#39;, self.symmetry)
+        
+        return Mesh.from_meshio(super().generate_mesh(dim=dim, *args, **kwargs), self.symmetry)
+
+    def set_mesh_size_factor(self, factor):
+        &#34;&#34;&#34;
+        Set the mesh size factor. Which simply scales with the total number of elements in the mesh.
+        
+        Parameters
+        ----------
+        factor : float
+            The mesh size factor to use. 
+        
+        &#34;&#34;&#34;
+        if self.symmetry == Symmetry.RADIAL:
+            gmsh.option.setNumber(&#39;Mesh.MeshSizeFactor&#39;, 1/factor)
+        elif self.symmetry == Symmetry.THREE_D_HIGHER_ORDER or self.symmetry == Symmetry.THREE_D:
+            # GMSH seems to produce meshes which contain way more elements for 3D geometries
+            # with the same mesh factor. This is confusing for users and therefore we arbtrarily
+            # increase the mesh size to roughly correspond with the 2D number of elements.
+            gmsh.option.setNumber(&#39;Mesh.MeshSizeFactor&#39;, 4*sqrt(1/factor))
+
+    def set_minimum_mesh_size(self, size):
+        &#34;&#34;&#34;
+        Set the minimum mesh size possible. Especially useful when geometric elements touch
+        the optical axis and cause singularities when used with `size_from_distance=True`.
+        
+        Parameters
+        ----------
+        size : float
+            The minimum mesh size.  
+
+        &#34;&#34;&#34;
+        gmsh.option.setNumber(&#39;Mesh.MeshSizeMin&#39;, size)
+     
+    def _mesh_size_callback(self, dim, tag, x, y, z, _):
+        # Scale mesh size with distance to optical axis, but only the part of the optical
+        # axis that lies between zmin and zmax
+        
+        z_optical = y if self.symmetry == Symmetry.RADIAL else z
+         
+        if self.zmin is not None:
+            z_optical = max(z_optical, self.zmin)
+        if self.zmax is not None:
+            z_optical = min(z_optical, self.zmax)
+         
+        if self.symmetry == Symmetry.RADIAL:
+            return sqrt( x**2 + (y-z_optical)**2 )
+        else:
+            return sqrt( x**2 + y**2 + (z-z_optical)**2 )</code></pre>
+</details>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li>pygmsh.geo.geometry.Geometry</li>
+<li>pygmsh.common.geometry.CommonGeometry</li>
+</ul>
+<h3>Subclasses</h3>
+<ul class="hlist">
+<li><a title="traceon.geometry.MEMSStack" href="#traceon.geometry.MEMSStack">MEMSStack</a></li>
+</ul>
+<h3>Methods</h3>
+<dl>
+<dt id="traceon.geometry.Geometry.add_physical"><code class="name flex">
+<span>def <span class="ident">add_physical</span></span>(<span>self, entities, name)</span>
+</code></dt>
+<dd>
+<div class="desc"><h2 id="parameters">Parameters</h2>
+<dl>
+<dt><strong><code>entities</code></strong> :&ensp;<code>list</code> of <code>GMSH elements</code> or <code>GMSH element</code></dt>
+<dd>Geometric entities to assign the given name (the given <em>physical group</em> in GMSH terminology).</dd>
+<dt><strong><code>name</code></strong> :&ensp;<code>string</code></dt>
+<dd>Name of the physical group.</dd>
+</dl></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def add_physical(self, entities, name):
+    &#34;&#34;&#34;
+
+    Parameters
+    ----------
+    entities : list of GMSH elements or GMSH element
+        Geometric entities to assign the given name (the given _physical group_ in GMSH terminology).
+    name : string
+        Name of the physical group.
+    &#34;&#34;&#34;
+    if not isinstance(entities, list):
+        entities = [entities]
+    
+    if name in self._physical_queue:
+        self._physical_queue[name].extend(entities)
+    else:
+        self._physical_queue[name] = entities</code></pre>
+</details>
+</dd>
+<dt id="traceon.geometry.Geometry.generate_mesh"><code class="name flex">
+<span>def <span class="ident">generate_mesh</span></span>(<span>self, *args, **kwargs)</span>
+</code></dt>
+<dd>
+<div class="desc"><p>Generate the mesh, determining the mesh dimension (line elements or triangles) from the
+supplied symmetry. The arguments are passed directly to <code>pygmsh.geo.Geometry.generate_mesh</code>.</p>
+<h2 id="returns">Returns</h2>
+<p><code><a title="traceon.geometry.Mesh" href="#traceon.geometry.Mesh">Mesh</a></code></p></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def generate_mesh(self, *args, **kwargs):
+    &#34;&#34;&#34;
+    Generate the mesh, determining the mesh dimension (line elements or triangles) from the
+    supplied symmetry. The arguments are passed directly to `pygmsh.geo.Geometry.generate_mesh`.
+    
+    Returns
+    -------
+    `Mesh`
+
+    &#34;&#34;&#34;
+    for label, entities in self._physical_queue.items():
+        super().add_physical(entities, label)
+      
+    if self.size_from_distance:
+        self.set_mesh_size_callback(self._mesh_size_callback)
+     
+    if self.symmetry == Symmetry.RADIAL:
+        dim = 1
+        gmsh.option.setNumber(&#39;Mesh.ElementOrder&#39;, 3)
+    elif self.symmetry == Symmetry.THREE_D:
+        dim = 2
+        gmsh.option.setNumber(&#39;Mesh.ElementOrder&#39;, 1)
+    elif self.symmetry == Symmetry.THREE_D_HIGHER_ORDER:
+        dim = 2
+        gmsh.option.setNumber(&#39;Mesh.ElementOrder&#39;, 2)
+    else:
+        raise ValueError(&#39;Symmetry not valid: &#39;, self.symmetry)
+    
+    return Mesh.from_meshio(super().generate_mesh(dim=dim, *args, **kwargs), self.symmetry)</code></pre>
+</details>
+</dd>
+<dt id="traceon.geometry.Geometry.is_3d"><code class="name flex">
+<span>def <span class="ident">is_3d</span></span>(<span>self)</span>
+</code></dt>
+<dd>
+<div class="desc"><p>Check if the geometry is three dimensional.</p>
+<h2 id="returns">Returns</h2>
+<dl>
+<dt><code>True if geometry is three dimensional, False if the geometry is two dimensional</code></dt>
+<dd>&nbsp;</dd>
+</dl></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def is_3d(self):
+    &#34;&#34;&#34;Check if the geometry is three dimensional.
+
+    Returns
+    ----------------
+    True if geometry is three dimensional, False if the geometry is two dimensional&#34;&#34;&#34;
+    return self.symmetry.is_3d()</code></pre>
+</details>
+</dd>
+<dt id="traceon.geometry.Geometry.set_mesh_size_factor"><code class="name flex">
+<span>def <span class="ident">set_mesh_size_factor</span></span>(<span>self, factor)</span>
+</code></dt>
+<dd>
+<div class="desc"><p>Set the mesh size factor. Which simply scales with the total number of elements in the mesh.</p>
+<h2 id="parameters">Parameters</h2>
+<dl>
+<dt><strong><code>factor</code></strong> :&ensp;<code>float</code></dt>
+<dd>The mesh size factor to use.</dd>
+</dl></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def set_mesh_size_factor(self, factor):
+    &#34;&#34;&#34;
+    Set the mesh size factor. Which simply scales with the total number of elements in the mesh.
+    
+    Parameters
+    ----------
+    factor : float
+        The mesh size factor to use. 
+    
+    &#34;&#34;&#34;
+    if self.symmetry == Symmetry.RADIAL:
+        gmsh.option.setNumber(&#39;Mesh.MeshSizeFactor&#39;, 1/factor)
+    elif self.symmetry == Symmetry.THREE_D_HIGHER_ORDER or self.symmetry == Symmetry.THREE_D:
+        # GMSH seems to produce meshes which contain way more elements for 3D geometries
+        # with the same mesh factor. This is confusing for users and therefore we arbtrarily
+        # increase the mesh size to roughly correspond with the 2D number of elements.
+        gmsh.option.setNumber(&#39;Mesh.MeshSizeFactor&#39;, 4*sqrt(1/factor))</code></pre>
+</details>
+</dd>
+<dt id="traceon.geometry.Geometry.set_minimum_mesh_size"><code class="name flex">
+<span>def <span class="ident">set_minimum_mesh_size</span></span>(<span>self, size)</span>
+</code></dt>
+<dd>
+<div class="desc"><p>Set the minimum mesh size possible. Especially useful when geometric elements touch
+the optical axis and cause singularities when used with <code>size_from_distance=True</code>.</p>
+<h2 id="parameters">Parameters</h2>
+<dl>
+<dt><strong><code>size</code></strong> :&ensp;<code>float</code></dt>
+<dd>The minimum mesh size.</dd>
+</dl></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def set_minimum_mesh_size(self, size):
+    &#34;&#34;&#34;
+    Set the minimum mesh size possible. Especially useful when geometric elements touch
+    the optical axis and cause singularities when used with `size_from_distance=True`.
+    
+    Parameters
+    ----------
+    size : float
+        The minimum mesh size.  
+
+    &#34;&#34;&#34;
+    gmsh.option.setNumber(&#39;Mesh.MeshSizeMin&#39;, size)</code></pre>
+</details>
+</dd>
+</dl>
+</dd>
+<dt id="traceon.geometry.MEMSStack"><code class="flex name class">
+<span>class <span class="ident">MEMSStack</span></span>
+<span>(</span><span>*args, z0=0.0, revolve_factor=0.0, rmax=2, margin=0.5, margin_right=0.1, symmetry=None, **kwargs)</span>
+</code></dt>
+<dd>
+<div class="desc"><p>Geometry consisting of a stack of MEMS fabricated elements. This geometry is modelled using a stack
+of rectangularly shaped elements with a variable spacing in between. Useful when doing calculations on MEMS fabricated
+lenses and mirrors.</p>
+<h2 id="parameters">Parameters</h2>
+<dl>
+<dt><strong><code>z0</code></strong> :&ensp;<code>float</code></dt>
+<dd>Starting z-value to begin building up the MEMS elements from.</dd>
+<dt><strong><code>revolve_factor</code></strong> :&ensp;<code>float</code></dt>
+<dd>Revolve the resulting geometry around the optical axis to generate a 3D geometry. When <code>revolve_factor=0.0</code> a
+2D geometry is returned. For <code>0 &lt; revolve_factor &lt;= 1.0</code> see the documentation of <code><a title="traceon.geometry.revolve_around_optical_axis" href="#traceon.geometry.revolve_around_optical_axis">revolve_around_optical_axis()</a></code>.</dd>
+<dt><strong><code>rmax</code></strong> :&ensp;<code>float</code></dt>
+<dd>The rectangular MEMS objects extend to <span><span class="MathJax_Preview"> r = r_{max} </span><script type="math/tex"> r = r_{max} </script></span>.</dd>
+<dt><strong><code>margin</code></strong> :&ensp;<code>float</code></dt>
+<dd>The distance between the electrodes and the top and bottom boundary.</dd>
+<dt><strong><code>margin_right</code></strong> :&ensp;<code>float</code></dt>
+<dd>Distance between the boundary on the right and the MEMS electrodes.</dd>
+<dt><strong><code>symmetry</code></strong> :&ensp;<code><a title="traceon.geometry.Symmetry" href="#traceon.geometry.Symmetry">Symmetry</a></code></dt>
+<dd>What symmetry to use for the resulting geometry</dd>
+</dl></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class MEMSStack(Geometry):
+    &#34;&#34;&#34;Geometry consisting of a stack of MEMS fabricated elements. This geometry is modelled using a stack
+    of rectangularly shaped elements with a variable spacing in between. Useful when doing calculations on MEMS fabricated
+    lenses and mirrors.
+    
+    Parameters
+    ----------
+    z0: float
+        Starting z-value to begin building up the MEMS elements from.
+    revolve_factor: float
+        Revolve the resulting geometry around the optical axis to generate a 3D geometry. When `revolve_factor=0.0` a
+        2D geometry is returned. For `0 &lt; revolve_factor &lt;= 1.0` see the documentation of `revolve_around_optical_axis`.
+    rmax: float
+        The rectangular MEMS objects extend to \( r = r_{max} \).
+    margin: float
+        The distance between the electrodes and the top and bottom boundary.
+    margin_right: float
+        Distance between the boundary on the right and the MEMS electrodes.
+    symmetry: `Symmetry`
+        What symmetry to use for the resulting geometry
+    &#34;&#34;&#34;
+    
+    def __init__(self, *args, z0=0.0, revolve_factor=0.0, rmax=2, margin=0.5, margin_right=0.1, symmetry=None, **kwargs):
+        
+        if symmetry is None:
+            self.symmetry = Symmetry.RADIAL if revolve_factor == 0.0 else Symmetry.THREE_D_HIGHER_ORDER
+        else:
+            self.symmetry = symmetry
+            
+            if revolve_factor == 0.0:
+                revolve_factor = 1.0
+         
+        super().__init__(self.symmetry, *args, **kwargs)
+        
+        self.z0 = z0
+        self.revolve_factor = revolve_factor
+        self.rmax = rmax
+        
+        self.margin = margin
+        self.margin_right = margin_right
+         
+        self._current_z = z0 + margin
+        self._last_name = None
+    
+    def add_spacer(self, thickness):
+        &#34;&#34;&#34;
+
+        Parameters
+        ----------
+        thickness : float
+            Add the given amount of space between the previous and next electrode.
+
+        &#34;&#34;&#34;
+        self._current_z += thickness
+    
+    def _add_boundary(self):
+        points = [[0.0, self._current_z+self.margin],
+                  [self.rmax+self.margin_right, self._current_z+self.margin],
+                  [self.rmax+self.margin_right, self.z0],
+                  [0.0, self.z0]]
+        
+        self._add_lines_from_points(points, &#39;boundary&#39;)
+        self._current_z += self.margin
+     
+    def _add_lines_from_points(self, points, name):
+        if self.is_3d():
+            points = [self.add_point([p[0], 0.0, p[1]]) for p in points[::-1]]
+        else:
+            points = [self.add_point(p) for p in points]
+        
+        Np = len(points)
+        lines = [self.add_line(points[i], points[j]) for i, j in zip(range(0,Np-1), range(1,Np))]
+         
+        if self.is_3d():
+            revolved = revolve_around_optical_axis(self, lines, self.revolve_factor)
+            self.add_physical(revolved, name)
+        else:
+            self.add_physical(lines, name)
+
+    def add_electrode(self, radius, thickness, name):
+        &#34;&#34;&#34;
+
+        Parameters
+        ----------
+        radius : float
+            Distance from the electrode to the optical axis (in mm).
+            
+        thickness : float
+            Thickness of the electrode (in mm).
+            
+        name : str
+            Name to assign to the electode. Needed to later specify the correct excitation.
+        &#34;&#34;&#34;
+        cz = self._current_z
+        points = [[self.rmax, cz], [radius, cz], [radius, cz+thickness], [self.rmax, cz+thickness]]
+        self._add_lines_from_points(points, name)
+        self._current_z += thickness
+
+    def generate_mesh(self, *args, **kwargs):
+        self._add_boundary()
+        return super().generate_mesh(*args, **kwargs)</code></pre>
+</details>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li><a title="traceon.geometry.Geometry" href="#traceon.geometry.Geometry">Geometry</a></li>
+<li>pygmsh.geo.geometry.Geometry</li>
+<li>pygmsh.common.geometry.CommonGeometry</li>
+</ul>
+<h3>Methods</h3>
+<dl>
+<dt id="traceon.geometry.MEMSStack.add_electrode"><code class="name flex">
+<span>def <span class="ident">add_electrode</span></span>(<span>self, radius, thickness, name)</span>
+</code></dt>
+<dd>
+<div class="desc"><h2 id="parameters">Parameters</h2>
+<dl>
+<dt><strong><code>radius</code></strong> :&ensp;<code>float</code></dt>
+<dd>Distance from the electrode to the optical axis (in mm).</dd>
+<dt><strong><code>thickness</code></strong> :&ensp;<code>float</code></dt>
+<dd>Thickness of the electrode (in mm).</dd>
+<dt><strong><code>name</code></strong> :&ensp;<code>str</code></dt>
+<dd>Name to assign to the electode. Needed to later specify the correct excitation.</dd>
+</dl></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def add_electrode(self, radius, thickness, name):
+    &#34;&#34;&#34;
+
+    Parameters
+    ----------
+    radius : float
+        Distance from the electrode to the optical axis (in mm).
+        
+    thickness : float
+        Thickness of the electrode (in mm).
+        
+    name : str
+        Name to assign to the electode. Needed to later specify the correct excitation.
+    &#34;&#34;&#34;
+    cz = self._current_z
+    points = [[self.rmax, cz], [radius, cz], [radius, cz+thickness], [self.rmax, cz+thickness]]
+    self._add_lines_from_points(points, name)
+    self._current_z += thickness</code></pre>
+</details>
+</dd>
+<dt id="traceon.geometry.MEMSStack.add_spacer"><code class="name flex">
+<span>def <span class="ident">add_spacer</span></span>(<span>self, thickness)</span>
+</code></dt>
+<dd>
+<div class="desc"><h2 id="parameters">Parameters</h2>
+<dl>
+<dt><strong><code>thickness</code></strong> :&ensp;<code>float</code></dt>
+<dd>Add the given amount of space between the previous and next electrode.</dd>
+</dl></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def add_spacer(self, thickness):
+    &#34;&#34;&#34;
+
+    Parameters
+    ----------
+    thickness : float
+        Add the given amount of space between the previous and next electrode.
+
+    &#34;&#34;&#34;
+    self._current_z += thickness</code></pre>
+</details>
+</dd>
+</dl>
+<h3>Inherited members</h3>
+<ul class="hlist">
+<li><code><b><a title="traceon.geometry.Geometry" href="#traceon.geometry.Geometry">Geometry</a></b></code>:
+<ul class="hlist">
+<li><code><a title="traceon.geometry.Geometry.add_physical" href="#traceon.geometry.Geometry.add_physical">add_physical</a></code></li>
+<li><code><a title="traceon.geometry.Geometry.generate_mesh" href="#traceon.geometry.Geometry.generate_mesh">generate_mesh</a></code></li>
+<li><code><a title="traceon.geometry.Geometry.is_3d" href="#traceon.geometry.Geometry.is_3d">is_3d</a></code></li>
+<li><code><a title="traceon.geometry.Geometry.set_mesh_size_factor" href="#traceon.geometry.Geometry.set_mesh_size_factor">set_mesh_size_factor</a></code></li>
+<li><code><a title="traceon.geometry.Geometry.set_minimum_mesh_size" href="#traceon.geometry.Geometry.set_minimum_mesh_size">set_minimum_mesh_size</a></code></li>
+</ul>
+</li>
+</ul>
+</dd>
+<dt id="traceon.geometry.Mesh"><code class="flex name class">
+<span>class <span class="ident">Mesh</span></span>
+<span>(</span><span>points, elements, physical_to_elements, symmetry, metadata={})</span>
+</code></dt>
+<dd>
+<div class="desc"><p>Class containing a mesh and related metadata.</p></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class Mesh(Saveable):
+    &#34;&#34;&#34;Class containing a mesh and related metadata.&#34;&#34;&#34;
+    
+    def __init__(self, points, elements, physical_to_elements, symmetry, metadata={}):
+        assert isinstance(symmetry, Symmetry)
+        self.points = points
+        self.elements = elements
+        self.physical_to_elements = physical_to_elements
+        self.symmetry = symmetry
+        self.metadata = metadata
+            
+    def from_meshio(mesh, symmetry, metadata={}):
+        &#34;&#34;&#34;Generate a Traceon Mesh from a [meshio](https://github.com/nschloe/meshio) mesh.
+        
+        Parameters
+        ----------
+        symmetry: Symmetry
+            Specifies a radially symmetric geometry (RADIAL) or a general 3D geometry (THREE_D_HIGHER_ORDER).
+        
+        Returns
+        ---------
+        Mesh
+        &#34;&#34;&#34;
+        if symmetry == Symmetry.RADIAL:
+            type_ = &#39;line4&#39;
+        elif symmetry == Symmetry.THREE_D:
+            type_ = &#39;triangle&#39;
+        elif symmetry == Symmetry.THREE_D_HIGHER_ORDER:
+            type_ = &#39;triangle6&#39;
+        else:
+            raise ValueError(&#39;Symmetry passed to from_meshio(..) not valid: &#39; + str(symmetry))
+         
+        points = mesh.points
+        elements = mesh.cells_dict[type_]
+        physical_to_elements = {k:v[type_] for k, v in mesh.cell_sets_dict.items() if type_ in v}
+        
+        return Mesh(points, elements, physical_to_elements, symmetry, metadata)
+     
+    def is_3d(self):
+        &#34;&#34;&#34;Check if the mesh is three dimensional.
+
+        Returns
+        ----------------
+        True if mesh is three dimensional, False if the mesh is two dimensional&#34;&#34;&#34;
+        return self.symmetry.is_3d()
+    
+    def get_electrodes(self):
+        &#34;&#34;&#34;Get the names of all the electrodes in the geometry.
+         
+        Returns
+        ---------
+        List of electrode names
+
+        &#34;&#34;&#34;
+        return list(self.physical_to_elements.keys())
+    
+    def _invert_physical_dict(self):
+        lookup = np.full(len(self.elements), None)
+
+        for k, v in self.physical_to_elements.items():
+            lookup[v] = k
+        
+        return lookup
+     
+    def _split_indices_radial(self, indices):
+        assert self.symmetry == Symmetry.RADIAL
+         
+        elements = copy.deepcopy(self.elements)
+        N_elements = len(elements)
+         
+        N = len(self.points)
+        lines_to_add = []
+        physicals = []
+        points_to_add = []
+         
+        physical_lookup = self._invert_physical_dict()
+        to_pos = lambda alpha, line: [*position_and_jacobian_radial(alpha, line[0], line[2], line[3], line[1])[1], 0.0]
+        
+        for idx in indices:
+            pi = elements[idx]
+            line = self.points[pi]
+             
+            points_to_add.append(to_pos(-2/3, line))
+            points_to_add.append(to_pos(0.0, line))
+            points_to_add.append(to_pos(2/3, line))
+            l = len(points_to_add)
+            lines_to_add.append( (N+l-2, pi[1].item(), pi[3].item(), N+l-1) )
+            elements[idx] = (pi[0], N+l-2, N+l-3, pi[2])
+            physicals.append(physical_lookup[idx])
+        
+        # Now actually alter the mesh
+        new_points = np.concatenate( (self.points, points_to_add), axis=0)
+        new_elements = np.concatenate( (elements, np.array(lines_to_add, dtype=np.uint64)), axis=0)
+        new_dict = copy.copy(self.physical_to_elements)
+        
+        for name in [p for p in np.unique(physicals) if p is not None]:   
+            old_indices = new_dict[name]
+            (added_indices,) = (np.array(physicals) == name).nonzero()
+            new_dict[name] = np.concatenate( (old_indices.astype(np.int64), N_elements + added_indices) )
+         
+        new_mesh = Mesh(new_points, new_elements, new_dict, self.symmetry, self.metadata)
+        return new_mesh
+         
+    def _split_indices_3d(self, indices):
+        assert self.symmetry == Symmetry.THREE_D_HIGHER_ORDER
+         
+        elements = copy.deepcopy(self.elements)
+        N_elements = len(elements)
+         
+        N = len(self.points)
+        triangles_to_add = []
+        physicals = []
+        points_to_add = []
+         
+        physical_lookup = self._invert_physical_dict()
+        to_pos = lambda alpha, beta, triangle: position_and_jacobian_3d(alpha, beta, triangle)[1]
+        
+        for idx in indices:
+            pi = elements[idx]
+            triangle = self.points[pi]
+             
+            points_to_add.append(to_pos(1/3, 1/3, triangle)) # Middle
+            points_to_add.append(to_pos(1/6, 1/6, triangle)) # s0
+            points_to_add.append(to_pos(4/6, 1/6, triangle)) # s1
+            points_to_add.append(to_pos(1/6, 4/6, triangle)) # s2
+            l = len(points_to_add)
+            # Same ordering as in C backend function &#39;fill_self_voltages_3d&#39;
+            t, s0, s1, s2 = N+l-4, N+l-3, N+l-2, N+l-1
+            triangles_to_add.append( (t, pi[1], pi[2], s1, pi[4], s2) )
+            triangles_to_add.append( (t, pi[2], pi[0], s2, pi[5], s0) )
+            elements[idx] = (t, pi[0], pi[1], s0, pi[3], s1)
+            
+            physicals.append(physical_lookup[idx])
+            physicals.append(physical_lookup[idx])
+        
+        # Now actually alter the mesh
+        new_points = np.concatenate( (self.points, points_to_add), axis=0)
+        new_elements = np.concatenate( (elements, np.array(triangles_to_add, dtype=np.uint64)), axis=0)
+        new_dict = copy.copy(self.physical_to_elements)
+        
+        for name in [p for p in np.unique(physicals) if p is not None]:   
+            old_indices = new_dict[name]
+            (added_indices,) = (np.array(physicals) == name).nonzero()
+            new_dict[name] = np.concatenate( (old_indices.astype(np.int64), N_elements + added_indices) )
+         
+        new_mesh = Mesh(new_points, new_elements, new_dict, self.symmetry, self.metadata)
+        return new_mesh
+     
+    def split_indices(self, indices):
+        if self.symmetry == Symmetry.RADIAL:
+            return self._split_indices_radial(indices)
+        else:
+            return self._split_indices_3d(indices)
+
+    def split_elements_based_on_charges(self, excitation, field, max_splits, mesh_factor):
+        active = excitation.get_active_element_mask()
+        assert np.sum(active) == len(field.vertices), &#34;Excitation did not produce the given field&#34;
+
+        map_index = active.nonzero()[0]
+        
+        charges = np.array([field.charge_on_element(i) for i in map_index])
+        charges = np.abs( np.array([field.charge_on_element(i) for i in range(len(field.vertices))]) )
+         
+        # In max_splits iterations, increase the number of elements in the
+        # mesh by mesh_factor. The split_facotr then gives us the amount
+        # of elements we need to split in every iteration.
+        split_factor = mesh_factor**(1/max_splits) - 1
+        
+        if self.symmetry == Symmetry.THREE_D_HIGHER_ORDER:
+            split_factor /= 2 # For triangles, a splitting gives two extra elements, instead of one
+        
+        new_mesh = self
+              
+        for _ in range(max_splits):
+            to_split = np.argsort(charges)[-round(split_factor*len(charges)):]
+            print(&#39;Splitting &#39;, len(to_split), &#39; elements&#39;)
+            charges[to_split] /= 2 if self.symmetry == Symmetry.RADIAL else 3
+            charges = np.concatenate( (charges, np.repeat(charges[to_split], 2)), axis=0 )
+            new_mesh = new_mesh.split_indices(to_split)
+        
+        return new_mesh
+     
+    def __str__(self):
+        physicals = self.physical_to_elements.keys()
+        physical_names = &#39;, &#39;.join(physicals)
+        physical_nums = &#39;, &#39;.join([str(len(self.physical_to_elements[n])) for n in physicals])
+        
+        return f&#39;&lt;Traceon Mesh {self.symmetry},\n&#39; \
+            f&#39;\tPhysical groups: {physical_names}\n&#39; \
+            f&#39;\tElements in physical groups: {physical_nums}\n&#39; \
+            f&#39;\tNumber of points: {len(self.points)}&gt;&#39;
+
+    def write_gmsh(self, filename):
+        self.mesh.write(filename)</code></pre>
+</details>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li>traceon.util.Saveable</li>
+</ul>
+<h3>Methods</h3>
+<dl>
+<dt id="traceon.geometry.Mesh.from_meshio"><code class="name flex">
+<span>def <span class="ident">from_meshio</span></span>(<span>mesh, symmetry, metadata={})</span>
+</code></dt>
+<dd>
+<div class="desc"><p>Generate a Traceon Mesh from a <a href="https://github.com/nschloe/meshio">meshio</a> mesh.</p>
+<h2 id="parameters">Parameters</h2>
+<dl>
+<dt><strong><code>symmetry</code></strong> :&ensp;<code><a title="traceon.geometry.Symmetry" href="#traceon.geometry.Symmetry">Symmetry</a></code></dt>
+<dd>Specifies a radially symmetric geometry (RADIAL) or a general 3D geometry (THREE_D_HIGHER_ORDER).</dd>
+</dl>
+<h2 id="returns">Returns</h2>
+<dl>
+<dt><code><a title="traceon.geometry.Mesh" href="#traceon.geometry.Mesh">Mesh</a></code></dt>
+<dd>&nbsp;</dd>
+</dl></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def from_meshio(mesh, symmetry, metadata={}):
+    &#34;&#34;&#34;Generate a Traceon Mesh from a [meshio](https://github.com/nschloe/meshio) mesh.
+    
+    Parameters
+    ----------
+    symmetry: Symmetry
+        Specifies a radially symmetric geometry (RADIAL) or a general 3D geometry (THREE_D_HIGHER_ORDER).
+    
+    Returns
+    ---------
+    Mesh
+    &#34;&#34;&#34;
+    if symmetry == Symmetry.RADIAL:
+        type_ = &#39;line4&#39;
+    elif symmetry == Symmetry.THREE_D:
+        type_ = &#39;triangle&#39;
+    elif symmetry == Symmetry.THREE_D_HIGHER_ORDER:
+        type_ = &#39;triangle6&#39;
+    else:
+        raise ValueError(&#39;Symmetry passed to from_meshio(..) not valid: &#39; + str(symmetry))
+     
+    points = mesh.points
+    elements = mesh.cells_dict[type_]
+    physical_to_elements = {k:v[type_] for k, v in mesh.cell_sets_dict.items() if type_ in v}
+    
+    return Mesh(points, elements, physical_to_elements, symmetry, metadata)</code></pre>
+</details>
+</dd>
+<dt id="traceon.geometry.Mesh.get_electrodes"><code class="name flex">
+<span>def <span class="ident">get_electrodes</span></span>(<span>self)</span>
+</code></dt>
+<dd>
+<div class="desc"><p>Get the names of all the electrodes in the geometry.</p>
+<h2 id="returns">Returns</h2>
+<dl>
+<dt><code>List</code> of <code>electrode names</code></dt>
+<dd>&nbsp;</dd>
+</dl></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def get_electrodes(self):
+    &#34;&#34;&#34;Get the names of all the electrodes in the geometry.
+     
+    Returns
+    ---------
+    List of electrode names
+
+    &#34;&#34;&#34;
+    return list(self.physical_to_elements.keys())</code></pre>
+</details>
+</dd>
+<dt id="traceon.geometry.Mesh.is_3d"><code class="name flex">
+<span>def <span class="ident">is_3d</span></span>(<span>self)</span>
+</code></dt>
+<dd>
+<div class="desc"><p>Check if the mesh is three dimensional.</p>
+<h2 id="returns">Returns</h2>
+<dl>
+<dt><code>True if mesh is three dimensional, False if the mesh is two dimensional</code></dt>
+<dd>&nbsp;</dd>
+</dl></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def is_3d(self):
+    &#34;&#34;&#34;Check if the mesh is three dimensional.
+
+    Returns
+    ----------------
+    True if mesh is three dimensional, False if the mesh is two dimensional&#34;&#34;&#34;
+    return self.symmetry.is_3d()</code></pre>
+</details>
+</dd>
+<dt id="traceon.geometry.Mesh.split_elements_based_on_charges"><code class="name flex">
+<span>def <span class="ident">split_elements_based_on_charges</span></span>(<span>self, excitation, field, max_splits, mesh_factor)</span>
+</code></dt>
+<dd>
+<div class="desc"></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def split_elements_based_on_charges(self, excitation, field, max_splits, mesh_factor):
+    active = excitation.get_active_element_mask()
+    assert np.sum(active) == len(field.vertices), &#34;Excitation did not produce the given field&#34;
+
+    map_index = active.nonzero()[0]
+    
+    charges = np.array([field.charge_on_element(i) for i in map_index])
+    charges = np.abs( np.array([field.charge_on_element(i) for i in range(len(field.vertices))]) )
+     
+    # In max_splits iterations, increase the number of elements in the
+    # mesh by mesh_factor. The split_facotr then gives us the amount
+    # of elements we need to split in every iteration.
+    split_factor = mesh_factor**(1/max_splits) - 1
+    
+    if self.symmetry == Symmetry.THREE_D_HIGHER_ORDER:
+        split_factor /= 2 # For triangles, a splitting gives two extra elements, instead of one
+    
+    new_mesh = self
+          
+    for _ in range(max_splits):
+        to_split = np.argsort(charges)[-round(split_factor*len(charges)):]
+        print(&#39;Splitting &#39;, len(to_split), &#39; elements&#39;)
+        charges[to_split] /= 2 if self.symmetry == Symmetry.RADIAL else 3
+        charges = np.concatenate( (charges, np.repeat(charges[to_split], 2)), axis=0 )
+        new_mesh = new_mesh.split_indices(to_split)
+    
+    return new_mesh</code></pre>
+</details>
+</dd>
+<dt id="traceon.geometry.Mesh.split_indices"><code class="name flex">
+<span>def <span class="ident">split_indices</span></span>(<span>self, indices)</span>
+</code></dt>
+<dd>
+<div class="desc"></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def split_indices(self, indices):
+    if self.symmetry == Symmetry.RADIAL:
+        return self._split_indices_radial(indices)
+    else:
+        return self._split_indices_3d(indices)</code></pre>
+</details>
+</dd>
+<dt id="traceon.geometry.Mesh.write_gmsh"><code class="name flex">
+<span>def <span class="ident">write_gmsh</span></span>(<span>self, filename)</span>
+</code></dt>
+<dd>
+<div class="desc"></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def write_gmsh(self, filename):
+    self.mesh.write(filename)</code></pre>
+</details>
+</dd>
+</dl>
+</dd>
+<dt id="traceon.geometry.Symmetry"><code class="flex name class">
+<span>class <span class="ident">Symmetry</span></span>
+<span>(</span><span>value, names=None, *, module=None, qualname=None, type=None, start=1)</span>
+</code></dt>
+<dd>
+<div class="desc"><p>Symmetry of the geometry. Used when deciding which formulas to use in the Boundary Element Method. The currently
+supported symmetries are radial symmetry (also called cylindrical symmetry) and general 3D geometries.</p></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class Symmetry(Enum):
+    &#34;&#34;&#34;
+    Symmetry of the geometry. Used when deciding which formulas to use in the Boundary Element Method. The currently
+    supported symmetries are radial symmetry (also called cylindrical symmetry) and general 3D geometries.
+    &#34;&#34;&#34;
+    RADIAL = 0
+    THREE_D_HIGHER_ORDER = 1
+    THREE_D = 2
+
+    def __str__(self):
+        if self == Symmetry.RADIAL:
+            return &#39;radial&#39;
+        elif self == Symmetry.THREE_D_HIGHER_ORDER:
+            return &#39;3d higher order&#39;
+        elif self == Symmetry.THREE_D:
+            return &#39;3d first order&#39; 
+    
+    def is_3d(self):
+        return self in [Symmetry.THREE_D_HIGHER_ORDER, Symmetry.THREE_D]</code></pre>
+</details>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li>enum.Enum</li>
+</ul>
+<h3>Class variables</h3>
+<dl>
+<dt id="traceon.geometry.Symmetry.RADIAL"><code class="name">var <span class="ident">RADIAL</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="traceon.geometry.Symmetry.THREE_D"><code class="name">var <span class="ident">THREE_D</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="traceon.geometry.Symmetry.THREE_D_HIGHER_ORDER"><code class="name">var <span class="ident">THREE_D_HIGHER_ORDER</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+<h3>Methods</h3>
+<dl>
+<dt id="traceon.geometry.Symmetry.is_3d"><code class="name flex">
+<span>def <span class="ident">is_3d</span></span>(<span>self)</span>
+</code></dt>
+<dd>
+<div class="desc"></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def is_3d(self):
+    return self in [Symmetry.THREE_D_HIGHER_ORDER, Symmetry.THREE_D]</code></pre>
+</details>
+</dd>
+</dl>
+</dd>
+</dl>
+</section>
+</article>
+<nav id="sidebar">
+<h1>Index</h1>
+<div class="toc">
+<ul></ul>
+</div>
+<ul id="index">
+<li><h3>Super-module</h3>
+<ul>
+<li><code><a title="traceon" href="index.html">traceon</a></code></li>
+</ul>
+</li>
+<li><h3><a href="#header-functions">Functions</a></h3>
+<ul class="">
+<li><code><a title="traceon.geometry.revolve_around_optical_axis" href="#traceon.geometry.revolve_around_optical_axis">revolve_around_optical_axis</a></code></li>
+</ul>
+</li>
+<li><h3><a href="#header-classes">Classes</a></h3>
+<ul>
+<li>
+<h4><code><a title="traceon.geometry.Geometry" href="#traceon.geometry.Geometry">Geometry</a></code></h4>
+<ul class="">
+<li><code><a title="traceon.geometry.Geometry.add_physical" href="#traceon.geometry.Geometry.add_physical">add_physical</a></code></li>
+<li><code><a title="traceon.geometry.Geometry.generate_mesh" href="#traceon.geometry.Geometry.generate_mesh">generate_mesh</a></code></li>
+<li><code><a title="traceon.geometry.Geometry.is_3d" href="#traceon.geometry.Geometry.is_3d">is_3d</a></code></li>
+<li><code><a title="traceon.geometry.Geometry.set_mesh_size_factor" href="#traceon.geometry.Geometry.set_mesh_size_factor">set_mesh_size_factor</a></code></li>
+<li><code><a title="traceon.geometry.Geometry.set_minimum_mesh_size" href="#traceon.geometry.Geometry.set_minimum_mesh_size">set_minimum_mesh_size</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="traceon.geometry.MEMSStack" href="#traceon.geometry.MEMSStack">MEMSStack</a></code></h4>
+<ul class="">
+<li><code><a title="traceon.geometry.MEMSStack.add_electrode" href="#traceon.geometry.MEMSStack.add_electrode">add_electrode</a></code></li>
+<li><code><a title="traceon.geometry.MEMSStack.add_spacer" href="#traceon.geometry.MEMSStack.add_spacer">add_spacer</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="traceon.geometry.Mesh" href="#traceon.geometry.Mesh">Mesh</a></code></h4>
+<ul class="">
+<li><code><a title="traceon.geometry.Mesh.from_meshio" href="#traceon.geometry.Mesh.from_meshio">from_meshio</a></code></li>
+<li><code><a title="traceon.geometry.Mesh.get_electrodes" href="#traceon.geometry.Mesh.get_electrodes">get_electrodes</a></code></li>
+<li><code><a title="traceon.geometry.Mesh.is_3d" href="#traceon.geometry.Mesh.is_3d">is_3d</a></code></li>
+<li><code><a title="traceon.geometry.Mesh.split_elements_based_on_charges" href="#traceon.geometry.Mesh.split_elements_based_on_charges">split_elements_based_on_charges</a></code></li>
+<li><code><a title="traceon.geometry.Mesh.split_indices" href="#traceon.geometry.Mesh.split_indices">split_indices</a></code></li>
+<li><code><a title="traceon.geometry.Mesh.write_gmsh" href="#traceon.geometry.Mesh.write_gmsh">write_gmsh</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="traceon.geometry.Symmetry" href="#traceon.geometry.Symmetry">Symmetry</a></code></h4>
+<ul class="">
+<li><code><a title="traceon.geometry.Symmetry.RADIAL" href="#traceon.geometry.Symmetry.RADIAL">RADIAL</a></code></li>
+<li><code><a title="traceon.geometry.Symmetry.THREE_D" href="#traceon.geometry.Symmetry.THREE_D">THREE_D</a></code></li>
+<li><code><a title="traceon.geometry.Symmetry.THREE_D_HIGHER_ORDER" href="#traceon.geometry.Symmetry.THREE_D_HIGHER_ORDER">THREE_D_HIGHER_ORDER</a></code></li>
+<li><code><a title="traceon.geometry.Symmetry.is_3d" href="#traceon.geometry.Symmetry.is_3d">is_3d</a></code></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</nav>
+</main>
+<footer id="footer">
+<p>Generated by <a href="https://pdoc3.github.io/pdoc" title="pdoc: Python API documentation generator"><cite>pdoc</cite> 0.10.0</a>.</p>
+</footer>
+</body>
+</html>
