@@ -298,7 +298,7 @@ INLINE double dot6(double *v1, double *v2) {
 }
 
 INLINE void
-cross_product_3d(double *v1, double *v2, double *out) {
+cross_product_3d(double v1[3], double v2[3], double out[3]) {
 	double v1x = v1[0], v1y = v1[1], v1z = v1[2];
 	double v2x = v2[0], v2y = v2[1], v2z = v2[2];
 
@@ -307,7 +307,7 @@ cross_product_3d(double *v1, double *v2, double *out) {
 	out[2] = v1x*v2y-v1y*v2x;
 }
 
-INLINE double norm_cross_product_3d(double *v1, double *v2) {
+INLINE double norm_cross_product_3d(double v1[3], double v2[3]) {
 	double out[3];
 	cross_product_3d(v1, v2, out);
 	return norm_3d(out[0], out[1], out[2]);
@@ -426,13 +426,15 @@ triangle_integral_adaptive(double target[3], triangle6 vertices, integration_cb_
 
 INLINE double potential_3d_point(double x0, double y0, double z0, double x, double y, double z, void *_) {
 	double r = norm_3d(x-x0, y-y0, z-z0);
-    return 1/(4*r);
+    return 1/(4*M_PI*r);
 }
 
 //////////////////////////////// PARTICLE TRACING
 
-
-const double EM = -0.1758820022723908; // e/m units ns and mm
+// python -c "from scipy.constants import m_e, e; print(-e/m_e);"
+const double EM = -175882001077.2163; // Electron charge over electron mass
+// python -c "from scipy.constants import mu_0; print(mu_0);"
+const double MU_0 = 1.25663706212e-06;
 
 const double A[]  = {0.0, 2./9., 1./3., 3./4., 1., 5./6.};	// https://en.wikipedia.org/wiki/Runge%E2%80%93Kutta%E2%80%93Fehlberg_method
 const double B6[] = {65./432., -5./16., 13./16., 4./27., 5./144.};
@@ -481,7 +483,7 @@ trace_particle(double *times_array, double *pos_array, field_fun field, double b
 	
 	double y[6];
 	for(int i = 0; i < 6; i++) y[i] = positions[0][i];
-
+	
     double V = norm_3d(y[3], y[4], y[5]);
     double hmax = TRACING_STEP_MAX/V;
     double h = hmax;
@@ -547,14 +549,14 @@ EXPORT double dr1_potential_radial_ring(double r0, double z0, double r, double z
     double denominator = ((-2 * delta_r * delta_r * r) + delta_z * delta_z * (2 * delta_r - 2 * r) + 2 * delta_r * delta_r * delta_r) * sqrt(4 * r * r - 4 * delta_r * r + delta_z * delta_z + delta_r * delta_r);
     double ellipkm1_term = (delta_z * delta_z * r + delta_r * delta_r * r) * ellipkm1(common_arg);
     double ellipem1_term = ((-2 * delta_r * r * r) - delta_z * delta_z * r + delta_r * delta_r * r) * ellipem1(common_arg);
-    return (ellipkm1_term + ellipem1_term) / denominator;
+    return 1./M_PI * (ellipkm1_term + ellipem1_term) / denominator;
 }
 
 EXPORT double potential_radial_ring(double r0, double z0, double r, double z, void *_) {
     double delta_z = z - z0;
     double delta_r = r - r0;
     double t = (pow(delta_z, 2) + pow(delta_r, 2)) / (pow(delta_z, 2) + pow(delta_r, 2) + 4 * r0 * delta_r + 4 * pow(r0, 2));
-    return ellipkm1(t) * (delta_r + r0) / sqrt(pow(delta_z, 2) + pow((delta_r + 2 * r0), 2));
+    return 1./M_PI * ellipkm1(t) * (delta_r + r0) / sqrt(pow(delta_z, 2) + pow((delta_r + 2 * r0), 2));
 }
 
 EXPORT double dz1_potential_radial_ring(double r0, double z0, double r, double z, void *_) {
@@ -563,14 +565,15 @@ EXPORT double dz1_potential_radial_ring(double r0, double z0, double r, double z
     double common_arg = (delta_z * delta_z + delta_r * delta_r) / (4 * r0 * r0 + 4 * delta_r * r0 + delta_z * delta_z + delta_r * delta_r);
     double denominator = (delta_z * delta_z + delta_r * delta_r) * sqrt(4 * r0 * r0 + 4 * delta_r * r0 + delta_z * delta_z + delta_r * delta_r);
     double ellipem1_term = -delta_z * (r0 + delta_r) * ellipem1(common_arg);
-    return -ellipem1_term / denominator;
+    return 1./M_PI * -ellipem1_term / denominator;
 }
 
 
+// TODO: fix name, radial_ring is not consistent with other naming
 EXPORT void
 axial_derivatives_radial_ring(double *derivs_p, double *charges, jacobian_buffer_2d jac_buffer, position_buffer_2d pos_buffer, size_t N_lines, double *z, size_t N_z) {
 
-	double (*derivs)[9] = (double (*)[9]) derivs_p;	
+	double (*derivs)[DERIV_2D_MAX] = (double (*)[DERIV_2D_MAX]) derivs_p;	
 		
 	for(int i = 0; i < N_z; i++) 
 	for(int j = 0; j < N_lines; j++)
@@ -580,22 +583,136 @@ axial_derivatives_radial_ring(double *derivs_p, double *charges, jacobian_buffer
 		
 		double R = norm_2d(z0-z, r);
 		
-		double D[9] = {0.}; // Derivatives of the currently considered line element.
+		double D[DERIV_2D_MAX] = {0.}; // Derivatives of the currently considered line element.
 		D[0] = 1/R;
 		D[1] = -(z0-z)/pow(R, 3);
 			
 		for(int n = 1; n+1 < DERIV_2D_MAX; n++)
 			D[n+1] = -1./pow(R,2) *( (2*n + 1)*(z0-z)*D[n] + pow(n,2)*D[n-1]);
-		
-		for(int l = 0; l < 9; l++) derivs[i][l] += jac_buffer[j][k] * charges[j] * M_PI*r/2 * D[l];
+			
+		for(int l = 0; l < DERIV_2D_MAX; l++) derivs[i][l] += jac_buffer[j][k] * charges[j] * r/2 * D[l];
 	}
 }
 
-//////////////////////////////// RADIAL SYMMETRY POTENTIAL EVALUATION
+//////////////////////////////// CURRENT AND MAGNETOSTATICS
 
+EXPORT double current_potential_axial_radial_ring(double z0, double r, double z) {
+	double dz = z0 - z;
+	return -dz / (2*sqrt(dz*dz + r*r));
+}
 
 EXPORT double
-potential_radial(double point[3], double* charges, jacobian_buffer_2d jacobian_buffer, position_buffer_2d position_buffer, size_t N_vertices) {
+current_potential_axial(double z0, double *currents,
+	jacobian_buffer_3d jacobian_buffer, position_buffer_3d position_buffer, size_t N_vertices) {
+
+	double result = 0.;
+
+	for(int i = 0; i < N_vertices; i++) 
+	for(int k = 0; k < N_TRIANGLE_QUAD; k++) {
+		double *pos = &position_buffer[i][k][0];
+		assert(pos[2] == 0.);
+			
+		result += currents[i] * jacobian_buffer[i][k] * current_potential_axial_radial_ring(z0, pos[0], pos[1]);
+	}
+
+	return result;
+}
+
+EXPORT void
+current_field_radial_ring(double x0, double y0, double x, double y, double result[2]) {
+	// https://drive.google.com/file/d/0B5Hb04O3hlQSa0dGdlUtRnQ5OXM/view?resourcekey=0-VFNsHQLd7H9uMSRALuVwvw
+	// https://www.grant-trebbin.com/2012/04/off-axis-magnetic-field-of-circular.html
+	// https://patentimages.storage.googleapis.com/46/cb/4d/ed27deb544ce3a/EP0310212A2.pdf
+	double a = x;
+	double r = x0;
+	double z = y0 - y;
+
+	double A = pow(z, 2) + pow(a+r, 2);
+	double B = pow(z, 2) + pow(r-a, 2);
+	
+	double k = 4*r*a/A;
+	
+	if(x < MIN_DISTANCE_AXIS) {
+		// Unphysical situation, infinitely small ring
+		result[0] = 0.;
+		result[1] = 0.;
+		return;
+	}
+			
+	// TODO: figure out how to prevent singularity
+	if(x0 < MIN_DISTANCE_AXIS) {
+		result[0] = 0.;
+	}
+	else {
+		result[0] = 1./M_PI * z/(2*r*sqrt(A)) * ( (pow(z,2) + pow(r,2) + pow(a,2))/B * ellipe(k) - ellipk(k) );
+	}
+	result[1] = 1./M_PI * 1/(2*sqrt(A)) * ( (pow(a,2) - pow(z,2) - pow(r,2))/B * ellipe(k) + ellipk(k) );
+}
+
+EXPORT void
+current_field(double point[3], double result[3], double *currents,
+	jacobian_buffer_3d jacobian_buffer, position_buffer_3d position_buffer, size_t N_vertices) {
+
+	double Br = 0., Bz = 0.;
+	double r = norm_2d(point[0], point[1]);
+	
+	for(int i = 0; i < N_vertices; i++) {
+		for(int k = 0; k < N_TRIANGLE_QUAD; k++) {
+			double *pos = &position_buffer[i][k][0];
+			double field[2];
+			current_field_radial_ring(r, point[2], pos[0], pos[1], field);
+			assert(pos[2] == 0.);
+				
+			Br += currents[i] * jacobian_buffer[i][k] * field[0];
+			Bz += currents[i] * jacobian_buffer[i][k] * field[1];
+		}
+	}
+		
+	if(r >= MIN_DISTANCE_AXIS) {
+		result[0] = point[0]/r * Br;
+		result[1] = point[1]/r * Br;
+	}
+	else {
+		result[0] = 0.;
+		result[1] = 0.;
+	}
+	result[2] = Bz;
+}
+
+// TODO: fix name, radial_ring is not consistent with other naming
+EXPORT void
+current_axial_derivatives_radial_ring(double *derivs_p,
+		double *currents, jacobian_buffer_3d jac_buffer, position_buffer_3d pos_buffer, size_t N_vertices, double *z, size_t N_z) {
+
+	double (*derivs)[DERIV_2D_MAX] = (double (*)[DERIV_2D_MAX]) derivs_p;	
+		
+	for(int i = 0; i < N_z; i++) 
+	for(int j = 0; j < N_vertices; j++)
+	for(int k = 0; k < N_TRIANGLE_QUAD; k++) {
+		double z0 = z[i];
+		double r = pos_buffer[j][k][0], z = pos_buffer[j][k][1];
+
+		double dz = z0-z;	
+		double R = norm_2d(dz, r);
+		double mu = dz/R;
+		
+		double D[DERIV_2D_MAX] = {0.}; // Derivatives of the currently considered line element.
+		D[0] = -dz/(2*sqrt(dz*dz + r*r));
+		D[1] = -r*r/(2*pow(dz*dz + r*r, 1.5));
+			
+		for(int n = 2; n < DERIV_2D_MAX; n++)
+			D[n] = -(2*n-1)*mu/R*D[n-1] - (n*n - 2*n)/(R*R)*D[n-2];
+			
+		for(int l = 0; l < DERIV_2D_MAX; l++) derivs[i][l] += jac_buffer[j][k] * currents[j] * D[l];
+	}
+}
+
+
+
+//////////////////////////////// RADIAL SYMMETRY POTENTIAL EVALUATION
+
+EXPORT double
+potential_radial(double point[2], double* charges, jacobian_buffer_2d jacobian_buffer, position_buffer_2d position_buffer, size_t N_vertices) {
 
 	double sum_ = 0.0;  
 	
@@ -634,12 +751,27 @@ potential_radial_derivs(double point[2], double *z_inter, double *coeff_p, size_
 		derivs[i] = C[i][0]*pow(diffz, 5) + C[i][1]*pow(diffz, 4) + C[i][2]*pow(diffz, 3)
 			      +	C[i][3]*pow(diffz, 2) + C[i][4]*diffz		  + C[i][5];
 		
-	return derivs[0] - pow(r,2)*derivs[2] + pow(r,4)/64.*derivs[4] - pow(r,6)/2304.*derivs[6] + pow(r,8)/147456.*derivs[8];
+	return derivs[0] - pow(r,2)/4*derivs[2] + pow(r,4)/64.*derivs[4] - pow(r,6)/2304.*derivs[6] + pow(r,8)/147456.*derivs[8];
 }
 
 
 //////////////////////////////// RADIAL SYMMETRY FIELD EVALUATION
 
+INLINE double flux_density_to_charge_factor(double K) {
+// There is quite some derivation to this factor.
+// In terms of the displacement field D, we have:
+// D2 - D1 = s (where s is the charge density, sigma)
+// This law follows directly from Gauss' law.
+// The electric field normal accross the inteface is continuous
+// E1 = E2 or D1/e1 = D2/e2 which gives e2/e1 D1 = D2.
+// If we let e1 be the permittivity of vacuum we have K D1 = D2 where K is 
+// the relative permittivity. Now our program can only compute the average
+// of the field in material 1 and the field in material 2, by the way the 
+// boundary charge integration works. So we compute 
+// D = (D1 + D2)/2 = (K+1)/2 D1.
+// We then have s = D2 - D1 = (K - 1) D1 = 2*(K-1)/(K+1) D.
+	return 2.0*(K - 1)/(1 + K);
+}
 
 double
 field_dot_normal_radial(double r0, double z0, double r, double z, void* args_p) {
@@ -650,7 +782,7 @@ field_dot_normal_radial(double r0, double z0, double r, double z, void* args_p) 
 	// calculated at the edge of the dielectric is basically the average of the
 	// field at either side of the surface of the dielecric (the field makes a jump).
 	double K = args->K;
-	double factor = (2*K - 2) / (M_PI*(1 + K));
+	double factor = flux_density_to_charge_factor(K);
 	
 	double Er = -dr1_potential_radial_ring(r0, z0, r, z, NULL);
 	double Ez = -dz1_potential_radial_ring(r0, z0, r, z, NULL);
@@ -689,82 +821,145 @@ charge_radial(double *vertices_p, double charge) {
 EXPORT void
 field_radial(double point[3], double result[3], double* charges, jacobian_buffer_2d jacobian_buffer, position_buffer_2d position_buffer, size_t N_vertices) {
 	
-	double Ex = 0.0, Ey = 0.0;
+	double Er = 0.0, Ez = 0.0;
+	double r = norm_2d(point[0], point[1]);
 	
 	for(int i = 0; i < N_vertices; i++) {  
 		for(int k = 0; k < N_QUAD_2D; k++) {
 			double *pos = &position_buffer[i][k][0];
-			Ex -= charges[i] * jacobian_buffer[i][k] * dr1_potential_radial_ring(point[0], point[1], pos[0], pos[1], NULL);
-			Ey -= charges[i] * jacobian_buffer[i][k] * dz1_potential_radial_ring(point[0], point[1], pos[0], pos[1], NULL);
+			Er -= charges[i] * jacobian_buffer[i][k] * dr1_potential_radial_ring(r, point[2], pos[0], pos[1], NULL);
+			Ez -= charges[i] * jacobian_buffer[i][k] * dz1_potential_radial_ring(r, point[2], pos[0], pos[1], NULL);
 		}
 	}
-			
-	assert(!isnan(Ex));
-	assert(!isnan(Ey));
-	
-	result[0] = Ex;
-	result[1] = Ey;
-	result[2] = 0.0;
+				
+	if(r >= MIN_DISTANCE_AXIS) {
+		result[0] = point[0]/r * Er;
+		result[1] = point[1]/r * Er;
+	}
+	else {
+		result[0] = 0.;
+		result[1] = 0.;
+	}
+	result[2] = Ez;
 }
 
-struct field_evaluation_args {
+struct effective_point_charges_2d {
 	double *charges;
-	double *jacobian_buffer;
-	double *position_buffer;
-	size_t N_vertices;
+	jacobian_buffer_2d jacobians;
+	position_buffer_2d positions;
+	size_t N;
+};
+
+struct effective_point_charges_3d {
+	double *charges;
+	jacobian_buffer_3d jacobians;
+	position_buffer_3d positions;
+	size_t N;
+};
+
+struct field_evaluation_args {
+	void *elec_charges;
+	void *mag_charges;
+	void *current_charges;
 	double *bounds;
 };
 
-void
-field_radial_traceable_bounds(double point[3], double result[3], void *args_p) {
-
-	struct field_evaluation_args *args = (struct field_evaluation_args*)args_p;
-
-	double (*bounds)[2] = (double (*)[2]) args->bounds;
+// Compute E + v x B, which is used in the Lorentz force law to calculate the force
+// on the particle. The magnetic field produced by magnetiziation and the magnetic field
+// produced by currents are passed in separately, but can simpy be summed to find the total
+// magnetic field.
+EXPORT void
+combine_elec_magnetic_field(double velocity[3], double elec_field[3],
+		double mag_field[3], double current_field[3], double result[3]) {
 		
-	if( (bounds[0][0] < point[0]) && (point[0] < bounds[0][1])
-		&& (bounds[1][0] < point[1]) && (point[1] < bounds[1][1]) ) {
-		field_radial(point, result, args->charges, (jacobian_buffer_2d) args->jacobian_buffer, (position_buffer_2d) args->position_buffer, args->N_vertices);
-	}
-	else {
-		result[0] = 0.0;
-		result[1] = 0.0;
-		result[2] = 0.0;
-	}
+	double total_mag[3] = {0.}; // Total magnetic field, produced by charges and currents
+		
+	// Important: Traceon always computes the H field
+	// Therefore when converting from H to B we need to multiply
+	// by mu_0.
+	total_mag[0] = MU_0*(mag_field[0] + current_field[0]);
+	total_mag[1] = MU_0*(mag_field[1] + current_field[1]);
+	total_mag[2] = MU_0*(mag_field[2] + current_field[2]);
+			
+	double cross[3] = {0.};
+		
+	// Calculate v x B
+	cross_product_3d(velocity, total_mag, cross);
+	
+	result[0] = elec_field[0] + cross[0];
+	result[1] = elec_field[1] + cross[1];
+	result[2] = elec_field[2] + cross[2];
 }
 
+
 void
-field_radial_traceable(double point[3], double result[3], void *args_p) {
+field_radial_traceable(double point[6], double result[3], void *args_p) {
 	
-	struct field_evaluation_args *args = (struct field_evaluation_args*)args_p;
+	struct field_evaluation_args *args = (struct field_evaluation_args*) args_p;
+
+	struct effective_point_charges_2d *elec_charges = (struct effective_point_charges_2d*) args->elec_charges;
+	struct effective_point_charges_2d *mag_charges = (struct effective_point_charges_2d*) args->mag_charges;
+	struct effective_point_charges_3d *current_charges = (struct effective_point_charges_3d*) args->current_charges;
 	
-	field_radial(point, result, args->charges, (jacobian_buffer_2d) args->jacobian_buffer, (position_buffer_2d) args->position_buffer, args->N_vertices);
+	double (*bounds)[2] = (double (*)[2]) args->bounds;
+	
+	if(args->bounds == NULL || ((bounds[0][0] < point[0]) && (point[0] < bounds[0][1])
+						 && (bounds[1][0] < point[1]) && (point[1] < bounds[1][1]))) {
+		
+		double elec_field[3] = {0.};
+		double mag_field[3] = {0.};
+		double curr_field[3] = {0.};
+		
+		field_radial(point, elec_field,
+			elec_charges->charges, elec_charges->jacobians, elec_charges->positions, elec_charges->N);
+		
+		field_radial(point, mag_field,
+			mag_charges->charges, mag_charges->jacobians, mag_charges->positions, mag_charges->N);
+			
+		current_field(point, curr_field,
+			current_charges->charges, current_charges->jacobians, current_charges->positions, current_charges->N);
+			
+		//printf("=======");
+		//printf("elec_field: %f, %f, %f\n", elec_field[0], elec_field[1], elec_field[2]);
+		//printf("mag_field: %f, %f, %f\n", mag_field[0], mag_field[1], mag_field[2]);
+		//printf("curr_field: %f, %f, %f\n", curr_field[0], curr_field[1], curr_field[2]);
+		combine_elec_magnetic_field(point + 3, elec_field, mag_field, curr_field, result);
+		//printf("velocity: %f, %f, %f\n", point[3], point[4], point[5]);
+		//printf("result: %f, %f, %f\n", result[0], result[1], result[2]);
+		//exit(0);
+	}
+	else {
+		result[0] = 0.;
+		result[1] = 0.;
+		result[2] = 0.;
+	}
 }
 
 EXPORT size_t
-trace_particle_radial(double *times_array, double *pos_array, double tracer_bounds[3][2], double atol,
-	double *charges, jacobian_buffer_2d jac_buffer, position_buffer_2d pos_buffer, size_t N_vertices, double *field_bounds) {
-
-	struct field_evaluation_args args = {charges, (double*)jac_buffer, (double*)pos_buffer, N_vertices, field_bounds };
+trace_particle_radial(double *times_array, double *pos_array, double tracer_bounds[3][2], double atol, double *field_bounds,
+		struct effective_point_charges_2d eff_elec,
+		struct effective_point_charges_2d eff_mag,
+		struct effective_point_charges_3d eff_current) {
+	
+	struct field_evaluation_args args = {
+		.elec_charges = (void*) &eff_elec,
+		.mag_charges = (void*) &eff_mag,
+		.current_charges = (void*) &eff_current,
+		.bounds = field_bounds
+	};
 		
-	if (field_bounds == NULL) {
-		return trace_particle(times_array, pos_array, field_radial_traceable, tracer_bounds, atol, (void*) &args);
-	}
-	else {
-		return trace_particle(times_array, pos_array, field_radial_traceable_bounds, tracer_bounds, atol, (void*) &args);
-	}
+	return trace_particle(times_array, pos_array, field_radial_traceable, tracer_bounds, atol, (void*) &args);
 }
 
 EXPORT void
 field_radial_derivs(double point[3], double field[3], double *z_inter, double *coeff_p, size_t N_z) {
-	
 	double (*coeff)[DERIV_2D_MAX][6] = (double (*)[DERIV_2D_MAX][6]) coeff_p;
 	
-	double r = point[0], z = point[1];
+	double r = norm_2d(point[0], point[1]), z = point[2];
 	double z0 = z_inter[0], zlast = z_inter[N_z-1];
 	
 	if(!(z0 < z && z < zlast)) {
-		field[0] = 0.0, field[1] = 0.0; field[2] = 0.0;
+		field[0] = 0.0; field[1] = 0.0; field[2] = 0.0;
 		return;
 	}
 	
@@ -780,28 +975,41 @@ field_radial_derivs(double point[3], double field[3], double *z_inter, double *c
 		derivs[i] = C[i][0]*pow(diffz, 5) + C[i][1]*pow(diffz, 4) + C[i][2]*pow(diffz, 3)
 			      +	C[i][3]*pow(diffz, 2) + C[i][4]*diffz		  + C[i][5];
 		
-	field[0] = r/2*(derivs[2] - pow(r,2)/8*derivs[4] + pow(r,4)/192*derivs[6] - pow(r,6)/9216*derivs[8]);
-	field[1] = -derivs[1] + pow(r,2)/4*derivs[3] - pow(r,4)/64*derivs[5] + pow(r,6)/2304*derivs[7];
-	field[2] = 0.0;
+	// Field radial is already divided by r, such that x/r*field and y/r*field below do not cause divide by zero errors
+	double field_radial = 0.5*(derivs[2] - pow(r,2)/8*derivs[4] + pow(r,4)/192*derivs[6] - pow(r,6)/9216*derivs[8]);
+	double field_z = -derivs[1] + pow(r,2)/4*derivs[3] - pow(r,4)/64*derivs[5] + pow(r,6)/2304*derivs[7];
+
+	field[0] = point[0]*field_radial;
+	field[1] = point[1]*field_radial;
+	field[2] = field_z;
 }
 
 struct field_derivs_args {
 	double *z_interpolation;
-	double *axial_coefficients;
+	double *electrostatic_axial_coeffs;
+	double *magnetostatic_axial_coeffs;
 	size_t N_z;
 };
 
 void
-field_radial_derivs_traceable(double point[3], double field[3], void *args_p) {
+field_radial_derivs_traceable(double point[6], double field[3], void *args_p) {
 	struct field_derivs_args *args = (struct field_derivs_args*) args_p;
-	field_radial_derivs(point, field, args->z_interpolation, args->axial_coefficients, args->N_z);
+
+	double elec_field[3];
+	field_radial_derivs(point, elec_field, args->z_interpolation, args->electrostatic_axial_coeffs, args->N_z);
+	
+	double mag_field[3];
+	field_radial_derivs(point, mag_field, args->z_interpolation, args->magnetostatic_axial_coeffs, args->N_z);
+
+	double curr_field[3] = {0., 0., 0.};
+	combine_elec_magnetic_field(point + 3, elec_field, mag_field, curr_field, field);
 }
 
 EXPORT size_t
 trace_particle_radial_derivs(double *times_array, double *pos_array, double bounds[3][2], double atol,
-	double *z_interpolation, double *axial_coefficients, size_t N_z) {
+	double *z_interpolation, double *electrostatic_coeffs, double *magnetostatic_coeffs, size_t N_z) {
 
-	struct field_derivs_args args = { z_interpolation, axial_coefficients, N_z };
+	struct field_derivs_args args = { z_interpolation, electrostatic_coeffs, magnetostatic_coeffs, N_z };
 		
 	return trace_particle(times_array, pos_array, field_radial_derivs_traceable, bounds, atol, (void*) &args);
 }
@@ -811,17 +1019,17 @@ trace_particle_radial_derivs(double *times_array, double *pos_array, double boun
 
 EXPORT double dx1_potential_3d_point(double x0, double y0, double z0, double x, double y, double z, void *_) {
 	double r = norm_3d(x-x0, y-y0, z-z0);
-    return (x-x0)/(4*pow(r, 3));
+    return (x-x0)/(4*M_PI*pow(r, 3));
 }
 
 EXPORT double dy1_potential_3d_point(double x0, double y0, double z0, double x, double y, double z, void *_) {
 	double r = norm_3d(x-x0, y-y0, z-z0);
-    return (y-y0)/(4*pow(r, 3));
+    return (y-y0)/(4*M_PI*pow(r, 3));
 }
 
 EXPORT double dz1_potential_3d_point(double x0, double y0, double z0, double x, double y, double z, void *_) {
 	double r = norm_3d(x-x0, y-y0, z-z0);
-    return (z-z0)/(4*pow(r, 3));
+    return (z-z0)/(4*M_PI*pow(r, 3));
 }
 
 EXPORT void
@@ -853,8 +1061,8 @@ axial_coefficients_3d(double *restrict charges,
 			
 		// The integration factor needs to be adjusted for m=0, since the
 		// cos(m*phi) term in the integral vanishes.
-		trig_cos_buffer[h][k][m] = cos(m*mu) * (m == 0 ? 1/2. : 1.);
-		trig_sin_buffer[h][k][m] = sin(m*mu);
+		trig_cos_buffer[h][k][m] = (1./M_PI) * cos(m*mu) * (m == 0 ? 1/2. : 1.);
+		trig_sin_buffer[h][k][m] = (1./M_PI) * sin(m*mu);
 	}
 		
 	for (int i=0; i < N_z; i++) 
@@ -1030,17 +1238,24 @@ field_3d(double point[3], double result[3], double *charges,
 }
 
 void
-field_3d_traceable_bounds(double point[3], double result[3], void *args_p) {
-
+field_3d_traceable(double point[6], double result[3], void *args_p) {
 	struct field_evaluation_args *args = (struct field_evaluation_args*)args_p;
-
+	struct effective_point_charges_3d *elec_charges = (struct effective_point_charges_3d*) args->elec_charges;
+	struct effective_point_charges_3d *mag_charges = (struct effective_point_charges_3d*) args->mag_charges;
+	
 	double (*bounds)[2] = (double (*)[2]) args->bounds;
 	
-	if(	   (bounds[0][0] < point[0]) && (point[0] < bounds[0][1])
+	if(	bounds == NULL || ((bounds[0][0] < point[0]) && (point[0] < bounds[0][1])
 		&& (bounds[1][0] < point[1]) && (point[1] < bounds[1][1])
-		&& (bounds[2][0] < point[2]) && (point[2] < bounds[2][1]) ) {
+		&& (bounds[2][0] < point[2]) && (point[2] < bounds[2][1])) ) {
 
-		field_3d(point, result, args->charges, (jacobian_buffer_3d) args->jacobian_buffer, (position_buffer_3d) args->position_buffer, args->N_vertices);
+		double elec_field[3] = {0.};
+		double mag_field[3] = {0.};
+		double curr_field[3] = {0.};
+			
+		field_3d(point, elec_field, elec_charges->charges, elec_charges->jacobians, elec_charges->positions, elec_charges->N);
+		field_3d(point, mag_field, mag_charges->charges, mag_charges->jacobians, mag_charges->positions, mag_charges->N);
+		combine_elec_magnetic_field(point + 3, elec_field, mag_field, curr_field, result);
 	}
 	else {
 		result[0] = 0.0;
@@ -1049,25 +1264,13 @@ field_3d_traceable_bounds(double point[3], double result[3], void *args_p) {
 	}
 }
 
-void
-field_3d_traceable(double point[3], double result[3], void *args_p) {
-
-	struct field_evaluation_args *args = (struct field_evaluation_args*)args_p;
-	field_3d(point, result, args->charges, (jacobian_buffer_3d) args->jacobian_buffer, (position_buffer_3d) args->position_buffer, args->N_vertices);
-}
-
 EXPORT size_t
 trace_particle_3d(double *times_array, double *pos_array, double tracer_bounds[3][2], double atol,
-	double* charges, jacobian_buffer_3d jacobian_buffer, position_buffer_3d position_buffer, size_t N_vertices, double *field_bounds) {
-
-	struct field_evaluation_args args = {charges, (double*) jacobian_buffer, (double*) position_buffer, N_vertices, field_bounds};
-				
-	if(field_bounds == NULL) {
-		return trace_particle(times_array, pos_array, field_3d_traceable, tracer_bounds, atol, (void*) &args);
-	}
-	else {
-		return trace_particle(times_array, pos_array, field_3d_traceable_bounds, tracer_bounds, atol, (void*) &args);
-	}
+		struct effective_point_charges_3d eff_elec, struct effective_point_charges_3d eff_mag, double *field_bounds) {
+	
+	struct field_evaluation_args args = {.elec_charges = (void*) &eff_elec, .mag_charges = (void*) &eff_mag, .bounds = field_bounds};
+	
+	return trace_particle(times_array, pos_array, field_3d_traceable, tracer_bounds, atol, (void*) &args);
 }
 
 EXPORT void
@@ -1129,16 +1332,24 @@ field_3d_derivs(double point[3], double field[3], double *restrict zs, double *r
 }
 
 void
-field_3d_derivs_traceable(double point[3], double field[3], void *args_p) {
+field_3d_derivs_traceable(double point[6], double field[3], void *args_p) {
 	struct field_derivs_args *args = (struct field_derivs_args*) args_p;
-	field_3d_derivs(point, field, args->z_interpolation, args->axial_coefficients, args->N_z);
+	
+	double elec_field[3];
+	field_3d_derivs(point, elec_field, args->z_interpolation, args->electrostatic_axial_coeffs, args->N_z);
+	
+	double mag_field[3];
+	field_3d_derivs(point, mag_field, args->z_interpolation, args->magnetostatic_axial_coeffs, args->N_z);
+	
+	double curr_field[3] = {0., 0., 0.};
+	combine_elec_magnetic_field(point + 3, elec_field, mag_field, curr_field, field);
 }
 
 EXPORT size_t
 trace_particle_3d_derivs(double *times_array, double *pos_array, double bounds[3][2], double atol,
-	double *z_interpolation, double *axial_coefficients, size_t N_z) {
+	double *z_interpolation, double *electrostatic_coeffs, double *magnetostatic_coeffs, size_t N_z) {
 
-	struct field_derivs_args args = { z_interpolation, axial_coefficients, N_z };
+	struct field_derivs_args args = { z_interpolation, electrostatic_coeffs, magnetostatic_coeffs, N_z };
 	
 	return trace_particle(times_array, pos_array, field_3d_derivs_traceable, bounds, atol, (void*) &args);
 }
@@ -1150,7 +1361,9 @@ enum ExcitationType{
     VOLTAGE_FIXED = 1,
     VOLTAGE_FUN = 2,
     DIELECTRIC = 3,
-    FLOATING_CONDUCTOR = 4};
+	CURRENT=4,
+	MAGNETOSTATIC_POT=5,
+	MAGNETIZABLE=6};
 
 
 struct self_voltage_radial_args {
@@ -1211,7 +1424,7 @@ void fill_self_voltages_radial(double *matrix,
 			.line_points = &line_points[i][0],
 			.normal = normal,
 			.K = excitation_values[i],
-			.cb_fun = (type_ != DIELECTRIC) ? potential_radial_ring : field_dot_normal_radial
+			.cb_fun = (type_ != DIELECTRIC && type_ != MAGNETIZABLE) ? potential_radial_ring : field_dot_normal_radial
 		};
 			
 		gsl_function F;
@@ -1222,7 +1435,7 @@ void fill_self_voltages_radial(double *matrix,
 		double singular_points[3] = {-1, 0, 1};
 		gsl_integration_qagp(&F, singular_points, 3, 1e-9, 1e-9, ADAPTIVE_MAX_ITERATION, w, &result, &error);
 
-		if(type_ == DIELECTRIC) {
+		if(type_ == DIELECTRIC || type_ == MAGNETIZABLE) {
 			matrix[N_matrix*i + i] = result - 1;
 		}
 		else {
@@ -1285,7 +1498,7 @@ EXPORT void fill_matrix_radial(double *matrix,
 		
 		enum ExcitationType type_ = excitation_types[i];
 			
-		if (type_ == VOLTAGE_FIXED || type_ == VOLTAGE_FUN || type_ == FLOATING_CONDUCTOR) {
+		if (type_ == VOLTAGE_FIXED || type_ == VOLTAGE_FUN || type_ == MAGNETOSTATIC_POT) {
 			for (int j = 0; j < N_lines; j++) {
 				
 				UNROLL
@@ -1297,7 +1510,7 @@ EXPORT void fill_matrix_radial(double *matrix,
 				}
             }
 		}
-		else if(type_ == DIELECTRIC) {
+		else if(type_ == DIELECTRIC || type_ == MAGNETIZABLE) {
 			for (int j = 0; j < N_lines; j++) {
 
 				double normal[2];
@@ -1316,7 +1529,7 @@ EXPORT void fill_matrix_radial(double *matrix,
 			}
 		}
 		else {
-		    printf("ExcitationType unknown");
+		    printf("ExcitationType unknown\n");
             exit(1);
 		}
 	}
@@ -1370,7 +1583,7 @@ void fill_self_voltages_3d(double *matrix,
 			{ v[5][0], v[5][1], v[5][2] },
 			{ s0[0], s0[1], s0[2] } };
 
-		if(excitation_types[i] != DIELECTRIC) {
+		if(excitation_types[i] != DIELECTRIC && excitation_types[i] != MAGNETIZABLE) {
 			matrix[i*N_matrix + i] = 0.0;
 			matrix[i*N_matrix + i] += triangle_integral_adaptive(t, triangle1, potential_3d_point, NULL);
 			matrix[i*N_matrix + i] += triangle_integral_adaptive(t, triangle2, potential_3d_point, NULL);
@@ -1458,7 +1671,7 @@ EXPORT void fill_matrix_3d(double *restrict matrix,
 			
         enum ExcitationType type_ = excitation_types[i];
 		 
-        if (type_ == VOLTAGE_FIXED || type_ == VOLTAGE_FUN || type_ == FLOATING_CONDUCTOR) {
+        if (type_ == VOLTAGE_FIXED || type_ == VOLTAGE_FUN || type_ == MAGNETOSTATIC_POT) {
             for (int j = 0; j < N_lines; j++) {
 				
 				UNROLL
@@ -1470,7 +1683,7 @@ EXPORT void fill_matrix_3d(double *restrict matrix,
 				}
             }
         } 
-		else if (type_ == DIELECTRIC) {  
+		else if (type_ == DIELECTRIC || type_ == MAGNETIZABLE) {  
 			
 			double normal[3];  
 			higher_order_normal_3d(1/3., 1/3., &triangle_points[i][0], normal);
@@ -1479,7 +1692,7 @@ EXPORT void fill_matrix_3d(double *restrict matrix,
 			// This factor is hard to derive. It takes into account that the field
 			// calculated at the edge of the dielectric is basically the average of the
 			// field at either side of the surface of the dielecric (the field makes a jump).
-			double factor = (2*K - 2) / (M_PI*(1 + K));  
+			double factor = flux_density_to_charge_factor(K);
 				
 			for (int j = 0; j < N_lines; j++) {  
 					
@@ -1493,7 +1706,7 @@ EXPORT void fill_matrix_3d(double *restrict matrix,
 			}  
 		}  
         else {
-            printf("ExcitationType unknown");
+            printf("ExcitationType unknown\n");
             exit(1);
         }
     }

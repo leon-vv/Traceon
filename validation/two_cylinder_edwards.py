@@ -15,6 +15,9 @@ from validation import Validation
 def gap_voltage(x, y):
     return (y-9.9)/0.2 * 10
 
+def gap_voltage_3d(x, y, z):
+    return (z-9.9)/0.2 * 10
+
 class TwoCylinderEdwards(Validation):
     
     def __init__(self):
@@ -29,7 +32,7 @@ class TwoCylinderEdwards(Validation):
         else:
             return [25, 100, 200, 400]
     
-    def create_mesh(self, MSF, symmetry):
+    def create_mesh(self, MSF, symmetry, higher_order):
         S = 0.2
         R = 1.0
         wall_thickness = 1
@@ -70,11 +73,11 @@ class TwoCylinderEdwards(Validation):
                     geom.add_physical(lines, key)
             
             geom.set_mesh_size_factor(MSF)
-            return geom.generate_mesh()
+            return geom.generate_line_mesh(higher_order) if geom.is_2d() else geom.generate_triangle_mesh(higher_order)
 
     def get_excitation(self, geom):
         exc = E.Excitation(geom)
-        exc.add_voltage(v1=0, v2=10)#, gap=gap_voltage)
+        exc.add_voltage(v1=0, v2=10)
         return exc
 
     def correct_value_of_interest(self):

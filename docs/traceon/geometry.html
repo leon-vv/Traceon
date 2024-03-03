@@ -49,16 +49,14 @@ of this electrode.
 From this module you will likely use either the `Geometry` class when creating arbitrary geometries,
 or the `MEMSStack` class, if your geometry consists of a stack of MEMS fabricated elements.
 &#34;&#34;&#34;
-
+from math import sqrt
+from enum import Enum
+import pickle
 
 import numpy as np
-from math import sqrt
 from pygmsh import *
 import gmsh
-from enum import Enum
-import copy
-
-import pickle
+import meshio
 
 from .util import Saveable
 from .backend import N_QUAD_2D, position_and_jacobian_radial, position_and_jacobian_3d, normal_3d
@@ -102,16 +100,19 @@ class Symmetry(Enum):
     supported symmetries are radial symmetry (also called cylindrical symmetry) and general 3D geometries.
     &#34;&#34;&#34;
     RADIAL = 0
-    THREE_D_HIGHER_ORDER = 1
     THREE_D = 2
 
     def __str__(self):
         if self == Symmetry.RADIAL:
             return &#39;radial&#39;
-        elif self == Symmetry.THREE_D_HIGHER_ORDER:
-            return &#39;3d higher order&#39;
         elif self == Symmetry.THREE_D:
-            return &#39;3d first order&#39;
+            return &#39;3d&#39; 
+    
+    def is_2d(self):
+        return self == Symmetry.RADIAL
+        
+    def is_3d(self):
+        return self == Symmetry.THREE_D
 
 class Geometry(geo.Geometry):
     &#34;&#34;&#34;
@@ -140,6 +141,7 @@ class Geometry(geo.Geometry):
         self.size_from_distance = size_from_distance
         self.zmin = zmin
         self.zmax = zmax
+        self.MSF = None
         self.symmetry = symmetry
         self._physical_queue = dict()
 
@@ -148,7 +150,24 @@ class Geometry(geo.Geometry):
             return f&#39;&lt;Traceon Geometry {self.symmetry}, zmin={self.zmin:.2f} mm, zmax={self.zmax:.2f} mm&#39;
         else:
             return f&#39;&lt;Traceon Geometry {self.symmetry}&gt;&#39;
-        
+
+    def is_3d(self):
+        &#34;&#34;&#34;Check if the geometry is three dimensional.
+
+        Returns
+        ----------------
+        True if geometry is three dimensional, False if the geometry is two dimensional&#34;&#34;&#34;
+        return self.symmetry.is_3d()
+
+    def is_2d(self):
+        &#34;&#34;&#34;Check if the geometry is two dimensional.
+
+        Returns
+        ----------------
+        True if geometry is two dimensional, False if the geometry is three dimensional&#34;&#34;&#34;
+
+        return self.symmetry.is_2d()
+     
     def add_physical(self, entities, name):
         &#34;&#34;&#34;
 
@@ -167,34 +186,61 @@ class Geometry(geo.Geometry):
         else:
             self._physical_queue[name] = entities
 
-    def generate_mesh(self, *args, **kwargs):
-        &#34;&#34;&#34;
-        Generate the mesh, determining the mesh dimension (line elements or triangles) from the
-        supplied symmetry. The arguments are passed directly to `pygmsh.geo.Geometry.generate_mesh`.
+    def _generate_mesh(self, dimension, higher_order=False, *args, **kwargs):
+        assert dimension == 1 or dimension == 2, &#34;Currently only line and triangle meshes supported (dimension 1 or 2)&#34;
         
-        Returns
-        -------
-        `Mesh`
-
-        &#34;&#34;&#34;
         for label, entities in self._physical_queue.items():
             super().add_physical(entities, label)
           
         if self.size_from_distance:
             self.set_mesh_size_callback(self._mesh_size_callback)
-         
-        if self.symmetry == Symmetry.RADIAL:
-            dim = 1
+        
+        if dimension == 1 and higher_order:
             gmsh.option.setNumber(&#39;Mesh.ElementOrder&#39;, 3)
-        elif self.symmetry == Symmetry.THREE_D:
-            dim = 2
+        elif dimension == 1 and not higher_order:
             gmsh.option.setNumber(&#39;Mesh.ElementOrder&#39;, 1)
-        elif self.symmetry == Symmetry.THREE_D_HIGHER_ORDER:
-            dim = 2
+        elif dimension == 2 and higher_order:
             gmsh.option.setNumber(&#39;Mesh.ElementOrder&#39;, 2)
-         
-        return Mesh.from_meshio(super().generate_mesh(dim=dim, *args, **kwargs), self.symmetry)
+        elif dimension == 2 and not higher_order:
+            gmsh.option.setNumber(&#39;Mesh.ElementOrder&#39;, 1)
+        
+        return Mesh.from_meshio(super()._generate_mesh(dim=dimension, *args, **kwargs), self.symmetry)
 
+    def generate_line_mesh(self, higher_order, *args, **kwargs):
+        &#34;&#34;&#34;Generate boundary mesh in 2D, by splitting the boundary in line elements.
+
+        Parameters
+        -----------------
+        higher_order: bool
+            Whether to use higher order (curved) line elements.
+
+        Returns
+        ----------------
+        `Mesh`
+        &#34;&#34;&#34;
+        if self.MSF is not None:
+            gmsh.option.setNumber(&#39;Mesh.MeshSizeFactor&#39;, 1/self.MSF)
+        return self._generate_mesh(*args, higher_order=higher_order, dimension=1, **kwargs)
+    
+    def generate_triangle_mesh(self, higher_order, *args, **kwargs):
+        &#34;&#34;&#34;Generate triangle mesh. Note that also 2D meshes can have triangles, which can current coils.
+        
+        Parameters
+        -----------------
+        higher_order: bool
+            Whether to use higher order (curved) line elements.
+        
+        Returns
+        ----------------
+        `Mesh`
+        &#34;&#34;&#34;
+        if self.MSF is not None:
+            # GMSH seems to produce meshes which contain way more elements for 3D geometries
+            # with the same mesh factor. This is confusing for users and therefore we arbtrarily
+            # increase the mesh size to roughly correspond with the 2D number of elements.
+            gmsh.option.setNumber(&#39;Mesh.MeshSizeFactor&#39;, 4*sqrt(1/self.MSF))
+        return self._generate_mesh(*args, higher_order=higher_order, dimension=2, **kwargs)
+    
     def set_mesh_size_factor(self, factor):
         &#34;&#34;&#34;
         Set the mesh size factor. Which simply scales with the total number of elements in the mesh.
@@ -205,14 +251,8 @@ class Geometry(geo.Geometry):
             The mesh size factor to use. 
         
         &#34;&#34;&#34;
-        if self.symmetry == Symmetry.RADIAL:
-            gmsh.option.setNumber(&#39;Mesh.MeshSizeFactor&#39;, 1/factor)
-        elif self.symmetry == Symmetry.THREE_D_HIGHER_ORDER or self.symmetry == Symmetry.THREE_D:
-            # GMSH seems to produce meshes which contain way more elements for 3D geometries
-            # with the same mesh factor. This is confusing for users and therefore we arbtrarily
-            # increase the mesh size to roughly correspond with the 2D number of elements.
-            gmsh.option.setNumber(&#39;Mesh.MeshSizeFactor&#39;, 4*sqrt(1/factor))
-
+        self.MSF = factor
+     
     def set_minimum_mesh_size(self, size):
         &#34;&#34;&#34;
         Set the minimum mesh size possible. Especially useful when geometric elements touch
@@ -242,44 +282,201 @@ class Geometry(geo.Geometry):
         else:
             return sqrt( x**2 + y**2 + (z-z_optical)**2 )
 
+def _concat_arrays(arr1, arr2):
+    if not len(arr1):
+        return np.copy(arr2)
+    if not len(arr2):
+        return np.copy(arr1)
+      
+    assert arr1.shape[1:] == arr2.shape[1:], &#34;Cannot add meshes if one is higher order and the other is not&#34;
+    
+    return np.concatenate( (arr1, arr2), axis=0)
 
 class Mesh(Saveable):
-    &#34;&#34;&#34;Class containing a mesh and related metadata.&#34;&#34;&#34;
+    &#34;&#34;&#34;Class containing a mesh.
+    For now, to make things manageable only lines and triangles are supported.
+    Lines and triangles can be higher order (curved) or not. But a mesh cannot contain
+    both curved and simple elements at the same time.
     
-    def __init__(self, points, elements, physical_to_elements, symmetry, metadata={}):
+    When the elements are higher order (curved), triangles consists of 6 points and lines of four points.
+    These correspond with the GMSH line4 and triangle6 types.&#34;&#34;&#34;
+     
+    def __init__(self, symmetry,
+            points=[],
+            lines=[],
+            triangles=[],
+            physical_to_lines={},
+            physical_to_triangles={}):
+        
         assert isinstance(symmetry, Symmetry)
-        self.points = points
-        self.elements = elements
-        self.physical_to_elements = physical_to_elements
         self.symmetry = symmetry
-        self.metadata = metadata
-            
-    def from_meshio(mesh, symmetry, metadata={}):
+        
+        # Ensure the correct shape even if empty arrays
+        if len(points):
+            self.points = np.array(points, dtype=np.float64)
+        else:
+            self.points = np.empty((0,3), dtype=np.float64)
+         
+        if len(lines):
+            self.lines = np.array(lines)
+        else:
+            self.lines = np.empty((0,2), dtype=np.uint64)
+    
+        if len(triangles):
+            self.triangles = np.array(triangles)
+        else:
+            self.triangles = np.empty((0, 3), dtype=np.uint64)
+         
+        self.physical_to_lines = physical_to_lines.copy()
+        self.physical_to_triangles = physical_to_triangles.copy()
+        
+        if symmetry.is_2d():
+            assert points.shape[1] == 2 or np.allclose(points[:, 2], 0.), &#34;Cannot have three dimensional points when symmetry is 2D&#34;
+        
+        assert np.all( (0 &lt;= self.lines) &amp; (self.lines &lt; len(self.points)) ), &#34;Lines reference points outside points array&#34;
+        assert np.all( (0 &lt;= self.triangles) &amp; (self.triangles &lt; len(self.points)) ), &#34;Triangles reference points outside points array&#34;
+        assert np.all([np.all( (0 &lt;= group) &amp; (group &lt; len(self.lines)) ) for group in self.physical_to_lines.values()])
+        assert np.all([np.all( (0 &lt;= group) &amp; (group &lt; len(self.triangles)) ) for group in self.physical_to_triangles.values()])
+        assert not len(self.lines) or self.lines.shape[1] in [2,4], &#34;Lines should contain either 2 or 4 points.&#34;
+        assert not len(self.triangles) or self.triangles.shape[1] in [3,6], &#34;Triangles should contain either 3 or 6 points&#34;
+    
+    def is_higher_order(self):
+        return (len(self.lines) and self.lines.shape[1] == 4) or (len(self.triangles) and self.triangles.shape[1] == 6)
+    
+    def move(self, vector):
+        self.points += vector
+     
+    def __add__(self, other):
+        assert isinstance(other, Mesh)
+        assert self.symmetry == other.symmetry, &#34;Cannot add meshes with different symmetries&#34;
+         
+        N_points = len(self.points)
+        N_lines = len(self.lines)
+        N_triangles = len(self.triangles)
+         
+        points = _concat_arrays(self.points, other.points)
+        lines = _concat_arrays(self.lines, other.lines+N_points)
+        triangles = _concat_arrays(self.triangles, other.triangles+N_points)
+         
+        physical_lines = {**self.physical_to_lines, **{k:(v+N_lines) for k, v in other.physical_to_lines.items()}}
+        physical_triangles = {**self.physical_to_triangles, **{k:(v+N_triangles) for k, v in other.physical_to_triangles.items()}}
+         
+        return Mesh(self.symmetry,
+                        points=points,
+                        lines=lines,
+                        triangles=triangles,
+                        physical_to_lines=physical_lines,
+                        physical_to_triangles=physical_triangles)
+    
+    def extract_physical_group(self, name):
+        assert name in self.physical_to_lines or name in self.physical_to_triangles, &#34;Physical group not in mesh, so cannot extract&#34;
+
+        if name in self.physical_to_lines:
+            elements = self.lines
+            physical = self.physical_to_lines
+        elif name in self.physical_to_triangles:
+            elements = self.triangles
+            physical = self.physical_to_triangles
+         
+        elements_indices = np.unique(physical[name])
+        elements = elements[elements_indices]
+          
+        points_mask = np.full(len(self.points), False)
+        points_mask[elements] = True
+        points = self.points[points_mask]
+          
+        new_index = np.cumsum(points_mask) - 1
+        elements = new_index[elements]
+        physical_to_elements = {name:np.arange(len(elements))}
+         
+        if name in self.physical_to_lines:
+            return Mesh(self.symmetry, points=points, lines=elements, physical_to_lines=physical_to_elements)
+        elif name in self.physical_to_triangles:
+            return Mesh(self.symmetry, points=points, triangles=triangles, physical_to_triangles=physical_to_elements)
+     
+    def import_file(filename, symmetry,  name=None):
+        meshio_obj = meshio.read(filename)
+        mesh = Mesh.from_meshio(meshio_obj, symmetry)
+         
+        if name is not None:
+            mesh.physical_to_lines[name] = np.arange(len(mesh.lines))
+            mesh.physical_to_triangles[name] = np.arange(len(mesh.triangles))
+         
+        return mesh
+     
+    def export_file(self, filename):
+        meshio_obj = self.to_meshio()
+        meshio_obj.write(filename)
+     
+    def to_meshio(self):
+        to_export = []
+        
+        if len(self.lines):
+            line_type = &#39;line&#39; if self.lines.shape[1] == 2 else &#39;line4&#39;
+            to_export.append( (line_type, self.lines) )
+        
+        if len(self.triangles):
+            triangle_type = &#39;triangle&#39; if self.triangles.shape[1] == 3 else &#39;triangle6&#39;
+            to_export.append( (triangle_type, self.triangles) )
+        
+        return meshio.Mesh(self.points, to_export)
+     
+    def from_meshio(mesh, symmetry):
         &#34;&#34;&#34;Generate a Traceon Mesh from a [meshio](https://github.com/nschloe/meshio) mesh.
         
         Parameters
         ----------
         symmetry: Symmetry
-            Specifies a radially symmetric geometry (RADIAL) or a general 3D geometry (THREE_D_HIGHER_ORDER).
+            Specifies a radially symmetric geometry (RADIAL) or a general 3D geometry (THREE_D).
         
         Returns
         ---------
         Mesh
         &#34;&#34;&#34;
-        if symmetry == Symmetry.RADIAL:
-            type_ = &#39;line4&#39;
-        elif symmetry == Symmetry.THREE_D:
-            type_ = &#39;triangle&#39;
-        elif symmetry == Symmetry.THREE_D_HIGHER_ORDER:
-            type_ = &#39;triangle6&#39;
-        else:
-            raise ValueError(&#39;Symmetry passed to from_meshio(..) not valid: &#39; + str(symmetry))
-         
-        points = mesh.points
-        elements = mesh.cells_dict[type_]
-        physical_to_elements = {k:v[type_] for k, v in mesh.cell_sets_dict.items() if type_ in v}
+        def extract(type_):
+            elements = mesh.cells_dict[type_]
+            physical = {k:v[type_] for k,v in mesh.cell_sets_dict.items() if type_ in v}
+            return elements, physical
         
-        return Mesh(points, elements, physical_to_elements, symmetry, metadata)
+        lines, physical_lines = [], {}
+        triangles, physical_triangles = [], {}
+        
+        if &#39;line&#39; in mesh.cells_dict:
+            lines, physical_lines = extract(&#39;line&#39;)
+        elif &#39;line4&#39; in mesh.cells_dict:
+            lines, physical_lines = extract(&#39;line4&#39;)
+        
+        if &#39;triangle&#39; in mesh.cells_dict:
+            triangles, physical_triangles = extract(&#39;triangle&#39;)
+        elif &#39;triangle6&#39; in mesh.cells_dict:
+            triangles, physical_triangles = extract(&#39;triangle6&#39;)
+        
+        return Mesh(symmetry,
+            points=mesh.points,
+            lines=lines, physical_to_lines=physical_lines,
+            triangles=triangles, physical_to_triangles=physical_triangles)
+     
+    def is_3d(self):
+        &#34;&#34;&#34;Check if the mesh is three dimensional.
+
+        Returns
+        ----------------
+        True if mesh is three dimensional, False if the mesh is two dimensional&#34;&#34;&#34;
+        return self.symmetry.is_3d()
+    
+    def is_2d(self):
+        &#34;&#34;&#34;Check if the mesh is two dimensional.
+        
+        Returns
+        ----------------
+        True if mesh is two dimensional, False if the mesh is three dimensional&#34;&#34;&#34;
+        return self.symmetry.is_2d()
+
+    def remove_lines(self):
+        return Mesh(self.symmetry, self.points, triangles=self.triangles, physical_to_triangles=self.physical_to_triangles)
+    
+    def remove_triangles(self):
+        return Mesh(self.symmetry, self.points, lines=self.lines, physical_to_lines=self.physical_to_lines)
      
     def get_electrodes(self):
         &#34;&#34;&#34;Get the names of all the electrodes in the geometry.
@@ -289,147 +486,84 @@ class Mesh(Saveable):
         List of electrode names
 
         &#34;&#34;&#34;
-        return list(self.physical_to_elements.keys())
-    
-    def _invert_physical_dict(self):
-        lookup = np.full(len(self.elements), None)
-
-        for k, v in self.physical_to_elements.items():
-            lookup[v] = k
-        
-        return lookup
+        return list(self.physical_to_lines.keys()) + list(self.physical_to_triangles.keys())
      
-    def _split_indices_radial(self, indices):
-        assert self.symmetry == Symmetry.RADIAL
-         
-        elements = copy.deepcopy(self.elements)
+    def _lines_to_higher_order(points, elements):
         N_elements = len(elements)
+        N_points = len(points)
          
-        N = len(self.points)
-        lines_to_add = []
-        physicals = []
-        points_to_add = []
+        v0, v1 = elements.T
+        p2 = points[v0] + (points[v1] - points[v0]) * 1/3
+        p3 = points[v0] + (points[v1] - points[v0]) * 2/3
          
-        physical_lookup = self._invert_physical_dict()
-        to_pos = lambda alpha, line: [*position_and_jacobian_radial(alpha, line[0], line[2], line[3], line[1])[1], 0.0]
-        
-        for idx in indices:
-            pi = elements[idx]
-            line = self.points[pi]
-             
-            points_to_add.append(to_pos(-2/3, line))
-            points_to_add.append(to_pos(0.0, line))
-            points_to_add.append(to_pos(2/3, line))
-            l = len(points_to_add)
-            lines_to_add.append( (N+l-2, pi[1].item(), pi[3].item(), N+l-1) )
-            elements[idx] = (pi[0], N+l-2, N+l-3, pi[2])
-            physicals.append(physical_lookup[idx])
-        
-        # Now actually alter the mesh
-        new_points = np.concatenate( (self.points, points_to_add), axis=0)
-        new_elements = np.concatenate( (elements, np.array(lines_to_add, dtype=np.uint64)), axis=0)
-        new_dict = copy.copy(self.physical_to_elements)
-        
-        for name in [p for p in np.unique(physicals) if p is not None]:   
-            old_indices = new_dict[name]
-            (added_indices,) = (np.array(physicals) == name).nonzero()
-            new_dict[name] = np.concatenate( (old_indices.astype(np.int64), N_elements + added_indices) )
+        assert all(p.shape == (N_elements, points.shape[1]) for p in [p2, p3])
          
-        new_mesh = Mesh(new_points, new_elements, new_dict, self.symmetry, self.metadata)
-        return new_mesh
+        points = np.concatenate( (points, p2, p3), axis=0)
+          
+        elements = np.array([
+            elements[:, 0], elements[:, 1], 
+            np.arange(N_points, N_points + N_elements, dtype=np.uint64),
+            np.arange(N_points + N_elements, N_points + 2*N_elements, dtype=np.uint64)]).T
          
-    def _split_indices_3d(self, indices):
-        assert self.symmetry == Symmetry.THREE_D_HIGHER_ORDER
-         
-        elements = copy.deepcopy(self.elements)
+        assert np.allclose(p2, points[elements[:, 2]]) and np.allclose(p3, points[elements[:, 3]])
+        return points, elements
+
+
+    def _triangles_to_higher_order(points, elements):
         N_elements = len(elements)
+        N_points = len(points)
          
-        N = len(self.points)
-        triangles_to_add = []
-        physicals = []
-        points_to_add = []
+        v0, v1, v2 = elements.T
+        p3 = (points[v0] + points[v1])/2
+        p4 = (points[v1] + points[v2])/2
+        p5 = (points[v2] + points[v0])/2
          
-        physical_lookup = self._invert_physical_dict()
-        to_pos = lambda alpha, beta, triangle: position_and_jacobian_3d(alpha, beta, triangle)[1]
-        
-        for idx in indices:
-            pi = elements[idx]
-            triangle = self.points[pi]
-             
-            points_to_add.append(to_pos(1/3, 1/3, triangle)) # Middle
-            points_to_add.append(to_pos(1/6, 1/6, triangle)) # s0
-            points_to_add.append(to_pos(4/6, 1/6, triangle)) # s1
-            points_to_add.append(to_pos(1/6, 4/6, triangle)) # s2
-            l = len(points_to_add)
-            # Same ordering as in C backend function &#39;fill_self_voltages_3d&#39;
-            t, s0, s1, s2 = N+l-4, N+l-3, N+l-2, N+l-1
-            triangles_to_add.append( (t, pi[1], pi[2], s1, pi[4], s2) )
-            triangles_to_add.append( (t, pi[2], pi[0], s2, pi[5], s0) )
-            elements[idx] = (t, pi[0], pi[1], s0, pi[3], s1)
-            
-            physicals.append(physical_lookup[idx])
-            physicals.append(physical_lookup[idx])
-        
-        # Now actually alter the mesh
-        new_points = np.concatenate( (self.points, points_to_add), axis=0)
-        new_elements = np.concatenate( (elements, np.array(triangles_to_add, dtype=np.uint64)), axis=0)
-        new_dict = copy.copy(self.physical_to_elements)
-        
-        for name in [p for p in np.unique(physicals) if p is not None]:   
-            old_indices = new_dict[name]
-            (added_indices,) = (np.array(physicals) == name).nonzero()
-            new_dict[name] = np.concatenate( (old_indices.astype(np.int64), N_elements + added_indices) )
+        assert all(p.shape == (N_elements, points.shape[1]) for p in [p3,p4,p5])
+          
+        points = np.concatenate( (points, p3, p4, p5), axis=0)
+          
+        elements = np.array([
+            elements[:, 0], elements[:, 1], elements[:, 2],
+            np.arange(N_points, N_points + N_elements, dtype=np.uint64),
+            np.arange(N_points + N_elements, N_points + 2*N_elements, dtype=np.uint64),
+            np.arange(N_points + 2*N_elements, N_points + 3*N_elements, dtype=np.uint64)]).T
          
-        new_mesh = Mesh(new_points, new_elements, new_dict, self.symmetry, self.metadata)
-        return new_mesh
-     
-    def split_indices(self, indices):
-        if self.symmetry == Symmetry.RADIAL:
-            return self._split_indices_radial(indices)
-        else:
-            return self._split_indices_3d(indices)
+        assert np.allclose(p3, points[elements[:, 3]])
+        assert np.allclose(p4, points[elements[:, 4]])
+        assert np.allclose(p5, points[elements[:, 5]])
+        
+        return points, elements
 
-    def split_elements_based_on_charges(self, excitation, field, max_splits, mesh_factor):
-        active = excitation.get_active_element_mask()
-        assert np.sum(active) == len(field.vertices), &#34;Excitation did not produce the given field&#34;
+    def _to_higher_order_mesh(self):
+        # The matrix solver currently only works with higher order meshes.
+        # We can however convert a simple mesh easily to a higher order mesh, and solve that.
+        
+        points, lines, triangles = self.points, self.lines, self.triangles
 
-        map_index = active.nonzero()[0]
-        
-        charges = np.array([field.charge_on_element(i) for i in map_index])
-        charges = np.abs( np.array([field.charge_on_element(i) for i in range(len(field.vertices))]) )
+        if len(lines) and lines.shape[1] == 2:
+            points, lines = Mesh._lines_to_higher_order(points, lines)
+        if len(triangles) and triangles.shape[1] == 3:
+            points, triangles = Mesh._triangles_to_higher_order(points, triangles) 
          
-        # In max_splits iterations, increase the number of elements in the
-        # mesh by mesh_factor. The split_facotr then gives us the amount
-        # of elements we need to split in every iteration.
-        split_factor = mesh_factor**(1/max_splits) - 1
-        
-        if self.symmetry == Symmetry.THREE_D_HIGHER_ORDER:
-            split_factor /= 2 # For triangles, a splitting gives two extra elements, instead of one
-        
-        new_mesh = self
-              
-        for _ in range(max_splits):
-            to_split = np.argsort(charges)[-round(split_factor*len(charges)):]
-            print(&#39;Splitting &#39;, len(to_split), &#39; elements&#39;)
-            charges[to_split] /= 2 if self.symmetry == Symmetry.RADIAL else 3
-            charges = np.concatenate( (charges, np.repeat(charges[to_split], 2)), axis=0 )
-            new_mesh = new_mesh.split_indices(to_split)
-        
-        return new_mesh
+        return Mesh(self.symmetry,
+            points=points,
+            lines=lines, physical_to_lines=self.physical_to_lines,
+            triangles=triangles, physical_to_triangles=self.physical_to_triangles)
      
     def __str__(self):
-        physicals = self.physical_to_elements.keys()
-        physical_names = &#39;, &#39;.join(physicals)
-        physical_nums = &#39;, &#39;.join([str(len(self.physical_to_elements[n])) for n in physicals])
+        physical_lines = &#39;, &#39;.join(self.physical_to_lines.keys())
+        physical_lines_nums = &#39;, &#39;.join([str(len(self.physical_to_lines[n])) for n in self.physical_to_lines.keys()])
+        physical_triangles = &#39;, &#39;.join(self.physical_to_triangles.keys())
+        physical_triangles_nums = &#39;, &#39;.join([str(len(self.physical_to_triangles[n])) for n in self.physical_to_triangles.keys()])
         
         return f&#39;&lt;Traceon Mesh {self.symmetry},\n&#39; \
-            f&#39;\tPhysical groups: {physical_names}\n&#39; \
-            f&#39;\tElements in physical groups: {physical_nums}\n&#39; \
-            f&#39;\tNumber of points: {len(self.points)}&gt;&#39;
-
-    def write_gmsh(self, filename):
-        self.mesh.write(filename)
-
+            f&#39;\tNumber of points: {len(self.points)}\n&#39; \
+            f&#39;\tNumber of lines: {len(self.lines)}\n&#39; \
+            f&#39;\tNumber of triangles: {len(self.triangles)}\n&#39; \
+            f&#39;\tPhysical lines: {physical_lines}\n&#39; \
+            f&#39;\tElements in physical line groups: {physical_lines_nums}\n&#39; \
+            f&#39;\tPhysical triangles: {physical_triangles}\n&#39; \
+            f&#39;\tElements in physical triangle groups: {physical_triangles_nums}&gt;&#39;
 
 
 class MEMSStack(Geometry):
@@ -450,11 +584,21 @@ class MEMSStack(Geometry):
         The distance between the electrodes and the top and bottom boundary.
     margin_right: float
         Distance between the boundary on the right and the MEMS electrodes.
+    symmetry: `Symmetry`
+        What symmetry to use for the resulting geometry
     &#34;&#34;&#34;
     
-    def __init__(self, *args, z0=0.0, revolve_factor=0.0, rmax=2, margin=0.5, margin_right=0.1, **kwargs):
-        self.symmetry = Symmetry.RADIAL if revolve_factor == 0.0 else Symmetry.THREE_D_HIGHER_ORDER
-        super().__init__(self.symmetry, *args, **kwargs)
+    def __init__(self, *args, z0=0.0, revolve_factor=0.0, rmax=2, margin=0.5, margin_right=0.1, symmetry=None, **kwargs):
+        
+        if symmetry is None:
+            symmetry = Symmetry.RADIAL if revolve_factor == 0.0 else Symmetry.THREE_D
+        else:
+            symmetry = symmetry
+            
+            if revolve_factor == 0.0 and symmetry.is_3d():
+                revolve_factor = 1.0
+
+        super().__init__(symmetry, *args, **kwargs)
         
         self.z0 = z0
         self.revolve_factor = revolve_factor
@@ -482,12 +626,12 @@ class MEMSStack(Geometry):
                   [self.rmax+self.margin_right, self._current_z+self.margin],
                   [self.rmax+self.margin_right, self.z0],
                   [0.0, self.z0]]
-        
+         
         self._add_lines_from_points(points, &#39;boundary&#39;)
         self._current_z += self.margin
      
     def _add_lines_from_points(self, points, name):
-        if self.symmetry == Symmetry.THREE_D_HIGHER_ORDER:
+        if self.is_3d():
             points = [self.add_point([p[0], 0.0, p[1]]) for p in points[::-1]]
         else:
             points = [self.add_point(p) for p in points]
@@ -495,7 +639,7 @@ class MEMSStack(Geometry):
         Np = len(points)
         lines = [self.add_line(points[i], points[j]) for i, j in zip(range(0,Np-1), range(1,Np))]
          
-        if self.symmetry == Symmetry.THREE_D_HIGHER_ORDER:
+        if self.is_3d():
             revolved = revolve_around_optical_axis(self, lines, self.revolve_factor)
             self.add_physical(revolved, name)
         else:
@@ -520,10 +664,15 @@ class MEMSStack(Geometry):
         self._add_lines_from_points(points, name)
         self._current_z += thickness
 
-    def generate_mesh(self, *args, **kwargs):
+    def generate_line_mesh(self, *args, **kwargs):
         self._add_boundary()
-        return super().generate_mesh(*args, **kwargs)
-        
+        return super().generate_line_mesh(*args, **kwargs)
+    
+    def generate_triangle_mesh(self, *args, **kwargs):
+        self._add_boundary()
+        return super().generate_triangle_mesh(*args, **kwargs)
+ 
+    
         </code></pre>
 </details>
 </section>
@@ -652,6 +801,7 @@ This prevents singularities.</dd>
         self.size_from_distance = size_from_distance
         self.zmin = zmin
         self.zmax = zmax
+        self.MSF = None
         self.symmetry = symmetry
         self._physical_queue = dict()
 
@@ -660,7 +810,24 @@ This prevents singularities.</dd>
             return f&#39;&lt;Traceon Geometry {self.symmetry}, zmin={self.zmin:.2f} mm, zmax={self.zmax:.2f} mm&#39;
         else:
             return f&#39;&lt;Traceon Geometry {self.symmetry}&gt;&#39;
-        
+
+    def is_3d(self):
+        &#34;&#34;&#34;Check if the geometry is three dimensional.
+
+        Returns
+        ----------------
+        True if geometry is three dimensional, False if the geometry is two dimensional&#34;&#34;&#34;
+        return self.symmetry.is_3d()
+
+    def is_2d(self):
+        &#34;&#34;&#34;Check if the geometry is two dimensional.
+
+        Returns
+        ----------------
+        True if geometry is two dimensional, False if the geometry is three dimensional&#34;&#34;&#34;
+
+        return self.symmetry.is_2d()
+     
     def add_physical(self, entities, name):
         &#34;&#34;&#34;
 
@@ -679,34 +846,61 @@ This prevents singularities.</dd>
         else:
             self._physical_queue[name] = entities
 
-    def generate_mesh(self, *args, **kwargs):
-        &#34;&#34;&#34;
-        Generate the mesh, determining the mesh dimension (line elements or triangles) from the
-        supplied symmetry. The arguments are passed directly to `pygmsh.geo.Geometry.generate_mesh`.
+    def _generate_mesh(self, dimension, higher_order=False, *args, **kwargs):
+        assert dimension == 1 or dimension == 2, &#34;Currently only line and triangle meshes supported (dimension 1 or 2)&#34;
         
-        Returns
-        -------
-        `Mesh`
-
-        &#34;&#34;&#34;
         for label, entities in self._physical_queue.items():
             super().add_physical(entities, label)
           
         if self.size_from_distance:
             self.set_mesh_size_callback(self._mesh_size_callback)
-         
-        if self.symmetry == Symmetry.RADIAL:
-            dim = 1
+        
+        if dimension == 1 and higher_order:
             gmsh.option.setNumber(&#39;Mesh.ElementOrder&#39;, 3)
-        elif self.symmetry == Symmetry.THREE_D:
-            dim = 2
+        elif dimension == 1 and not higher_order:
             gmsh.option.setNumber(&#39;Mesh.ElementOrder&#39;, 1)
-        elif self.symmetry == Symmetry.THREE_D_HIGHER_ORDER:
-            dim = 2
+        elif dimension == 2 and higher_order:
             gmsh.option.setNumber(&#39;Mesh.ElementOrder&#39;, 2)
-         
-        return Mesh.from_meshio(super().generate_mesh(dim=dim, *args, **kwargs), self.symmetry)
+        elif dimension == 2 and not higher_order:
+            gmsh.option.setNumber(&#39;Mesh.ElementOrder&#39;, 1)
+        
+        return Mesh.from_meshio(super()._generate_mesh(dim=dimension, *args, **kwargs), self.symmetry)
 
+    def generate_line_mesh(self, higher_order, *args, **kwargs):
+        &#34;&#34;&#34;Generate boundary mesh in 2D, by splitting the boundary in line elements.
+
+        Parameters
+        -----------------
+        higher_order: bool
+            Whether to use higher order (curved) line elements.
+
+        Returns
+        ----------------
+        `Mesh`
+        &#34;&#34;&#34;
+        if self.MSF is not None:
+            gmsh.option.setNumber(&#39;Mesh.MeshSizeFactor&#39;, 1/self.MSF)
+        return self._generate_mesh(*args, higher_order=higher_order, dimension=1, **kwargs)
+    
+    def generate_triangle_mesh(self, higher_order, *args, **kwargs):
+        &#34;&#34;&#34;Generate triangle mesh. Note that also 2D meshes can have triangles, which can current coils.
+        
+        Parameters
+        -----------------
+        higher_order: bool
+            Whether to use higher order (curved) line elements.
+        
+        Returns
+        ----------------
+        `Mesh`
+        &#34;&#34;&#34;
+        if self.MSF is not None:
+            # GMSH seems to produce meshes which contain way more elements for 3D geometries
+            # with the same mesh factor. This is confusing for users and therefore we arbtrarily
+            # increase the mesh size to roughly correspond with the 2D number of elements.
+            gmsh.option.setNumber(&#39;Mesh.MeshSizeFactor&#39;, 4*sqrt(1/self.MSF))
+        return self._generate_mesh(*args, higher_order=higher_order, dimension=2, **kwargs)
+    
     def set_mesh_size_factor(self, factor):
         &#34;&#34;&#34;
         Set the mesh size factor. Which simply scales with the total number of elements in the mesh.
@@ -717,14 +911,8 @@ This prevents singularities.</dd>
             The mesh size factor to use. 
         
         &#34;&#34;&#34;
-        if self.symmetry == Symmetry.RADIAL:
-            gmsh.option.setNumber(&#39;Mesh.MeshSizeFactor&#39;, 1/factor)
-        elif self.symmetry == Symmetry.THREE_D_HIGHER_ORDER or self.symmetry == Symmetry.THREE_D:
-            # GMSH seems to produce meshes which contain way more elements for 3D geometries
-            # with the same mesh factor. This is confusing for users and therefore we arbtrarily
-            # increase the mesh size to roughly correspond with the 2D number of elements.
-            gmsh.option.setNumber(&#39;Mesh.MeshSizeFactor&#39;, 4*sqrt(1/factor))
-
+        self.MSF = factor
+     
     def set_minimum_mesh_size(self, size):
         &#34;&#34;&#34;
         Set the minimum mesh size possible. Especially useful when geometric elements touch
@@ -799,45 +987,120 @@ This prevents singularities.</dd>
         self._physical_queue[name] = entities</code></pre>
 </details>
 </dd>
-<dt id="traceon.geometry.Geometry.generate_mesh"><code class="name flex">
-<span>def <span class="ident">generate_mesh</span></span>(<span>self, *args, **kwargs)</span>
+<dt id="traceon.geometry.Geometry.generate_line_mesh"><code class="name flex">
+<span>def <span class="ident">generate_line_mesh</span></span>(<span>self, higher_order, *args, **kwargs)</span>
 </code></dt>
 <dd>
-<div class="desc"><p>Generate the mesh, determining the mesh dimension (line elements or triangles) from the
-supplied symmetry. The arguments are passed directly to <code>pygmsh.geo.Geometry.generate_mesh</code>.</p>
+<div class="desc"><p>Generate boundary mesh in 2D, by splitting the boundary in line elements.</p>
+<h2 id="parameters">Parameters</h2>
+<dl>
+<dt><strong><code>higher_order</code></strong> :&ensp;<code>bool</code></dt>
+<dd>Whether to use higher order (curved) line elements.</dd>
+</dl>
 <h2 id="returns">Returns</h2>
 <p><code><a title="traceon.geometry.Mesh" href="#traceon.geometry.Mesh">Mesh</a></code></p></div>
 <details class="source">
 <summary>
 <span>Expand source code</span>
 </summary>
-<pre><code class="python">def generate_mesh(self, *args, **kwargs):
+<pre><code class="python">def generate_line_mesh(self, higher_order, *args, **kwargs):
+    &#34;&#34;&#34;Generate boundary mesh in 2D, by splitting the boundary in line elements.
+
+    Parameters
+    -----------------
+    higher_order: bool
+        Whether to use higher order (curved) line elements.
+
+    Returns
+    ----------------
+    `Mesh`
     &#34;&#34;&#34;
-    Generate the mesh, determining the mesh dimension (line elements or triangles) from the
-    supplied symmetry. The arguments are passed directly to `pygmsh.geo.Geometry.generate_mesh`.
+    if self.MSF is not None:
+        gmsh.option.setNumber(&#39;Mesh.MeshSizeFactor&#39;, 1/self.MSF)
+    return self._generate_mesh(*args, higher_order=higher_order, dimension=1, **kwargs)</code></pre>
+</details>
+</dd>
+<dt id="traceon.geometry.Geometry.generate_triangle_mesh"><code class="name flex">
+<span>def <span class="ident">generate_triangle_mesh</span></span>(<span>self, higher_order, *args, **kwargs)</span>
+</code></dt>
+<dd>
+<div class="desc"><p>Generate triangle mesh. Note that also 2D meshes can have triangles, which can current coils.</p>
+<h2 id="parameters">Parameters</h2>
+<dl>
+<dt><strong><code>higher_order</code></strong> :&ensp;<code>bool</code></dt>
+<dd>Whether to use higher order (curved) line elements.</dd>
+</dl>
+<h2 id="returns">Returns</h2>
+<p><code><a title="traceon.geometry.Mesh" href="#traceon.geometry.Mesh">Mesh</a></code></p></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def generate_triangle_mesh(self, higher_order, *args, **kwargs):
+    &#34;&#34;&#34;Generate triangle mesh. Note that also 2D meshes can have triangles, which can current coils.
+    
+    Parameters
+    -----------------
+    higher_order: bool
+        Whether to use higher order (curved) line elements.
     
     Returns
-    -------
+    ----------------
     `Mesh`
-
     &#34;&#34;&#34;
-    for label, entities in self._physical_queue.items():
-        super().add_physical(entities, label)
-      
-    if self.size_from_distance:
-        self.set_mesh_size_callback(self._mesh_size_callback)
-     
-    if self.symmetry == Symmetry.RADIAL:
-        dim = 1
-        gmsh.option.setNumber(&#39;Mesh.ElementOrder&#39;, 3)
-    elif self.symmetry == Symmetry.THREE_D:
-        dim = 2
-        gmsh.option.setNumber(&#39;Mesh.ElementOrder&#39;, 1)
-    elif self.symmetry == Symmetry.THREE_D_HIGHER_ORDER:
-        dim = 2
-        gmsh.option.setNumber(&#39;Mesh.ElementOrder&#39;, 2)
-     
-    return Mesh.from_meshio(super().generate_mesh(dim=dim, *args, **kwargs), self.symmetry)</code></pre>
+    if self.MSF is not None:
+        # GMSH seems to produce meshes which contain way more elements for 3D geometries
+        # with the same mesh factor. This is confusing for users and therefore we arbtrarily
+        # increase the mesh size to roughly correspond with the 2D number of elements.
+        gmsh.option.setNumber(&#39;Mesh.MeshSizeFactor&#39;, 4*sqrt(1/self.MSF))
+    return self._generate_mesh(*args, higher_order=higher_order, dimension=2, **kwargs)</code></pre>
+</details>
+</dd>
+<dt id="traceon.geometry.Geometry.is_2d"><code class="name flex">
+<span>def <span class="ident">is_2d</span></span>(<span>self)</span>
+</code></dt>
+<dd>
+<div class="desc"><p>Check if the geometry is two dimensional.</p>
+<h2 id="returns">Returns</h2>
+<dl>
+<dt><code>True if geometry is two dimensional, False if the geometry is three dimensional</code></dt>
+<dd>&nbsp;</dd>
+</dl></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def is_2d(self):
+    &#34;&#34;&#34;Check if the geometry is two dimensional.
+
+    Returns
+    ----------------
+    True if geometry is two dimensional, False if the geometry is three dimensional&#34;&#34;&#34;
+
+    return self.symmetry.is_2d()</code></pre>
+</details>
+</dd>
+<dt id="traceon.geometry.Geometry.is_3d"><code class="name flex">
+<span>def <span class="ident">is_3d</span></span>(<span>self)</span>
+</code></dt>
+<dd>
+<div class="desc"><p>Check if the geometry is three dimensional.</p>
+<h2 id="returns">Returns</h2>
+<dl>
+<dt><code>True if geometry is three dimensional, False if the geometry is two dimensional</code></dt>
+<dd>&nbsp;</dd>
+</dl></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def is_3d(self):
+    &#34;&#34;&#34;Check if the geometry is three dimensional.
+
+    Returns
+    ----------------
+    True if geometry is three dimensional, False if the geometry is two dimensional&#34;&#34;&#34;
+    return self.symmetry.is_3d()</code></pre>
 </details>
 </dd>
 <dt id="traceon.geometry.Geometry.set_mesh_size_factor"><code class="name flex">
@@ -864,13 +1127,7 @@ supplied symmetry. The arguments are passed directly to <code>pygmsh.geo.Geometr
         The mesh size factor to use. 
     
     &#34;&#34;&#34;
-    if self.symmetry == Symmetry.RADIAL:
-        gmsh.option.setNumber(&#39;Mesh.MeshSizeFactor&#39;, 1/factor)
-    elif self.symmetry == Symmetry.THREE_D_HIGHER_ORDER or self.symmetry == Symmetry.THREE_D:
-        # GMSH seems to produce meshes which contain way more elements for 3D geometries
-        # with the same mesh factor. This is confusing for users and therefore we arbtrarily
-        # increase the mesh size to roughly correspond with the 2D number of elements.
-        gmsh.option.setNumber(&#39;Mesh.MeshSizeFactor&#39;, 4*sqrt(1/factor))</code></pre>
+    self.MSF = factor</code></pre>
 </details>
 </dd>
 <dt id="traceon.geometry.Geometry.set_minimum_mesh_size"><code class="name flex">
@@ -906,7 +1163,7 @@ the optical axis and cause singularities when used with <code>size_from_distance
 </dd>
 <dt id="traceon.geometry.MEMSStack"><code class="flex name class">
 <span>class <span class="ident">MEMSStack</span></span>
-<span>(</span><span>*args, z0=0.0, revolve_factor=0.0, rmax=2, margin=0.5, margin_right=0.1, **kwargs)</span>
+<span>(</span><span>*args, z0=0.0, revolve_factor=0.0, rmax=2, margin=0.5, margin_right=0.1, symmetry=None, **kwargs)</span>
 </code></dt>
 <dd>
 <div class="desc"><p>Geometry consisting of a stack of MEMS fabricated elements. This geometry is modelled using a stack
@@ -925,6 +1182,8 @@ lenses and mirrors.</p>
 <dd>The distance between the electrodes and the top and bottom boundary.</dd>
 <dt><strong><code>margin_right</code></strong> :&ensp;<code>float</code></dt>
 <dd>Distance between the boundary on the right and the MEMS electrodes.</dd>
+<dt><strong><code>symmetry</code></strong> :&ensp;<code><a title="traceon.geometry.Symmetry" href="#traceon.geometry.Symmetry">Symmetry</a></code></dt>
+<dd>What symmetry to use for the resulting geometry</dd>
 </dl></div>
 <details class="source">
 <summary>
@@ -948,11 +1207,21 @@ lenses and mirrors.</p>
         The distance between the electrodes and the top and bottom boundary.
     margin_right: float
         Distance between the boundary on the right and the MEMS electrodes.
+    symmetry: `Symmetry`
+        What symmetry to use for the resulting geometry
     &#34;&#34;&#34;
     
-    def __init__(self, *args, z0=0.0, revolve_factor=0.0, rmax=2, margin=0.5, margin_right=0.1, **kwargs):
-        self.symmetry = Symmetry.RADIAL if revolve_factor == 0.0 else Symmetry.THREE_D_HIGHER_ORDER
-        super().__init__(self.symmetry, *args, **kwargs)
+    def __init__(self, *args, z0=0.0, revolve_factor=0.0, rmax=2, margin=0.5, margin_right=0.1, symmetry=None, **kwargs):
+        
+        if symmetry is None:
+            symmetry = Symmetry.RADIAL if revolve_factor == 0.0 else Symmetry.THREE_D
+        else:
+            symmetry = symmetry
+            
+            if revolve_factor == 0.0 and symmetry.is_3d():
+                revolve_factor = 1.0
+
+        super().__init__(symmetry, *args, **kwargs)
         
         self.z0 = z0
         self.revolve_factor = revolve_factor
@@ -980,12 +1249,12 @@ lenses and mirrors.</p>
                   [self.rmax+self.margin_right, self._current_z+self.margin],
                   [self.rmax+self.margin_right, self.z0],
                   [0.0, self.z0]]
-        
+         
         self._add_lines_from_points(points, &#39;boundary&#39;)
         self._current_z += self.margin
      
     def _add_lines_from_points(self, points, name):
-        if self.symmetry == Symmetry.THREE_D_HIGHER_ORDER:
+        if self.is_3d():
             points = [self.add_point([p[0], 0.0, p[1]]) for p in points[::-1]]
         else:
             points = [self.add_point(p) for p in points]
@@ -993,7 +1262,7 @@ lenses and mirrors.</p>
         Np = len(points)
         lines = [self.add_line(points[i], points[j]) for i, j in zip(range(0,Np-1), range(1,Np))]
          
-        if self.symmetry == Symmetry.THREE_D_HIGHER_ORDER:
+        if self.is_3d():
             revolved = revolve_around_optical_axis(self, lines, self.revolve_factor)
             self.add_physical(revolved, name)
         else:
@@ -1018,9 +1287,13 @@ lenses and mirrors.</p>
         self._add_lines_from_points(points, name)
         self._current_z += thickness
 
-    def generate_mesh(self, *args, **kwargs):
+    def generate_line_mesh(self, *args, **kwargs):
         self._add_boundary()
-        return super().generate_mesh(*args, **kwargs)</code></pre>
+        return super().generate_line_mesh(*args, **kwargs)
+    
+    def generate_triangle_mesh(self, *args, **kwargs):
+        self._add_boundary()
+        return super().generate_triangle_mesh(*args, **kwargs)</code></pre>
 </details>
 <h3>Ancestors</h3>
 <ul class="hlist">
@@ -1098,7 +1371,10 @@ lenses and mirrors.</p>
 <li><code><b><a title="traceon.geometry.Geometry" href="#traceon.geometry.Geometry">Geometry</a></b></code>:
 <ul class="hlist">
 <li><code><a title="traceon.geometry.Geometry.add_physical" href="#traceon.geometry.Geometry.add_physical">add_physical</a></code></li>
-<li><code><a title="traceon.geometry.Geometry.generate_mesh" href="#traceon.geometry.Geometry.generate_mesh">generate_mesh</a></code></li>
+<li><code><a title="traceon.geometry.Geometry.generate_line_mesh" href="#traceon.geometry.Geometry.generate_line_mesh">generate_line_mesh</a></code></li>
+<li><code><a title="traceon.geometry.Geometry.generate_triangle_mesh" href="#traceon.geometry.Geometry.generate_triangle_mesh">generate_triangle_mesh</a></code></li>
+<li><code><a title="traceon.geometry.Geometry.is_2d" href="#traceon.geometry.Geometry.is_2d">is_2d</a></code></li>
+<li><code><a title="traceon.geometry.Geometry.is_3d" href="#traceon.geometry.Geometry.is_3d">is_3d</a></code></li>
 <li><code><a title="traceon.geometry.Geometry.set_mesh_size_factor" href="#traceon.geometry.Geometry.set_mesh_size_factor">set_mesh_size_factor</a></code></li>
 <li><code><a title="traceon.geometry.Geometry.set_minimum_mesh_size" href="#traceon.geometry.Geometry.set_minimum_mesh_size">set_minimum_mesh_size</a></code></li>
 </ul>
@@ -1107,51 +1383,204 @@ lenses and mirrors.</p>
 </dd>
 <dt id="traceon.geometry.Mesh"><code class="flex name class">
 <span>class <span class="ident">Mesh</span></span>
-<span>(</span><span>points, elements, physical_to_elements, symmetry, metadata={})</span>
+<span>(</span><span>symmetry, points=[], lines=[], triangles=[], physical_to_lines={}, physical_to_triangles={})</span>
 </code></dt>
 <dd>
-<div class="desc"><p>Class containing a mesh and related metadata.</p></div>
+<div class="desc"><p>Class containing a mesh.
+For now, to make things manageable only lines and triangles are supported.
+Lines and triangles can be higher order (curved) or not. But a mesh cannot contain
+both curved and simple elements at the same time.</p>
+<p>When the elements are higher order (curved), triangles consists of 6 points and lines of four points.
+These correspond with the GMSH line4 and triangle6 types.</p></div>
 <details class="source">
 <summary>
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">class Mesh(Saveable):
-    &#34;&#34;&#34;Class containing a mesh and related metadata.&#34;&#34;&#34;
+    &#34;&#34;&#34;Class containing a mesh.
+    For now, to make things manageable only lines and triangles are supported.
+    Lines and triangles can be higher order (curved) or not. But a mesh cannot contain
+    both curved and simple elements at the same time.
     
-    def __init__(self, points, elements, physical_to_elements, symmetry, metadata={}):
+    When the elements are higher order (curved), triangles consists of 6 points and lines of four points.
+    These correspond with the GMSH line4 and triangle6 types.&#34;&#34;&#34;
+     
+    def __init__(self, symmetry,
+            points=[],
+            lines=[],
+            triangles=[],
+            physical_to_lines={},
+            physical_to_triangles={}):
+        
         assert isinstance(symmetry, Symmetry)
-        self.points = points
-        self.elements = elements
-        self.physical_to_elements = physical_to_elements
         self.symmetry = symmetry
-        self.metadata = metadata
-            
-    def from_meshio(mesh, symmetry, metadata={}):
+        
+        # Ensure the correct shape even if empty arrays
+        if len(points):
+            self.points = np.array(points, dtype=np.float64)
+        else:
+            self.points = np.empty((0,3), dtype=np.float64)
+         
+        if len(lines):
+            self.lines = np.array(lines)
+        else:
+            self.lines = np.empty((0,2), dtype=np.uint64)
+    
+        if len(triangles):
+            self.triangles = np.array(triangles)
+        else:
+            self.triangles = np.empty((0, 3), dtype=np.uint64)
+         
+        self.physical_to_lines = physical_to_lines.copy()
+        self.physical_to_triangles = physical_to_triangles.copy()
+        
+        if symmetry.is_2d():
+            assert points.shape[1] == 2 or np.allclose(points[:, 2], 0.), &#34;Cannot have three dimensional points when symmetry is 2D&#34;
+        
+        assert np.all( (0 &lt;= self.lines) &amp; (self.lines &lt; len(self.points)) ), &#34;Lines reference points outside points array&#34;
+        assert np.all( (0 &lt;= self.triangles) &amp; (self.triangles &lt; len(self.points)) ), &#34;Triangles reference points outside points array&#34;
+        assert np.all([np.all( (0 &lt;= group) &amp; (group &lt; len(self.lines)) ) for group in self.physical_to_lines.values()])
+        assert np.all([np.all( (0 &lt;= group) &amp; (group &lt; len(self.triangles)) ) for group in self.physical_to_triangles.values()])
+        assert not len(self.lines) or self.lines.shape[1] in [2,4], &#34;Lines should contain either 2 or 4 points.&#34;
+        assert not len(self.triangles) or self.triangles.shape[1] in [3,6], &#34;Triangles should contain either 3 or 6 points&#34;
+    
+    def is_higher_order(self):
+        return (len(self.lines) and self.lines.shape[1] == 4) or (len(self.triangles) and self.triangles.shape[1] == 6)
+    
+    def move(self, vector):
+        self.points += vector
+     
+    def __add__(self, other):
+        assert isinstance(other, Mesh)
+        assert self.symmetry == other.symmetry, &#34;Cannot add meshes with different symmetries&#34;
+         
+        N_points = len(self.points)
+        N_lines = len(self.lines)
+        N_triangles = len(self.triangles)
+         
+        points = _concat_arrays(self.points, other.points)
+        lines = _concat_arrays(self.lines, other.lines+N_points)
+        triangles = _concat_arrays(self.triangles, other.triangles+N_points)
+         
+        physical_lines = {**self.physical_to_lines, **{k:(v+N_lines) for k, v in other.physical_to_lines.items()}}
+        physical_triangles = {**self.physical_to_triangles, **{k:(v+N_triangles) for k, v in other.physical_to_triangles.items()}}
+         
+        return Mesh(self.symmetry,
+                        points=points,
+                        lines=lines,
+                        triangles=triangles,
+                        physical_to_lines=physical_lines,
+                        physical_to_triangles=physical_triangles)
+    
+    def extract_physical_group(self, name):
+        assert name in self.physical_to_lines or name in self.physical_to_triangles, &#34;Physical group not in mesh, so cannot extract&#34;
+
+        if name in self.physical_to_lines:
+            elements = self.lines
+            physical = self.physical_to_lines
+        elif name in self.physical_to_triangles:
+            elements = self.triangles
+            physical = self.physical_to_triangles
+         
+        elements_indices = np.unique(physical[name])
+        elements = elements[elements_indices]
+          
+        points_mask = np.full(len(self.points), False)
+        points_mask[elements] = True
+        points = self.points[points_mask]
+          
+        new_index = np.cumsum(points_mask) - 1
+        elements = new_index[elements]
+        physical_to_elements = {name:np.arange(len(elements))}
+         
+        if name in self.physical_to_lines:
+            return Mesh(self.symmetry, points=points, lines=elements, physical_to_lines=physical_to_elements)
+        elif name in self.physical_to_triangles:
+            return Mesh(self.symmetry, points=points, triangles=triangles, physical_to_triangles=physical_to_elements)
+     
+    def import_file(filename, symmetry,  name=None):
+        meshio_obj = meshio.read(filename)
+        mesh = Mesh.from_meshio(meshio_obj, symmetry)
+         
+        if name is not None:
+            mesh.physical_to_lines[name] = np.arange(len(mesh.lines))
+            mesh.physical_to_triangles[name] = np.arange(len(mesh.triangles))
+         
+        return mesh
+     
+    def export_file(self, filename):
+        meshio_obj = self.to_meshio()
+        meshio_obj.write(filename)
+     
+    def to_meshio(self):
+        to_export = []
+        
+        if len(self.lines):
+            line_type = &#39;line&#39; if self.lines.shape[1] == 2 else &#39;line4&#39;
+            to_export.append( (line_type, self.lines) )
+        
+        if len(self.triangles):
+            triangle_type = &#39;triangle&#39; if self.triangles.shape[1] == 3 else &#39;triangle6&#39;
+            to_export.append( (triangle_type, self.triangles) )
+        
+        return meshio.Mesh(self.points, to_export)
+     
+    def from_meshio(mesh, symmetry):
         &#34;&#34;&#34;Generate a Traceon Mesh from a [meshio](https://github.com/nschloe/meshio) mesh.
         
         Parameters
         ----------
         symmetry: Symmetry
-            Specifies a radially symmetric geometry (RADIAL) or a general 3D geometry (THREE_D_HIGHER_ORDER).
+            Specifies a radially symmetric geometry (RADIAL) or a general 3D geometry (THREE_D).
         
         Returns
         ---------
         Mesh
         &#34;&#34;&#34;
-        if symmetry == Symmetry.RADIAL:
-            type_ = &#39;line4&#39;
-        elif symmetry == Symmetry.THREE_D:
-            type_ = &#39;triangle&#39;
-        elif symmetry == Symmetry.THREE_D_HIGHER_ORDER:
-            type_ = &#39;triangle6&#39;
-        else:
-            raise ValueError(&#39;Symmetry passed to from_meshio(..) not valid: &#39; + str(symmetry))
-         
-        points = mesh.points
-        elements = mesh.cells_dict[type_]
-        physical_to_elements = {k:v[type_] for k, v in mesh.cell_sets_dict.items() if type_ in v}
+        def extract(type_):
+            elements = mesh.cells_dict[type_]
+            physical = {k:v[type_] for k,v in mesh.cell_sets_dict.items() if type_ in v}
+            return elements, physical
         
-        return Mesh(points, elements, physical_to_elements, symmetry, metadata)
+        lines, physical_lines = [], {}
+        triangles, physical_triangles = [], {}
+        
+        if &#39;line&#39; in mesh.cells_dict:
+            lines, physical_lines = extract(&#39;line&#39;)
+        elif &#39;line4&#39; in mesh.cells_dict:
+            lines, physical_lines = extract(&#39;line4&#39;)
+        
+        if &#39;triangle&#39; in mesh.cells_dict:
+            triangles, physical_triangles = extract(&#39;triangle&#39;)
+        elif &#39;triangle6&#39; in mesh.cells_dict:
+            triangles, physical_triangles = extract(&#39;triangle6&#39;)
+        
+        return Mesh(symmetry,
+            points=mesh.points,
+            lines=lines, physical_to_lines=physical_lines,
+            triangles=triangles, physical_to_triangles=physical_triangles)
+     
+    def is_3d(self):
+        &#34;&#34;&#34;Check if the mesh is three dimensional.
+
+        Returns
+        ----------------
+        True if mesh is three dimensional, False if the mesh is two dimensional&#34;&#34;&#34;
+        return self.symmetry.is_3d()
+    
+    def is_2d(self):
+        &#34;&#34;&#34;Check if the mesh is two dimensional.
+        
+        Returns
+        ----------------
+        True if mesh is two dimensional, False if the mesh is three dimensional&#34;&#34;&#34;
+        return self.symmetry.is_2d()
+
+    def remove_lines(self):
+        return Mesh(self.symmetry, self.points, triangles=self.triangles, physical_to_triangles=self.physical_to_triangles)
+    
+    def remove_triangles(self):
+        return Mesh(self.symmetry, self.points, lines=self.lines, physical_to_lines=self.physical_to_lines)
      
     def get_electrodes(self):
         &#34;&#34;&#34;Get the names of all the electrodes in the geometry.
@@ -1161,146 +1590,84 @@ lenses and mirrors.</p>
         List of electrode names
 
         &#34;&#34;&#34;
-        return list(self.physical_to_elements.keys())
-    
-    def _invert_physical_dict(self):
-        lookup = np.full(len(self.elements), None)
-
-        for k, v in self.physical_to_elements.items():
-            lookup[v] = k
-        
-        return lookup
+        return list(self.physical_to_lines.keys()) + list(self.physical_to_triangles.keys())
      
-    def _split_indices_radial(self, indices):
-        assert self.symmetry == Symmetry.RADIAL
-         
-        elements = copy.deepcopy(self.elements)
+    def _lines_to_higher_order(points, elements):
         N_elements = len(elements)
+        N_points = len(points)
          
-        N = len(self.points)
-        lines_to_add = []
-        physicals = []
-        points_to_add = []
+        v0, v1 = elements.T
+        p2 = points[v0] + (points[v1] - points[v0]) * 1/3
+        p3 = points[v0] + (points[v1] - points[v0]) * 2/3
          
-        physical_lookup = self._invert_physical_dict()
-        to_pos = lambda alpha, line: [*position_and_jacobian_radial(alpha, line[0], line[2], line[3], line[1])[1], 0.0]
-        
-        for idx in indices:
-            pi = elements[idx]
-            line = self.points[pi]
-             
-            points_to_add.append(to_pos(-2/3, line))
-            points_to_add.append(to_pos(0.0, line))
-            points_to_add.append(to_pos(2/3, line))
-            l = len(points_to_add)
-            lines_to_add.append( (N+l-2, pi[1].item(), pi[3].item(), N+l-1) )
-            elements[idx] = (pi[0], N+l-2, N+l-3, pi[2])
-            physicals.append(physical_lookup[idx])
-        
-        # Now actually alter the mesh
-        new_points = np.concatenate( (self.points, points_to_add), axis=0)
-        new_elements = np.concatenate( (elements, np.array(lines_to_add, dtype=np.uint64)), axis=0)
-        new_dict = copy.copy(self.physical_to_elements)
-        
-        for name in [p for p in np.unique(physicals) if p is not None]:   
-            old_indices = new_dict[name]
-            (added_indices,) = (np.array(physicals) == name).nonzero()
-            new_dict[name] = np.concatenate( (old_indices.astype(np.int64), N_elements + added_indices) )
+        assert all(p.shape == (N_elements, points.shape[1]) for p in [p2, p3])
          
-        new_mesh = Mesh(new_points, new_elements, new_dict, self.symmetry, self.metadata)
-        return new_mesh
+        points = np.concatenate( (points, p2, p3), axis=0)
+          
+        elements = np.array([
+            elements[:, 0], elements[:, 1], 
+            np.arange(N_points, N_points + N_elements, dtype=np.uint64),
+            np.arange(N_points + N_elements, N_points + 2*N_elements, dtype=np.uint64)]).T
          
-    def _split_indices_3d(self, indices):
-        assert self.symmetry == Symmetry.THREE_D_HIGHER_ORDER
-         
-        elements = copy.deepcopy(self.elements)
+        assert np.allclose(p2, points[elements[:, 2]]) and np.allclose(p3, points[elements[:, 3]])
+        return points, elements
+
+
+    def _triangles_to_higher_order(points, elements):
         N_elements = len(elements)
+        N_points = len(points)
          
-        N = len(self.points)
-        triangles_to_add = []
-        physicals = []
-        points_to_add = []
+        v0, v1, v2 = elements.T
+        p3 = (points[v0] + points[v1])/2
+        p4 = (points[v1] + points[v2])/2
+        p5 = (points[v2] + points[v0])/2
          
-        physical_lookup = self._invert_physical_dict()
-        to_pos = lambda alpha, beta, triangle: position_and_jacobian_3d(alpha, beta, triangle)[1]
-        
-        for idx in indices:
-            pi = elements[idx]
-            triangle = self.points[pi]
-             
-            points_to_add.append(to_pos(1/3, 1/3, triangle)) # Middle
-            points_to_add.append(to_pos(1/6, 1/6, triangle)) # s0
-            points_to_add.append(to_pos(4/6, 1/6, triangle)) # s1
-            points_to_add.append(to_pos(1/6, 4/6, triangle)) # s2
-            l = len(points_to_add)
-            # Same ordering as in C backend function &#39;fill_self_voltages_3d&#39;
-            t, s0, s1, s2 = N+l-4, N+l-3, N+l-2, N+l-1
-            triangles_to_add.append( (t, pi[1], pi[2], s1, pi[4], s2) )
-            triangles_to_add.append( (t, pi[2], pi[0], s2, pi[5], s0) )
-            elements[idx] = (t, pi[0], pi[1], s0, pi[3], s1)
-            
-            physicals.append(physical_lookup[idx])
-            physicals.append(physical_lookup[idx])
-        
-        # Now actually alter the mesh
-        new_points = np.concatenate( (self.points, points_to_add), axis=0)
-        new_elements = np.concatenate( (elements, np.array(triangles_to_add, dtype=np.uint64)), axis=0)
-        new_dict = copy.copy(self.physical_to_elements)
-        
-        for name in [p for p in np.unique(physicals) if p is not None]:   
-            old_indices = new_dict[name]
-            (added_indices,) = (np.array(physicals) == name).nonzero()
-            new_dict[name] = np.concatenate( (old_indices.astype(np.int64), N_elements + added_indices) )
+        assert all(p.shape == (N_elements, points.shape[1]) for p in [p3,p4,p5])
+          
+        points = np.concatenate( (points, p3, p4, p5), axis=0)
+          
+        elements = np.array([
+            elements[:, 0], elements[:, 1], elements[:, 2],
+            np.arange(N_points, N_points + N_elements, dtype=np.uint64),
+            np.arange(N_points + N_elements, N_points + 2*N_elements, dtype=np.uint64),
+            np.arange(N_points + 2*N_elements, N_points + 3*N_elements, dtype=np.uint64)]).T
          
-        new_mesh = Mesh(new_points, new_elements, new_dict, self.symmetry, self.metadata)
-        return new_mesh
-     
-    def split_indices(self, indices):
-        if self.symmetry == Symmetry.RADIAL:
-            return self._split_indices_radial(indices)
-        else:
-            return self._split_indices_3d(indices)
+        assert np.allclose(p3, points[elements[:, 3]])
+        assert np.allclose(p4, points[elements[:, 4]])
+        assert np.allclose(p5, points[elements[:, 5]])
+        
+        return points, elements
 
-    def split_elements_based_on_charges(self, excitation, field, max_splits, mesh_factor):
-        active = excitation.get_active_element_mask()
-        assert np.sum(active) == len(field.vertices), &#34;Excitation did not produce the given field&#34;
+    def _to_higher_order_mesh(self):
+        # The matrix solver currently only works with higher order meshes.
+        # We can however convert a simple mesh easily to a higher order mesh, and solve that.
+        
+        points, lines, triangles = self.points, self.lines, self.triangles
 
-        map_index = active.nonzero()[0]
-        
-        charges = np.array([field.charge_on_element(i) for i in map_index])
-        charges = np.abs( np.array([field.charge_on_element(i) for i in range(len(field.vertices))]) )
+        if len(lines) and lines.shape[1] == 2:
+            points, lines = Mesh._lines_to_higher_order(points, lines)
+        if len(triangles) and triangles.shape[1] == 3:
+            points, triangles = Mesh._triangles_to_higher_order(points, triangles) 
          
-        # In max_splits iterations, increase the number of elements in the
-        # mesh by mesh_factor. The split_facotr then gives us the amount
-        # of elements we need to split in every iteration.
-        split_factor = mesh_factor**(1/max_splits) - 1
-        
-        if self.symmetry == Symmetry.THREE_D_HIGHER_ORDER:
-            split_factor /= 2 # For triangles, a splitting gives two extra elements, instead of one
-        
-        new_mesh = self
-              
-        for _ in range(max_splits):
-            to_split = np.argsort(charges)[-round(split_factor*len(charges)):]
-            print(&#39;Splitting &#39;, len(to_split), &#39; elements&#39;)
-            charges[to_split] /= 2 if self.symmetry == Symmetry.RADIAL else 3
-            charges = np.concatenate( (charges, np.repeat(charges[to_split], 2)), axis=0 )
-            new_mesh = new_mesh.split_indices(to_split)
-        
-        return new_mesh
+        return Mesh(self.symmetry,
+            points=points,
+            lines=lines, physical_to_lines=self.physical_to_lines,
+            triangles=triangles, physical_to_triangles=self.physical_to_triangles)
      
     def __str__(self):
-        physicals = self.physical_to_elements.keys()
-        physical_names = &#39;, &#39;.join(physicals)
-        physical_nums = &#39;, &#39;.join([str(len(self.physical_to_elements[n])) for n in physicals])
+        physical_lines = &#39;, &#39;.join(self.physical_to_lines.keys())
+        physical_lines_nums = &#39;, &#39;.join([str(len(self.physical_to_lines[n])) for n in self.physical_to_lines.keys()])
+        physical_triangles = &#39;, &#39;.join(self.physical_to_triangles.keys())
+        physical_triangles_nums = &#39;, &#39;.join([str(len(self.physical_to_triangles[n])) for n in self.physical_to_triangles.keys()])
         
         return f&#39;&lt;Traceon Mesh {self.symmetry},\n&#39; \
-            f&#39;\tPhysical groups: {physical_names}\n&#39; \
-            f&#39;\tElements in physical groups: {physical_nums}\n&#39; \
-            f&#39;\tNumber of points: {len(self.points)}&gt;&#39;
-
-    def write_gmsh(self, filename):
-        self.mesh.write(filename)</code></pre>
+            f&#39;\tNumber of points: {len(self.points)}\n&#39; \
+            f&#39;\tNumber of lines: {len(self.lines)}\n&#39; \
+            f&#39;\tNumber of triangles: {len(self.triangles)}\n&#39; \
+            f&#39;\tPhysical lines: {physical_lines}\n&#39; \
+            f&#39;\tElements in physical line groups: {physical_lines_nums}\n&#39; \
+            f&#39;\tPhysical triangles: {physical_triangles}\n&#39; \
+            f&#39;\tElements in physical triangle groups: {physical_triangles_nums}&gt;&#39;</code></pre>
 </details>
 <h3>Ancestors</h3>
 <ul class="hlist">
@@ -1308,15 +1675,65 @@ lenses and mirrors.</p>
 </ul>
 <h3>Methods</h3>
 <dl>
+<dt id="traceon.geometry.Mesh.export_file"><code class="name flex">
+<span>def <span class="ident">export_file</span></span>(<span>self, filename)</span>
+</code></dt>
+<dd>
+<div class="desc"></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def export_file(self, filename):
+    meshio_obj = self.to_meshio()
+    meshio_obj.write(filename)</code></pre>
+</details>
+</dd>
+<dt id="traceon.geometry.Mesh.extract_physical_group"><code class="name flex">
+<span>def <span class="ident">extract_physical_group</span></span>(<span>self, name)</span>
+</code></dt>
+<dd>
+<div class="desc"></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def extract_physical_group(self, name):
+    assert name in self.physical_to_lines or name in self.physical_to_triangles, &#34;Physical group not in mesh, so cannot extract&#34;
+
+    if name in self.physical_to_lines:
+        elements = self.lines
+        physical = self.physical_to_lines
+    elif name in self.physical_to_triangles:
+        elements = self.triangles
+        physical = self.physical_to_triangles
+     
+    elements_indices = np.unique(physical[name])
+    elements = elements[elements_indices]
+      
+    points_mask = np.full(len(self.points), False)
+    points_mask[elements] = True
+    points = self.points[points_mask]
+      
+    new_index = np.cumsum(points_mask) - 1
+    elements = new_index[elements]
+    physical_to_elements = {name:np.arange(len(elements))}
+     
+    if name in self.physical_to_lines:
+        return Mesh(self.symmetry, points=points, lines=elements, physical_to_lines=physical_to_elements)
+    elif name in self.physical_to_triangles:
+        return Mesh(self.symmetry, points=points, triangles=triangles, physical_to_triangles=physical_to_elements)</code></pre>
+</details>
+</dd>
 <dt id="traceon.geometry.Mesh.from_meshio"><code class="name flex">
-<span>def <span class="ident">from_meshio</span></span>(<span>mesh, symmetry, metadata={})</span>
+<span>def <span class="ident">from_meshio</span></span>(<span>mesh, symmetry)</span>
 </code></dt>
 <dd>
 <div class="desc"><p>Generate a Traceon Mesh from a <a href="https://github.com/nschloe/meshio">meshio</a> mesh.</p>
 <h2 id="parameters">Parameters</h2>
 <dl>
 <dt><strong><code>symmetry</code></strong> :&ensp;<code><a title="traceon.geometry.Symmetry" href="#traceon.geometry.Symmetry">Symmetry</a></code></dt>
-<dd>Specifies a radially symmetric geometry (RADIAL) or a general 3D geometry (THREE_D_HIGHER_ORDER).</dd>
+<dd>Specifies a radially symmetric geometry (RADIAL) or a general 3D geometry (THREE_D).</dd>
 </dl>
 <h2 id="returns">Returns</h2>
 <dl>
@@ -1327,32 +1744,40 @@ lenses and mirrors.</p>
 <summary>
 <span>Expand source code</span>
 </summary>
-<pre><code class="python">def from_meshio(mesh, symmetry, metadata={}):
+<pre><code class="python">def from_meshio(mesh, symmetry):
     &#34;&#34;&#34;Generate a Traceon Mesh from a [meshio](https://github.com/nschloe/meshio) mesh.
     
     Parameters
     ----------
     symmetry: Symmetry
-        Specifies a radially symmetric geometry (RADIAL) or a general 3D geometry (THREE_D_HIGHER_ORDER).
+        Specifies a radially symmetric geometry (RADIAL) or a general 3D geometry (THREE_D).
     
     Returns
     ---------
     Mesh
     &#34;&#34;&#34;
-    if symmetry == Symmetry.RADIAL:
-        type_ = &#39;line4&#39;
-    elif symmetry == Symmetry.THREE_D:
-        type_ = &#39;triangle&#39;
-    elif symmetry == Symmetry.THREE_D_HIGHER_ORDER:
-        type_ = &#39;triangle6&#39;
-    else:
-        raise ValueError(&#39;Symmetry passed to from_meshio(..) not valid: &#39; + str(symmetry))
-     
-    points = mesh.points
-    elements = mesh.cells_dict[type_]
-    physical_to_elements = {k:v[type_] for k, v in mesh.cell_sets_dict.items() if type_ in v}
+    def extract(type_):
+        elements = mesh.cells_dict[type_]
+        physical = {k:v[type_] for k,v in mesh.cell_sets_dict.items() if type_ in v}
+        return elements, physical
     
-    return Mesh(points, elements, physical_to_elements, symmetry, metadata)</code></pre>
+    lines, physical_lines = [], {}
+    triangles, physical_triangles = [], {}
+    
+    if &#39;line&#39; in mesh.cells_dict:
+        lines, physical_lines = extract(&#39;line&#39;)
+    elif &#39;line4&#39; in mesh.cells_dict:
+        lines, physical_lines = extract(&#39;line4&#39;)
+    
+    if &#39;triangle&#39; in mesh.cells_dict:
+        triangles, physical_triangles = extract(&#39;triangle&#39;)
+    elif &#39;triangle6&#39; in mesh.cells_dict:
+        triangles, physical_triangles = extract(&#39;triangle6&#39;)
+    
+    return Mesh(symmetry,
+        points=mesh.points,
+        lines=lines, physical_to_lines=physical_lines,
+        triangles=triangles, physical_to_triangles=physical_triangles)</code></pre>
 </details>
 </dd>
 <dt id="traceon.geometry.Mesh.get_electrodes"><code class="name flex">
@@ -1377,11 +1802,11 @@ lenses and mirrors.</p>
     List of electrode names
 
     &#34;&#34;&#34;
-    return list(self.physical_to_elements.keys())</code></pre>
+    return list(self.physical_to_lines.keys()) + list(self.physical_to_triangles.keys())</code></pre>
 </details>
 </dd>
-<dt id="traceon.geometry.Mesh.split_elements_based_on_charges"><code class="name flex">
-<span>def <span class="ident">split_elements_based_on_charges</span></span>(<span>self, excitation, field, max_splits, mesh_factor)</span>
+<dt id="traceon.geometry.Mesh.import_file"><code class="name flex">
+<span>def <span class="ident">import_file</span></span>(<span>filename, symmetry, name=None)</span>
 </code></dt>
 <dd>
 <div class="desc"></div>
@@ -1389,37 +1814,65 @@ lenses and mirrors.</p>
 <summary>
 <span>Expand source code</span>
 </summary>
-<pre><code class="python">def split_elements_based_on_charges(self, excitation, field, max_splits, mesh_factor):
-    active = excitation.get_active_element_mask()
-    assert np.sum(active) == len(field.vertices), &#34;Excitation did not produce the given field&#34;
-
-    map_index = active.nonzero()[0]
-    
-    charges = np.array([field.charge_on_element(i) for i in map_index])
-    charges = np.abs( np.array([field.charge_on_element(i) for i in range(len(field.vertices))]) )
+<pre><code class="python">def import_file(filename, symmetry,  name=None):
+    meshio_obj = meshio.read(filename)
+    mesh = Mesh.from_meshio(meshio_obj, symmetry)
      
-    # In max_splits iterations, increase the number of elements in the
-    # mesh by mesh_factor. The split_facotr then gives us the amount
-    # of elements we need to split in every iteration.
-    split_factor = mesh_factor**(1/max_splits) - 1
-    
-    if self.symmetry == Symmetry.THREE_D_HIGHER_ORDER:
-        split_factor /= 2 # For triangles, a splitting gives two extra elements, instead of one
-    
-    new_mesh = self
-          
-    for _ in range(max_splits):
-        to_split = np.argsort(charges)[-round(split_factor*len(charges)):]
-        print(&#39;Splitting &#39;, len(to_split), &#39; elements&#39;)
-        charges[to_split] /= 2 if self.symmetry == Symmetry.RADIAL else 3
-        charges = np.concatenate( (charges, np.repeat(charges[to_split], 2)), axis=0 )
-        new_mesh = new_mesh.split_indices(to_split)
-    
-    return new_mesh</code></pre>
+    if name is not None:
+        mesh.physical_to_lines[name] = np.arange(len(mesh.lines))
+        mesh.physical_to_triangles[name] = np.arange(len(mesh.triangles))
+     
+    return mesh</code></pre>
 </details>
 </dd>
-<dt id="traceon.geometry.Mesh.split_indices"><code class="name flex">
-<span>def <span class="ident">split_indices</span></span>(<span>self, indices)</span>
+<dt id="traceon.geometry.Mesh.is_2d"><code class="name flex">
+<span>def <span class="ident">is_2d</span></span>(<span>self)</span>
+</code></dt>
+<dd>
+<div class="desc"><p>Check if the mesh is two dimensional.</p>
+<h2 id="returns">Returns</h2>
+<dl>
+<dt><code>True if mesh is two dimensional, False if the mesh is three dimensional</code></dt>
+<dd>&nbsp;</dd>
+</dl></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def is_2d(self):
+    &#34;&#34;&#34;Check if the mesh is two dimensional.
+    
+    Returns
+    ----------------
+    True if mesh is two dimensional, False if the mesh is three dimensional&#34;&#34;&#34;
+    return self.symmetry.is_2d()</code></pre>
+</details>
+</dd>
+<dt id="traceon.geometry.Mesh.is_3d"><code class="name flex">
+<span>def <span class="ident">is_3d</span></span>(<span>self)</span>
+</code></dt>
+<dd>
+<div class="desc"><p>Check if the mesh is three dimensional.</p>
+<h2 id="returns">Returns</h2>
+<dl>
+<dt><code>True if mesh is three dimensional, False if the mesh is two dimensional</code></dt>
+<dd>&nbsp;</dd>
+</dl></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def is_3d(self):
+    &#34;&#34;&#34;Check if the mesh is three dimensional.
+
+    Returns
+    ----------------
+    True if mesh is three dimensional, False if the mesh is two dimensional&#34;&#34;&#34;
+    return self.symmetry.is_3d()</code></pre>
+</details>
+</dd>
+<dt id="traceon.geometry.Mesh.is_higher_order"><code class="name flex">
+<span>def <span class="ident">is_higher_order</span></span>(<span>self)</span>
 </code></dt>
 <dd>
 <div class="desc"></div>
@@ -1427,15 +1880,12 @@ lenses and mirrors.</p>
 <summary>
 <span>Expand source code</span>
 </summary>
-<pre><code class="python">def split_indices(self, indices):
-    if self.symmetry == Symmetry.RADIAL:
-        return self._split_indices_radial(indices)
-    else:
-        return self._split_indices_3d(indices)</code></pre>
+<pre><code class="python">def is_higher_order(self):
+    return (len(self.lines) and self.lines.shape[1] == 4) or (len(self.triangles) and self.triangles.shape[1] == 6)</code></pre>
 </details>
 </dd>
-<dt id="traceon.geometry.Mesh.write_gmsh"><code class="name flex">
-<span>def <span class="ident">write_gmsh</span></span>(<span>self, filename)</span>
+<dt id="traceon.geometry.Mesh.move"><code class="name flex">
+<span>def <span class="ident">move</span></span>(<span>self, vector)</span>
 </code></dt>
 <dd>
 <div class="desc"></div>
@@ -1443,8 +1893,57 @@ lenses and mirrors.</p>
 <summary>
 <span>Expand source code</span>
 </summary>
-<pre><code class="python">def write_gmsh(self, filename):
-    self.mesh.write(filename)</code></pre>
+<pre><code class="python">def move(self, vector):
+    self.points += vector</code></pre>
+</details>
+</dd>
+<dt id="traceon.geometry.Mesh.remove_lines"><code class="name flex">
+<span>def <span class="ident">remove_lines</span></span>(<span>self)</span>
+</code></dt>
+<dd>
+<div class="desc"></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def remove_lines(self):
+    return Mesh(self.symmetry, self.points, triangles=self.triangles, physical_to_triangles=self.physical_to_triangles)</code></pre>
+</details>
+</dd>
+<dt id="traceon.geometry.Mesh.remove_triangles"><code class="name flex">
+<span>def <span class="ident">remove_triangles</span></span>(<span>self)</span>
+</code></dt>
+<dd>
+<div class="desc"></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def remove_triangles(self):
+    return Mesh(self.symmetry, self.points, lines=self.lines, physical_to_lines=self.physical_to_lines)</code></pre>
+</details>
+</dd>
+<dt id="traceon.geometry.Mesh.to_meshio"><code class="name flex">
+<span>def <span class="ident">to_meshio</span></span>(<span>self)</span>
+</code></dt>
+<dd>
+<div class="desc"></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def to_meshio(self):
+    to_export = []
+    
+    if len(self.lines):
+        line_type = &#39;line&#39; if self.lines.shape[1] == 2 else &#39;line4&#39;
+        to_export.append( (line_type, self.lines) )
+    
+    if len(self.triangles):
+        triangle_type = &#39;triangle&#39; if self.triangles.shape[1] == 3 else &#39;triangle6&#39;
+        to_export.append( (triangle_type, self.triangles) )
+    
+    return meshio.Mesh(self.points, to_export)</code></pre>
 </details>
 </dd>
 </dl>
@@ -1466,16 +1965,19 @@ supported symmetries are radial symmetry (also called cylindrical symmetry) and 
     supported symmetries are radial symmetry (also called cylindrical symmetry) and general 3D geometries.
     &#34;&#34;&#34;
     RADIAL = 0
-    THREE_D_HIGHER_ORDER = 1
     THREE_D = 2
 
     def __str__(self):
         if self == Symmetry.RADIAL:
             return &#39;radial&#39;
-        elif self == Symmetry.THREE_D_HIGHER_ORDER:
-            return &#39;3d higher order&#39;
         elif self == Symmetry.THREE_D:
-            return &#39;3d first order&#39;</code></pre>
+            return &#39;3d&#39; 
+    
+    def is_2d(self):
+        return self == Symmetry.RADIAL
+        
+    def is_3d(self):
+        return self == Symmetry.THREE_D</code></pre>
 </details>
 <h3>Ancestors</h3>
 <ul class="hlist">
@@ -1491,9 +1993,34 @@ supported symmetries are radial symmetry (also called cylindrical symmetry) and 
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="traceon.geometry.Symmetry.THREE_D_HIGHER_ORDER"><code class="name">var <span class="ident">THREE_D_HIGHER_ORDER</span></code></dt>
+</dl>
+<h3>Methods</h3>
+<dl>
+<dt id="traceon.geometry.Symmetry.is_2d"><code class="name flex">
+<span>def <span class="ident">is_2d</span></span>(<span>self)</span>
+</code></dt>
 <dd>
 <div class="desc"></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def is_2d(self):
+    return self == Symmetry.RADIAL</code></pre>
+</details>
+</dd>
+<dt id="traceon.geometry.Symmetry.is_3d"><code class="name flex">
+<span>def <span class="ident">is_3d</span></span>(<span>self)</span>
+</code></dt>
+<dd>
+<div class="desc"></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def is_3d(self):
+    return self == Symmetry.THREE_D</code></pre>
+</details>
 </dd>
 </dl>
 </dd>
@@ -1522,7 +2049,10 @@ supported symmetries are radial symmetry (also called cylindrical symmetry) and 
 <h4><code><a title="traceon.geometry.Geometry" href="#traceon.geometry.Geometry">Geometry</a></code></h4>
 <ul class="">
 <li><code><a title="traceon.geometry.Geometry.add_physical" href="#traceon.geometry.Geometry.add_physical">add_physical</a></code></li>
-<li><code><a title="traceon.geometry.Geometry.generate_mesh" href="#traceon.geometry.Geometry.generate_mesh">generate_mesh</a></code></li>
+<li><code><a title="traceon.geometry.Geometry.generate_line_mesh" href="#traceon.geometry.Geometry.generate_line_mesh">generate_line_mesh</a></code></li>
+<li><code><a title="traceon.geometry.Geometry.generate_triangle_mesh" href="#traceon.geometry.Geometry.generate_triangle_mesh">generate_triangle_mesh</a></code></li>
+<li><code><a title="traceon.geometry.Geometry.is_2d" href="#traceon.geometry.Geometry.is_2d">is_2d</a></code></li>
+<li><code><a title="traceon.geometry.Geometry.is_3d" href="#traceon.geometry.Geometry.is_3d">is_3d</a></code></li>
 <li><code><a title="traceon.geometry.Geometry.set_mesh_size_factor" href="#traceon.geometry.Geometry.set_mesh_size_factor">set_mesh_size_factor</a></code></li>
 <li><code><a title="traceon.geometry.Geometry.set_minimum_mesh_size" href="#traceon.geometry.Geometry.set_minimum_mesh_size">set_minimum_mesh_size</a></code></li>
 </ul>
@@ -1537,11 +2067,18 @@ supported symmetries are radial symmetry (also called cylindrical symmetry) and 
 <li>
 <h4><code><a title="traceon.geometry.Mesh" href="#traceon.geometry.Mesh">Mesh</a></code></h4>
 <ul class="">
+<li><code><a title="traceon.geometry.Mesh.export_file" href="#traceon.geometry.Mesh.export_file">export_file</a></code></li>
+<li><code><a title="traceon.geometry.Mesh.extract_physical_group" href="#traceon.geometry.Mesh.extract_physical_group">extract_physical_group</a></code></li>
 <li><code><a title="traceon.geometry.Mesh.from_meshio" href="#traceon.geometry.Mesh.from_meshio">from_meshio</a></code></li>
 <li><code><a title="traceon.geometry.Mesh.get_electrodes" href="#traceon.geometry.Mesh.get_electrodes">get_electrodes</a></code></li>
-<li><code><a title="traceon.geometry.Mesh.split_elements_based_on_charges" href="#traceon.geometry.Mesh.split_elements_based_on_charges">split_elements_based_on_charges</a></code></li>
-<li><code><a title="traceon.geometry.Mesh.split_indices" href="#traceon.geometry.Mesh.split_indices">split_indices</a></code></li>
-<li><code><a title="traceon.geometry.Mesh.write_gmsh" href="#traceon.geometry.Mesh.write_gmsh">write_gmsh</a></code></li>
+<li><code><a title="traceon.geometry.Mesh.import_file" href="#traceon.geometry.Mesh.import_file">import_file</a></code></li>
+<li><code><a title="traceon.geometry.Mesh.is_2d" href="#traceon.geometry.Mesh.is_2d">is_2d</a></code></li>
+<li><code><a title="traceon.geometry.Mesh.is_3d" href="#traceon.geometry.Mesh.is_3d">is_3d</a></code></li>
+<li><code><a title="traceon.geometry.Mesh.is_higher_order" href="#traceon.geometry.Mesh.is_higher_order">is_higher_order</a></code></li>
+<li><code><a title="traceon.geometry.Mesh.move" href="#traceon.geometry.Mesh.move">move</a></code></li>
+<li><code><a title="traceon.geometry.Mesh.remove_lines" href="#traceon.geometry.Mesh.remove_lines">remove_lines</a></code></li>
+<li><code><a title="traceon.geometry.Mesh.remove_triangles" href="#traceon.geometry.Mesh.remove_triangles">remove_triangles</a></code></li>
+<li><code><a title="traceon.geometry.Mesh.to_meshio" href="#traceon.geometry.Mesh.to_meshio">to_meshio</a></code></li>
 </ul>
 </li>
 <li>
@@ -1549,7 +2086,8 @@ supported symmetries are radial symmetry (also called cylindrical symmetry) and 
 <ul class="">
 <li><code><a title="traceon.geometry.Symmetry.RADIAL" href="#traceon.geometry.Symmetry.RADIAL">RADIAL</a></code></li>
 <li><code><a title="traceon.geometry.Symmetry.THREE_D" href="#traceon.geometry.Symmetry.THREE_D">THREE_D</a></code></li>
-<li><code><a title="traceon.geometry.Symmetry.THREE_D_HIGHER_ORDER" href="#traceon.geometry.Symmetry.THREE_D_HIGHER_ORDER">THREE_D_HIGHER_ORDER</a></code></li>
+<li><code><a title="traceon.geometry.Symmetry.is_2d" href="#traceon.geometry.Symmetry.is_2d">is_2d</a></code></li>
+<li><code><a title="traceon.geometry.Symmetry.is_3d" href="#traceon.geometry.Symmetry.is_3d">is_3d</a></code></li>
 </ul>
 </li>
 </ul>

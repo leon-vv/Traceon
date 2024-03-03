@@ -25,7 +25,7 @@ class SimpleMirror(Validation):
         else:
             return [10, 50, 150, 250, 600]
 
-    def create_mesh(self, MSF, symmetry):
+    def create_mesh(self, MSF, symmetry, higher_order):
         _3d = symmetry.is_3d()
         
         with G.Geometry(symmetry, size_from_distance=True, zmin=0.1, zmax=2) as geom:
@@ -51,15 +51,16 @@ class SimpleMirror(Validation):
             points = [geom.add_point(p) for p in points]
             
             mirror_line = geom.add_line(points[0], points[1])
-
+            
+            geom.set_mesh_size_factor(MSF)
+            
             if _3d:
                 revolved = G.revolve_around_optical_axis(geom, mirror_line)
                 geom.add_physical(revolved, 'mirror')
+                return geom.generate_triangle_mesh(higher_order)
             else:
                 geom.add_physical(mirror_line, 'mirror')
-            
-            geom.set_mesh_size_factor(MSF)
-            return geom.generate_mesh()
+                return geom.generate_line_mesh(higher_order)
      
     def get_excitation(self, mesh):
         excitation = E.Excitation(mesh)
@@ -71,10 +72,7 @@ class SimpleMirror(Validation):
 
     def compute_value_of_interest(self, geometry, field):
         _3d = geometry.is_3d()
-        bounds = ((-0.22, 0.22), (0.02, 11))
-        
-        if _3d:
-            bounds = ((-0.22, 0.22), (-0.22, 0.22), (0.02, 11))
+        bounds = ((-0.22, 0.22), (-0.22, 0.22), (0.02, 11))
          
         axial_field = field.axial_derivative_interpolation(0.02, 4)
         tracer = T.Tracer(axial_field, bounds)

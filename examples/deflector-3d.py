@@ -52,7 +52,7 @@ def rectangle_electrode(geom, x, z, name):
 
 
 # Create the actual geometry using the utility functions above.
-with G.Geometry(G.Symmetry.THREE_D_HIGHER_ORDER, size_from_distance=True) as geom:
+with G.Geometry(G.Symmetry.THREE_D, size_from_distance=True) as geom:
     round_electrode(geom, z0, 'ground')
      
     rectangle_electrode(geom, RADIUS, z0+THICKNESS+SPACING, 'deflector_positive')    
@@ -64,10 +64,10 @@ with G.Geometry(G.Symmetry.THREE_D_HIGHER_ORDER, size_from_distance=True) as geo
     # accuracy at the expense of computation time.
     geom.set_mesh_size_factor(250)
     
-    mesh = geom.generate_mesh()
+    mesh = geom.generate_triangle_mesh(True)
 
 # Show the generated triangle mesh.
-P.plot_triangle_mesh(mesh, ground='green', deflector_positive='red', deflector_negative='blue')
+P.plot_mesh(mesh, ground='green', deflector_positive='red', deflector_negative='blue')
 
 excitation = E.Excitation(mesh)
 

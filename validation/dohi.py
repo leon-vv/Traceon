@@ -26,7 +26,7 @@ class DohiMirror(Validation):
         self.plot_colors = dict(mirror='brown', lens='blue', ground='green', boundary='purple')
 
 
-    def create_mesh(self, MSF, symmetry):
+    def create_mesh(self, MSF, symmetry, higher_order):
             
         rmax = 1.0
         margin = 0.3
@@ -50,12 +50,12 @@ class DohiMirror(Validation):
             
             geom.set_mesh_size_factor(MSF)
             
-            return geom.generate_mesh()
+            return geom.generate_line_mesh(higher_order) if symmetry.is_2d() else geom.generate_triangle_mesh(higher_order)
 
     def get_excitation(self, mesh):
         exc = E.Excitation(mesh)
         exc.add_voltage(ground=0.0, mirror=-1250, lens=710.0126605741955)
-        exc.add_boundary('boundary')
+        exc.add_electrostatic_boundary('boundary')
         return exc
 
     def correct_value_of_interest(self):
@@ -69,10 +69,10 @@ class DohiMirror(Validation):
 
         _3d = geom.is_3d()
          
-        bounds = ((-0.1, 0.1), (-0.1, 0.1), (0.05, 1.7)) if _3d else ((-0.1, 0.1), (0.05, 1.7))
+        bounds = ((-0.1, 0.1), (-0.1, 0.1), (0.05, 1.7))
         field.set_bounds(bounds)
         
-        bounds = ((-0.1, 0.1), (-0.03, 0.03), (0.05, 19.0)) if _3d else ((-0.03, 0.03), (0.05, 19.0))
+        bounds = ((-0.1, 0.1), (-0.03, 0.03), (0.05, 19.0))
         tracer_derivs = T.Tracer(axial_field, bounds)
         
         angle = 0.5e-3

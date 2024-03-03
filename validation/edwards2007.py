@@ -24,7 +24,7 @@ class Edwards2007(Validation):
          
         self.plot_colors = dict(boundary='blue', inner='orange')
     
-    def create_mesh(self, MSF, symmetry):
+    def create_mesh(self, MSF, symmetry, higher_order):
         with G.Geometry(symmetry) as geom:
             points = [
                 [0, 0],
@@ -37,11 +37,9 @@ class Edwards2007(Validation):
                 [20, 0]
             ]
 
-            _3d = symmetry != G.Symmetry.RADIAL
-            
             geom.set_mesh_size_factor(MSF)
             
-            if _3d:
+            if symmetry.is_3d():
                 points = [geom.add_point([p[0], 0.0, p[1]]) for p in points]
             else:
                 points = [geom.add_point(p) for p in points]
@@ -54,19 +52,19 @@ class Edwards2007(Validation):
             l5 = geom.add_line(points[-3], points[-2])
             l6 = geom.add_line(points[-2], points[-1])
             
-            if _3d:
+            if symmetry.is_3d():
                 inner = G.revolve_around_optical_axis(geom, [l1, l2, l3])
                 boundary = G.revolve_around_optical_axis(geom, [l4, l5, l6])
                 
                 geom.add_physical(inner, 'inner')
                 geom.add_physical(boundary, 'boundary')
-                
-                return geom.generate_mesh()
+                     
+                return geom.generate_triangle_mesh(higher_order)
             else:
                 geom.add_physical([l1, l2, l3], 'inner')
                 geom.add_physical([l4, l5, l6], 'boundary')
-                
-                return geom.generate_mesh()
+                 
+                return geom.generate_line_mesh(higher_order)
 
     def get_excitation(self, geometry):
         excitation = E.Excitation(geometry)

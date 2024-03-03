@@ -26,7 +26,7 @@ class CapacitanceSphere(Validation):
         super().__init__('''Compute the capacitance of two concentric spheres with a layer of dielectric material in between.''')
         self.plot_colors = dict(inner='blue', outer='darkblue', dielectric='green')
     
-    def create_mesh(self, MSF, symmetry):
+    def create_mesh(self, MSF, symmetry, higher_order):
         
         with G.Geometry(symmetry) as geom:
             center = geom.add_point([0.0, 0.0])
@@ -61,7 +61,7 @@ class CapacitanceSphere(Validation):
             
             geom.set_mesh_size_factor(MSF)
             
-            return geom.generate_mesh()
+            return geom.generate_line_mesh(higher_order) if symmetry.is_2d() else geom.generate_triangle_mesh(higher_order)
 
     def get_excitation(self, geom):
         exc = E.Excitation(geom)
@@ -71,7 +71,7 @@ class CapacitanceSphere(Validation):
         return exc
 
     def correct_value_of_interest(self):
-        return 4/( (1/r1 - 1/r3) + (1/r3 - 1/r4)/K + (1/r4 - 1/r2))
+        return 4*np.pi/( (1/r1 - 1/r3) + (1/r3 - 1/r4)/K + (1/r4 - 1/r2))
     
     def compute_value_of_interest(self, geometry, field):
         exc = self.get_excitation(geometry)
@@ -79,11 +79,8 @@ class CapacitanceSphere(Validation):
         x = np.linspace(0.55, 0.95)
         f = [field.field_at_point(np.array([x_, 0.0, 0.0]))[0] for x_ in x]
         
-        vertices = field.vertices
-        charges = field.charges
-        
         # Find the charges
-        _, names = exc.get_active_elements()
+        _, names = exc.get_electrostatic_active_elements()
         Q = {n:field.charge_on_elements(i) for n, i in names.items()}
           
         capacitance = (abs(Q['outer']) + abs(Q['inner']))/2

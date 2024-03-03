@@ -30,16 +30,16 @@ with G.MEMSStack(z0=z0, zmin=-1, zmax=2, size_from_distance=True) as geom:
     
     # Actually generate the mesh, which takes the boundaries in the
     # geometry and produces many line elements.
-    mesh = geom.generate_mesh()
+    mesh = geom.generate_line_mesh(False)
 
 # Show the generated mesh, with the given electrode colors.
-P.plot_mesh(mesh, ground='green', lens='blue')
+P.plot_mesh(mesh, ground='green', lens='blue', show_normals=True)
 
 excitation = E.Excitation(mesh)
 
 # Excite the geometry, put ground at 0V and the lens electrode at 1000V.
 excitation.add_voltage(ground=0.0, lens=1000)
-excitation.add_boundary('boundary')
+excitation.add_electrostatic_boundary('boundary')
 
 # Use the Boundary Element Method (BEM) to calculate the surface charges,
 # the surface charges gives rise to a electrostatic field.
@@ -68,8 +68,8 @@ plt.show()
 
 # An instance of the tracer class allows us to easily find the trajectories of 
 # electrons. Here we specify that the interpolated field should be used, and that
-# the tracing should stop if the r value goes outside ±RADIUS/2 or the z value outside ±10 mm.
-tracer = T.Tracer(field_axial, ((-RADIUS/2, RADIUS/2), (-10, 10)) )
+# the tracing should stop if the x,y value goes outside ±RADIUS/2 or the z value outside ±10 mm.
+tracer = T.Tracer(field_axial, ((-RADIUS/2, RADIUS/2), (-RADIUS/2,RADIUS/2),  (-10, 10)) )
 
 # Start tracing from z=7mm
 r_start = np.linspace(-RADIUS/5, RADIUS/5, 7)
@@ -86,7 +86,7 @@ for i, r0 in enumerate(r_start):
     _, positions = tracer(np.array([r0, 5]), velocity)
     # Plot the z position of the electrons vs the r position.
     # C0 produces the default matplotlib color (a shade of blue).
-    plt.plot(positions[:, 0], positions[:, 1], color='C0')
+    plt.plot(positions[:, 0], positions[:, 2], color='C0')
 
 plt.xlabel('r (mm)')
 plt.ylabel('z (mm)')

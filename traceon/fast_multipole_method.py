@@ -1,4 +1,4 @@
-from math import sqrt
+from math import sqrt, pi
 from scipy.sparse.linalg import LinearOperator, gmres
 import numpy as np
 
@@ -31,9 +31,9 @@ def apply_fast_multipole_method(charges, geometry, precision=1, return_field=Fal
     assert result[0] == 0
      
     if return_field:
-        return result[1].real/4, result[2].real/4
+        return result[1].real/(4*pi), result[2].real/(4*pi)
     else:
-        return result[1].real/4
+        return result[1].real/(4*pi)
 
 def apply_matrix(charges, geometry, precision, dielectric_indices, dielectric_factors):
     # Compute the result of the matrix, without actually building the matrix
@@ -71,20 +71,6 @@ def apply_matrix(charges, geometry, precision, dielectric_indices, dielectric_fa
      
     return pot
 
-
-def get_dielectric_indices_and_factors(names, excitation):
-    dielectric_names = [n for n, _ in names.items() if excitation.excitation_types[n][0] == E.ExcitationType.DIELECTRIC]
-    
-    if len(dielectric_names):
-        dielectric_indices = np.concatenate([names[n] for n in dielectric_names])
-        K = np.concatenate([np.full(len(names[n]), excitation.excitation_types[n][1]) for n in dielectric_names])
-        # See the comment about this factor in traceon-backend.c
-        dielectric_factors = (2*K - 2) / (np.pi*(1+K))
-
-        return dielectric_indices, dielectric_factors
-    else:
-        return np.array([]), np.array([])
-
 def get_geometry_in_fortran_layout(triangles):
     N = len(triangles)
     assert triangles.shape == (N, 3, 3)
@@ -102,13 +88,12 @@ def get_geometry_in_fortran_layout(triangles):
     
     return (triangles, centroids, normals)
 
-def solve_iteratively(names, excitation, triangles, right_hand_side, precision=1):
+def solve_iteratively(triangles, dielectric_indices, dielectric_values, right_hand_side, precision):
     assert pyfmmlib is not None, "pyfmmlib should be installed to use fast multipole method"
-     
+    
     N = len(triangles)
     assert triangles.shape == (N, 3, 3)
     assert right_hand_side.shape == (N,)
-    assert isinstance(names, dict)
     
     geometry = get_geometry_in_fortran_layout(triangles) 
          
@@ -116,9 +101,11 @@ def solve_iteratively(names, excitation, triangles, right_hand_side, precision=1
     def increase_count(*_):
         nonlocal count
         count += 1
-
-    dielectric_indices, dielectric_factors = get_dielectric_indices_and_factors(names, excitation)
-
+    
+    # See the comment about this factor in traceon-backend.c
+    K = dielectric_values
+    dielectric_factors = np.array([backend.flux_density_to_charge_factor(k) for k in K])
+     
     def matvec(charges):
         assert charges.shape == (N,)
         return apply_matrix(charges, geometry, precision, dielectric_indices, dielectric_factors)

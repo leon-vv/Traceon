@@ -32,7 +32,7 @@ class SphericalCapacitor(Validation):
         else:
             return [10, 100, 200]
     
-    def create_mesh(self, MSF, symmetry):
+    def create_mesh(self, MSF, symmetry, higher_order):
         """Create the spherical deflection analyzer from the following paper
         
         D. Cubric, B. Lencova, F.H. Read, J. Zlamal
@@ -67,9 +67,9 @@ class SphericalCapacitor(Validation):
                 s2 = G.revolve_around_optical_axis(geom, [l5, l6])
                 geom.add_physical(s1, 'inner')
                 geom.add_physical(s2, 'outer')
-
+            
             geom.set_mesh_size_factor(MSF)
-            return geom.generate_mesh()
+            return geom.generate_line_mesh(higher_order) if geom.is_2d() else geom.generate_triangle_mesh(higher_order)
 
     def get_excitation(self, mesh):
         exc = E.Excitation(mesh)
@@ -83,15 +83,13 @@ class SphericalCapacitor(Validation):
     
     def compute_value_of_interest(self, mesh, field):
         if not mesh.is_3d():
-            bounds = ((-0.1, 12.5), (-12.5, 12.5))
             position = np.array([0.0, 10.0]) 
-            vel = np.array([np.cos(angle), -np.sin(angle)])*0.5930969604919433
+            vel = np.array([np.cos(angle), -np.sin(angle)])
         else:
-            bounds = ((-0.1, 12.5), (-0.1, 0.1), (-12.5, 12.5))
             position = np.array([0.0, 0.0, 10.0]) 
-            vel = np.array([np.cos(angle), 0.0, -np.sin(angle)])*0.5930969604919433
+            vel = np.array([np.cos(angle), 0.0, -np.sin(angle)])
         
-        tracer = T.Tracer(field, bounds)
+        tracer = T.Tracer(field, ((-0.1, 12.5), (-0.1, 0.1), (-12.5, 12.5)))
         print('Starting electron trace...')
         times, pos = tracer(position, vel)
         

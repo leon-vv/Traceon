@@ -25,28 +25,35 @@ created with the …" />
 </header>
 <section id="section-intro">
 <p>The excitation module allows to specify the excitation (or element types) of the different physical groups (electrodes)
-created with the <code><a title="traceon.geometry" href="geometry.html">traceon.geometry</a></code> module. Currently only electrostatic excitations are supported.</p>
+created with the <code><a title="traceon.geometry" href="geometry.html">traceon.geometry</a></code> module. </p>
 <p>The possible excitations are as follows:</p>
 <ul>
 <li>Fixed voltage (electrode connect to a power supply)</li>
 <li>Voltage function (a generic Python function specifies the voltage as a function of position)</li>
 <li>Dielectric, with arbitrary electric permittivity</li>
-<li>Floating conductor, with an arbitrary total charge on the surface</li>
+<li>Current coil, with fixed total amount of current (only in radial symmetry)</li>
+<li>Magnetostatic scalar potential</li>
+<li>Magnetizable material, with arbitrary magnetic permeability</li>
 </ul>
+<p>Currently current excitations are not supported in 3D. But magnetostatic fields can still be computed using the magnetostatic scalar potential.</p>
 <p>Once the excitation is specified, it can be passed to <code><a title="traceon.solver.solve_bem" href="solver.html#traceon.solver.solve_bem">solve_bem()</a></code> to compute the resulting field.</p>
 <details class="source">
 <summary>
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">&#34;&#34;&#34;The excitation module allows to specify the excitation (or element types) of the different physical groups (electrodes)
-created with the `traceon.geometry` module. Currently only electrostatic excitations are supported.
+created with the `traceon.geometry` module. 
 
 The possible excitations are as follows:
 
 - Fixed voltage (electrode connect to a power supply)
 - Voltage function (a generic Python function specifies the voltage as a function of position)
 - Dielectric, with arbitrary electric permittivity
-- Floating conductor, with an arbitrary total charge on the surface
+- Current coil, with fixed total amount of current (only in radial symmetry)
+- Magnetostatic scalar potential
+- Magnetizable material, with arbitrary magnetic permeability
+
+Currently current excitations are not supported in 3D. But magnetostatic fields can still be computed using the magnetostatic scalar potential.
 
 Once the excitation is specified, it can be passed to `traceon.solver.solve_bem` to compute the resulting field.
 &#34;&#34;&#34;
@@ -64,8 +71,21 @@ class ExcitationType(IntEnum):
     VOLTAGE_FIXED = 1
     VOLTAGE_FUN = 2
     DIELECTRIC = 3
-    FLOATING_CONDUCTOR = 4
+     
+    CURRENT = 4
+    MAGNETOSTATIC_POT = 5
+    MAGNETIZABLE = 6
+     
+    def is_electrostatic(self):
+        return self in [ExcitationType.VOLTAGE_FIXED,
+                        ExcitationType.VOLTAGE_FUN,
+                        ExcitationType.DIELECTRIC]
 
+    def is_magnetostatic(self):
+        return self in [ExcitationType.MAGNETOSTATIC_POT,
+                        ExcitationType.MAGNETIZABLE,
+                        ExcitationType.CURRENT]
+     
     def __str__(self):
         if self == ExcitationType.VOLTAGE_FIXED:
             return &#39;voltage fixed&#39;
@@ -73,9 +93,15 @@ class ExcitationType(IntEnum):
             return &#39;voltage function&#39;
         elif self == ExcitationType.DIELECTRIC:
             return &#39;dielectric&#39;
-        elif self == ExcitationType.FLOATING_CONDUCTOR:
-            return &#39;floating conductor&#39;
-
+        elif self == ExcitationType.CURRENT:
+            return &#39;current&#39;
+        elif self == ExcitationType.MAGNETOSTATIC_POT:
+            return &#39;magnetostatic potential&#39;
+        elif self == ExcitationType.MAGNETIZABLE:
+            return &#39;magnetizable&#39;
+         
+        raise RuntimeError(&#39;ExcitationType not understood in __str__ method&#39;)
+     
 
 class Excitation:
     &#34;&#34;&#34; &#34;&#34;&#34;
@@ -112,6 +138,67 @@ class Excitation:
             else:
                 raise NotImplementedError(&#39;Unrecognized voltage value&#39;)
 
+    def add_current(self, **kwargs):
+        &#34;&#34;&#34;
+        Apply a fixed total current to the geometries assigned the given name (or physical group in GMSH terminology). Note that a coil is assumed,
+        which implies that the current density is constant as a function of (r, z). In a solid piece of conducting material the current density would
+        be higher at small r (as the &#39;loop&#39; around the axis is shorter and therefore the resistance is lower).
+        
+        Parameters
+        ----------
+        **kwargs : dict
+            The keys of the dictionary are the geometry names, while the values are the currents in units of Ampere. For example,
+            calling the function as `add_current(coild=10)` assigns a 10A value to the geometry elements part of the &#39;coil&#39; physical group.
+        &#34;&#34;&#34;
+
+        assert self.mesh.symmetry == Symmetry.RADIAL, &#34;Currently magnetostatics are only supported for radially symmetric meshes&#34;
+         
+        for name, current in kwargs.items():
+            assert name in self.mesh.physical_to_triangles.keys(), &#34;Current can only be applied to a triangle electrode&#34;
+            self.excitation_types[name] = (ExcitationType.CURRENT, current)
+
+    def has_current(self):
+        &#34;&#34;&#34;Check whether a current is applied in this excitation.&#34;&#34;&#34;
+        return any([t == ExcitationType.CURRENT for t, _ in self.excitation_types.values()])
+    
+    def is_electrostatic(self):
+        &#34;&#34;&#34;Check whether the excitation contains electrostatic fields.&#34;&#34;&#34;
+        return any([t in [ExcitationType.VOLTAGE_FIXED, ExcitationType.VOLTAGE_FUN] for t, _ in self.excitation_types.values()])
+     
+    def is_magnetostatic(self):
+        &#34;&#34;&#34;Check whether the excitation contains magnetostatic fields.&#34;&#34;&#34;
+        return any([t in [ExcitationType.MAGNETOSTATIC_POT, ExcitationType.CURRENT] for t, _ in self.excitation_types.values()])
+     
+    def add_magnetostatic_potential(self, **kwargs):
+        &#34;&#34;&#34;
+        Apply a fixed magnetostatic potential to the geometries assigned the given name (or physical group in GMSH terminology).
+        
+        Parameters
+        ----------
+        **kwargs : dict
+            The keys of the dictionary are the geometry names, while the values are the voltages in units of Ampere. For example,
+            calling the function as `add_magnetostatic_potential(lens=50)` assigns a 50A value to the geometry elements part of the &#39;lens&#39; physical group.
+        &#34;&#34;&#34;
+        for name, pot in kwargs.items():
+            assert name in self.electrodes
+            self.excitation_types[name] = (ExcitationType.MAGNETOSTATIC_POT, pot)
+
+    def add_magnetizable(self, **kwargs):
+        &#34;&#34;&#34;
+        Assign a relative magnetic permeability to the geometries assigned the given name (or physical group in GMSH terminology).
+        
+        Parameters
+        ----------
+        **kwargs : dict
+            The keys of the dictionary are the geometry names, while the values are the relative dielectric constants. For example,
+            calling the function as `add_dielectric(spacer=2)` assign the relative dielectric constant of 2 to the `spacer` physical group.
+         
+        &#34;&#34;&#34;
+
+        for name, permeability in kwargs.items():
+            assert name in self.electrodes
+            self.excitation_types[name] = (ExcitationType.MAGNETIZABLE, permeability)
+     
     def add_dielectric(self, **kwargs):
         &#34;&#34;&#34;
         Assign a dielectric constant to the geometries assigned the given name (or physical group in GMSH terminology).
@@ -127,10 +214,10 @@ class Excitation:
             assert name in self.electrodes
             self.excitation_types[name] = (ExcitationType.DIELECTRIC, permittivity)
 
-    def add_boundary(self, *args):
+    def add_electrostatic_boundary(self, *args):
         &#34;&#34;&#34;
-        Specify geometry elements as boundary elements. At the boundary we require E·n = 0 at every point on the boundary. This
-        is equivalent to stating that the directional derivative of the potential through the boundary is zero. Placing boundaries between
+        Specify geometry elements as electrostatic boundary elements. At the boundary we require E·n = 0 at every point on the boundary. This
+        is equivalent to stating that the directional derivative of the electrostatic potential through the boundary is zero. Placing boundaries between
         the spaces of electrodes usually helps convergence tremendously. Note that a boundary is equivalent to a dielectric with a dielectric
         constant of zero. This is how a boundary is actually implemented internally.
         
@@ -140,42 +227,42 @@ class Excitation:
             The geometry names that should be considered a boundary.
         &#34;&#34;&#34;
         self.add_dielectric(**{a:0 for a in args})
-
-    def add_floating_conductor(self, **kwargs):
+    
+    def add_magnetostatic_boundary(self, *args):
         &#34;&#34;&#34;
-        Specify geometric elements as floating conductors, and specify the total charge on the conductor.
-         
+        Specify geometry elements as magnetostatic boundary elements. At the boundary we require H·n = 0 at every point on the boundary. This
+        is equivalent to stating that the directional derivative of the magnetostatic potential through the boundary is zero. Placing boundaries between
+        the spaces of electrodes usually helps convergence tremendously. 
+        
         Parameters
         ----------
-        **kwargs : dict
-            The keys of the dictionary are the geometry names, while the values are the charge on the conductors. For example,
-            calling the function as `add_floating_conductor(spacer=10)` specifies the physical group `spacer` as a floating conductor with
-            a total charge on its surface equal to 10. For the unit of charge, see the section &#39;Units&#39; on the `traceon` page.
-            
+        *args: list of str
+            The geometry names that should be considered a boundary.
         &#34;&#34;&#34;
-        for name, charge in kwargs.items():
-            assert name in self.electrodes
-            self.excitation_types[name] = (ExcitationType.FLOATING_CONDUCTOR, charge)
-     
+
+        self.add_magnetizable(**{a:0 for a in args})
+    
     def _split_for_superposition(self):
         
         # Names that have a fixed voltage excitation, not equal to 0.0
         types = self.excitation_types
-        non_zero_fixed = [n for n, (t, v) in types.items() if t == ExcitationType.VOLTAGE_FIXED and v != 0.0]
+        non_zero_fixed = [n for n, (t, v) in types.items() if t in [ExcitationType.VOLTAGE_FIXED,
+                                                                    ExcitationType.CURRENT] and v != 0.0]
         
         excitations = []
          
         for name in non_zero_fixed:
-
+             
             new_types_dict = {}
              
             for n, (t, v) in types.items():
                 assert t != ExcitationType.VOLTAGE_FUN, &#34;VOLTAGE_FUN excitation not supported for superposition.&#34;
-                assert (t != ExcitationType.FLOATING_CONDUCTOR or v == 0.0), &#34;FLOATING_CONDUCTOR only supported in superposition if total charge equals zero.&#34;
                  
                 if n == name:
                     new_types_dict[n] = (t, 1.0)
                 elif t == ExcitationType.VOLTAGE_FIXED:
+                    new_types_dict[n] = (t, 0.0)
+                elif t == ExcitationType.CURRENT:
                     new_types_dict[n] = (t, 0.0)
                 else:
                     new_types_dict[n] = (t, v)
@@ -187,16 +274,52 @@ class Excitation:
         assert len(non_zero_fixed) == len(excitations)
         return {n:e for (n,e) in zip(non_zero_fixed, excitations)}
 
-    def get_active_element_mask(self):
-        inactive = np.full(len(self.mesh.elements), True)
-        names = {}
-         
-        for name in self.excitation_types.keys():
-            inactive[ self.mesh.physical_to_elements[name] ] = False
+    def _get_active_elements(self, type_):
+        assert type_ in [&#39;electrostatic&#39;, &#39;magnetostatic&#39;]
         
-        return ~inactive
-     
-    def get_active_elements(self):
+        if self.mesh.symmetry == Symmetry.RADIAL:
+            elements = self.mesh.lines
+            physicals = self.mesh.physical_to_lines
+        else:
+            elements = self.mesh.triangles
+            physicals = self.mesh.physical_to_triangles
+
+        def type_check(excitation_type):
+            if type_ == &#39;electrostatic&#39;:
+                return excitation_type.is_electrostatic()
+            else:
+                return excitation_type in [ExcitationType.MAGNETIZABLE, ExcitationType.MAGNETOSTATIC_POT]
+        
+        inactive = np.full(len(elements), True)
+        for name, value in self.excitation_types.items():
+            if type_check(value[0]):
+                inactive[ physicals[name] ] = False
+         
+        map_index = np.arange(len(elements)) - np.cumsum(inactive)
+        names = {n:map_index[i] for n, i in physicals.items() \
+                    if n in self.excitation_types and type_check(self.excitation_types[n][0])}
+         
+        return self.mesh.points[ elements[~inactive] ], names
+    
+    def _get_number_of_active_elements(self, type_):
+        assert type_ in [&#39;electrostatic&#39;, &#39;magnetostatic&#39;]
+         
+        if self.mesh.symmetry == Symmetry.RADIAL:
+            elements = self.mesh.lines
+            physicals = self.mesh.physical_to_lines
+        else:
+            elements = self.mesh.triangles
+            physicals = self.mesh.physical_to_triangles
+        
+        def type_check(excitation_type):
+            if type_ == &#39;electrostatic&#39;:
+                return excitation_type.is_electrostatic()
+            else:
+                return excitation_type in [ExcitationType.MAGNETOSTATIC_POT, ExcitationType.MAGNETIZABLE]
+         
+        return sum(len(physicals[n]) for n, v in self.excitation_types.items() if type_check(v[0]))
+    
+    def get_electrostatic_active_elements(self):
         &#34;&#34;&#34;Get elements in the mesh that are active, in the sense that
         an excitation to them has been applied. 
     
@@ -209,24 +332,34 @@ class Excitation:
         names is a dictionary, the keys being the names of the physical groups mentioned by this excitation, \
         while the values are Numpy arrays of indices that can be used to index the points array.
         &#34;&#34;&#34;
-        vertices = self.mesh.elements
-        inactive = ~self.get_active_element_mask() 
-        map_index = np.arange(len(vertices)) - np.cumsum(inactive)
-        names = {n:map_index[i] for n, i in self.mesh.physical_to_elements.items() if n in self.excitation_types}
-         
-        return self.mesh.points[ vertices[~inactive] ], names
+        return self._get_active_elements(&#39;electrostatic&#39;)
     
-    def get_number_of_active_elements(self):
+    def get_magnetostatic_active_elements(self):
+        &#34;&#34;&#34;Get elements in the mesh that are active, in the sense that an excitation to them has been applied. 
+    
+        Returns
+        --------
+        A tuple of two elements: (points, names). points is a Numpy array of shape (N, 4, 3) in the case of 2D and (N, 3, 3) in the case of 3D. \
+        This array contains the vertices of the line elements or the triangles. \
+        Multiple points per line elements are used in the case of 2D since higher order BEM is employed, in which the true position on the line \
+        element is given by a polynomial interpolation of the points. \
+        names is a dictionary, the keys being the names of the physical groups mentioned by this excitation, \
+        while the values are Numpy arrays of indices that can be used to index the points array.
+        &#34;&#34;&#34;
+
+        return self._get_active_elements(&#39;magnetostatic&#39;)
+     
+    def get_number_of_electrostatic_active_elements(self):
         &#34;&#34;&#34;Get elements in the mesh that are active, in the sense that
         an excitation to them has been applied. This is the length of the points
-        array returned by the `Excitation.get_active_elements`.
+        array returned by the `Excitation.get_electrostatic_active_elements`.
 
         Returns
         --------
         int, giving the number of elements. &#34;&#34;&#34;
-        return sum(len(self.mesh.physical_to_elements[n]) for n in self.excitation_types.keys())
-
-    def get_number_of_matrix_elements(self):
+        return self._get_number_of_active_elements(&#39;electrostatic&#39;)
+    
+    def get_number_of_electrostatic_matrix_elements(self):
         &#34;&#34;&#34;Gets the number of elements along one axis of the matrix. If this function returns N, the
         matrix will have size NxN. The matrix consists of 64bit float values. Therefore the size of the matrix
         in bytes is 8·NxN.
@@ -235,19 +368,7 @@ class Excitation:
         ---------
         integer number
         &#34;&#34;&#34;
-         
-        Nfloating = len([name for name, (type_, _) in self.excitation_types.items() if type_ == ExcitationType.FLOATING_CONDUCTOR])
-        Nelem = self.get_number_of_active_elements()
-         
-        if self.mesh.symmetry == Symmetry.RADIAL:
-            return Nelem*N_QUAD_2D + Nfloating
-        elif self.mesh.symmetry == Symmetry.THREE_D:
-            assert Nfloating == 0, &#39;Floating elements not yet supported in FMM&#39;
-            return Nelem
-        elif self.mesh.symmetry == Symmetry.THREE_D_HIGHER_ORDER:
-            return Nelem + Nfloating
-
-
+        return self._get_number_of_active_elements(&#39;magnetostatic&#39;)
 
         </code></pre>
 </details>
@@ -306,6 +427,67 @@ class Excitation:
             else:
                 raise NotImplementedError(&#39;Unrecognized voltage value&#39;)
 
+    def add_current(self, **kwargs):
+        &#34;&#34;&#34;
+        Apply a fixed total current to the geometries assigned the given name (or physical group in GMSH terminology). Note that a coil is assumed,
+        which implies that the current density is constant as a function of (r, z). In a solid piece of conducting material the current density would
+        be higher at small r (as the &#39;loop&#39; around the axis is shorter and therefore the resistance is lower).
+        
+        Parameters
+        ----------
+        **kwargs : dict
+            The keys of the dictionary are the geometry names, while the values are the currents in units of Ampere. For example,
+            calling the function as `add_current(coild=10)` assigns a 10A value to the geometry elements part of the &#39;coil&#39; physical group.
+        &#34;&#34;&#34;
+
+        assert self.mesh.symmetry == Symmetry.RADIAL, &#34;Currently magnetostatics are only supported for radially symmetric meshes&#34;
+         
+        for name, current in kwargs.items():
+            assert name in self.mesh.physical_to_triangles.keys(), &#34;Current can only be applied to a triangle electrode&#34;
+            self.excitation_types[name] = (ExcitationType.CURRENT, current)
+
+    def has_current(self):
+        &#34;&#34;&#34;Check whether a current is applied in this excitation.&#34;&#34;&#34;
+        return any([t == ExcitationType.CURRENT for t, _ in self.excitation_types.values()])
+    
+    def is_electrostatic(self):
+        &#34;&#34;&#34;Check whether the excitation contains electrostatic fields.&#34;&#34;&#34;
+        return any([t in [ExcitationType.VOLTAGE_FIXED, ExcitationType.VOLTAGE_FUN] for t, _ in self.excitation_types.values()])
+     
+    def is_magnetostatic(self):
+        &#34;&#34;&#34;Check whether the excitation contains magnetostatic fields.&#34;&#34;&#34;
+        return any([t in [ExcitationType.MAGNETOSTATIC_POT, ExcitationType.CURRENT] for t, _ in self.excitation_types.values()])
+     
+    def add_magnetostatic_potential(self, **kwargs):
+        &#34;&#34;&#34;
+        Apply a fixed magnetostatic potential to the geometries assigned the given name (or physical group in GMSH terminology).
+        
+        Parameters
+        ----------
+        **kwargs : dict
+            The keys of the dictionary are the geometry names, while the values are the voltages in units of Ampere. For example,
+            calling the function as `add_magnetostatic_potential(lens=50)` assigns a 50A value to the geometry elements part of the &#39;lens&#39; physical group.
+        &#34;&#34;&#34;
+        for name, pot in kwargs.items():
+            assert name in self.electrodes
+            self.excitation_types[name] = (ExcitationType.MAGNETOSTATIC_POT, pot)
+
+    def add_magnetizable(self, **kwargs):
+        &#34;&#34;&#34;
+        Assign a relative magnetic permeability to the geometries assigned the given name (or physical group in GMSH terminology).
+        
+        Parameters
+        ----------
+        **kwargs : dict
+            The keys of the dictionary are the geometry names, while the values are the relative dielectric constants. For example,
+            calling the function as `add_dielectric(spacer=2)` assign the relative dielectric constant of 2 to the `spacer` physical group.
+         
+        &#34;&#34;&#34;
+
+        for name, permeability in kwargs.items():
+            assert name in self.electrodes
+            self.excitation_types[name] = (ExcitationType.MAGNETIZABLE, permeability)
+     
     def add_dielectric(self, **kwargs):
         &#34;&#34;&#34;
         Assign a dielectric constant to the geometries assigned the given name (or physical group in GMSH terminology).
@@ -321,10 +503,10 @@ class Excitation:
             assert name in self.electrodes
             self.excitation_types[name] = (ExcitationType.DIELECTRIC, permittivity)
 
-    def add_boundary(self, *args):
+    def add_electrostatic_boundary(self, *args):
         &#34;&#34;&#34;
-        Specify geometry elements as boundary elements. At the boundary we require E·n = 0 at every point on the boundary. This
-        is equivalent to stating that the directional derivative of the potential through the boundary is zero. Placing boundaries between
+        Specify geometry elements as electrostatic boundary elements. At the boundary we require E·n = 0 at every point on the boundary. This
+        is equivalent to stating that the directional derivative of the electrostatic potential through the boundary is zero. Placing boundaries between
         the spaces of electrodes usually helps convergence tremendously. Note that a boundary is equivalent to a dielectric with a dielectric
         constant of zero. This is how a boundary is actually implemented internally.
         
@@ -334,42 +516,42 @@ class Excitation:
             The geometry names that should be considered a boundary.
         &#34;&#34;&#34;
         self.add_dielectric(**{a:0 for a in args})
-
-    def add_floating_conductor(self, **kwargs):
+    
+    def add_magnetostatic_boundary(self, *args):
         &#34;&#34;&#34;
-        Specify geometric elements as floating conductors, and specify the total charge on the conductor.
-         
+        Specify geometry elements as magnetostatic boundary elements. At the boundary we require H·n = 0 at every point on the boundary. This
+        is equivalent to stating that the directional derivative of the magnetostatic potential through the boundary is zero. Placing boundaries between
+        the spaces of electrodes usually helps convergence tremendously. 
+        
         Parameters
         ----------
-        **kwargs : dict
-            The keys of the dictionary are the geometry names, while the values are the charge on the conductors. For example,
-            calling the function as `add_floating_conductor(spacer=10)` specifies the physical group `spacer` as a floating conductor with
-            a total charge on its surface equal to 10. For the unit of charge, see the section &#39;Units&#39; on the `traceon` page.
-            
+        *args: list of str
+            The geometry names that should be considered a boundary.
         &#34;&#34;&#34;
-        for name, charge in kwargs.items():
-            assert name in self.electrodes
-            self.excitation_types[name] = (ExcitationType.FLOATING_CONDUCTOR, charge)
-     
+
+        self.add_magnetizable(**{a:0 for a in args})
+    
     def _split_for_superposition(self):
         
         # Names that have a fixed voltage excitation, not equal to 0.0
         types = self.excitation_types
-        non_zero_fixed = [n for n, (t, v) in types.items() if t == ExcitationType.VOLTAGE_FIXED and v != 0.0]
+        non_zero_fixed = [n for n, (t, v) in types.items() if t in [ExcitationType.VOLTAGE_FIXED,
+                                                                    ExcitationType.CURRENT] and v != 0.0]
         
         excitations = []
          
         for name in non_zero_fixed:
-
+             
             new_types_dict = {}
              
             for n, (t, v) in types.items():
                 assert t != ExcitationType.VOLTAGE_FUN, &#34;VOLTAGE_FUN excitation not supported for superposition.&#34;
-                assert (t != ExcitationType.FLOATING_CONDUCTOR or v == 0.0), &#34;FLOATING_CONDUCTOR only supported in superposition if total charge equals zero.&#34;
                  
                 if n == name:
                     new_types_dict[n] = (t, 1.0)
                 elif t == ExcitationType.VOLTAGE_FIXED:
+                    new_types_dict[n] = (t, 0.0)
+                elif t == ExcitationType.CURRENT:
                     new_types_dict[n] = (t, 0.0)
                 else:
                     new_types_dict[n] = (t, v)
@@ -381,16 +563,52 @@ class Excitation:
         assert len(non_zero_fixed) == len(excitations)
         return {n:e for (n,e) in zip(non_zero_fixed, excitations)}
 
-    def get_active_element_mask(self):
-        inactive = np.full(len(self.mesh.elements), True)
-        names = {}
-         
-        for name in self.excitation_types.keys():
-            inactive[ self.mesh.physical_to_elements[name] ] = False
+    def _get_active_elements(self, type_):
+        assert type_ in [&#39;electrostatic&#39;, &#39;magnetostatic&#39;]
         
-        return ~inactive
-     
-    def get_active_elements(self):
+        if self.mesh.symmetry == Symmetry.RADIAL:
+            elements = self.mesh.lines
+            physicals = self.mesh.physical_to_lines
+        else:
+            elements = self.mesh.triangles
+            physicals = self.mesh.physical_to_triangles
+
+        def type_check(excitation_type):
+            if type_ == &#39;electrostatic&#39;:
+                return excitation_type.is_electrostatic()
+            else:
+                return excitation_type in [ExcitationType.MAGNETIZABLE, ExcitationType.MAGNETOSTATIC_POT]
+        
+        inactive = np.full(len(elements), True)
+        for name, value in self.excitation_types.items():
+            if type_check(value[0]):
+                inactive[ physicals[name] ] = False
+         
+        map_index = np.arange(len(elements)) - np.cumsum(inactive)
+        names = {n:map_index[i] for n, i in physicals.items() \
+                    if n in self.excitation_types and type_check(self.excitation_types[n][0])}
+         
+        return self.mesh.points[ elements[~inactive] ], names
+    
+    def _get_number_of_active_elements(self, type_):
+        assert type_ in [&#39;electrostatic&#39;, &#39;magnetostatic&#39;]
+         
+        if self.mesh.symmetry == Symmetry.RADIAL:
+            elements = self.mesh.lines
+            physicals = self.mesh.physical_to_lines
+        else:
+            elements = self.mesh.triangles
+            physicals = self.mesh.physical_to_triangles
+        
+        def type_check(excitation_type):
+            if type_ == &#39;electrostatic&#39;:
+                return excitation_type.is_electrostatic()
+            else:
+                return excitation_type in [ExcitationType.MAGNETOSTATIC_POT, ExcitationType.MAGNETIZABLE]
+         
+        return sum(len(physicals[n]) for n, v in self.excitation_types.items() if type_check(v[0]))
+    
+    def get_electrostatic_active_elements(self):
         &#34;&#34;&#34;Get elements in the mesh that are active, in the sense that
         an excitation to them has been applied. 
     
@@ -403,24 +621,34 @@ class Excitation:
         names is a dictionary, the keys being the names of the physical groups mentioned by this excitation, \
         while the values are Numpy arrays of indices that can be used to index the points array.
         &#34;&#34;&#34;
-        vertices = self.mesh.elements
-        inactive = ~self.get_active_element_mask() 
-        map_index = np.arange(len(vertices)) - np.cumsum(inactive)
-        names = {n:map_index[i] for n, i in self.mesh.physical_to_elements.items() if n in self.excitation_types}
-         
-        return self.mesh.points[ vertices[~inactive] ], names
+        return self._get_active_elements(&#39;electrostatic&#39;)
     
-    def get_number_of_active_elements(self):
+    def get_magnetostatic_active_elements(self):
+        &#34;&#34;&#34;Get elements in the mesh that are active, in the sense that an excitation to them has been applied. 
+    
+        Returns
+        --------
+        A tuple of two elements: (points, names). points is a Numpy array of shape (N, 4, 3) in the case of 2D and (N, 3, 3) in the case of 3D. \
+        This array contains the vertices of the line elements or the triangles. \
+        Multiple points per line elements are used in the case of 2D since higher order BEM is employed, in which the true position on the line \
+        element is given by a polynomial interpolation of the points. \
+        names is a dictionary, the keys being the names of the physical groups mentioned by this excitation, \
+        while the values are Numpy arrays of indices that can be used to index the points array.
+        &#34;&#34;&#34;
+
+        return self._get_active_elements(&#39;magnetostatic&#39;)
+     
+    def get_number_of_electrostatic_active_elements(self):
         &#34;&#34;&#34;Get elements in the mesh that are active, in the sense that
         an excitation to them has been applied. This is the length of the points
-        array returned by the `Excitation.get_active_elements`.
+        array returned by the `Excitation.get_electrostatic_active_elements`.
 
         Returns
         --------
         int, giving the number of elements. &#34;&#34;&#34;
-        return sum(len(self.mesh.physical_to_elements[n]) for n in self.excitation_types.keys())
-
-    def get_number_of_matrix_elements(self):
+        return self._get_number_of_active_elements(&#39;electrostatic&#39;)
+    
+    def get_number_of_electrostatic_matrix_elements(self):
         &#34;&#34;&#34;Gets the number of elements along one axis of the matrix. If this function returns N, the
         matrix will have size NxN. The matrix consists of 64bit float values. Therefore the size of the matrix
         in bytes is 8·NxN.
@@ -429,50 +657,45 @@ class Excitation:
         ---------
         integer number
         &#34;&#34;&#34;
-         
-        Nfloating = len([name for name, (type_, _) in self.excitation_types.items() if type_ == ExcitationType.FLOATING_CONDUCTOR])
-        Nelem = self.get_number_of_active_elements()
-         
-        if self.mesh.symmetry == Symmetry.RADIAL:
-            return Nelem*N_QUAD_2D + Nfloating
-        elif self.mesh.symmetry == Symmetry.THREE_D:
-            assert Nfloating == 0, &#39;Floating elements not yet supported in FMM&#39;
-            return Nelem
-        elif self.mesh.symmetry == Symmetry.THREE_D_HIGHER_ORDER:
-            return Nelem + Nfloating</code></pre>
+        return self._get_number_of_active_elements(&#39;magnetostatic&#39;)</code></pre>
 </details>
 <h3>Methods</h3>
 <dl>
-<dt id="traceon.excitation.Excitation.add_boundary"><code class="name flex">
-<span>def <span class="ident">add_boundary</span></span>(<span>self, *args)</span>
+<dt id="traceon.excitation.Excitation.add_current"><code class="name flex">
+<span>def <span class="ident">add_current</span></span>(<span>self, **kwargs)</span>
 </code></dt>
 <dd>
-<div class="desc"><p>Specify geometry elements as boundary elements. At the boundary we require E·n = 0 at every point on the boundary. This
-is equivalent to stating that the directional derivative of the potential through the boundary is zero. Placing boundaries between
-the spaces of electrodes usually helps convergence tremendously. Note that a boundary is equivalent to a dielectric with a dielectric
-constant of zero. This is how a boundary is actually implemented internally.</p>
+<div class="desc"><p>Apply a fixed total current to the geometries assigned the given name (or physical group in GMSH terminology). Note that a coil is assumed,
+which implies that the current density is constant as a function of (r, z). In a solid piece of conducting material the current density would
+be higher at small r (as the 'loop' around the axis is shorter and therefore the resistance is lower).</p>
 <h2 id="parameters">Parameters</h2>
 <dl>
-<dt><strong><code>*args</code></strong> :&ensp;<code>list</code> of <code>str</code></dt>
-<dd>The geometry names that should be considered a boundary.</dd>
+<dt><strong><code>**kwargs</code></strong> :&ensp;<code>dict</code></dt>
+<dd>The keys of the dictionary are the geometry names, while the values are the currents in units of Ampere. For example,
+calling the function as <code>add_current(coild=10)</code> assigns a 10A value to the geometry elements part of the 'coil' physical group.</dd>
 </dl></div>
 <details class="source">
 <summary>
 <span>Expand source code</span>
 </summary>
-<pre><code class="python">def add_boundary(self, *args):
+<pre><code class="python">def add_current(self, **kwargs):
     &#34;&#34;&#34;
-    Specify geometry elements as boundary elements. At the boundary we require E·n = 0 at every point on the boundary. This
-    is equivalent to stating that the directional derivative of the potential through the boundary is zero. Placing boundaries between
-    the spaces of electrodes usually helps convergence tremendously. Note that a boundary is equivalent to a dielectric with a dielectric
-    constant of zero. This is how a boundary is actually implemented internally.
+    Apply a fixed total current to the geometries assigned the given name (or physical group in GMSH terminology). Note that a coil is assumed,
+    which implies that the current density is constant as a function of (r, z). In a solid piece of conducting material the current density would
+    be higher at small r (as the &#39;loop&#39; around the axis is shorter and therefore the resistance is lower).
     
     Parameters
     ----------
-    *args: list of str
-        The geometry names that should be considered a boundary.
+    **kwargs : dict
+        The keys of the dictionary are the geometry names, while the values are the currents in units of Ampere. For example,
+        calling the function as `add_current(coild=10)` assigns a 10A value to the geometry elements part of the &#39;coil&#39; physical group.
     &#34;&#34;&#34;
-    self.add_dielectric(**{a:0 for a in args})</code></pre>
+
+    assert self.mesh.symmetry == Symmetry.RADIAL, &#34;Currently magnetostatics are only supported for radially symmetric meshes&#34;
+     
+    for name, current in kwargs.items():
+        assert name in self.mesh.physical_to_triangles.keys(), &#34;Current can only be applied to a triangle electrode&#34;
+        self.excitation_types[name] = (ExcitationType.CURRENT, current)</code></pre>
 </details>
 </dd>
 <dt id="traceon.excitation.Excitation.add_dielectric"><code class="name flex">
@@ -506,37 +729,129 @@ calling the function as <code>add_dielectric(spacer=2)</code> assign the relativ
         self.excitation_types[name] = (ExcitationType.DIELECTRIC, permittivity)</code></pre>
 </details>
 </dd>
-<dt id="traceon.excitation.Excitation.add_floating_conductor"><code class="name flex">
-<span>def <span class="ident">add_floating_conductor</span></span>(<span>self, **kwargs)</span>
+<dt id="traceon.excitation.Excitation.add_electrostatic_boundary"><code class="name flex">
+<span>def <span class="ident">add_electrostatic_boundary</span></span>(<span>self, *args)</span>
 </code></dt>
 <dd>
-<div class="desc"><p>Specify geometric elements as floating conductors, and specify the total charge on the conductor.</p>
+<div class="desc"><p>Specify geometry elements as electrostatic boundary elements. At the boundary we require E·n = 0 at every point on the boundary. This
+is equivalent to stating that the directional derivative of the electrostatic potential through the boundary is zero. Placing boundaries between
+the spaces of electrodes usually helps convergence tremendously. Note that a boundary is equivalent to a dielectric with a dielectric
+constant of zero. This is how a boundary is actually implemented internally.</p>
 <h2 id="parameters">Parameters</h2>
 <dl>
-<dt><strong><code>**kwargs</code></strong> :&ensp;<code>dict</code></dt>
-<dd>The keys of the dictionary are the geometry names, while the values are the charge on the conductors. For example,
-calling the function as <code>add_floating_conductor(spacer=10)</code> specifies the physical group <code>spacer</code> as a floating conductor with
-a total charge on its surface equal to 10. For the unit of charge, see the section 'Units' on the <code><a title="traceon" href="index.html">traceon</a></code> page.</dd>
+<dt><strong><code>*args</code></strong> :&ensp;<code>list</code> of <code>str</code></dt>
+<dd>The geometry names that should be considered a boundary.</dd>
 </dl></div>
 <details class="source">
 <summary>
 <span>Expand source code</span>
 </summary>
-<pre><code class="python">def add_floating_conductor(self, **kwargs):
+<pre><code class="python">def add_electrostatic_boundary(self, *args):
     &#34;&#34;&#34;
-    Specify geometric elements as floating conductors, and specify the total charge on the conductor.
-     
+    Specify geometry elements as electrostatic boundary elements. At the boundary we require E·n = 0 at every point on the boundary. This
+    is equivalent to stating that the directional derivative of the electrostatic potential through the boundary is zero. Placing boundaries between
+    the spaces of electrodes usually helps convergence tremendously. Note that a boundary is equivalent to a dielectric with a dielectric
+    constant of zero. This is how a boundary is actually implemented internally.
+    
+    Parameters
+    ----------
+    *args: list of str
+        The geometry names that should be considered a boundary.
+    &#34;&#34;&#34;
+    self.add_dielectric(**{a:0 for a in args})</code></pre>
+</details>
+</dd>
+<dt id="traceon.excitation.Excitation.add_magnetizable"><code class="name flex">
+<span>def <span class="ident">add_magnetizable</span></span>(<span>self, **kwargs)</span>
+</code></dt>
+<dd>
+<div class="desc"><p>Assign a relative magnetic permeability to the geometries assigned the given name (or physical group in GMSH terminology).</p>
+<h2 id="parameters">Parameters</h2>
+<dl>
+<dt><strong><code>**kwargs</code></strong> :&ensp;<code>dict</code></dt>
+<dd>The keys of the dictionary are the geometry names, while the values are the relative dielectric constants. For example,
+calling the function as <code>add_dielectric(spacer=2)</code> assign the relative dielectric constant of 2 to the <code>spacer</code> physical group.</dd>
+</dl></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def add_magnetizable(self, **kwargs):
+    &#34;&#34;&#34;
+    Assign a relative magnetic permeability to the geometries assigned the given name (or physical group in GMSH terminology).
+    
     Parameters
     ----------
     **kwargs : dict
-        The keys of the dictionary are the geometry names, while the values are the charge on the conductors. For example,
-        calling the function as `add_floating_conductor(spacer=10)` specifies the physical group `spacer` as a floating conductor with
-        a total charge on its surface equal to 10. For the unit of charge, see the section &#39;Units&#39; on the `traceon` page.
-        
+        The keys of the dictionary are the geometry names, while the values are the relative dielectric constants. For example,
+        calling the function as `add_dielectric(spacer=2)` assign the relative dielectric constant of 2 to the `spacer` physical group.
+     
     &#34;&#34;&#34;
-    for name, charge in kwargs.items():
+
+    for name, permeability in kwargs.items():
         assert name in self.electrodes
-        self.excitation_types[name] = (ExcitationType.FLOATING_CONDUCTOR, charge)</code></pre>
+        self.excitation_types[name] = (ExcitationType.MAGNETIZABLE, permeability)</code></pre>
+</details>
+</dd>
+<dt id="traceon.excitation.Excitation.add_magnetostatic_boundary"><code class="name flex">
+<span>def <span class="ident">add_magnetostatic_boundary</span></span>(<span>self, *args)</span>
+</code></dt>
+<dd>
+<div class="desc"><p>Specify geometry elements as magnetostatic boundary elements. At the boundary we require H·n = 0 at every point on the boundary. This
+is equivalent to stating that the directional derivative of the magnetostatic potential through the boundary is zero. Placing boundaries between
+the spaces of electrodes usually helps convergence tremendously. </p>
+<h2 id="parameters">Parameters</h2>
+<dl>
+<dt><strong><code>*args</code></strong> :&ensp;<code>list</code> of <code>str</code></dt>
+<dd>The geometry names that should be considered a boundary.</dd>
+</dl></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def add_magnetostatic_boundary(self, *args):
+    &#34;&#34;&#34;
+    Specify geometry elements as magnetostatic boundary elements. At the boundary we require H·n = 0 at every point on the boundary. This
+    is equivalent to stating that the directional derivative of the magnetostatic potential through the boundary is zero. Placing boundaries between
+    the spaces of electrodes usually helps convergence tremendously. 
+    
+    Parameters
+    ----------
+    *args: list of str
+        The geometry names that should be considered a boundary.
+    &#34;&#34;&#34;
+
+    self.add_magnetizable(**{a:0 for a in args})</code></pre>
+</details>
+</dd>
+<dt id="traceon.excitation.Excitation.add_magnetostatic_potential"><code class="name flex">
+<span>def <span class="ident">add_magnetostatic_potential</span></span>(<span>self, **kwargs)</span>
+</code></dt>
+<dd>
+<div class="desc"><p>Apply a fixed magnetostatic potential to the geometries assigned the given name (or physical group in GMSH terminology).</p>
+<h2 id="parameters">Parameters</h2>
+<dl>
+<dt><strong><code>**kwargs</code></strong> :&ensp;<code>dict</code></dt>
+<dd>The keys of the dictionary are the geometry names, while the values are the voltages in units of Ampere. For example,
+calling the function as <code>add_magnetostatic_potential(lens=50)</code> assigns a 50A value to the geometry elements part of the 'lens' physical group.</dd>
+</dl></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def add_magnetostatic_potential(self, **kwargs):
+    &#34;&#34;&#34;
+    Apply a fixed magnetostatic potential to the geometries assigned the given name (or physical group in GMSH terminology).
+    
+    Parameters
+    ----------
+    **kwargs : dict
+        The keys of the dictionary are the geometry names, while the values are the voltages in units of Ampere. For example,
+        calling the function as `add_magnetostatic_potential(lens=50)` assigns a 50A value to the geometry elements part of the &#39;lens&#39; physical group.
+    &#34;&#34;&#34;
+    for name, pot in kwargs.items():
+        assert name in self.electrodes
+        self.excitation_types[name] = (ExcitationType.MAGNETOSTATIC_POT, pot)</code></pre>
 </details>
 </dd>
 <dt id="traceon.excitation.Excitation.add_voltage"><code class="name flex">
@@ -579,27 +894,8 @@ Note that in 2D symmetries (such as radial symmetry) the z value for this functi
             raise NotImplementedError(&#39;Unrecognized voltage value&#39;)</code></pre>
 </details>
 </dd>
-<dt id="traceon.excitation.Excitation.get_active_element_mask"><code class="name flex">
-<span>def <span class="ident">get_active_element_mask</span></span>(<span>self)</span>
-</code></dt>
-<dd>
-<div class="desc"></div>
-<details class="source">
-<summary>
-<span>Expand source code</span>
-</summary>
-<pre><code class="python">def get_active_element_mask(self):
-    inactive = np.full(len(self.mesh.elements), True)
-    names = {}
-     
-    for name in self.excitation_types.keys():
-        inactive[ self.mesh.physical_to_elements[name] ] = False
-    
-    return ~inactive</code></pre>
-</details>
-</dd>
-<dt id="traceon.excitation.Excitation.get_active_elements"><code class="name flex">
-<span>def <span class="ident">get_active_elements</span></span>(<span>self)</span>
+<dt id="traceon.excitation.Excitation.get_electrostatic_active_elements"><code class="name flex">
+<span>def <span class="ident">get_electrostatic_active_elements</span></span>(<span>self)</span>
 </code></dt>
 <dd>
 <div class="desc"><p>Get elements in the mesh that are active, in the sense that
@@ -615,7 +911,7 @@ while the values are Numpy arrays of indices that can be used to index the point
 <summary>
 <span>Expand source code</span>
 </summary>
-<pre><code class="python">def get_active_elements(self):
+<pre><code class="python">def get_electrostatic_active_elements(self):
     &#34;&#34;&#34;Get elements in the mesh that are active, in the sense that
     an excitation to them has been applied. 
 
@@ -628,40 +924,67 @@ while the values are Numpy arrays of indices that can be used to index the point
     names is a dictionary, the keys being the names of the physical groups mentioned by this excitation, \
     while the values are Numpy arrays of indices that can be used to index the points array.
     &#34;&#34;&#34;
-    vertices = self.mesh.elements
-    inactive = ~self.get_active_element_mask() 
-    map_index = np.arange(len(vertices)) - np.cumsum(inactive)
-    names = {n:map_index[i] for n, i in self.mesh.physical_to_elements.items() if n in self.excitation_types}
-     
-    return self.mesh.points[ vertices[~inactive] ], names</code></pre>
+    return self._get_active_elements(&#39;electrostatic&#39;)</code></pre>
 </details>
 </dd>
-<dt id="traceon.excitation.Excitation.get_number_of_active_elements"><code class="name flex">
-<span>def <span class="ident">get_number_of_active_elements</span></span>(<span>self)</span>
+<dt id="traceon.excitation.Excitation.get_magnetostatic_active_elements"><code class="name flex">
+<span>def <span class="ident">get_magnetostatic_active_elements</span></span>(<span>self)</span>
+</code></dt>
+<dd>
+<div class="desc"><p>Get elements in the mesh that are active, in the sense that an excitation to them has been applied. </p>
+<h2 id="returns">Returns</h2>
+<p>A tuple of two elements: (points, names). points is a Numpy array of shape (N, 4, 3) in the case of 2D and (N, 3, 3) in the case of 3D.
+This array contains the vertices of the line elements or the triangles.
+Multiple points per line elements are used in the case of 2D since higher order BEM is employed, in which the true position on the line
+element is given by a polynomial interpolation of the points.
+names is a dictionary, the keys being the names of the physical groups mentioned by this excitation,
+while the values are Numpy arrays of indices that can be used to index the points array.</p></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def get_magnetostatic_active_elements(self):
+    &#34;&#34;&#34;Get elements in the mesh that are active, in the sense that an excitation to them has been applied. 
+
+    Returns
+    --------
+    A tuple of two elements: (points, names). points is a Numpy array of shape (N, 4, 3) in the case of 2D and (N, 3, 3) in the case of 3D. \
+    This array contains the vertices of the line elements or the triangles. \
+    Multiple points per line elements are used in the case of 2D since higher order BEM is employed, in which the true position on the line \
+    element is given by a polynomial interpolation of the points. \
+    names is a dictionary, the keys being the names of the physical groups mentioned by this excitation, \
+    while the values are Numpy arrays of indices that can be used to index the points array.
+    &#34;&#34;&#34;
+
+    return self._get_active_elements(&#39;magnetostatic&#39;)</code></pre>
+</details>
+</dd>
+<dt id="traceon.excitation.Excitation.get_number_of_electrostatic_active_elements"><code class="name flex">
+<span>def <span class="ident">get_number_of_electrostatic_active_elements</span></span>(<span>self)</span>
 </code></dt>
 <dd>
 <div class="desc"><p>Get elements in the mesh that are active, in the sense that
 an excitation to them has been applied. This is the length of the points
-array returned by the <code><a title="traceon.excitation.Excitation.get_active_elements" href="#traceon.excitation.Excitation.get_active_elements">Excitation.get_active_elements()</a></code>.</p>
+array returned by the <code><a title="traceon.excitation.Excitation.get_electrostatic_active_elements" href="#traceon.excitation.Excitation.get_electrostatic_active_elements">Excitation.get_electrostatic_active_elements()</a></code>.</p>
 <h2 id="returns">Returns</h2>
 <p>int, giving the number of elements.</p></div>
 <details class="source">
 <summary>
 <span>Expand source code</span>
 </summary>
-<pre><code class="python">def get_number_of_active_elements(self):
+<pre><code class="python">def get_number_of_electrostatic_active_elements(self):
     &#34;&#34;&#34;Get elements in the mesh that are active, in the sense that
     an excitation to them has been applied. This is the length of the points
-    array returned by the `Excitation.get_active_elements`.
+    array returned by the `Excitation.get_electrostatic_active_elements`.
 
     Returns
     --------
     int, giving the number of elements. &#34;&#34;&#34;
-    return sum(len(self.mesh.physical_to_elements[n]) for n in self.excitation_types.keys())</code></pre>
+    return self._get_number_of_active_elements(&#39;electrostatic&#39;)</code></pre>
 </details>
 </dd>
-<dt id="traceon.excitation.Excitation.get_number_of_matrix_elements"><code class="name flex">
-<span>def <span class="ident">get_number_of_matrix_elements</span></span>(<span>self)</span>
+<dt id="traceon.excitation.Excitation.get_number_of_electrostatic_matrix_elements"><code class="name flex">
+<span>def <span class="ident">get_number_of_electrostatic_matrix_elements</span></span>(<span>self)</span>
 </code></dt>
 <dd>
 <div class="desc"><p>Gets the number of elements along one axis of the matrix. If this function returns N, the
@@ -676,7 +999,7 @@ in bytes is 8·NxN.</p>
 <summary>
 <span>Expand source code</span>
 </summary>
-<pre><code class="python">def get_number_of_matrix_elements(self):
+<pre><code class="python">def get_number_of_electrostatic_matrix_elements(self):
     &#34;&#34;&#34;Gets the number of elements along one axis of the matrix. If this function returns N, the
     matrix will have size NxN. The matrix consists of 64bit float values. Therefore the size of the matrix
     in bytes is 8·NxN.
@@ -685,17 +1008,49 @@ in bytes is 8·NxN.</p>
     ---------
     integer number
     &#34;&#34;&#34;
-     
-    Nfloating = len([name for name, (type_, _) in self.excitation_types.items() if type_ == ExcitationType.FLOATING_CONDUCTOR])
-    Nelem = self.get_number_of_active_elements()
-     
-    if self.mesh.symmetry == Symmetry.RADIAL:
-        return Nelem*N_QUAD_2D + Nfloating
-    elif self.mesh.symmetry == Symmetry.THREE_D:
-        assert Nfloating == 0, &#39;Floating elements not yet supported in FMM&#39;
-        return Nelem
-    elif self.mesh.symmetry == Symmetry.THREE_D_HIGHER_ORDER:
-        return Nelem + Nfloating</code></pre>
+    return self._get_number_of_active_elements(&#39;magnetostatic&#39;)</code></pre>
+</details>
+</dd>
+<dt id="traceon.excitation.Excitation.has_current"><code class="name flex">
+<span>def <span class="ident">has_current</span></span>(<span>self)</span>
+</code></dt>
+<dd>
+<div class="desc"><p>Check whether a current is applied in this excitation.</p></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def has_current(self):
+    &#34;&#34;&#34;Check whether a current is applied in this excitation.&#34;&#34;&#34;
+    return any([t == ExcitationType.CURRENT for t, _ in self.excitation_types.values()])</code></pre>
+</details>
+</dd>
+<dt id="traceon.excitation.Excitation.is_electrostatic"><code class="name flex">
+<span>def <span class="ident">is_electrostatic</span></span>(<span>self)</span>
+</code></dt>
+<dd>
+<div class="desc"><p>Check whether the excitation contains electrostatic fields.</p></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def is_electrostatic(self):
+    &#34;&#34;&#34;Check whether the excitation contains electrostatic fields.&#34;&#34;&#34;
+    return any([t in [ExcitationType.VOLTAGE_FIXED, ExcitationType.VOLTAGE_FUN] for t, _ in self.excitation_types.values()])</code></pre>
+</details>
+</dd>
+<dt id="traceon.excitation.Excitation.is_magnetostatic"><code class="name flex">
+<span>def <span class="ident">is_magnetostatic</span></span>(<span>self)</span>
+</code></dt>
+<dd>
+<div class="desc"><p>Check whether the excitation contains magnetostatic fields.</p></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def is_magnetostatic(self):
+    &#34;&#34;&#34;Check whether the excitation contains magnetostatic fields.&#34;&#34;&#34;
+    return any([t in [ExcitationType.MAGNETOSTATIC_POT, ExcitationType.CURRENT] for t, _ in self.excitation_types.values()])</code></pre>
 </details>
 </dd>
 </dl>
@@ -715,8 +1070,21 @@ in bytes is 8·NxN.</p>
     VOLTAGE_FIXED = 1
     VOLTAGE_FUN = 2
     DIELECTRIC = 3
-    FLOATING_CONDUCTOR = 4
+     
+    CURRENT = 4
+    MAGNETOSTATIC_POT = 5
+    MAGNETIZABLE = 6
+     
+    def is_electrostatic(self):
+        return self in [ExcitationType.VOLTAGE_FIXED,
+                        ExcitationType.VOLTAGE_FUN,
+                        ExcitationType.DIELECTRIC]
 
+    def is_magnetostatic(self):
+        return self in [ExcitationType.MAGNETOSTATIC_POT,
+                        ExcitationType.MAGNETIZABLE,
+                        ExcitationType.CURRENT]
+     
     def __str__(self):
         if self == ExcitationType.VOLTAGE_FIXED:
             return &#39;voltage fixed&#39;
@@ -724,8 +1092,14 @@ in bytes is 8·NxN.</p>
             return &#39;voltage function&#39;
         elif self == ExcitationType.DIELECTRIC:
             return &#39;dielectric&#39;
-        elif self == ExcitationType.FLOATING_CONDUCTOR:
-            return &#39;floating conductor&#39;</code></pre>
+        elif self == ExcitationType.CURRENT:
+            return &#39;current&#39;
+        elif self == ExcitationType.MAGNETOSTATIC_POT:
+            return &#39;magnetostatic potential&#39;
+        elif self == ExcitationType.MAGNETIZABLE:
+            return &#39;magnetizable&#39;
+         
+        raise RuntimeError(&#39;ExcitationType not understood in __str__ method&#39;)</code></pre>
 </details>
 <h3>Ancestors</h3>
 <ul class="hlist">
@@ -735,11 +1109,19 @@ in bytes is 8·NxN.</p>
 </ul>
 <h3>Class variables</h3>
 <dl>
+<dt id="traceon.excitation.ExcitationType.CURRENT"><code class="name">var <span class="ident">CURRENT</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
 <dt id="traceon.excitation.ExcitationType.DIELECTRIC"><code class="name">var <span class="ident">DIELECTRIC</span></code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
-<dt id="traceon.excitation.ExcitationType.FLOATING_CONDUCTOR"><code class="name">var <span class="ident">FLOATING_CONDUCTOR</span></code></dt>
+<dt id="traceon.excitation.ExcitationType.MAGNETIZABLE"><code class="name">var <span class="ident">MAGNETIZABLE</span></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="traceon.excitation.ExcitationType.MAGNETOSTATIC_POT"><code class="name">var <span class="ident">MAGNETOSTATIC_POT</span></code></dt>
 <dd>
 <div class="desc"></div>
 </dd>
@@ -750,6 +1132,39 @@ in bytes is 8·NxN.</p>
 <dt id="traceon.excitation.ExcitationType.VOLTAGE_FUN"><code class="name">var <span class="ident">VOLTAGE_FUN</span></code></dt>
 <dd>
 <div class="desc"></div>
+</dd>
+</dl>
+<h3>Methods</h3>
+<dl>
+<dt id="traceon.excitation.ExcitationType.is_electrostatic"><code class="name flex">
+<span>def <span class="ident">is_electrostatic</span></span>(<span>self)</span>
+</code></dt>
+<dd>
+<div class="desc"></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def is_electrostatic(self):
+    return self in [ExcitationType.VOLTAGE_FIXED,
+                    ExcitationType.VOLTAGE_FUN,
+                    ExcitationType.DIELECTRIC]</code></pre>
+</details>
+</dd>
+<dt id="traceon.excitation.ExcitationType.is_magnetostatic"><code class="name flex">
+<span>def <span class="ident">is_magnetostatic</span></span>(<span>self)</span>
+</code></dt>
+<dd>
+<div class="desc"></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def is_magnetostatic(self):
+    return self in [ExcitationType.MAGNETOSTATIC_POT,
+                    ExcitationType.MAGNETIZABLE,
+                    ExcitationType.CURRENT]</code></pre>
+</details>
 </dd>
 </dl>
 </dd>
@@ -772,23 +1187,33 @@ in bytes is 8·NxN.</p>
 <li>
 <h4><code><a title="traceon.excitation.Excitation" href="#traceon.excitation.Excitation">Excitation</a></code></h4>
 <ul class="">
-<li><code><a title="traceon.excitation.Excitation.add_boundary" href="#traceon.excitation.Excitation.add_boundary">add_boundary</a></code></li>
+<li><code><a title="traceon.excitation.Excitation.add_current" href="#traceon.excitation.Excitation.add_current">add_current</a></code></li>
 <li><code><a title="traceon.excitation.Excitation.add_dielectric" href="#traceon.excitation.Excitation.add_dielectric">add_dielectric</a></code></li>
-<li><code><a title="traceon.excitation.Excitation.add_floating_conductor" href="#traceon.excitation.Excitation.add_floating_conductor">add_floating_conductor</a></code></li>
+<li><code><a title="traceon.excitation.Excitation.add_electrostatic_boundary" href="#traceon.excitation.Excitation.add_electrostatic_boundary">add_electrostatic_boundary</a></code></li>
+<li><code><a title="traceon.excitation.Excitation.add_magnetizable" href="#traceon.excitation.Excitation.add_magnetizable">add_magnetizable</a></code></li>
+<li><code><a title="traceon.excitation.Excitation.add_magnetostatic_boundary" href="#traceon.excitation.Excitation.add_magnetostatic_boundary">add_magnetostatic_boundary</a></code></li>
+<li><code><a title="traceon.excitation.Excitation.add_magnetostatic_potential" href="#traceon.excitation.Excitation.add_magnetostatic_potential">add_magnetostatic_potential</a></code></li>
 <li><code><a title="traceon.excitation.Excitation.add_voltage" href="#traceon.excitation.Excitation.add_voltage">add_voltage</a></code></li>
-<li><code><a title="traceon.excitation.Excitation.get_active_element_mask" href="#traceon.excitation.Excitation.get_active_element_mask">get_active_element_mask</a></code></li>
-<li><code><a title="traceon.excitation.Excitation.get_active_elements" href="#traceon.excitation.Excitation.get_active_elements">get_active_elements</a></code></li>
-<li><code><a title="traceon.excitation.Excitation.get_number_of_active_elements" href="#traceon.excitation.Excitation.get_number_of_active_elements">get_number_of_active_elements</a></code></li>
-<li><code><a title="traceon.excitation.Excitation.get_number_of_matrix_elements" href="#traceon.excitation.Excitation.get_number_of_matrix_elements">get_number_of_matrix_elements</a></code></li>
+<li><code><a title="traceon.excitation.Excitation.get_electrostatic_active_elements" href="#traceon.excitation.Excitation.get_electrostatic_active_elements">get_electrostatic_active_elements</a></code></li>
+<li><code><a title="traceon.excitation.Excitation.get_magnetostatic_active_elements" href="#traceon.excitation.Excitation.get_magnetostatic_active_elements">get_magnetostatic_active_elements</a></code></li>
+<li><code><a title="traceon.excitation.Excitation.get_number_of_electrostatic_active_elements" href="#traceon.excitation.Excitation.get_number_of_electrostatic_active_elements">get_number_of_electrostatic_active_elements</a></code></li>
+<li><code><a title="traceon.excitation.Excitation.get_number_of_electrostatic_matrix_elements" href="#traceon.excitation.Excitation.get_number_of_electrostatic_matrix_elements">get_number_of_electrostatic_matrix_elements</a></code></li>
+<li><code><a title="traceon.excitation.Excitation.has_current" href="#traceon.excitation.Excitation.has_current">has_current</a></code></li>
+<li><code><a title="traceon.excitation.Excitation.is_electrostatic" href="#traceon.excitation.Excitation.is_electrostatic">is_electrostatic</a></code></li>
+<li><code><a title="traceon.excitation.Excitation.is_magnetostatic" href="#traceon.excitation.Excitation.is_magnetostatic">is_magnetostatic</a></code></li>
 </ul>
 </li>
 <li>
 <h4><code><a title="traceon.excitation.ExcitationType" href="#traceon.excitation.ExcitationType">ExcitationType</a></code></h4>
-<ul class="">
+<ul class="two-column">
+<li><code><a title="traceon.excitation.ExcitationType.CURRENT" href="#traceon.excitation.ExcitationType.CURRENT">CURRENT</a></code></li>
 <li><code><a title="traceon.excitation.ExcitationType.DIELECTRIC" href="#traceon.excitation.ExcitationType.DIELECTRIC">DIELECTRIC</a></code></li>
-<li><code><a title="traceon.excitation.ExcitationType.FLOATING_CONDUCTOR" href="#traceon.excitation.ExcitationType.FLOATING_CONDUCTOR">FLOATING_CONDUCTOR</a></code></li>
+<li><code><a title="traceon.excitation.ExcitationType.MAGNETIZABLE" href="#traceon.excitation.ExcitationType.MAGNETIZABLE">MAGNETIZABLE</a></code></li>
+<li><code><a title="traceon.excitation.ExcitationType.MAGNETOSTATIC_POT" href="#traceon.excitation.ExcitationType.MAGNETOSTATIC_POT">MAGNETOSTATIC_POT</a></code></li>
 <li><code><a title="traceon.excitation.ExcitationType.VOLTAGE_FIXED" href="#traceon.excitation.ExcitationType.VOLTAGE_FIXED">VOLTAGE_FIXED</a></code></li>
 <li><code><a title="traceon.excitation.ExcitationType.VOLTAGE_FUN" href="#traceon.excitation.ExcitationType.VOLTAGE_FUN">VOLTAGE_FUN</a></code></li>
+<li><code><a title="traceon.excitation.ExcitationType.is_electrostatic" href="#traceon.excitation.ExcitationType.is_electrostatic">is_electrostatic</a></code></li>
+<li><code><a title="traceon.excitation.ExcitationType.is_magnetostatic" href="#traceon.excitation.ExcitationType.is_magnetostatic">is_magnetostatic</a></code></li>
 </ul>
 </li>
 </ul>
