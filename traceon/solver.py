@@ -64,18 +64,25 @@ class Solver:
     def __init__(self, excitation):
         self.excitation = excitation
         vertices, names = self.get_active_elements()
+        
+        self.excitation = excitation
+        self.vertices = vertices
+        self.names = names
          
         N = len(vertices)
         excitation_types = np.zeros(N, dtype=np.uint8)
         excitation_values = np.zeros(N)
          
         for n, indices in names.items():
-            excitation_types[indices] = int( excitation.excitation_types[n][0] )
-            excitation_values[indices] = excitation.excitation_types[n][1]
-         
-        self.excitation = excitation
-        self.vertices = vertices
-        self.names = names
+            type_ = excitation.excitation_types[n][0]
+            excitation_types[indices] = int(type_)
+            
+            if type_ != E.ExcitationType.VOLTAGE_FUN:
+                excitation_values[indices] = excitation.excitation_types[n][1]
+            else:
+                function = excitation.excitation_types[n][1]
+                excitation_values[indices] = [function(*self.get_center_of_element(i)) for i in indices]
+          
         self.excitation_types = excitation_types
         self.excitation_values = excitation_values
 
@@ -220,10 +227,8 @@ class ElectrostaticSolver(Solver):
          
         # TODO: optimize in backend?
         for i, (type_, value) in enumerate(zip(self.excitation_types, self.excitation_values)):
-            if type_ == E.ExcitationType.VOLTAGE_FIXED:
+            if type_ in [E.ExcitationType.VOLTAGE_FIXED, E.ExcitationType.VOLTAGE_FUN]:
                 F[i] = value
-            elif type_ == E.ExcitationType.VOLTAGE_FUN:
-                F[i] = value(self.get_center_of_element(i))
             elif type_ == E.ExcitationType.DIELECTRIC:
                 F[i] = 0
          

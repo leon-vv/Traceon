@@ -15,6 +15,9 @@ from validation import Validation
 def gap_voltage(x, y):
     return (y-9.9)/0.2 * 10
 
+def gap_voltage_3d(x, y, z):
+    return (z-9.9)/0.2 * 10
+
 class TwoCylinderEdwards(Validation):
     
     def __init__(self):
@@ -74,7 +77,7 @@ class TwoCylinderEdwards(Validation):
 
     def get_excitation(self, geom):
         exc = E.Excitation(geom)
-        exc.add_voltage(v1=0, v2=10)#, gap=gap_voltage)
+        exc.add_voltage(v1=0, v2=10)
         return exc
 
     def correct_value_of_interest(self):
