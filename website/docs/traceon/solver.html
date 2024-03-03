@@ -611,9 +611,9 @@ class Field:
         elec, mag = self.is_electrostatic(), self.is_magnetostatic()
          
         if elec and not mag:
-            return self.electrostatic_potential_at_point(*args, **kwargs)
+            return self.electrostatic_potential_at_point(point)
         elif not elec and mag:
-            return self.magnetostatic_potential_at_point(*args, **kwargs)
+            return self.magnetostatic_potential_at_point(point)
          
         raise RuntimeError(&#34;Cannot use potential_at_point when both electric and magnetic fields are present, &#34; \
             &#34;use electrostatic_potential_at_point or magnetostatic_potential_at_point&#34;)
@@ -1120,8 +1120,8 @@ class FieldAxial(Field):
         self.electrostatic_coeffs = electrostatic_coeffs if electrostatic_coeffs is not None else np.zeros_like(magnetostatic_coeffs)
         self.magnetostatic_coeffs = magnetostatic_coeffs if magnetostatic_coeffs is not None else np.zeros_like(electrostatic_coeffs)
         
-        self.has_electrostatic = electrostatic_coeffs != None
-        self.has_magnetostatic = magnetostatic_coeffs != None
+        self.has_electrostatic = np.any(self.electrostatic_coeffs != 0.)
+        self.has_magnetostatic = np.any(self.magnetostatic_coeffs != 0.)
      
     def is_electrostatic(self):
         return self.has_electrostatic
@@ -1487,9 +1487,9 @@ are the physical groups with unity excitation, and the values are the resulting 
         elec, mag = self.is_electrostatic(), self.is_magnetostatic()
          
         if elec and not mag:
-            return self.electrostatic_potential_at_point(*args, **kwargs)
+            return self.electrostatic_potential_at_point(point)
         elif not elec and mag:
-            return self.magnetostatic_potential_at_point(*args, **kwargs)
+            return self.magnetostatic_potential_at_point(point)
          
         raise RuntimeError(&#34;Cannot use potential_at_point when both electric and magnetic fields are present, &#34; \
             &#34;use electrostatic_potential_at_point or magnetostatic_potential_at_point&#34;)</code></pre>
@@ -1580,9 +1580,9 @@ Throws an exception when the field is both electrostatic and magnetostatic.</p>
     elec, mag = self.is_electrostatic(), self.is_magnetostatic()
      
     if elec and not mag:
-        return self.electrostatic_potential_at_point(*args, **kwargs)
+        return self.electrostatic_potential_at_point(point)
     elif not elec and mag:
-        return self.magnetostatic_potential_at_point(*args, **kwargs)
+        return self.magnetostatic_potential_at_point(point)
      
     raise RuntimeError(&#34;Cannot use potential_at_point when both electric and magnetic fields are present, &#34; \
         &#34;use electrostatic_potential_at_point or magnetostatic_potential_at_point&#34;)</code></pre>
@@ -2259,8 +2259,8 @@ This base class overloads the +,*,- operators so it is very easy to take a super
         self.electrostatic_coeffs = electrostatic_coeffs if electrostatic_coeffs is not None else np.zeros_like(magnetostatic_coeffs)
         self.magnetostatic_coeffs = magnetostatic_coeffs if magnetostatic_coeffs is not None else np.zeros_like(electrostatic_coeffs)
         
-        self.has_electrostatic = electrostatic_coeffs != None
-        self.has_magnetostatic = magnetostatic_coeffs != None
+        self.has_electrostatic = np.any(self.electrostatic_coeffs != 0.)
+        self.has_magnetostatic = np.any(self.magnetostatic_coeffs != 0.)
      
     def is_electrostatic(self):
         return self.has_electrostatic
