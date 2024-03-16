@@ -13,6 +13,7 @@ or the `MEMSStack` class, if your geometry consists of a stack of MEMS fabricate
 from math import sqrt
 from enum import Enum
 import pickle
+from itertools import chain
 
 import numpy as np
 from pygmsh import *
@@ -279,12 +280,12 @@ class Mesh(Saveable):
             self.points = np.empty((0,3), dtype=np.float64)
          
         if len(lines):
-            self.lines = np.array(lines)
+            self.lines = np.array(lines, dtype=np.uint64)
         else:
             self.lines = np.empty((0,2), dtype=np.uint64)
     
         if len(triangles):
-            self.triangles = np.array(triangles)
+            self.triangles = np.array(triangles, dtype=np.uint64)
         else:
             self.triangles = np.empty((0, 3), dtype=np.uint64)
          
@@ -306,6 +307,17 @@ class Mesh(Saveable):
     
     def move(self, vector):
         self.points += vector
+
+    def _merge_dicts(dict1, dict2):
+        dict_ = {}
+        
+        for (k, v) in chain(dict1.items(), dict2.items()):
+            if k in dict_:
+                dict_[k] = np.concatenate( (dict_[k], v), axis=0)
+            else:
+                dict_[k] = v
+
+        return dict_
      
     def __add__(self, other):
         assert isinstance(other, Mesh)
@@ -318,9 +330,12 @@ class Mesh(Saveable):
         points = _concat_arrays(self.points, other.points)
         lines = _concat_arrays(self.lines, other.lines+N_points)
         triangles = _concat_arrays(self.triangles, other.triangles+N_points)
+
+        other_physical_to_lines = {k:(v+N_lines) for k, v in other.physical_to_lines.items()}
+        other_physical_to_triangles = {k:(v+N_triangles) for k, v in other.physical_to_triangles.items()}
          
-        physical_lines = {**self.physical_to_lines, **{k:(v+N_lines) for k, v in other.physical_to_lines.items()}}
-        physical_triangles = {**self.physical_to_triangles, **{k:(v+N_triangles) for k, v in other.physical_to_triangles.items()}}
+        physical_lines = Mesh._merge_dicts(self.physical_to_lines, other_physical_to_lines)
+        physical_triangles = Mesh._merge_dicts(self.physical_to_triangles, other_physical_to_triangles)
          
         return Mesh(self.symmetry,
                         points=points,
