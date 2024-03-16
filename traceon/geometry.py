@@ -23,226 +23,395 @@ import meshio
 from .util import Saveable
 from .backend import N_QUAD_2D, position_and_jacobian_radial, position_and_jacobian_3d, normal_3d
 
-def revolve_around_optical_axis(geom, elements, factor=1.0):
-    """
-    Revolve geometry elements around the optical axis. Useful when you
-    want to generate 3D geometries from a cylindrically symmetric 2D geometry.
+def _points_close(p1, p2, tolerance=1e-8):
+    return np.allclose(p1, p2, atol=Path._tolerance)
+
+class GeometricObject:
+    def map_points(self, fun):
+        pass
     
-    Parameters
-    ----------
-    geom : Geometry
+    def move(self, dx=0., dy=0., dz=0.):
+        assert isinstance(dx, float) or isinstance(dx, int)
+        return self.map_points(lambda p: p + np.array([dx, dy, dz]))
+     
+    def rotate(self, Rx=0., Ry=0., Rz=0.):
+        assert sum([Rx==0., Ry==0., Rz==0.]) >= 2, "Only supply one axis of rotation"
          
-    elements : list of GMSH elements
-        The geometry elements to revolve. These should have been returned previously from for example
-        a call to geom.add_line(...).
-        
-    factor : float
-         How far the elements should be revolved around the optical axis. factor=1.0 corresponds
-         to a full revolution ( \(2\pi \) radians) around the optical axis, while for example 0.5
-         corresponds to a revolution of only \(\pi\) radians. (Default value = 1.0).
+        if Rx != 0.:
+            matrix = np.array([[1, 0, 0],
+                [0, np.cos(Rx), -np.sin(Rx)],
+                [0, np.sin(Rx), np.cos(Rx)]])
+        elif Ry != 0.:
+            matrix = np.array([[np.cos(Ry), 0, np.sin(Ry)],
+                [0, 1, 0],
+                [-np.sin(Ry), 0, np.cos(Ry)]])
+        elif Rz != 0.:
+            matrix = np.array([[np.cos(Rz), -np.sin(Rz), 0],
+                [np.sin(Rz), np.cos(Rz), 0],
+                [0, 0, 1]])
 
-    Returns
-    -------
-    A list of surface elements representing the revolution around the optical axis.
-    """
-    revolved = []
-    
-    for e in (elements if isinstance(elements, list) else [elements]):
+        return self.map_points(lambda p: matrix @ p)
+
+    def rotate_around_point(self, origin, dphi=0., dtheta=0.):
+        origin = np.array(origin)
         
-        top = e
-        for i in range(4):
-            top, extruded, lateral = geom.revolve(top, [0.0, 0.0, 1.0], [0.0, 0.0, 0.0], factor*0.5*np.pi)
-            revolved.append(extruded)
+        def fun(p):
+            vec = p - origin
+            r = sqrt(vec[0]**2 + vec[1]**2)
+            phi0 = atan2(vec[1], vec[0])
+            theta0 = atan2(vec[2], r)
+            return origin + np.array([
+                r*sin(theta0+dtheta)*cos(phi0+dphi),
+                r*sin(theta0+dtheta)*sin(phi0+dphi),
+                r*cos(theta0+dtheta)])
+
+        return self.map_points(fun)
+    
+    def mirror_xz(self):
+        return self.map_points(lambda p: np.array([p[0], -p[1], p[2]]))
      
-    return revolved
-
-class Symmetry(Enum):
-    """
-    Symmetry of the geometry. Used when deciding which formulas to use in the Boundary Element Method. The currently
-    supported symmetries are radial symmetry (also called cylindrical symmetry) and general 3D geometries.
-    """
-    RADIAL = 0
-    THREE_D = 2
-
-    def __str__(self):
-        if self == Symmetry.RADIAL:
-            return 'radial'
-        elif self == Symmetry.THREE_D:
-            return '3d' 
+    def mirror_yz(self):
+        return self.map_points(lambda p: np.array([-p[0], -p[1], p[2]]))
     
-    def is_2d(self):
-        return self == Symmetry.RADIAL
-        
-    def is_3d(self):
-        return self == Symmetry.THREE_D
-
-class Geometry(geo.Geometry):
-    """
-    Small wrapper class around pygmsh.geo.Geometry which itself is a small wrapper around the powerful GMSH library.
-    See the GMSH and pygmsh documentation to learn how to build any 2D or 3D geometry. This class makes it easier to control
-    the mesh size (using the _mesh size factor_) and optionally allows to scale the mesh size with the distance from the optical
-    axis. It also add support for multiple calls to the `add_physical` method with the same name.
-    
-    Parameters
-    ---------
-    symmetry: Symmetry
-
-    size_from_distance: bool, optional
-        Scale the mesh size with the distance from the optical axis (z-axis).
-
-    zmin: float, optional
-    zmax: float, optional
-        When `size_from_distance=True` geometric elements that touch the optical axis (as in electrostatic mirrors)
-        will imply a zero mesh size and therefore cause singularities. The zmin and zmax arguments
-        allow to specify which section of the optical axis will be reachable by the electrons. When
-        calculating the mesh size the distance from the closest point on this section of the optical axis is used.
-        This prevents singularities.
-    """
-    def __init__(self, symmetry, size_from_distance=False, zmin=None, zmax=None, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        self.size_from_distance = size_from_distance
-        self.zmin = zmin
-        self.zmax = zmax
-        self.MSF = None
-        self.symmetry = symmetry
-        self._physical_queue = dict()
-
-    def __str__(self):
-        if self.zmin is not None and self.zmax is not None:
-            return f'<Traceon Geometry {self.symmetry}, zmin={self.zmin:.2f} mm, zmax={self.zmax:.2f} mm'
-        else:
-            return f'<Traceon Geometry {self.symmetry}>'
-
-    def is_3d(self):
-        """Check if the geometry is three dimensional.
-
-        Returns
-        ----------------
-        True if geometry is three dimensional, False if the geometry is two dimensional"""
-        return self.symmetry.is_3d()
-
-    def is_2d(self):
-        """Check if the geometry is two dimensional.
-
-        Returns
-        ----------------
-        True if geometry is two dimensional, False if the geometry is three dimensional"""
-
-        return self.symmetry.is_2d()
+    def mirror_xy(self):
+        return self.map_points(lambda p: np.array([p[0], p[1], -p[2]]))
      
-    def add_physical(self, entities, name):
-        """
 
-        Parameters
-        ----------
-        entities : list of GMSH elements or GMSH element
-            Geometric entities to assign the given name (the given _physical group_ in GMSH terminology).
-        name : string
-            Name of the physical group.
-        """
-        if not isinstance(entities, list):
-            entities = [entities]
-        
-        if name in self._physical_queue:
-            self._physical_queue[name].extend(entities)
-        else:
-            self._physical_queue[name] = entities
+class Path(GeometricObject):
+    
+    def __init__(self, fun, path_length, breakpoints=[]):
+        # Assumption: fun takes in p, the path length
+        # and returns the point on the path
+        self.fun = fun
+        self.path_length = path_length
+        self.breakpoints = breakpoints
+    
+    def from_irregular_function(fun, N=100, breakpoints=[]):
+        # Construct a path from a function that
+        # is of the form u -> point, where 0 <= u <= 1.
+        # We need to regularize it such that it correctly accepts
+        # the path length and returns a point on the path.
+        #
+        # To regularize we integrate the norm of the derivative.
+        # path length = integrate |f'(x)|
+        def derivative(u, tol=1e-4):
+            assert 0 <= u <= 1
+             
+            if u - tol < 0.: # Use simply finite difference formula to approx. the derivative
+                f1, f2, f3 = fun(u), fun(u+tol), fun(u+2*tol)
+                return (-3/2*f1 + 2*f2 - 1/2*f3)/tol
+            elif u + tol > 1:
+                f1, f2, f3 = fun(u-2*tol), fun(u-tol), fun(u)
+                return (1/2*f1 -2*f2 + 3/2*f3)/tol
+            else:
+                return (-1/2*fun(u-tol) + 1/2*fun(u+tol))/tol
+            
+        u = np.linspace(0, 1, N)
+        samples = [np.linalg.norm(derivative(u_)) for u_ in u]
+        cum_sum = cumulative_simpson(samples, dx=u[1]-u[0], initial=0.)
+        path_length = cum_sum[-1]
+        interpolation = CubicSpline(cum_sum, u) # Path length to u
 
-    def _generate_mesh(self, dimension, higher_order=False, *args, **kwargs):
-        assert dimension == 1 or dimension == 2, "Currently only line and triangle meshes supported (dimension 1 or 2)"
+        return Path(lambda pl: fun(interpolation(pl)), path_length, breakpoints=breakpoints)
+    
+    def map_points(self, fun):
+        return Path(lambda u: fun(self(u)), self.path_length, self.breakpoints)
+     
+    def __call__(self, t):
+        assert 0 <= t <= self.path_length
+        return self.fun(t)
+     
+    def is_closed(self):
+        return _points_close(self.starting_point(), self.final_point())
+    
+    def add_phase(self, l):
+        assert self.is_closed()
         
-        for label, entities in self._physical_queue.items():
-            super().add_physical(entities, label)
+        def fun(u):
+            return self( (l + u) % self.path_length )
+        
+        return Path(fun, self.path_length, sorted([(b-l)%self.path_length for b in self.breakpoints + [0.]]))
+     
+    def __rshift__(self, other):
+        assert isinstance(other, Path), "Exteding path with object that is not actually a Path"
+
+        assert _points_close(self.final_point(), other.starting_point())
+
+        total = self.path_length + other.path_length
+         
+        def f(t):
+            assert 0 <= t <= total
+            
+            if t <= self.path_length:
+                return self(t)
+            else:
+                return other(t - self.path_length)
+        
+        return Path(f, total, self.breakpoints + [self.path_length] + other.breakpoints)
+
+    def starting_point(self):
+        return self(0.)
+    def middle_point(self):
+        return self(self.path_length/2)
+    def final_point(self):
+        return self(self.path_length)
+    
+    def line_to(self, point):
+        point = np.array(point)
+        l = Path.line(self.final_point(), point)
+        return self >> l
+     
+    def revolve_x(self, angle=2*pi):
+        pstart, pmiddle, pfinal = self.starting_point(), self.middle_point(), self.final_point()
+        rstart = sqrt(pstart[1]**2 + pstart[2]**2)
+        rmiddle = sqrt(pmiddle[1]**2 + pmiddle[2]**2)
+        rfinal = sqrt(pfinal[1]**2 + pfinal[2]**2)
+        
+        length2 = 2*pi*max([rstart, rmiddle, rfinal])
+         
+        def f(u, v):
+            p = self(u)
+            theta = atan2(p[2], p[1])
+            r = sqrt(p[1]**2 + p[2]**2)
+            return np.array([p[0], r*cos(theta + v/length2*angle), r*sin(theta + v/length2*angle)])
+         
+        return Surface(f, self.path_length, length2, self.breakpoints)
+    
+    def revolve_y(self, angle=2*pi):
+        pstart, pfinal = self.starting_point(), self.final_point()
+        rstart = sqrt(pstart[0]**2 + pstart[2]**2)
+        rfinal = sqrt(pfinal[0]**2 + pfinal[2]**2)
+        
+        length2 = 2*pi*max(rstart, rfinal)
+         
+        def f(u, v):
+            p = self(u)
+            theta = atan2(p[2], p[0])
+            r = sqrt(p[0]*p[0] + p[2]*p[2])
+            return np.array([r*cos(theta + v/length2*angle), p[1], r*sin(theta + v/length2*angle)])
+         
+        return Surface(f, self.path_length, length2, self.breakpoints)
+    
+    def revolve_z(self, angle=2*pi):
+        pstart, pfinal = self.starting_point(), self.final_point()
+        rstart = sqrt(pstart[0]**2 + pstart[1]**2)
+        rfinal = sqrt(pfinal[0]**2 + pfinal[1]**2)
+
+        length2 = 2*pi*max(rstart, rfinal)
+        
+        def f(u, v):
+            p = self(u)
+            theta = atan2(p[1], p[0])
+            r = sqrt(p[0]*p[0] + p[1]*p[1])
+            return np.array([r*cos(theta + v/length2*angle), r*sin(theta + v/length2*angle), p[2]])
+        
+        return Surface(f, self.path_length, length2, self.breakpoints)
+     
+    def extrude(self, vector):
+        vector = np.array(vector)
+        length = np.linalg.norm(vector)
+         
+        def f(u, v):
+            return self(u) + v/length*vector
+        
+        return Surface(f, self.path_length, length, self.breakpoints)
+    
+    def extrude_by_path(self, p2):
+        p0 = p2.starting_point()
+         
+        def f(u, v):
+            return self(u) + p2(v) - p0
+
+        return Surface(f, self.path_length, p2.path_length, self.breakpoints, p2.breakpoints)
+
+        
+    def close(self):
+        return self.line_to(self.starting_point())
+    
+    def ellipse(major, minor):
+        # Crazy enough there is no closed formula
+        # to go from path length to a point on the ellipse.
+        # So we have to use `from_irregular_function`
+        def f(u):
+            return np.array([major*cos(2*pi*u), minor*sin(2*pi*u), 0.])
+        return Path.from_irregular_function(f)
+    
+    def circle(radius):
+        def f(u):
+            theta = u / radius 
+            return np.array([radius*cos(theta), radius*sin(theta), 0.])
+        
+        return Path(f, 2*pi*radius)
+    
+    def line(from_, to):
+        from_, to = np.array(from_), np.array(to)
+        length = np.linalg.norm(from_ - to)
+        return Path(lambda pl: (1-pl/length)*from_ + pl/length*to, length)
+
+    def cut(self, length):
+        return Path(self.fun, length, [b for b in self.breakpoints if b <= length])
+
+    def rectangle_xz(xmin, xmax, zmin, zmax):
+        return Path.line([xmin, 0., zmin], [xmin, 0, zmax]) \
+            .line_to([xmax, 0, zmax]).line_to([xmax, 0., zmin]).close()
+     
+    def rectangle_yz(ymin, ymax, zmin, zmax):
+        return Path.line([0., ymin, zmin], [0, ymax, zmin]) \
+            .line_to([0., ymax, zmax]).line_to([0., ymin, zmax]).close()
+     
+    def rectangle_xy(xmin, xmax, ymin, ymax):
+        return Path.line([xmin, ymin, 0.], [xmax, ymin, 0.]) \
+            .line_to([xmax, ymax, 0.]).line_to([xmin, ymax, 0.]).close()
+
+
+class Surface(GeometricObject):
+    def __init__(self, fun, path_length1, path_length2, breakpoints1=[], breakpoints2=[]):
+        self.fun = fun
+        self.path_length1 = path_length1
+        self.path_length2 = path_length2
+        self.breakpoints1 = breakpoints1
+        self.breakpoints2 = breakpoints2
+     
+    def __call__(self, u, v):
+        assert 0 <= u <= self.path_length1
+        assert 0 <= v <= self.path_length2
+        return self.fun(u, v)
+
+    def map_points(self, fun):
+        return Surface(lambda u, v: fun(self(u, v)),
+            self.path_length1, self.path_length2,
+            self.breakpoints1, self.breakpoints2)
+     
+    def spanned_by_paths(path1, path2):
+        length1 = max(path1.path_length, path2.path_length)
+        
+        length_start = np.linalg.norm(path1.starting_point() - path2.starting_point())
+        length_final = np.linalg.norm(path1.final_point() - path2.final_point())
+        length2 = (length_start + length_final)/2
+         
+        def f(u, v):
+            p1 = path1(u/length1*path1.path_length) # u/l*p = b, u = l*b/p
+            p2 = path2(u/length1*path2.path_length)
+            return (1-v/length2)*p1 + v/length2*p2
+
+        breakpoints = sorted([length1*b/path1.path_length for b in path1.breakpoints] + \
+                                [length1*b/path2.path_length for b in path2.breakpoints])
+         
+        return Surface(f, length1, length2, breakpoints)
+
+    def sphere(radius):
+        
+        length1 = 2*pi*radius
+        length2 = pi*radius
+         
+        def f(u, v):
+            phi = u/radius
+            theta = v/radius
+            
+            return np.array([
+                radius*sin(theta)*cos(phi),
+                radius*sin(theta)*sin(phi),
+                radius*cos(theta)]) 
+        
+        return Surface(f, length1, length2)
+
+    
+    def _from_boundary_paths(path1, path2, path3, path4):
+        pl1, pl2, pl3, pl4 = path1.path_length, path2.path_length, \
+            path3.path_length, path4.path_length
+         
+        length1 = (pl1+pl3)/2
+        length2 = (pl2+pl4)/2
+        
+        def f(u, v):
+            k = u/length1
+            l = v/length2
+            p1 = path1(k*pl1)
+            p2 = path2(l*pl2)
+            p3 = path3((1-k)*pl3)
+            p4 = path4((1-l)*pl4)
+             
+            sum_ = (k**2 - k)*( (1-l) + l) + (l**2-l)*((1-k) + k)
+            return ( (k**2 - k)*((1-l)*p1 + l*p3) + (l**2-l)*((1-k)*p2 + k*p4) )/sum_
+            
+            return (1-k)*p2 + k*p4 #+ (1-l)*p1 + l*p3
+        
+        breakpoints1 = path1.breakpoints + path3.breakpoints
+        breakpoints2 = path2.breakpoints + path4.breakpoints
+         
+        return Surface(f, length1, length2, sorted(breakpoints1), sorted(breakpoints2))
+     
+    def _discretize_path(path_length, breakpoints, mesh_size):
+        # Return the arguments to use to breakup the path
+        # in a 'nice' way
+        
+        # Points that have to be in, in any case
+        points = [0.] + breakpoints +  [path_length]
+
+        subdivision = []
+         
+        for (u0, u1) in zip(points, points[1:]):
+            if u0 == u1:
+                continue
+                  
+            N = max( ceil((u1-u0)/mesh_size), 2)
+            subdivision.append(np.linspace(u0, u1, N, endpoint=False))
           
-        if self.size_from_distance:
-            self.set_mesh_size_callback(self._mesh_size_callback)
-        
-        if dimension == 1 and higher_order:
-            gmsh.option.setNumber('Mesh.ElementOrder', 3)
-        elif dimension == 1 and not higher_order:
-            gmsh.option.setNumber('Mesh.ElementOrder', 1)
-        elif dimension == 2 and higher_order:
-            gmsh.option.setNumber('Mesh.ElementOrder', 2)
-        elif dimension == 2 and not higher_order:
-            gmsh.option.setNumber('Mesh.ElementOrder', 1)
-        
-        return Mesh.from_meshio(super().generate_mesh(dim=dimension, *args, **kwargs), self.symmetry)
-
-    def generate_line_mesh(self, higher_order, *args, **kwargs):
-        """Generate boundary mesh in 2D, by splitting the boundary in line elements.
-
-        Parameters
-        -----------------
-        higher_order: bool
-            Whether to use higher order (curved) line elements.
-
-        Returns
-        ----------------
-        `Mesh`
-        """
-        if self.MSF is not None:
-            gmsh.option.setNumber('Mesh.MeshSizeFactor', 1/self.MSF)
-        return self._generate_mesh(*args, higher_order=higher_order, dimension=1, **kwargs)
-    
-    def generate_triangle_mesh(self, higher_order, *args, **kwargs):
-        """Generate triangle mesh. Note that also 2D meshes can have triangles, which can current coils.
-        
-        Parameters
-        -----------------
-        higher_order: bool
-            Whether to use higher order (curved) line elements.
-        
-        Returns
-        ----------------
-        `Mesh`
-        """
-        if self.MSF is not None:
-            # GMSH seems to produce meshes which contain way more elements for 3D geometries
-            # with the same mesh factor. This is confusing for users and therefore we arbtrarily
-            # increase the mesh size to roughly correspond with the 2D number of elements.
-            gmsh.option.setNumber('Mesh.MeshSizeFactor', 4*sqrt(1/self.MSF))
-        return self._generate_mesh(*args, higher_order=higher_order, dimension=2, **kwargs)
-    
-    def set_mesh_size_factor(self, factor):
-        """
-        Set the mesh size factor. Which simply scales with the total number of elements in the mesh.
-        
-        Parameters
-        ----------
-        factor : float
-            The mesh size factor to use. 
-        
-        """
-        self.MSF = factor
-     
-    def set_minimum_mesh_size(self, size):
-        """
-        Set the minimum mesh size possible. Especially useful when geometric elements touch
-        the optical axis and cause singularities when used with `size_from_distance=True`.
-        
-        Parameters
-        ----------
-        size : float
-            The minimum mesh size.  
-
-        """
-        gmsh.option.setNumber('Mesh.MeshSizeMin', size)
-     
-    def _mesh_size_callback(self, dim, tag, x, y, z, _):
-        # Scale mesh size with distance to optical axis, but only the part of the optical
-        # axis that lies between zmin and zmax
-        
-        z_optical = y if self.symmetry == Symmetry.RADIAL else z
+        subdivision.append( [path_length] )
          
-        if self.zmin is not None:
-            z_optical = max(z_optical, self.zmin)
-        if self.zmax is not None:
-            z_optical = min(z_optical, self.zmax)
+        return np.concatenate(subdivision)
+    
+    def mesh(self, mesh_size=None, name=None):
+        
+        if mesh_size is None:
+            mesh_size = min(self.path_length1, self.path_length2)/10
+        
+        u = Surface._discretize_path(self.path_length1, self.breakpoints1, mesh_size)
+        v = Surface._discretize_path(self.path_length2, self.breakpoints2, mesh_size)
+        
+        Nu, Nv = len(u), len(v)
+        
+        points = np.zeros( (Nu, Nv, 3) )
          
-        if self.symmetry == Symmetry.RADIAL:
-            return sqrt( x**2 + (y-z_optical)**2 )
+        for i in range(Nu):
+            for j in range(Nv):
+                points[i, j] = self(u[i], v[j])
+         
+        ru, rv = np.arange(Nu), np.arange(Nv)
+        a = (ru[:-1], rv[:-1])
+        b = (ru[1:], rv[:-1])
+        c = (ru[1:], rv[1:])
+        to_linear = lambda i, j: [i_*Nv + j_ for i_ in i for j_ in j]
+        lower_indices = np.array([to_linear(*a), to_linear(*b), to_linear(*c)]).T
+        assert np.all(lower_indices < Nu*Nv)
+        
+        # Upper triangles
+        a = (ru[:-1], rv[:-1])
+        b = (ru[:-1], rv[1:])
+        c = (ru[1:], rv[1:])
+        upper_indices = np.array([to_linear(*a), to_linear(*b), to_linear(*c)]).T
+        assert np.all(upper_indices < Nu*Nv)
+        
+        points = np.reshape(points, (Nu*Nv, 3))
+        triangles = np.concatenate( (lower_indices, upper_indices), axis=0)
+
+        assert triangles.dtype == np.int64
+        
+        if name is not None:
+            physical_to_triangles = {name:np.arange(len(triangles))}
         else:
-            return sqrt( x**2 + y**2 + (z-z_optical)**2 )
+            physical_to_triangles = {}
+
+        return G.Mesh(G.Symmetry.THREE_D, points=points, triangles=triangles, physical_to_triangles=physical_to_triangles)
+
+
+def aperture(height, radius, extent, name=None, mesh_size=None):
+    l = Path.line([extent, 0., -height/2], [radius, 0., -height/2])\
+            .line_to([radius, 0., height/2]).line_to([extent, 0., height/2])
+    return l.revolve_z().mesh(name=name, mesh_size=mesh_size)
+
+
+
 
 def _concat_arrays(arr1, arr2):
     if not len(arr1):
@@ -254,7 +423,7 @@ def _concat_arrays(arr1, arr2):
     
     return np.concatenate( (arr1, arr2), axis=0)
 
-class Mesh(Saveable):
+class Mesh(Saveable, GeometricObject):
     """Class containing a mesh.
     For now, to make things manageable only lines and triangles are supported.
     Lines and triangles can be higher order (curved) or not. But a mesh cannot contain
@@ -305,9 +474,10 @@ class Mesh(Saveable):
     def is_higher_order(self):
         return (len(self.lines) and self.lines.shape[1] == 4) or (len(self.triangles) and self.triangles.shape[1] == 6)
     
-    def move(self, vector):
-        self.points += vector
-
+    def map_points(self, fun):
+        new_points = np.vectorize(fun)(self.points)
+        return Mesh(self.symmetry, new_points, self.lines, self.triangles, self.physical_to_lines, self.physical_to_triangles)
+    
     def _merge_dicts(dict1, dict2):
         dict_ = {}
         
