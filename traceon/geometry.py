@@ -26,6 +26,27 @@ from .backend import N_QUAD_2D, position_and_jacobian_radial, position_and_jacob
 def _points_close(p1, p2, tolerance=1e-8):
     return np.allclose(p1, p2, atol=Path._tolerance)
 
+def _discretize_path(path_length, breakpoints, mesh_size):
+    # Return the arguments to use to breakup the path
+    # in a 'nice' way
+    
+    # Points that have to be in, in any case
+    points = [0.] + breakpoints +  [path_length]
+
+    subdivision = []
+        
+    for (u0, u1) in zip(points, points[1:]):
+        if u0 == u1:
+            continue
+                
+        N = max( ceil((u1-u0)/mesh_size), 2)
+        subdivision.append(np.linspace(u0, u1, N, endpoint=False))
+        
+    subdivision.append( [path_length] )
+        
+    return np.concatenate(subdivision)
+
+
 class GeometricObject:
     def map_points(self, fun):
         pass
@@ -262,6 +283,29 @@ class Path(GeometricObject):
     def rectangle_xy(xmin, xmax, ymin, ymax):
         return Path.line([xmin, ymin, 0.], [xmax, ymin, 0.]) \
             .line_to([xmax, ymax, 0.]).line_to([xmin, ymax, 0.]).close()
+    
+    def mesh(self, mesh_size=None, name=None):
+        
+        if mesh_size is None:
+            mesh_size = self.path_length/10
+        
+        u = _discretize_path(self.path_length, self.breakpoints, mesh_size)
+        
+        N = len(u) 
+        points = np.zeros( (Nu, 3) )
+         
+        for i in range(Nu):
+            points[i] = self(u[i])
+         
+        lines = np.array([np.arange(N-1), np.arange(1, N)]).T
+        assert lines.dtype == np.int64
+         
+        if name is not None:
+            physical_to_lines = {name:np.arange(len(lines))}
+        else:
+            physical_to_lines = {}
+        
+        return G.Mesh(points=points, lines=lines, physical_to_lines=physical_to_lines)
 
 
 class Surface(GeometricObject):
@@ -341,26 +385,7 @@ class Surface(GeometricObject):
          
         return Surface(f, length1, length2, sorted(breakpoints1), sorted(breakpoints2))
      
-    def _discretize_path(path_length, breakpoints, mesh_size):
-        # Return the arguments to use to breakup the path
-        # in a 'nice' way
         
-        # Points that have to be in, in any case
-        points = [0.] + breakpoints +  [path_length]
-
-        subdivision = []
-         
-        for (u0, u1) in zip(points, points[1:]):
-            if u0 == u1:
-                continue
-                  
-            N = max( ceil((u1-u0)/mesh_size), 2)
-            subdivision.append(np.linspace(u0, u1, N, endpoint=False))
-          
-        subdivision.append( [path_length] )
-         
-        return np.concatenate(subdivision)
-    
     def mesh(self, mesh_size=None, name=None):
         
         if mesh_size is None:
