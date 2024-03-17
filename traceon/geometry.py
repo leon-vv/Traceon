@@ -55,8 +55,10 @@ class GeometricObject:
         assert isinstance(dx, float) or isinstance(dx, int)
         return self.map_points(lambda p: p + np.array([dx, dy, dz]))
      
-    def rotate(self, Rx=0., Ry=0., Rz=0.):
+    def rotate(self, Rx=0., Ry=0., Rz=0., origin=[0., 0., 0.]):
         assert sum([Rx==0., Ry==0., Rz==0.]) >= 2, "Only supply one axis of rotation"
+        origin = np.array(origin)
+        assert origin.shape == (3,), "Please supply a 3D point for origin"
          
         if Rx != 0.:
             matrix = np.array([[1, 0, 0],
@@ -71,23 +73,8 @@ class GeometricObject:
                 [np.sin(Rz), np.cos(Rz), 0],
                 [0, 0, 1]])
 
-        return self.map_points(lambda p: matrix @ p)
+        return self.map_points(lambda p: origin + matrix @ (p - origin))
 
-    def rotate_around_point(self, origin, dphi=0., dtheta=0.):
-        origin = np.array(origin)
-        
-        def fun(p):
-            vec = p - origin
-            r = sqrt(vec[0]**2 + vec[1]**2)
-            phi0 = atan2(vec[1], vec[0])
-            theta0 = atan2(vec[2], r)
-            return origin + np.array([
-                r*sin(theta0+dtheta)*cos(phi0+dphi),
-                r*sin(theta0+dtheta)*sin(phi0+dphi),
-                r*cos(theta0+dtheta)])
-
-        return self.map_points(fun)
-    
     def mirror_xz(self):
         return self.map_points(lambda p: np.array([p[0], -p[1], p[2]]))
      
