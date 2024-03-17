@@ -2,6 +2,7 @@ import unittest
 from math import *
 
 from traceon.geometry import *
+import traceon.plotting as P
 
 
 class PathTests(unittest.TestCase):
@@ -77,6 +78,44 @@ class PathTests(unittest.TestCase):
         
         for b in breakpoints:
             assert b in u
+    
+    def test_arc(self):
+        r = 2.
+        p = Path.arc([0., 0., 0.], [r, 0., 0.], [0., r, 0.])
+        assert np.isclose(p.path_length, 1/4 * 2*pi*r)
+        assert np.allclose(p(1/8 * 2*pi*r), [r/sqrt(2), r/sqrt(2), 0.])
+        
+        center = np.array([1., -1, -1])
+        p = Path.arc(center, center+np.array([r,0.,0.]), center+np.array([0.,r, 0.]))
+        assert np.isclose(p.path_length, 1/4 * 2*pi*r)
+        assert np.allclose(p(1/8 * 2*pi*r), center + np.array([r/sqrt(2), r/sqrt(2), 0.]))
+        
+        r = 3
+        center = np.array([0, r, 0.])
+        p = Path.arc(center, [0., 0., 0.], [0., r, r])
+        assert np.isclose(p.path_length, 1/4* 2*pi*r)
+        assert np.allclose(p(1/8 * 2*pi*r), center + np.array([0., -r/sqrt(2), r/sqrt(2)]))
+          
+        r = 3
+        center = np.array([0, r, 0.])
+        p = Path.arc(center, [0., 0., 0.], [0., r, r], reverse=True)
+        assert np.isclose(p.path_length, 3/4* 2*pi*r)
+        assert np.allclose(p(1/2 * 3/4*2*pi*r), center + np.array([0., +r/sqrt(2), -r/sqrt(2)]))
+          
+        r = 3
+        center = np.array([0, r, 0.])
+        p = Path.arc(center, [0., 0., 0.], [0., r, -r])
+        assert np.isclose(p.path_length, 1/4* 2*pi*r)
+        assert np.allclose(p(1/2 * 1/4*2*pi*r), center + np.array([0., -r/sqrt(2), -r/sqrt(2)]))
+        
+        r = 3
+        center = np.array([0, r, 0.])
+        p = Path.arc(center, [0., 0., 0.], [0., r, -r], reverse=True)
+        assert np.isclose(p.path_length, 3/4* 2*pi*r)
+        assert np.allclose(p(1/2 * 3/4*2*pi*r), center + np.array([0., r/sqrt(2), r/sqrt(2)]))
+         
+         
+
 
       
 class SurfaceTests(unittest.TestCase):

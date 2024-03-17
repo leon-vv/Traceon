@@ -187,6 +187,42 @@ class Path(GeometricObject):
         l = Path.line(self.final_point(), point)
         return self >> l
      
+    def circle(radius, angle=2*pi):
+        def f(u):
+            theta = u / radius 
+            return np.array([radius*cos(theta), radius*sin(theta), 0.])
+        
+        return Path(f, angle*radius)
+    
+    def arc_to(self, center, end, reverse=False):
+        start = self.final_point()
+        return self >> Path.arc(center, start, end, reverse=reverse)
+    
+    def arc(center, start, end, reverse=False):
+        start, center, end = np.array(start), np.array(center), np.array(end)
+         
+        x_unit = start - center
+        x_unit /= np.linalg.norm(x_unit)
+
+        vector = end - center
+         
+        y_unit = vector - np.dot(vector, x_unit) * x_unit
+        y_unit /= np.linalg.norm(y_unit)
+
+        radius = np.linalg.norm(start - center) 
+        theta_max = atan2(np.dot(vector, y_unit), np.dot(vector, x_unit))
+
+        if reverse:
+            theta_max = theta_max - 2*pi
+
+        path_length = abs(theta_max * radius)
+          
+        def f(l):
+            theta = l/path_length * theta_max
+            return center + radius*cos(theta)*x_unit + radius*sin(theta)*y_unit
+        
+        return Path(f, path_length)
+     
     def revolve_x(self, angle=2*pi):
         pstart, pmiddle, pfinal = self.starting_point(), self.middle_point(), self.final_point()
         rstart = sqrt(pstart[1]**2 + pstart[2]**2)
@@ -262,13 +298,7 @@ class Path(GeometricObject):
             return np.array([major*cos(2*pi*u), minor*sin(2*pi*u), 0.])
         return Path.from_irregular_function(f)
     
-    def circle(radius):
-        def f(u):
-            theta = u / radius 
-            return np.array([radius*cos(theta), radius*sin(theta), 0.])
         
-        return Path(f, 2*pi*radius)
-    
     def line(from_, to):
         from_, to = np.array(from_), np.array(to)
         length = np.linalg.norm(from_ - to)
