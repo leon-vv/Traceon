@@ -312,8 +312,7 @@ class Path(GeometricObject):
             p2 = r[1::3]
             p3 = r[2::3]
             lines = np.array([p0, p1, p2, p3]).T
-            print(points[lines])
-        
+          
         assert lines.dtype == np.int64
          
         if name is not None:
@@ -423,14 +422,14 @@ class Surface(GeometricObject):
         
         if not higher_order:
             # Lower triangles
-            a = (ru[:-1], rv[:-1])
-            b = (ru[1:], rv[:-1])
-            c = (ru[1:], rv[1:])
+            a = (ru[1:], rv[:-1])
+            b = (ru[1:], rv[1:])
+            c = (ru[:-1], rv[:-1])
             lower_indices = np.array([to_linear(*a), to_linear(*b), to_linear(*c)]).T
              
             # Upper triangles
-            a = (ru[:-1], rv[:-1])
-            b = (ru[:-1], rv[1:])
+            a = (ru[:-1], rv[1:])
+            b = (ru[:-1], rv[:-1])
             c = (ru[1:], rv[1:])
             upper_indices = np.array([to_linear(*a), to_linear(*b), to_linear(*c)]).T
         else:
@@ -657,6 +656,30 @@ class Mesh(Saveable, GeometricObject):
         True if mesh is two dimensional, False if the mesh is three dimensional"""
         return np.all(self.points[:, 2] == 0.)
     
+    def flip_normals(self):
+        lines = self.lines
+        triangles = self.triangles
+        
+        # Flip the orientation of the lines
+        if lines.shape[1] == 4:
+            p0, p1, p2, p3 = lines.T
+            lines = np.array([p1, p0, p3, p2]).T
+        else:
+            p0, p1 = lines.T
+            lines = np.array([p1, p0]).T
+          
+        # Flip the orientation of the triangles
+        if triangles.shape[1] == 6:
+            p0, p1, p2, p3, p4, p5 = triangles.T
+            triangles = np.array([p0, p2, p1, p5, p4, p3]).T
+        else:
+            p0, p1, p2 = triangles.T
+            triangles = np.array([p0, p2, p1]).T
+        
+        return Mesh(self.points, lines, triangles,
+            physical_to_lines=self.physical_to_lines,
+            physical_to_triangles=self.physical_to_triangles)
+     
     def remove_lines(self):
         return Mesh(self.points, triangles=self.triangles, physical_to_triangles=self.physical_to_triangles)
     
