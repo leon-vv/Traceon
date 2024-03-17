@@ -27,43 +27,20 @@ class SimpleMirror(Validation):
 
     def create_mesh(self, MSF, symmetry, higher_order):
         _3d = symmetry.is_3d()
+         
+        if _3d:
+            boundary = G.Path.line([0, 0, -1], [2, 0, -1]).line_to([2, 0, 1]).line_to([0.3, 0., 1]).revolve_z()
+            mirror = G.Path.line([0., 0., 0.], [1., 0., 0.]).revolve_z()
+        else:
+            boundary = G.Path.line([0, -1], [2, -1]).line_to([2, 1]).line_to([0.3, 1])
+            mirror = G.Path.line([0., 0.], [1., 0.])
+         
+        ms = 1/MSF
+        return boundary.mesh(mesh_size=ms, name='ground', higher_order=higher_order) + \
+                mirror.mesh(mesh_size=ms, name='mirror', higher_order=higher_order)
         
-        with G.Geometry(symmetry, size_from_distance=True, zmin=0.1, zmax=2) as geom:
-            
-            points = [ [0, -1], [2, -1], [2, 1], [0.3, 1] ]
-            if _3d: 
-                points = [ [p[0], 0.0, p[1]] for p in points ]
-            
-            points = [geom.add_point(p) for p in points]
-            
-            ground_lines = [geom.add_line(p1, p2) for p1, p2 in zip(points, points[1:])]
-                
-            if _3d:
-                revolved = G.revolve_around_optical_axis(geom, ground_lines)
-                geom.add_physical(revolved, 'ground')
-            else:
-                geom.add_physical(ground_lines, 'ground')
-            
-            points = [ [0.0, 0.0], [1, 0] ]
-            if _3d:
-                points = [ [p[0], 0.0, p[1]] for p in points ]
-            
-            points = [geom.add_point(p) for p in points]
-            
-            mirror_line = geom.add_line(points[0], points[1])
-            
-            geom.set_mesh_size_factor(MSF)
-            
-            if _3d:
-                revolved = G.revolve_around_optical_axis(geom, mirror_line)
-                geom.add_physical(revolved, 'mirror')
-                return geom.generate_triangle_mesh(higher_order)
-            else:
-                geom.add_physical(mirror_line, 'mirror')
-                return geom.generate_line_mesh(higher_order)
-     
-    def get_excitation(self, mesh):
-        excitation = E.Excitation(mesh)
+    def get_excitation(self, mesh, symmetry):
+        excitation = E.Excitation(mesh, symmetry)
         excitation.add_voltage(mirror=-110, ground=0.0)
         return excitation
     
@@ -83,6 +60,9 @@ class SimpleMirror(Validation):
         st = time.time()
         _, pos = tracer(pos, vel)
         print(f'Trace took {(time.time()-st)*1000:.0f} ms')
+
+        plt.plot(pos[:, 2], pos[:, 0])
+        plt.show()
         
         p = T.xy_plane_intersection(pos, 10)
         

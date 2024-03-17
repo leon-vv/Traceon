@@ -147,7 +147,7 @@ class Solver:
         
         N_matrix = self.get_number_of_matrix_elements()
         matrix = np.zeros( (N_matrix, N_matrix) )
-        print(f'Using matrix solver, number of elements: {N_matrix}, size of matrix: {N_matrix} ({matrix.nbytes/1e6:.0f} MB), symmetry: {self.excitation.mesh.symmetry}, higher order: {self.excitation.mesh.is_higher_order()}')
+        print(f'Using matrix solver, number of elements: {N_matrix}, size of matrix: {N_matrix} ({matrix.nbytes/1e6:.0f} MB), symmetry: {self.excitation.symmetry}, higher order: {self.excitation.mesh.is_higher_order()}')
         
         fill_fun = backend.fill_matrix_3d if self.is_3d() else backend.fill_matrix_radial
         
@@ -196,7 +196,7 @@ class Solver:
         assert isinstance(precision, int) and -2 <= precision <= 5, "Precision should be an intenger -2 <= precision <= 5"
          
         triangles = self.vertices
-        print(f'Using FMM solver, number of elements: {len(triangles)}, symmetry: {self.excitation.mesh.symmetry}, precision: {precision}')
+        print(f'Using FMM solver, number of elements: {len(triangles)}, symmetry: {self.excitation.symmetry}, precision: {precision}')
         
         N = len(triangles)
         assert triangles.shape == (N, 3, 3)

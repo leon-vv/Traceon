@@ -14,14 +14,30 @@ Currently current excitations are not supported in 3D. But magnetostatic fields 
 
 Once the excitation is specified, it can be passed to `traceon.solver.solve_bem` to compute the resulting field.
 """
-
-
 from enum import IntEnum
 
 import numpy as np
 
-from .geometry import Symmetry
 from .backend import N_QUAD_2D
+
+class Symmetry(IntEnum):
+    """Symmetry to be used for solver. Used when deciding which formulas to use in the Boundary Element Method. The currently
+    supported symmetries are radial symmetry (also called cylindrical symmetry) and general 3D geometries.
+    """
+    RADIAL = 0
+    THREE_D = 2
+    
+    def __str__(self):
+        if self == Symmetry.RADIAL:
+            return 'radial'
+        elif self == Symmetry.THREE_D:
+            return '3d' 
+    
+    def is_2d(self):
+        return self == Symmetry.RADIAL
+        
+    def is_3d(self):
+        return self == Symmetry.THREE_D
 
 class ExcitationType(IntEnum):
     """Possible excitation that can be applied to elements of the geometry. See the methods of `Excitation` for documentation."""
@@ -63,10 +79,15 @@ class ExcitationType(IntEnum):
 class Excitation:
     """ """
      
-    def __init__(self, mesh):
+    def __init__(self, mesh, symmetry):
         self.mesh = mesh
         self.electrodes = mesh.get_electrodes()
         self.excitation_types = {}
+        self.symmetry = symmetry
+         
+        if symmetry == Symmetry.RADIAL:
+            assert self.mesh.points.shape[1] == 2 or np.all(self.mesh.points[:, 2] == 0.), \
+                "When symmetry is RADIAL, the geometry should lie in the XY plane"
     
     def __str__(self):
         return f'<Traceon Excitation,\n\t' \
@@ -108,7 +129,7 @@ class Excitation:
             calling the function as `add_current(coild=10)` assigns a 10A value to the geometry elements part of the 'coil' physical group.
         """
 
-        assert self.mesh.symmetry == Symmetry.RADIAL, "Currently magnetostatics are only supported for radially symmetric meshes"
+        assert self.symmetry == Symmetry.RADIAL, "Currently magnetostatics are only supported for radially symmetric meshes"
          
         for name, current in kwargs.items():
             assert name in self.mesh.physical_to_triangles.keys(), "Current can only be applied to a triangle electrode"
@@ -234,7 +255,7 @@ class Excitation:
     def _get_active_elements(self, type_):
         assert type_ in ['electrostatic', 'magnetostatic']
         
-        if self.mesh.symmetry == Symmetry.RADIAL:
+        if self.symmetry == Symmetry.RADIAL:
             elements = self.mesh.lines
             physicals = self.mesh.physical_to_lines
         else:
@@ -261,7 +282,7 @@ class Excitation:
     def _get_number_of_active_elements(self, type_):
         assert type_ in ['electrostatic', 'magnetostatic']
          
-        if self.mesh.symmetry == Symmetry.RADIAL:
+        if self.symmetry == Symmetry.RADIAL:
             elements = self.mesh.lines
             physicals = self.mesh.physical_to_lines
         else:
