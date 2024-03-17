@@ -32,7 +32,7 @@ __pdoc__['discteize_path'] = False
 def _points_close(p1, p2, tolerance=1e-8):
     return np.allclose(p1, p2, atol=Path._tolerance)
 
-def discretize_path(path_length, breakpoints, mesh_size):
+def discretize_path(path_length, breakpoints, mesh_size, higher_order=False):
     # Return the arguments to use to breakup the path
     # in a 'nice' way
     
@@ -44,12 +44,14 @@ def discretize_path(path_length, breakpoints, mesh_size):
     for (u0, u1) in zip(points, points[1:]):
         if u0 == u1:
             continue
-                
+         
         N = max( ceil((u1-u0)/mesh_size), 2)
-        subdivision.append(np.linspace(u0, u1, N, endpoint=False))
-        
+        # When using higher order, we splice an extra point
+        # between any two points in the low order discretization
+        subdivision.append(np.linspace(u0, u1, N if not higher_order else 2*N, endpoint=False))
+    
     subdivision.append( [path_length] )
-        
+    
     return np.concatenate(subdivision)
 
 
@@ -384,47 +386,67 @@ class Surface(GeometricObject):
         return Surface(f, length1, length2, sorted(breakpoints1), sorted(breakpoints2))
      
         
-    def mesh(self, mesh_size=None, name=None):
-        
+    def mesh(self, mesh_size=None, name=None, higher_order=False):
+         
         if mesh_size is None:
             mesh_size = min(self.path_length1, self.path_length2)/10
         
-        u = discretize_path(self.path_length1, self.breakpoints1, mesh_size)
-        v = discretize_path(self.path_length2, self.breakpoints2, mesh_size)
+        u = discretize_path(self.path_length1, self.breakpoints1, mesh_size, higher_order=higher_order)
+        v = discretize_path(self.path_length2, self.breakpoints2, mesh_size, higher_order=higher_order)
         
         Nu, Nv = len(u), len(v)
-        
+        ru, rv = np.arange(Nu), np.arange(Nv)
+         
         points = np.zeros( (Nu, Nv, 3) )
          
         for i in range(Nu):
             for j in range(Nv):
                 points[i, j] = self(u[i], v[j])
          
-        ru, rv = np.arange(Nu), np.arange(Nv)
-        a = (ru[:-1], rv[:-1])
-        b = (ru[1:], rv[:-1])
-        c = (ru[1:], rv[1:])
         to_linear = lambda i, j: [i_*Nv + j_ for i_ in i for j_ in j]
-        lower_indices = np.array([to_linear(*a), to_linear(*b), to_linear(*c)]).T
-        assert np.all(lower_indices < Nu*Nv)
         
-        # Upper triangles
-        a = (ru[:-1], rv[:-1])
-        b = (ru[:-1], rv[1:])
-        c = (ru[1:], rv[1:])
-        upper_indices = np.array([to_linear(*a), to_linear(*b), to_linear(*c)]).T
-        assert np.all(upper_indices < Nu*Nv)
-        
-        points = np.reshape(points, (Nu*Nv, 3))
+        if not higher_order:
+            # Lower triangles
+            a = (ru[:-1], rv[:-1])
+            b = (ru[1:], rv[:-1])
+            c = (ru[1:], rv[1:])
+            lower_indices = np.array([to_linear(*a), to_linear(*b), to_linear(*c)]).T
+             
+            # Upper triangles
+            a = (ru[:-1], rv[:-1])
+            b = (ru[:-1], rv[1:])
+            c = (ru[1:], rv[1:])
+            upper_indices = np.array([to_linear(*a), to_linear(*b), to_linear(*c)]).T
+        else:
+            # Higher order meshing
+            # Lower triangles
+            assert Nu%2 == 1 and Nv % 2 == 1 # Ensure odd number of points, so the higher order triangles fit
+            p0 = (ru[2::2], rv[:-2:2])
+            p1 = (ru[2::2], rv[2::2])
+            p2 = (ru[:-2:2], rv[:-2:2])
+            p3 = (ru[2::2], rv[1::2])
+            p4 = (ru[1::2], rv[1::2])
+            p5 = (ru[1::2], rv[:-2:2])
+            lower_indices = np.array([to_linear(*i) for i in [p0, p1, p2, p3, p4, p5]]).T
+            
+            p0 = (ru[:-2:2], rv[2::2])
+            p1 = (ru[:-2:2], rv[:-2:2])
+            p2 = (ru[2::2], rv[2::2])
+            p3 = (ru[:-2:2], rv[1::2])
+            p4 = (ru[1::2], rv[1::2])
+            p5 = (ru[1::2], rv[2::2])
+            upper_indices = np.array([to_linear(*i) for i in [p0, p1, p2, p3, p4, p5]]).T
+         
         triangles = np.concatenate( (lower_indices, upper_indices), axis=0)
-
         assert triangles.dtype == np.int64
-        
+         
         if name is not None:
             physical_to_triangles = {name:np.arange(len(triangles))}
         else:
             physical_to_triangles = {}
-
+        
+        points = np.reshape(points, (Nu*Nv, 3))
+        
         return Mesh(points=points, triangles=triangles, physical_to_triangles=physical_to_triangles)
 
 
