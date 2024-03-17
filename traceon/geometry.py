@@ -71,7 +71,7 @@ class GeometricObject:
         return self.map_points(lambda p: np.array([p[0], -p[1], p[2]]))
      
     def mirror_yz(self):
-        return self.map_points(lambda p: np.array([-p[0], -p[1], p[2]]))
+        return self.map_points(lambda p: np.array([-p[0], p[1], p[2]]))
     
     def mirror_xy(self):
         return self.map_points(lambda p: np.array([p[0], p[1], -p[2]]))
