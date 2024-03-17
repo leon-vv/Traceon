@@ -7,7 +7,6 @@ import numpy as np
 import vedo
 
 from . import backend
-from .geometry import Symmetry
 
 def _create_point_to_physical_dict(mesh):
     d = {}
@@ -41,7 +40,7 @@ def plot_mesh(mesh, show_normals=False, show_legend=True, **colors):
         meshes = _plot_triangle_mesh(mesh, plotter, points_to_physical, show_normals=show_normals, **colors)
         legend_entries.extend(meshes)
     
-    if len(mesh.lines) and not mesh.is_3d():
+    if len(mesh.lines):
         lines = _plot_line_mesh(mesh, plotter, points_to_physical, show_normals=show_normals, **colors)
         legend_entries.extend(lines)
 

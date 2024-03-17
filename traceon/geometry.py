@@ -10,7 +10,7 @@ of this electrode.
 From this module you will likely use either the `Geometry` class when creating arbitrary geometries,
 or the `MEMSStack` class, if your geometry consists of a stack of MEMS fabricated elements.
 """
-from math import sqrt
+from math import sqrt, pi, sqrt, sin, cos, atan2, ceil
 from enum import Enum
 import pickle
 from itertools import chain
@@ -19,14 +19,20 @@ import numpy as np
 from pygmsh import *
 import gmsh
 import meshio
+from scipy.integrate import cumulative_simpson
+from scipy.interpolate import CubicSpline
 
 from .util import Saveable
 from .backend import N_QUAD_2D, position_and_jacobian_radial, position_and_jacobian_3d, normal_3d
 
+__pdoc__ = {}
+__pdoc__['discteize_path'] = False
+
+
 def _points_close(p1, p2, tolerance=1e-8):
     return np.allclose(p1, p2, atol=Path._tolerance)
 
-def _discretize_path(path_length, breakpoints, mesh_size):
+def discretize_path(path_length, breakpoints, mesh_size):
     # Return the arguments to use to breakup the path
     # in a 'nice' way
     
@@ -94,7 +100,7 @@ class Path(GeometricObject):
         self.path_length = path_length
         self.breakpoints = breakpoints
     
-    def from_irregular_function(fun, N=100, breakpoints=[]):
+    def from_irregular_function(to_point, N=100, breakpoints=[]):
         # Construct a path from a function that
         # is of the form u -> point, where 0 <= u <= 1.
         # We need to regularize it such that it correctly accepts
@@ -102,17 +108,23 @@ class Path(GeometricObject):
         #
         # To regularize we integrate the norm of the derivative.
         # path length = integrate |f'(x)|
+        fun = lambda u: np.array(to_point(u))
+        
         def derivative(u, tol=1e-4):
             assert 0 <= u <= 1
              
             if u - tol < 0.: # Use simply finite difference formula to approx. the derivative
                 f1, f2, f3 = fun(u), fun(u+tol), fun(u+2*tol)
+                assert isinstance(f1, np.ndarray), "Function should return a (3,) np.ndarray"
                 return (-3/2*f1 + 2*f2 - 1/2*f3)/tol
             elif u + tol > 1:
                 f1, f2, f3 = fun(u-2*tol), fun(u-tol), fun(u)
+                assert isinstance(f1, np.ndarray), "Function should return a (3,) np.ndarray"
                 return (1/2*f1 -2*f2 + 3/2*f3)/tol
             else:
-                return (-1/2*fun(u-tol) + 1/2*fun(u+tol))/tol
+                f1, f2 = fun(u-tol), fun(u+tol)
+                assert isinstance(f1, np.ndarray), "Function should return a (3,) np.ndarray"
+                return (-1/2*f1 + 1/2*f2)/tol
             
         u = np.linspace(0, 1, N)
         samples = [np.linalg.norm(derivative(u_)) for u_ in u]
@@ -126,7 +138,6 @@ class Path(GeometricObject):
         return Path(lambda u: fun(self(u)), self.path_length, self.breakpoints)
      
     def __call__(self, t):
-        assert 0 <= t <= self.path_length
         return self.fun(t)
      
     def is_closed(self):
@@ -276,12 +287,12 @@ class Path(GeometricObject):
         if mesh_size is None:
             mesh_size = self.path_length/10
         
-        u = _discretize_path(self.path_length, self.breakpoints, mesh_size)
+        u = discretize_path(self.path_length, self.breakpoints, mesh_size)
         
         N = len(u) 
-        points = np.zeros( (Nu, 3) )
+        points = np.zeros( (N, 3) )
          
-        for i in range(Nu):
+        for i in range(N):
             points[i] = self(u[i])
          
         lines = np.array([np.arange(N-1), np.arange(1, N)]).T
@@ -292,7 +303,7 @@ class Path(GeometricObject):
         else:
             physical_to_lines = {}
         
-        return G.Mesh(points=points, lines=lines, physical_to_lines=physical_to_lines)
+        return Mesh(points=points, lines=lines, physical_to_lines=physical_to_lines)
 
 
 class Surface(GeometricObject):
@@ -378,8 +389,8 @@ class Surface(GeometricObject):
         if mesh_size is None:
             mesh_size = min(self.path_length1, self.path_length2)/10
         
-        u = Surface._discretize_path(self.path_length1, self.breakpoints1, mesh_size)
-        v = Surface._discretize_path(self.path_length2, self.breakpoints2, mesh_size)
+        u = discretize_path(self.path_length1, self.breakpoints1, mesh_size)
+        v = discretize_path(self.path_length2, self.breakpoints2, mesh_size)
         
         Nu, Nv = len(u), len(v)
         
@@ -414,15 +425,13 @@ class Surface(GeometricObject):
         else:
             physical_to_triangles = {}
 
-        return G.Mesh(points=points, triangles=triangles, physical_to_triangles=physical_to_triangles)
+        return Mesh(points=points, triangles=triangles, physical_to_triangles=physical_to_triangles)
 
 
 def aperture(height, radius, extent, name=None, mesh_size=None):
     l = Path.line([extent, 0., -height/2], [radius, 0., -height/2])\
             .line_to([radius, 0., height/2]).line_to([extent, 0., height/2])
     return l.revolve_z().mesh(name=name, mesh_size=mesh_size)
-
-
 
 
 def _concat_arrays(arr1, arr2):
@@ -512,12 +521,11 @@ class Mesh(Saveable, GeometricObject):
         physical_lines = Mesh._merge_dicts(self.physical_to_lines, other_physical_to_lines)
         physical_triangles = Mesh._merge_dicts(self.physical_to_triangles, other_physical_to_triangles)
          
-        return Mesh(
-                        points=points,
-                        lines=lines,
-                        triangles=triangles,
-                        physical_to_lines=physical_lines,
-                        physical_to_triangles=physical_triangles)
+        return Mesh(points=points,
+                    lines=lines,
+                    triangles=triangles,
+                    physical_to_lines=physical_lines,
+                    physical_to_triangles=physical_triangles)
     
     def extract_physical_group(self, name):
         assert name in self.physical_to_lines or name in self.physical_to_triangles, "Physical group not in mesh, so cannot extract"
