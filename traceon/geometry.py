@@ -402,7 +402,7 @@ class Surface(GeometricObject):
         else:
             physical_to_triangles = {}
 
-        return G.Mesh(G.Symmetry.THREE_D, points=points, triangles=triangles, physical_to_triangles=physical_to_triangles)
+        return G.Mesh(points=points, triangles=triangles, physical_to_triangles=physical_to_triangles)
 
 
 def aperture(height, radius, extent, name=None, mesh_size=None):
@@ -432,15 +432,12 @@ class Mesh(Saveable, GeometricObject):
     When the elements are higher order (curved), triangles consists of 6 points and lines of four points.
     These correspond with the GMSH line4 and triangle6 types."""
      
-    def __init__(self, symmetry,
+    def __init__(self,
             points=[],
             lines=[],
             triangles=[],
             physical_to_lines={},
             physical_to_triangles={}):
-        
-        assert isinstance(symmetry, Symmetry)
-        self.symmetry = symmetry
         
         # Ensure the correct shape even if empty arrays
         if len(points):
@@ -461,9 +458,6 @@ class Mesh(Saveable, GeometricObject):
         self.physical_to_lines = physical_to_lines.copy()
         self.physical_to_triangles = physical_to_triangles.copy()
         
-        if symmetry.is_2d():
-            assert points.shape[1] == 2 or np.allclose(points[:, 2], 0.), "Cannot have three dimensional points when symmetry is 2D"
-        
         assert np.all( (0 <= self.lines) & (self.lines < len(self.points)) ), "Lines reference points outside points array"
         assert np.all( (0 <= self.triangles) & (self.triangles < len(self.points)) ), "Triangles reference points outside points array"
         assert np.all([np.all( (0 <= group) & (group < len(self.lines)) ) for group in self.physical_to_lines.values()])
@@ -476,7 +470,7 @@ class Mesh(Saveable, GeometricObject):
     
     def map_points(self, fun):
         new_points = np.vectorize(fun)(self.points)
-        return Mesh(self.symmetry, new_points, self.lines, self.triangles, self.physical_to_lines, self.physical_to_triangles)
+        return Mesh(new_points, self.lines, self.triangles, self.physical_to_lines, self.physical_to_triangles)
     
     def _merge_dicts(dict1, dict2):
         dict_ = {}
@@ -491,7 +485,6 @@ class Mesh(Saveable, GeometricObject):
      
     def __add__(self, other):
         assert isinstance(other, Mesh)
-        assert self.symmetry == other.symmetry, "Cannot add meshes with different symmetries"
          
         N_points = len(self.points)
         N_lines = len(self.lines)
@@ -507,7 +500,7 @@ class Mesh(Saveable, GeometricObject):
         physical_lines = Mesh._merge_dicts(self.physical_to_lines, other_physical_to_lines)
         physical_triangles = Mesh._merge_dicts(self.physical_to_triangles, other_physical_to_triangles)
          
-        return Mesh(self.symmetry,
+        return Mesh(
                         points=points,
                         lines=lines,
                         triangles=triangles,
@@ -536,13 +529,13 @@ class Mesh(Saveable, GeometricObject):
         physical_to_elements = {name:np.arange(len(elements))}
          
         if name in self.physical_to_lines:
-            return Mesh(self.symmetry, points=points, lines=elements, physical_to_lines=physical_to_elements)
+            return Mesh(points=points, lines=elements, physical_to_lines=physical_to_elements)
         elif name in self.physical_to_triangles:
-            return Mesh(self.symmetry, points=points, triangles=triangles, physical_to_triangles=physical_to_elements)
+            return Mesh(points=points, triangles=triangles, physical_to_triangles=physical_to_elements)
      
-    def import_file(filename, symmetry,  name=None):
+    def import_file(filename,  name=None):
         meshio_obj = meshio.read(filename)
-        mesh = Mesh.from_meshio(meshio_obj, symmetry)
+        mesh = Mesh.from_meshio(meshio_obj)
          
         if name is not None:
             mesh.physical_to_lines[name] = np.arange(len(mesh.lines))
@@ -567,18 +560,7 @@ class Mesh(Saveable, GeometricObject):
         
         return meshio.Mesh(self.points, to_export)
      
-    def from_meshio(mesh, symmetry):
-        """Generate a Traceon Mesh from a [meshio](https://github.com/nschloe/meshio) mesh.
-        
-        Parameters
-        ----------
-        symmetry: Symmetry
-            Specifies a radially symmetric geometry (RADIAL) or a general 3D geometry (THREE_D).
-        
-        Returns
-        ---------
-        Mesh
-        """
+    def from_meshio(mesh):
         def extract(type_):
             elements = mesh.cells_dict[type_]
             physical = {k:v[type_] for k,v in mesh.cell_sets_dict.items() if type_ in v}
@@ -597,8 +579,7 @@ class Mesh(Saveable, GeometricObject):
         elif 'triangle6' in mesh.cells_dict:
             triangles, physical_triangles = extract('triangle6')
         
-        return Mesh(symmetry,
-            points=mesh.points,
+        return Mesh(points=mesh.points,
             lines=lines, physical_to_lines=physical_lines,
             triangles=triangles, physical_to_triangles=physical_triangles)
      
@@ -608,7 +589,7 @@ class Mesh(Saveable, GeometricObject):
         Returns
         ----------------
         True if mesh is three dimensional, False if the mesh is two dimensional"""
-        return self.symmetry.is_3d()
+        return np.any(self.points[:, 2] != 0.)
     
     def is_2d(self):
         """Check if the mesh is two dimensional.
@@ -616,13 +597,13 @@ class Mesh(Saveable, GeometricObject):
         Returns
         ----------------
         True if mesh is two dimensional, False if the mesh is three dimensional"""
-        return self.symmetry.is_2d()
-
+        return np.all(self.points[:, 2] == 0.)
+    
     def remove_lines(self):
-        return Mesh(self.symmetry, self.points, triangles=self.triangles, physical_to_triangles=self.physical_to_triangles)
+        return Mesh(self.points, triangles=self.triangles, physical_to_triangles=self.physical_to_triangles)
     
     def remove_triangles(self):
-        return Mesh(self.symmetry, self.points, lines=self.lines, physical_to_lines=self.physical_to_lines)
+        return Mesh(self.points, lines=self.lines, physical_to_lines=self.physical_to_lines)
      
     def get_electrodes(self):
         """Get the names of all the electrodes in the geometry.
@@ -691,8 +672,7 @@ class Mesh(Saveable, GeometricObject):
         if len(triangles) and triangles.shape[1] == 3:
             points, triangles = Mesh._triangles_to_higher_order(points, triangles) 
          
-        return Mesh(self.symmetry,
-            points=points,
+        return Mesh(points=points,
             lines=lines, physical_to_lines=self.physical_to_lines,
             triangles=triangles, physical_to_triangles=self.physical_to_triangles)
      
@@ -702,7 +682,7 @@ class Mesh(Saveable, GeometricObject):
         physical_triangles = ', '.join(self.physical_to_triangles.keys())
         physical_triangles_nums = ', '.join([str(len(self.physical_to_triangles[n])) for n in self.physical_to_triangles.keys()])
         
-        return f'<Traceon Mesh {self.symmetry},\n' \
+        return f'<Traceon Mesh,\n' \
             f'\tNumber of points: {len(self.points)}\n' \
             f'\tNumber of lines: {len(self.lines)}\n' \
             f'\tNumber of triangles: {len(self.triangles)}\n' \
@@ -710,5 +690,6 @@ class Mesh(Saveable, GeometricObject):
             f'\tElements in physical line groups: {physical_lines_nums}\n' \
             f'\tPhysical triangles: {physical_triangles}\n' \
             f'\tElements in physical triangle groups: {physical_triangles_nums}>'
+
 
 
