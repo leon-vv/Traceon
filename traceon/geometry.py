@@ -30,7 +30,7 @@ __pdoc__['discteize_path'] = False
 
 
 def _points_close(p1, p2, tolerance=1e-8):
-    return np.allclose(p1, p2, atol=Path._tolerance)
+    return np.allclose(p1, p2, atol=tolerance)
 
 def discretize_path(path_length, breakpoints, mesh_size, N_factor=1):
     # Return the arguments to use to breakup the path
