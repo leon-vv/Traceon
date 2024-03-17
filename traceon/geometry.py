@@ -32,7 +32,7 @@ __pdoc__['discteize_path'] = False
 def _points_close(p1, p2, tolerance=1e-8):
     return np.allclose(p1, p2, atol=Path._tolerance)
 
-def discretize_path(path_length, breakpoints, mesh_size, higher_order=False):
+def discretize_path(path_length, breakpoints, mesh_size, N_factor=1):
     # Return the arguments to use to breakup the path
     # in a 'nice' way
     
@@ -46,9 +46,14 @@ def discretize_path(path_length, breakpoints, mesh_size, higher_order=False):
             continue
          
         N = max( ceil((u1-u0)/mesh_size), 2)
-        # When using higher order, we splice an extra point
-        # between any two points in the low order discretization
-        subdivision.append(np.linspace(u0, u1, N if not higher_order else 2*N, endpoint=False))
+        # When using higher order, we splice extra points
+        # between two points in the descretization. This
+        # ensures that the number of elements stays the same
+        # as in the non-higher order case.
+        # N_factor = 1  normal flat elements
+        # N_factor = 2  extra points for curved triangles (triangle6 in GMSH terminology)
+        # N_factor = 3  extra points for curved line elements (line4 in GMSH terminology)
+        subdivision.append(np.linspace(u0, u1, N_factor*N, endpoint=False))
     
     subdivision.append( [path_length] )
     
@@ -284,12 +289,12 @@ class Path(GeometricObject):
         return Path.line([xmin, ymin, 0.], [xmax, ymin, 0.]) \
             .line_to([xmax, ymax, 0.]).line_to([xmin, ymax, 0.]).close()
     
-    def mesh(self, mesh_size=None, name=None):
+    def mesh(self, mesh_size=None, name=None, higher_order=False):
         
         if mesh_size is None:
             mesh_size = self.path_length/10
         
-        u = discretize_path(self.path_length, self.breakpoints, mesh_size)
+        u = discretize_path(self.path_length, self.breakpoints, mesh_size, N_factor=3 if higher_order else 1)
         
         N = len(u) 
         points = np.zeros( (N, 3) )
@@ -297,7 +302,18 @@ class Path(GeometricObject):
         for i in range(N):
             points[i] = self(u[i])
          
-        lines = np.array([np.arange(N-1), np.arange(1, N)]).T
+        if not higher_order:
+            lines = np.array([np.arange(N-1), np.arange(1, N)]).T
+        else:
+            assert N % 3 == 1
+            r = np.arange(N)
+            p0 = r[0:-1:3]
+            p1 = r[3::3]
+            p2 = r[1::3]
+            p3 = r[2::3]
+            lines = np.array([p0, p1, p2, p3]).T
+            print(points[lines])
+        
         assert lines.dtype == np.int64
          
         if name is not None:
@@ -391,8 +407,8 @@ class Surface(GeometricObject):
         if mesh_size is None:
             mesh_size = min(self.path_length1, self.path_length2)/10
         
-        u = discretize_path(self.path_length1, self.breakpoints1, mesh_size, higher_order=higher_order)
-        v = discretize_path(self.path_length2, self.breakpoints2, mesh_size, higher_order=higher_order)
+        u = discretize_path(self.path_length1, self.breakpoints1, mesh_size, N_factor=2 if higher_order else 1)
+        v = discretize_path(self.path_length2, self.breakpoints2, mesh_size, N_factor=2 if higher_order else 1)
         
         Nu, Nv = len(u), len(v)
         ru, rv = np.arange(Nu), np.arange(Nv)
