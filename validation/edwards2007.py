@@ -25,49 +25,32 @@ class Edwards2007(Validation):
         self.plot_colors = dict(boundary='blue', inner='orange')
     
     def create_mesh(self, MSF, symmetry, higher_order):
-        with G.Geometry(symmetry) as geom:
-            points = [
-                [0, 0],
-                [0, 5],
-                [12, 5],
-                [12, 15],
-                [0, 15],
-                [0, 20],
-                [20, 20],
-                [20, 0]
-            ]
+        points = [
+            [0, 5],
+            [12, 5],
+            [12, 15],
+            [0, 15],
+            [0, 0],
+            [20, 0],
+            [20, 20],
+            [0, 20]
+        ]
 
-            geom.set_mesh_size_factor(MSF)
-            
-            if symmetry.is_3d():
-                points = [geom.add_point([p[0], 0.0, p[1]]) for p in points]
-            else:
-                points = [geom.add_point(p) for p in points]
-            
-            l1 = geom.add_line(points[1], points[2])
-            l2 = geom.add_line(points[2], points[3])
-            l3 = geom.add_line(points[3], points[4])
-            
-            l4 = geom.add_line(points[0], points[-1])
-            l5 = geom.add_line(points[-3], points[-2])
-            l6 = geom.add_line(points[-2], points[-1])
-            
-            if symmetry.is_3d():
-                inner = G.revolve_around_optical_axis(geom, [l1, l2, l3])
-                boundary = G.revolve_around_optical_axis(geom, [l4, l5, l6])
-                
-                geom.add_physical(inner, 'inner')
-                geom.add_physical(boundary, 'boundary')
-                     
-                return geom.generate_triangle_mesh(higher_order)
-            else:
-                geom.add_physical([l1, l2, l3], 'inner')
-                geom.add_physical([l4, l5, l6], 'boundary')
-                 
-                return geom.generate_line_mesh(higher_order)
+        if symmetry.is_3d():
+            points = [[p[0], 0.0, p[1]] for p in points]
+         
+        inner = G.Path.line(points[0], points[1])\
+            .line_to(points[2]).line_to(points[3]).revolve_z()
+        
+        boundary = G.Path.line(points[4], points[5])\
+            .line_to(points[6]).line_to(points[7]).revolve_z()
 
-    def get_excitation(self, geometry):
-        excitation = E.Excitation(geometry)
+        ms = 10/MSF
+        return inner.mesh(mesh_size=ms, higher_order=higher_order, name='inner') + \
+                boundary.mesh(mesh_size=ms, higher_order=higher_order, name='boundary')
+    
+    def get_excitation(self, geometry, symmetry):
+        excitation = E.Excitation(geometry, symmetry)
         excitation.add_voltage(boundary=0, inner=10)
         return excitation
     
