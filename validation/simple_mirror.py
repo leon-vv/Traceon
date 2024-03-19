@@ -60,9 +60,6 @@ class SimpleMirror(Validation):
         st = time.time()
         _, pos = tracer(pos, vel)
         print(f'Trace took {(time.time()-st)*1000:.0f} ms')
-
-        plt.plot(pos[:, 2], pos[:, 0])
-        plt.show()
         
         p = T.xy_plane_intersection(pos, 10)
         

@@ -19,7 +19,7 @@ import numpy as np
 from pygmsh import *
 import gmsh
 import meshio
-from scipy.integrate import cumulative_simpson
+from scipy.integrate import cumulative_simpson, quad
 from scipy.interpolate import CubicSpline
 
 from .util import Saveable
@@ -45,7 +45,7 @@ def discretize_path(path_length, breakpoints, mesh_size, N_factor=1):
         if u0 == u1:
             continue
          
-        N = max( ceil((u1-u0)/mesh_size), 2)
+        N = max( ceil((u1-u0)/mesh_size), 3)
         # When using higher order, we splice extra points
         # between two points in the descretization. This
         # ensures that the number of elements stays the same
@@ -105,6 +105,7 @@ class Path(GeometricObject):
         # and returns the point on the path
         self.fun = fun
         self.path_length = path_length
+        assert self.path_length > 0
         self.breakpoints = breakpoints
     
     def from_irregular_function(to_point, N=100, breakpoints=[]):
@@ -140,7 +141,10 @@ class Path(GeometricObject):
         interpolation = CubicSpline(cum_sum, u) # Path length to u
 
         return Path(lambda pl: fun(interpolation(pl)), path_length, breakpoints=breakpoints)
-    
+     
+    def average(self, fun):
+        return quad(lambda s: fun(self(s)), 0, self.path_length, points=self.breakpoints)[0]/self.path_length
+     
     def map_points(self, fun):
         return Path(lambda u: fun(self(u)), self.path_length, self.breakpoints)
      
@@ -225,11 +229,8 @@ class Path(GeometricObject):
      
     def revolve_x(self, angle=2*pi):
         pstart, pmiddle, pfinal = self.starting_point(), self.middle_point(), self.final_point()
-        rstart = sqrt(pstart[1]**2 + pstart[2]**2)
-        rmiddle = sqrt(pmiddle[1]**2 + pmiddle[2]**2)
-        rfinal = sqrt(pfinal[1]**2 + pfinal[2]**2)
-        
-        length2 = 2*pi*max([rstart, rmiddle, rfinal])
+        r_avg = self.average(lambda p: sqrt(p[1]**2 + p[2]**2))
+        length2 = 2*pi*r_avg
          
         def f(u, v):
             p = self(u)
@@ -241,10 +242,8 @@ class Path(GeometricObject):
     
     def revolve_y(self, angle=2*pi):
         pstart, pfinal = self.starting_point(), self.final_point()
-        rstart = sqrt(pstart[0]**2 + pstart[2]**2)
-        rfinal = sqrt(pfinal[0]**2 + pfinal[2]**2)
-        
-        length2 = 2*pi*max(rstart, rfinal)
+        r_avg = self.average(lambda p: sqrt(p[0]**2 + p[2]**2))
+        length2 = 2*pi*r_avg
          
         def f(u, v):
             p = self(u)
@@ -256,10 +255,8 @@ class Path(GeometricObject):
     
     def revolve_z(self, angle=2*pi):
         pstart, pfinal = self.starting_point(), self.final_point()
-        rstart = sqrt(pstart[0]**2 + pstart[1]**2)
-        rfinal = sqrt(pfinal[0]**2 + pfinal[1]**2)
-
-        length2 = 2*pi*max(rstart, rfinal)
+        r_avg = self.average(lambda p: sqrt(p[0]**2 + p[1]**2))
+        length2 = 2*pi*r_avg
         
         def f(u, v):
             p = self(u)
@@ -358,8 +355,10 @@ class Surface(GeometricObject):
         self.fun = fun
         self.path_length1 = path_length1
         self.path_length2 = path_length2
+        assert self.path_length1 > 0 and self.path_length2 > 0
         self.breakpoints1 = breakpoints1
         self.breakpoints2 = breakpoints2
+
      
     def __call__(self, u, v):
         assert 0 <= u <= self.path_length1
@@ -441,7 +440,9 @@ class Surface(GeometricObject):
         
         Nu, Nv = len(u), len(v)
         ru, rv = np.arange(Nu), np.arange(Nv)
-         
+        
+        assert Nu > 1 and Nv > 1
+
         points = np.zeros( (Nu, Nv, 3) )
          
         for i in range(Nu):
@@ -483,7 +484,7 @@ class Surface(GeometricObject):
             upper_indices = np.array([to_linear(*i) for i in [p0, p1, p2, p3, p4, p5]]).T
          
         triangles = np.concatenate( (lower_indices, upper_indices), axis=0)
-        assert triangles.dtype == np.int64
+        assert triangles.dtype == np.int64, triangles.dtype
          
         if name is not None:
             physical_to_triangles = {name:np.arange(len(triangles))}
