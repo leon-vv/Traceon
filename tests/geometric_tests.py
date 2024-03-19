@@ -133,6 +133,29 @@ class SurfaceTests(unittest.TestCase):
         assert np.allclose(surf(p1, 0.), [1., -2., 1.])
         assert np.allclose(surf(p1, p2), [1., 2., 1.])
 
+    def test_non_degenerate_triangles(self):
+        # Found bug where a triangle had two common
+        # points, making it have zero area.
+        points = [[0, 0, 5],
+            [12, 0, 5],
+            [12, 0, 15],
+            [0, 0, 15]]
+        
+        inner = Path.line(points[0], points[1])\
+            .line_to(points[2]).line_to(points[3]).revolve_z()
+        
+        mesh = inner.mesh(mesh_size=10/2, name='test')
+          
+        for i, t in enumerate(mesh.triangles):
+            p1, p2, p3 = mesh.points[t]
+            assert not np.all(p1 == p2), (i, t, p1, p2, p3)
+            assert not np.all(p2 == p3)
+            assert not np.all(p3 == p1)
+         
+        assert len(mesh.physical_to_triangles['test']) == len(mesh.triangles)
+        
+
+
 
 
 

@@ -545,6 +545,8 @@ class Mesh(Saveable, GeometricObject):
          
         self.physical_to_lines = physical_to_lines.copy()
         self.physical_to_triangles = physical_to_triangles.copy()
+
+        self.remove_degenerate_triangles()
         
         assert np.all( (0 <= self.lines) & (self.lines < len(self.points)) ), "Lines reference points outside points array"
         assert np.all( (0 <= self.triangles) & (self.triangles < len(self.points)) ), "Triangles reference points outside points array"
@@ -559,6 +561,26 @@ class Mesh(Saveable, GeometricObject):
     def map_points(self, fun):
         new_points = np.vectorize(fun)(self.points)
         return Mesh(new_points, self.lines, self.triangles, self.physical_to_lines, self.physical_to_triangles)
+    
+    def remove_degenerate_triangles(self):
+        degenerate = np.full(len(self.triangles), False)
+        
+        for i, t in enumerate(self.triangles):
+            if _points_close(self.points[t[0]], self.points[t[1]]) or \
+                    _points_close(self.points[t[1]], self.points[t[2]]) or \
+                    _points_close(self.points[t[2]], self.points[t[0]]):
+                degenerate[i] = True
+
+        map_index = np.arange(len(self.triangles)) - np.cumsum(degenerate)
+         
+        self.triangles = self.triangles[~degenerate]
+        
+        for k in self.physical_to_triangles.keys():
+            v = self.physical_to_triangles[k]
+            self.physical_to_triangles[k] = map_index[v[~degenerate[v]]]
+         
+        if np.any(degenerate):
+            print(f'Removed {sum(degenerate)} degenerate triangles')
     
     def _merge_dicts(dict1, dict2):
         dict_ = {}
