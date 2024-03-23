@@ -26,24 +26,25 @@ class Edwards2007(Validation):
     
     def create_mesh(self, MSF, symmetry, higher_order):
         points = [
-            [0, 5],
-            [12, 5],
-            [12, 15],
-            [0, 15],
-            [0, 0],
-            [20, 0],
-            [20, 20],
-            [0, 20]
+            [0, 0., 5],
+            [12, 0., 5],
+            [12, 0., 15],
+            [0, 0., 15],
+            [0, 0., 0],
+            [20, 0., 0],
+            [20, 0., 20],
+            [0, 0., 20]
         ]
 
-        if symmetry.is_3d():
-            points = [[p[0], 0.0, p[1]] for p in points]
-         
         inner = G.Path.line(points[0], points[1])\
-            .line_to(points[2]).line_to(points[3]).revolve_z()
-        
+            .line_to(points[2]).line_to(points[3])
+         
         boundary = G.Path.line(points[4], points[5])\
-            .line_to(points[6]).line_to(points[7]).revolve_z()
+            .line_to(points[6]).line_to(points[7])
+        
+        if symmetry.is_3d():
+            inner = inner.revolve_z()
+            boundary = boundary.revolve_z()
 
         ms = 10/MSF
         return inner.mesh(mesh_size=ms, higher_order=higher_order, name='inner') + \

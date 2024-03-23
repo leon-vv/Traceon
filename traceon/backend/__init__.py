@@ -522,6 +522,9 @@ def current_axial_derivatives_radial_ring(z, currents, jac_buffer, pos_buffer):
 
 
 def fill_jacobian_buffer_radial(vertices):
+    assert vertices.shape == (len(vertices), 4, 3)
+    assert np.all(vertices[:, :, 1] == 0.)
+        
     N = len(vertices)
     jac_buffer = np.zeros( (N, N_QUAD_2D) )
     pos_buffer = np.zeros( (N, N_QUAD_2D, 2) )

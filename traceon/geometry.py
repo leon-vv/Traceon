@@ -699,7 +699,7 @@ class Mesh(Saveable, GeometricObject):
         Returns
         ----------------
         True if mesh is three dimensional, False if the mesh is two dimensional"""
-        return np.any(self.points[:, 2] != 0.)
+        return np.any(self.points[:, 1] != 0.)
     
     def is_2d(self):
         """Check if the mesh is two dimensional.
@@ -707,7 +707,7 @@ class Mesh(Saveable, GeometricObject):
         Returns
         ----------------
         True if mesh is two dimensional, False if the mesh is three dimensional"""
-        return np.all(self.points[:, 2] == 0.)
+        return np.all(self.points[:, 1] == 0.)
     
     def flip_normals(self):
         lines = self.lines

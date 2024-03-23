@@ -86,8 +86,8 @@ class Excitation:
         self.symmetry = symmetry
          
         if symmetry == Symmetry.RADIAL:
-            assert self.mesh.points.shape[1] == 2 or np.all(self.mesh.points[:, 2] == 0.), \
-                "When symmetry is RADIAL, the geometry should lie in the XY plane"
+            assert self.mesh.points.shape[1] == 2 or np.all(self.mesh.points[:, 1] == 0.), \
+                "When symmetry is RADIAL, the geometry should lie in the XZ plane"
     
     def __str__(self):
         return f'<Traceon Excitation,\n\t' \

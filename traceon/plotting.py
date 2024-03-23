@@ -48,10 +48,10 @@ def plot_mesh(mesh, show_normals=False, show_legend=True, **colors):
         lb = vedo.LegendBox(legend_entries)
         plotter += lb
     
-    if mesh.points.shape[1] == 3 and np.any(mesh.points[:, 2] != 0.):
+    if mesh.points.shape[1] == 3 and np.any(mesh.points[:, 1] != 0.):
         plotter.show(viewup='z', axes={'xtitle': 'x (mm)', 'ytitle': 'y (mm)', 'ztitle': 'z (mm)'})
     else:
-        plotter.show(axes={'xtitle': 'x (mm)', 'ytitle': 'y (mm)'})
+        plotter.show(axes={'xtitle': 'r (mm)', 'ytitle': 'z (mm)'})
 
 def _plot_triangle_mesh(mesh, plotter, points_to_physical, show_normals=False, **phys_colors):
     triangles = mesh.triangles[:, :3]
@@ -103,6 +103,7 @@ def _plot_line_mesh(mesh, plotter, points_to_physical, show_normals=False, **phy
     normals = []
     dict_ = points_to_physical
     lines = mesh.lines[:, :2]
+    points = mesh.points[:, [0, 2]] if mesh.is_2d() else mesh.points
      
     for i, (A, B) in enumerate(lines):
             color = '#CCCCC'
@@ -112,7 +113,7 @@ def _plot_line_mesh(mesh, plotter, points_to_physical, show_normals=False, **phy
                 if phys1 == phys2 and phys1 in phys_colors:
                     color = phys_colors[phys1]
             
-            p1, p2 = mesh.points[A], mesh.points[B]
+            p1, p2 = points[A], points[B]
             start.append(p1)
             end.append(p2)
             colors_.append(color)
