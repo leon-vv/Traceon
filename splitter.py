@@ -1,3 +1,4 @@
+from math import *
 import numpy as np
 import time
 
@@ -10,7 +11,7 @@ class PointStack:
         self.path_length1 = surface.path_length1
         self.path_length2 = surface.path_length2
         
-        self.surf = surf
+        self.surf = surface
          
         self.points = []
         self.indices = []
@@ -24,7 +25,7 @@ class PointStack:
     def index_to_point(self, depth, i, j):
         u = self.index_to_u(depth, i)
         v = self.index_to_v(depth, j)
-        return surf(u, v)
+        return self.surf(u, v)
     
     def get_number_of_indices(self, depth):
         return 2**depth + 1
@@ -81,8 +82,8 @@ class PointStack:
 
 class Mesher:
     def __init__(self, surface, mesh_size, start_depth=3):
+        self.surface = surface
         self.mesh_size = mesh_size
-        self.pstack = PointStack(surface)
         self.start_depth = start_depth
 
     def mesh_to_quad_indices(self):
@@ -94,7 +95,7 @@ class Mesher:
 
         return quads
     
-    def mesh_to_triangles(self):
+    def mesh_to_points_and_triangles(self):
         triangles = []
         
         for quad in self.mesh_to_quad_indices():
@@ -111,6 +112,20 @@ class Mesher:
                 self.pstack.to_point_index(*idx2)])
         
         return self.pstack.take_points_subset(triangles)
+
+    def mesh(self):
+        all_points, all_triangles = [], []
+
+        count = 0
+        
+        for s in self.surface.sections():
+            self.pstack = PointStack(s)
+            points, triangles = self.mesh_to_points_and_triangles()
+            all_points.append(points)
+            all_triangles.append(triangles + count)
+            count += len(points)
+        
+        return G.Mesh(points=np.concatenate(all_points, axis=0), triangles=np.concatenate(all_triangles, axis=0))
      
     def should_split(self, depth, i0, i1, j0, j1):
         p1 = self.pstack[depth, i0, j0]
@@ -120,8 +135,10 @@ class Mesher:
 
         horizontal = max(np.linalg.norm(p1-p2), np.linalg.norm(p3-p4))
         vertical = max(np.linalg.norm(p1-p3), np.linalg.norm(p2-p4))
-        
-        return (horizontal > self.mesh_size) or horizontal > 3*vertical, vertical > self.mesh_size or vertical > 3*horizontal
+    
+        ms = self.mesh_size if not callable(self.mesh_size) else self.mesh_size(*((p1+p2+p3+p4)/4))
+         
+        return horizontal > ms, vertical > ms
      
     def subdivide_quad(self, depth, i0, i1, j0, j1, quads=[]): 
         h, v = self.should_split(depth, i0, i1, j0, j1)
@@ -142,24 +159,32 @@ class Mesher:
                           (depth, i0, j1),
                           (depth, i1, j0),
                           (depth, i1, j1)])
-
+        
         return quads
 
+def mesh_size(x, y, z):
+    r = sqrt(x*x + y*y)
+    return 0.2*r + 0.01
 
 def mesh(surf, mesh_size, start_depth=3):
-    return Mesher(surf, mesh_size, start_depth).mesh_to_triangles()
+    return Mesher(surf, mesh_size, start_depth).mesh()
 
-l1 = G.Path.line([0.2, 0, 0], [1., 0, 0])
-
-surf = l1.revolve_z()
+height = 0.5
+radius = 0.2
+extent = 3.
+l = G.Path.line([extent, 0., -height/2], [radius, 0., -height/2])\
+        .line_to([radius, 0., height/2]).line_to([extent, 0., height/2])
+surfy = l.revolve_z()
 
 start = time.time()
-points, triangles = mesh(surf, 0.08, start_depth=3)
+mesh = mesh(surfy, mesh_size, start_depth=3)
 end = time.time()
 
-print(end-start, (end-start)/len(triangles), len(triangles))
+#mesh = surf.mesh(mesh_size=0.2)
 
-P.plot_mesh(G.Mesh(points, triangles=triangles))
+#print(end-start, (end-start)/len(mesh.triangles), len(mesh.triangles))
+
+P.plot_mesh(mesh)
 
 
 
