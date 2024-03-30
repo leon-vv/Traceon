@@ -560,7 +560,11 @@ class Mesh(Saveable, GeometricObject):
         return (len(self.lines) and self.lines.shape[1] == 4) or (len(self.triangles) and self.triangles.shape[1] == 6)
     
     def map_points(self, fun):
-        new_points = np.vectorize(fun)(self.points)
+        new_points = np.empty_like(self.points)
+        for i in range(len(self.points)):
+            new_points[i] = fun(self.points[i])
+        assert new_points.shape == self.points.shape and new_points.dtype == self.points.dtype
+        
         return Mesh(new_points, self.lines, self.triangles, self.physical_to_lines, self.physical_to_triangles)
     
     def remove_degenerate_triangles(self):
