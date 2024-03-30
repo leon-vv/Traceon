@@ -114,21 +114,43 @@ class PointsWithQuads:
     
     def to_triangles(self):
         triangles = []
-        
+
+        def add_triangle(p0, p1, p2):
+            triangles.append([self.indices[p0[0], p0[1]], self.indices[p1[0], p1[1]], self.indices[p2[0], p2[1]]])
+         
         for quad in self.quads:
             depth, i0, i1, j0, j1 = quad 
             assert depth == self.depth
+
+            p0 = (i0, j0)
+            p1 = (i0, j1)
+            p2 = (i1, j1)
+            p3 = (i1, j0)
+
+            split_edge = False
             
-            triangles.append([
-                self.indices[i0, j0],
-                self.indices[i0, j1],
-                self.indices[i1, j1]])
-            
-            triangles.append([
-                self.indices[i0, j0],
-                self.indices[i1, j1],
-                self.indices[i1, j0]])
-        
+            # Check if there is a point on the edge 
+            for edge in range(4):
+                # Is there a point on the first edge?
+                point_on_edge = (p0[0]+p1[0])//2, (p0[1]+p1[1])//2
+                
+                if (abs(p0[0] - p1[0]) > 1 or abs(p0[1] - p1[1]) > 1) and \
+                        self.indices[point_on_edge[0], point_on_edge[1]] != -1:
+                    # Yes there is a point.. we have to split the
+                    # quad into three triangles
+                    add_triangle(p0, point_on_edge, p3)
+                    add_triangle(point_on_edge, p2, p3)
+                    add_triangle(point_on_edge, p1, p2)
+                    split_edge = True
+                    break
+                
+                # Rotate the points so we check the next edge
+                p0, p1, p2, p3 = p1, p2, p3, p0
+             
+            if not split_edge: 
+                add_triangle(p0, p1, p2)
+                add_triangle(p0, p2, p3)
+         
         assert not (-1 in np.array(triangles))
         return triangles
             
@@ -210,7 +232,6 @@ def mesh(surface, mesh_size, start_depth=3, name=None):
     points, point_stacks, quads = mesh_subsections_to_quads(surface, mesh_size, start_depth)
      
     max_depth = max([p.depth() for p in point_stacks])
-    print('Normalizing to depth: ', max_depth)
      
     # Normalize all the point stacks to the max depth of all sections 
     point_with_quads = [p.normalize_to_depth(max_depth, q, start_depth) for p, q in zip(point_stacks, quads)]
