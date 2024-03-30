@@ -137,8 +137,11 @@ class Mesher:
         vertical = max(np.linalg.norm(p1-p3), np.linalg.norm(p2-p4))
     
         ms = self.mesh_size if not callable(self.mesh_size) else self.mesh_size(*((p1+p2+p3+p4)/4))
+
+        split_horizontal = horizontal > ms or (horizontal > 2.5*vertical and horizontal > 1/8*ms)
+        split_vertical = vertical > ms or (vertical > 2.5*horizontal and vertical > 1/8*ms)
          
-        return horizontal > ms, vertical > ms
+        return split_horizontal, split_vertical
      
     def subdivide_quad(self, depth, i0, i1, j0, j1, quads=[]): 
         h, v = self.should_split(depth, i0, i1, j0, j1)
