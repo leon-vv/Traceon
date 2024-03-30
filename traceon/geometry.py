@@ -359,7 +359,18 @@ class Surface(GeometricObject):
         self.breakpoints1 = breakpoints1
         self.breakpoints2 = breakpoints2
 
-     
+    def sections(self): 
+        # Iterate over the sections defined by
+        # the breakpoints
+        b1 = [0.] + self.breakpoints1 + [self.path_length1]
+        b2 = [0.] + self.breakpoints2 + [self.path_length2]
+
+        for u0, u1 in zip(b1[:-1], b1[1:]):
+            for v0, v1 in zip(b2[:-1], b2[1:]):
+                def fun(u, v, u0_=u0, v0_=v0):
+                    return self(u0_+u, v0_+v)
+                yield Surface(fun, u1-u0, v1-v0, [], [])
+       
     def __call__(self, u, v):
         assert 0 <= u <= self.path_length1
         assert 0 <= v <= self.path_length2
