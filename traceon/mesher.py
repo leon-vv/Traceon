@@ -133,7 +133,7 @@ class PointsWithQuads:
         return triangles
             
     def __getitem__(self, *args, **kwargs):
-        self.indices.__getitem__(*args, **kwargs)
+        return self.indices.__getitem__(*args, **kwargs)
     
     def __setitem__(self, *args, **kwargs):
         self.indices.__setitem__(*args, **kwargs)
@@ -197,6 +197,13 @@ def mesh_subsections_to_quads(surface, mesh_size, start_depth):
 
     return points, all_pstacks, all_quads
     
+def copy_over_edge(e1, e2):
+    assert e1.shape == e2.shape
+    mask = e2 != -1
+    e1[mask] = e2[mask]
+    
+    mask = e1 != -1
+    e2[mask] = e1[mask]
 
 def mesh(surface, mesh_size, start_depth=3, name=None):
     # Create a point stack for each subsection
@@ -208,8 +215,18 @@ def mesh(surface, mesh_size, start_depth=3, name=None):
     # Normalize all the point stacks to the max depth of all sections 
     point_with_quads = [p.normalize_to_depth(max_depth, q, start_depth) for p, q in zip(point_stacks, quads)]
     
-    # TODO: copy over edges
-    
+    # Copy over the edges
+    Nx, Ny = len(surface.breakpoints1)+1, len(surface.breakpoints2)+1
+    assert len(point_with_quads) == Nx*Ny
+
+    for i in range(Nx-1):
+        for j in range(Ny): # Horizontal copying
+            copy_over_edge(point_with_quads[j*Nx + i][-1, :], point_with_quads[j*Nx + i + 1][0, :])
+     
+    for i in range(Nx):
+        for j in range(Ny-1): # Vertical copying
+            copy_over_edge(point_with_quads[j*Nx + i][:, -1], point_with_quads[(j+1)*Nx + i][:, 0])
+     
     points = np.array(points)
     triangles = np.concatenate([pq.to_triangles() for pq in point_with_quads], axis=0)
     
