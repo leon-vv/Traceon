@@ -24,7 +24,7 @@ from scipy.interpolate import CubicSpline
 
 from .util import Saveable
 from .backend import N_QUAD_2D, position_and_jacobian_radial, position_and_jacobian_3d, normal_3d, triangle_areas
-from .mesher import Mesher
+from .mesher import mesh
 
 __pdoc__ = {}
 __pdoc__['discteize_path'] = False
@@ -445,7 +445,7 @@ class Surface(GeometricObject):
         if mesh_size is None:
             mesh_size = min(self.path_length1, self.path_length2)/10
         
-        return Mesher(self, mesh_size).mesh(name=name)
+        return mesh(self, mesh_size, name=name)
 
 def aperture(height, radius, extent, name=None, mesh_size=None):
     l = Path.line([extent, 0., -height/2], [radius, 0., -height/2])\

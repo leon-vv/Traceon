@@ -2,18 +2,18 @@ from math import *
 import numpy as np
 import time
 
+# TODO: fix circular dependency
 import traceon.geometry as G
 import traceon.plotting as P
 
-
 class PointStack:
-    def __init__(self, surface):
+    def __init__(self, surface, points=[]):
         self.path_length1 = surface.path_length1
         self.path_length2 = surface.path_length2
         
         self.surf = surface
          
-        self.points = []
+        self.points = points
         self.indices = []
     
     def index_to_u(self, depth, i):
@@ -29,6 +29,9 @@ class PointStack:
     
     def get_number_of_indices(self, depth):
         return 2**depth + 1
+    
+    def depth(self):
+        return len(self.indices) - 1
     
     def add_level(self):
         new_depth = len(self.indices)
@@ -59,121 +62,176 @@ class PointStack:
     def __getitem__(self, args):
         depth, i, j = args
         return self.points[self.to_point_index(depth, i, j)]
+     
+    def normalize_to_depth(self, depth, quads, start_depth):
+        N = self.get_number_of_indices(depth)
+        
+        while self.depth() < depth:
+            self.add_level()
+        
+        assert self.depth() == depth
+        assert self.indices[-1].shape == (N, N)
 
-    def take_points_subset(self, indices):
-        indices = np.array(indices, dtype=np.int64)
-        
-        assert np.all( (0 <= indices) & (indices < len(self.points)) )
-        assert len(indices) and indices.dtype == np.int64, indices.dtype
-        
-        indices_flat = np.ndarray.flatten(indices)
-        
-        inactive = np.full(len(self.points), True, dtype=bool)
-        inactive[indices_flat] = False
-        
-        map_index = np.arange(len(self.points)) - np.cumsum(inactive)
-        
-        new_points = np.array(self.points)[~inactive]
-        new_indices = map_index[indices]
-        
-        assert np.all( (0 <= new_indices) & (new_indices < len(new_points)) )
+        for i in range(start_depth, len(self.indices)-1):
+            self.indices[i+1][::2, ::2] = self.indices[i]
 
-        return new_points, new_indices
-
-class Mesher:
-    def __init__(self, surface, mesh_size, start_depth=3):
-        self.surface = surface
-        self.mesh_size = mesh_size
-        self.start_depth = start_depth
-
-    def mesh_to_quad_indices(self):
-        quads = []
+        quads = np.array(quads)
+        assert quads.shape == (len(quads), 5)
         
-        for i in range(self.pstack.get_number_of_indices(self.start_depth) - 1):
-            for j in range(self.pstack.get_number_of_indices(self.start_depth) - 1):
-                self.subdivide_quads([(self.start_depth, i, i+1, j, j+1)], quads=quads)
+        for i in range(len(quads)):
+            quad_depth, i0, i1, j0, j1 = quads[i]
+            assert quad_depth <= depth
+            assert self.indices[quad_depth][i0, j0] != -1
+             
+            while quad_depth < depth:
+                i0 *= 2
+                i1 *= 2
+                j0 *= 2
+                j1 *= 2
+                quad_depth += 1
+              
+            quads[i] = (quad_depth, i0, i1, j0, j1)
+            assert self.indices[-1][i0, j0] != -1
+            assert quad_depth == depth
+         
+        return PointsWithQuads(self.indices[-1], quads)
 
-        return quads
     
-    def mesh_to_points_and_triangles(self):
+
+class PointsWithQuads:
+    def __init__(self, indices, quads):
+        N = len(indices)
+        assert indices.shape == (N, N)
+        assert np.all(quads[:, 1] < N)
+        assert quads.shape == (len(quads), 5)
+        assert np.all(quads[:, 0] == quads[0, 0])
+        
+        self.indices = indices
+        self.quads = quads
+        self.depth = quads[0, 0]
+        
+        self.shape = indices.shape
+    
+    def to_triangles(self):
         triangles = []
         
-        for quad in self.mesh_to_quad_indices():
-            idx0, idx1, idx2, idx3 = quad 
+        for quad in self.quads:
+            depth, i0, i1, j0, j1 = quad 
+            assert depth == self.depth
             
-            triangles.append(
-                [self.pstack.to_point_index(*idx0),
-                self.pstack.to_point_index(*idx1),
-                self.pstack.to_point_index(*idx3)])
+            triangles.append([
+                self.indices[i0, j0],
+                self.indices[i0, j1],
+                self.indices[i1, j1]])
             
-            triangles.append(
-                [self.pstack.to_point_index(*idx0),
-                self.pstack.to_point_index(*idx3),
-                self.pstack.to_point_index(*idx2)])
+            triangles.append([
+                self.indices[i0, j0],
+                self.indices[i1, j1],
+                self.indices[i1, j0]])
         
-        return self.pstack.take_points_subset(triangles)
+        assert not (-1 in np.array(triangles))
+        return triangles
+            
+    def __getitem__(self, *args, **kwargs):
+        self.indices.__getitem__(*args, **kwargs)
+    
+    def __setitem__(self, *args, **kwargs):
+        self.indices.__setitem__(*args, **kwargs)
 
-    def mesh(self, name=None):
-        all_points, all_triangles = [], []
-        
-        count = 0
-         
-        for s in self.surface.sections():
-            self.pstack = PointStack(s)
-            points, triangles = self.mesh_to_points_and_triangles()
-            all_points.append(points)
-            all_triangles.append(triangles + count)
-            count += len(points)
-         
-        triangles_concat = np.concatenate(all_triangles, axis=0)
-        
-        if name is not None:
-            physical_to_triangles = {name:np.arange(len(triangles_concat))}
-        else:
-            physical_to_triangles = {}
-        
-        return G.Mesh(points=np.concatenate(all_points, axis=0), triangles=triangles_concat, physical_to_triangles=physical_to_triangles)
+
+def subdivide_quads(pstack, mesh_size, to_subdivide=[], quads=[]): 
+    assert isinstance(pstack, PointStack)
      
-    def subdivide_quads(self, to_subdivide=[], quads=[]): 
+    if not callable(mesh_size):
+        mesh_size_fun = lambda x, y, z: mesh_size
+    else:
+        mesh_size_fun = mesh_size
+
+    while len(to_subdivide) > 0:
+        depth, i0, i1, j0, j1 = to_subdivide.pop()
         
-        if not callable(self.mesh_size):
-            mesh_size = lambda x, y, z: self.mesh_size
-        else:
-            mesh_size = self.mesh_size
-        
-        while len(to_subdivide) > 0:
-            depth, i0, i1, j0, j1 = to_subdivide.pop()
+        # Determine whether should split horizontally/vertically
+        p1x, p1y, p1z = pstack[depth, i0, j0]
+        p2x, p2y, p2z = pstack[depth, i0, j1]
+        p3x, p3y, p3z = pstack[depth, i1, j0]
+        p4x, p4y, p4z = pstack[depth, i1, j1]
             
-            # Determine whether should split horizontally/vertically
-            p1x, p1y, p1z = self.pstack[depth, i0, j0]
-            p2x, p2y, p2z = self.pstack[depth, i0, j1]
-            p3x, p3y, p3z = self.pstack[depth, i1, j0]
-            p4x, p4y, p4z = self.pstack[depth, i1, j1]
-             
-            horizontal = max(sqrt((p1x-p2x)**2 + (p1y-p2y)**2 + (p1z-p2z)**2), sqrt((p3x-p4x)**2 + (p3y-p4y)**2 + (p3z-p4z)**2))
-            vertical = max(sqrt((p1x-p3x)**2 + (p1y-p3y)**2 + (p1z-p3z)**2) , sqrt((p2x-p4x)**2 + (p2y-p4y)**2 + (p2z-p4z)**2))
+        horizontal = max(sqrt((p1x-p2x)**2 + (p1y-p2y)**2 + (p1z-p2z)**2), sqrt((p3x-p4x)**2 + (p3y-p4y)**2 + (p3z-p4z)**2))
+        vertical = max(sqrt((p1x-p3x)**2 + (p1y-p3y)**2 + (p1z-p3z)**2) , sqrt((p2x-p4x)**2 + (p2y-p4y)**2 + (p2z-p4z)**2))
+    
+        ms = mesh_size_fun((p1x+p2x+p3x+p4x)/4, (p1y+p2y+p3y+p4y)/4, (p1z+p2z+p3z+p4z)/4)
+            
+        h = horizontal > ms or (horizontal > 2.5*vertical and horizontal > 1/8*ms)
+        v = vertical > ms or (vertical > 2.5*horizontal and vertical > 1/8*ms)
+            
+        if h and v: # Split both horizontally and vertically
+            to_subdivide.append((depth+1, 2*i0, 2*i0+1, 2*j0, 2*j0+1))
+            to_subdivide.append((depth+1, 2*i0, 2*i0+1, 2*j0+1, 2*j0+2))
+            to_subdivide.append((depth+1, 2*i0+1, 2*i0+2, 2*j0, 2*j0+1))
+            to_subdivide.append((depth+1, 2*i0+1, 2*i0+2, 2*j0+1, 2*j0+2))
+        elif h and not v: # Split only horizontally
+            to_subdivide.append((depth+1, 2*i0, 2*i1, 2*j0, 2*j0+1))
+            to_subdivide.append((depth+1, 2*i0, 2*i1, 2*j0+1, 2*j0+2)) 
+        elif v and not h: # Split only vertically
+            to_subdivide.append((depth+1, 2*i0, 2*i0+1, 2*j0, 2*j1))
+            to_subdivide.append((depth+1, 2*i0+1, 2*i0+2, 2*j0, 2*j1))
+        else: # We are done, both sides are within mesh size limits
+            quads.append((depth, i0, i1, j0, j1))
+
+def mesh_subsections_to_quads(surface, mesh_size, start_depth):
+    all_pstacks = []
+    all_quads = []
+    points = []
+    
+    for s in surface.sections():
+        quads = []
+        pstack = PointStack(s, points=points)
         
-            ms = mesh_size((p1x+p2x+p3x+p4x)/4, (p1y+p2y+p3y+p4y)/4, (p1z+p2z+p3z+p4z)/4)
-             
-            h = horizontal > ms or (horizontal > 2.5*vertical and horizontal > 1/8*ms)
-            v = vertical > ms or (vertical > 2.5*horizontal and vertical > 1/8*ms)
-             
-            if h and v: # Split both horizontally and vertically
-                to_subdivide.append((depth+1, 2*i0, 2*i0+1, 2*j0, 2*j0+1))
-                to_subdivide.append((depth+1, 2*i0, 2*i0+1, 2*j0+1, 2*j0+2))
-                to_subdivide.append((depth+1, 2*i0+1, 2*i0+2, 2*j0, 2*j0+1))
-                to_subdivide.append((depth+1, 2*i0+1, 2*i0+2, 2*j0+1, 2*j0+2))
-            elif h and not v: # Split only horizontally
-                to_subdivide.append((depth+1, 2*i0, 2*i1, 2*j0, 2*j0+1))
-                to_subdivide.append((depth+1, 2*i0, 2*i1, 2*j0+1, 2*j0+2)) 
-            elif v and not h: # Split only vertically
-                to_subdivide.append((depth+1, 2*i0, 2*i0+1, 2*j0, 2*j1))
-                to_subdivide.append((depth+1, 2*i0+1, 2*i0+2, 2*j0, 2*j1))
-            else: # We are done, both sides are within mesh size limits
-                quads.append([(depth, i0, j0),
-                            (depth, i0, j1),
-                            (depth, i1, j0),
-                            (depth, i1, j1)])
+        for i in range(pstack.get_number_of_indices(start_depth) - 1):
+            for j in range(pstack.get_number_of_indices(start_depth) - 1):
+                subdivide_quads(pstack, mesh_size, to_subdivide=[(start_depth, i, i+1, j, j+1)], quads=quads)
         
-        return quads
+        all_pstacks.append(pstack)
+        all_quads.append(quads)
+        points = pstack.points
+
+    return points, all_pstacks, all_quads
+    
+
+def mesh(surface, mesh_size, start_depth=3, name=None):
+    # Create a point stack for each subsection
+    points, point_stacks, quads = mesh_subsections_to_quads(surface, mesh_size, start_depth)
+     
+    max_depth = max([p.depth() for p in point_stacks])
+    print('Normalizing to depth: ', max_depth)
+     
+    # Normalize all the point stacks to the max depth of all sections 
+    point_with_quads = [p.normalize_to_depth(max_depth, q, start_depth) for p, q in zip(point_stacks, quads)]
+    
+    # TODO: copy over edges
+    
+    points = np.array(points)
+    triangles = np.concatenate([pq.to_triangles() for pq in point_with_quads], axis=0)
+    
+    assert points.shape == (len(points), 3)
+    assert triangles.shape == (len(triangles), 3)
+    assert np.all( (0 <= triangles) & (triangles < len(points)) )
+     
+    if name is not None:
+        physical_to_triangles = {name:np.arange(len(triangles))}
+    else:
+        physical_to_triangles = {}
+    
+    return G.Mesh(points=points, triangles=triangles, physical_to_triangles=physical_to_triangles)
+
+
+
+
+
+
+
+
+
+
+
 
