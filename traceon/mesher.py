@@ -113,19 +113,26 @@ class Mesher:
         
         return self.pstack.take_points_subset(triangles)
 
-    def mesh(self):
+    def mesh(self, name=None):
         all_points, all_triangles = [], []
-
-        count = 0
         
+        count = 0
+         
         for s in self.surface.sections():
             self.pstack = PointStack(s)
             points, triangles = self.mesh_to_points_and_triangles()
             all_points.append(points)
             all_triangles.append(triangles + count)
             count += len(points)
+         
+        triangles_concat = np.concatenate(all_triangles, axis=0)
         
-        return G.Mesh(points=np.concatenate(all_points, axis=0), triangles=np.concatenate(all_triangles, axis=0))
+        if name is not None:
+            physical_to_triangles = {name:np.arange(len(triangles_concat))}
+        else:
+            physical_to_triangles = {}
+        
+        return G.Mesh(points=np.concatenate(all_points, axis=0), triangles=triangles_concat, physical_to_triangles=physical_to_triangles)
      
     def subdivide_quads(self, to_subdivide=[], quads=[]): 
         
@@ -169,38 +176,4 @@ class Mesher:
                             (depth, i1, j1)])
         
         return quads
-
-def mesh_size(x, y, z):
-    r = sqrt(x*x + y*y)
-    return 0.2*r + 0.01
-
-def mesh(surf, mesh_size, start_depth=3):
-    return Mesher(surf, mesh_size, start_depth).mesh()
-
-height = 0.5
-radius = 0.2
-extent = 3.
-l = G.Path.line([extent, 0., -height/2], [radius, 0., -height/2])\
-        .line_to([radius, 0., height/2]).line_to([extent, 0., height/2])
-surfy = l.revolve_z()
-
-start = time.time()
-mesh = mesh(surfy, mesh_size, start_depth=3)
-end = time.time()
-
-#mesh = surf.mesh(mesh_size=0.2)
-
-#print(end-start, (end-start)/len(mesh.triangles), len(mesh.triangles))
-
-P.plot_mesh(mesh)
-
-
-
-
-
-
-
-
-
-
 

@@ -24,6 +24,7 @@ from scipy.interpolate import CubicSpline
 
 from .util import Saveable
 from .backend import N_QUAD_2D, position_and_jacobian_radial, position_and_jacobian_3d, normal_3d, triangle_areas
+from .mesher import Mesher
 
 __pdoc__ = {}
 __pdoc__['discteize_path'] = False
@@ -439,71 +440,12 @@ class Surface(GeometricObject):
         return Surface(f, length1, length2, sorted(breakpoints1), sorted(breakpoints2))
      
         
-    def mesh(self, mesh_size=None, name=None, higher_order=False):
+    def mesh(self, mesh_size=None, name=None):
          
         if mesh_size is None:
             mesh_size = min(self.path_length1, self.path_length2)/10
         
-        u = discretize_path(self.path_length1, self.breakpoints1, mesh_size, N_factor=2 if higher_order else 1)
-        v = discretize_path(self.path_length2, self.breakpoints2, mesh_size, N_factor=2 if higher_order else 1)
-        
-        Nu, Nv = len(u), len(v)
-        ru, rv = np.arange(Nu), np.arange(Nv)
-        
-        assert Nu > 1 and Nv > 1
-
-        points = np.zeros( (Nu, Nv, 3) )
-         
-        for i in range(Nu):
-            for j in range(Nv):
-                points[i, j] = self(u[i], v[j])
-         
-        to_linear = lambda i, j: [i_*Nv + j_ for i_ in i for j_ in j]
-        
-        if not higher_order:
-            # Lower triangles
-            a = (ru[1:], rv[:-1])
-            b = (ru[1:], rv[1:])
-            c = (ru[:-1], rv[:-1])
-            lower_indices = np.array([to_linear(*a), to_linear(*b), to_linear(*c)]).T
-             
-            # Upper triangles
-            a = (ru[:-1], rv[1:])
-            b = (ru[:-1], rv[:-1])
-            c = (ru[1:], rv[1:])
-            upper_indices = np.array([to_linear(*a), to_linear(*b), to_linear(*c)]).T
-        else:
-            # Higher order meshing
-            # Lower triangles
-            assert Nu%2 == 1 and Nv % 2 == 1 # Ensure odd number of points, so the higher order triangles fit
-            p0 = (ru[2::2], rv[:-2:2])
-            p1 = (ru[2::2], rv[2::2])
-            p2 = (ru[:-2:2], rv[:-2:2])
-            p3 = (ru[2::2], rv[1::2])
-            p4 = (ru[1::2], rv[1::2])
-            p5 = (ru[1::2], rv[:-2:2])
-            lower_indices = np.array([to_linear(*i) for i in [p0, p1, p2, p3, p4, p5]]).T
-            
-            p0 = (ru[:-2:2], rv[2::2])
-            p1 = (ru[:-2:2], rv[:-2:2])
-            p2 = (ru[2::2], rv[2::2])
-            p3 = (ru[:-2:2], rv[1::2])
-            p4 = (ru[1::2], rv[1::2])
-            p5 = (ru[1::2], rv[2::2])
-            upper_indices = np.array([to_linear(*i) for i in [p0, p1, p2, p3, p4, p5]]).T
-         
-        triangles = np.concatenate( (lower_indices, upper_indices), axis=0)
-        assert triangles.dtype == np.int64, triangles.dtype
-         
-        if name is not None:
-            physical_to_triangles = {name:np.arange(len(triangles))}
-        else:
-            physical_to_triangles = {}
-        
-        points = np.reshape(points, (Nu*Nv, 3))
-        
-        return Mesh(points=points, triangles=triangles, physical_to_triangles=physical_to_triangles)
-
+        return Mesher(self, mesh_size).mesh(name=name)
 
 def aperture(height, radius, extent, name=None, mesh_size=None):
     l = Path.line([extent, 0., -height/2], [radius, 0., -height/2])\
@@ -577,7 +519,7 @@ class Mesh(Saveable, GeometricObject):
         return Mesh(new_points, self.lines, self.triangles, self.physical_to_lines, self.physical_to_triangles)
     
     def remove_degenerate_triangles(self):
-        areas = triangle_areas(self.points[self.triangles])
+        areas = triangle_areas(self.points[self.triangles[:,:3]])
         degenerate = areas < 1e-12
         map_index = np.arange(len(self.triangles)) - np.cumsum(degenerate)
          

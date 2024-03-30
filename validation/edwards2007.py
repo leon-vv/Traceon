@@ -47,8 +47,8 @@ class Edwards2007(Validation):
             boundary = boundary.revolve_z()
 
         ms = 10/MSF
-        return inner.mesh(mesh_size=ms, higher_order=higher_order, name='inner') + \
-                boundary.mesh(mesh_size=ms, higher_order=higher_order, name='boundary')
+        return inner.mesh(mesh_size=ms, name='inner') + \
+                boundary.mesh(mesh_size=ms, name='boundary')
     
     def get_excitation(self, geometry, symmetry):
         excitation = E.Excitation(geometry, symmetry)
