@@ -91,7 +91,7 @@ class Mesher:
         
         for i in range(self.pstack.get_number_of_indices(self.start_depth) - 1):
             for j in range(self.pstack.get_number_of_indices(self.start_depth) - 1):
-                self.subdivide_quad(self.start_depth, i, i+1, j, j+1, quads=quads)
+                self.subdivide_quads([(self.start_depth, i, i+1, j, j+1)], quads=quads)
 
         return quads
     
@@ -127,41 +127,46 @@ class Mesher:
         
         return G.Mesh(points=np.concatenate(all_points, axis=0), triangles=np.concatenate(all_triangles, axis=0))
      
-    def should_split(self, depth, i0, i1, j0, j1):
-        p1 = self.pstack[depth, i0, j0]
-        p2 = self.pstack[depth, i0, j1]
-        p3 = self.pstack[depth, i1, j0]
-        p4 = self.pstack[depth, i1, j1]
-
-        horizontal = max(np.linalg.norm(p1-p2), np.linalg.norm(p3-p4))
-        vertical = max(np.linalg.norm(p1-p3), np.linalg.norm(p2-p4))
-    
-        ms = self.mesh_size if not callable(self.mesh_size) else self.mesh_size(*((p1+p2+p3+p4)/4))
-
-        split_horizontal = horizontal > ms or (horizontal > 2.5*vertical and horizontal > 1/8*ms)
-        split_vertical = vertical > ms or (vertical > 2.5*horizontal and vertical > 1/8*ms)
-         
-        return split_horizontal, split_vertical
-     
-    def subdivide_quad(self, depth, i0, i1, j0, j1, quads=[]): 
-        h, v = self.should_split(depth, i0, i1, j0, j1)
+    def subdivide_quads(self, to_subdivide=[], quads=[]): 
         
-        if h and v: # Split both horizontally and vertically
-            self.subdivide_quad(depth+1, 2*i0, 2*i0+1, 2*j0, 2*j0+1, quads=quads)
-            self.subdivide_quad(depth+1, 2*i0, 2*i0+1, 2*j0+1, 2*j0+2, quads=quads)
-            self.subdivide_quad(depth+1, 2*i0+1, 2*i0+2, 2*j0, 2*j0+1, quads=quads)
-            self.subdivide_quad(depth+1, 2*i0+1, 2*i0+2, 2*j0+1, 2*j0+2, quads=quads)
-        elif h and not v: # Split only horizontally
-            self.subdivide_quad(depth+1, 2*i0, 2*i1, 2*j0, 2*j0+1, quads=quads)
-            self.subdivide_quad(depth+1, 2*i0, 2*i1, 2*j0+1, 2*j0+2, quads=quads) 
-        elif v and not h: # Split only vertically
-            self.subdivide_quad(depth+1, 2*i0, 2*i0+1, 2*j0, 2*j1, quads=quads)
-            self.subdivide_quad(depth+1, 2*i0+1, 2*i0+2, 2*j0, 2*j1, quads=quads)
-        else: # We are done, both sides are within mesh size limits
-            quads.append([(depth, i0, j0),
-                          (depth, i0, j1),
-                          (depth, i1, j0),
-                          (depth, i1, j1)])
+        if not callable(self.mesh_size):
+            mesh_size = lambda x, y, z: self.mesh_size
+        else:
+            mesh_size = self.mesh_size
+        
+        while len(to_subdivide) > 0:
+            depth, i0, i1, j0, j1 = to_subdivide.pop()
+            
+            # Determine whether should split horizontally/vertically
+            p1x, p1y, p1z = self.pstack[depth, i0, j0]
+            p2x, p2y, p2z = self.pstack[depth, i0, j1]
+            p3x, p3y, p3z = self.pstack[depth, i1, j0]
+            p4x, p4y, p4z = self.pstack[depth, i1, j1]
+             
+            horizontal = max(sqrt((p1x-p2x)**2 + (p1y-p2y)**2 + (p1z-p2z)**2), sqrt((p3x-p4x)**2 + (p3y-p4y)**2 + (p3z-p4z)**2))
+            vertical = max(sqrt((p1x-p3x)**2 + (p1y-p3y)**2 + (p1z-p3z)**2) , sqrt((p2x-p4x)**2 + (p2y-p4y)**2 + (p2z-p4z)**2))
+        
+            ms = mesh_size((p1x+p2x+p3x+p4x)/4, (p1y+p2y+p3y+p4y)/4, (p1z+p2z+p3z+p4z)/4)
+             
+            h = horizontal > ms or (horizontal > 2.5*vertical and horizontal > 1/8*ms)
+            v = vertical > ms or (vertical > 2.5*horizontal and vertical > 1/8*ms)
+             
+            if h and v: # Split both horizontally and vertically
+                to_subdivide.append((depth+1, 2*i0, 2*i0+1, 2*j0, 2*j0+1))
+                to_subdivide.append((depth+1, 2*i0, 2*i0+1, 2*j0+1, 2*j0+2))
+                to_subdivide.append((depth+1, 2*i0+1, 2*i0+2, 2*j0, 2*j0+1))
+                to_subdivide.append((depth+1, 2*i0+1, 2*i0+2, 2*j0+1, 2*j0+2))
+            elif h and not v: # Split only horizontally
+                to_subdivide.append((depth+1, 2*i0, 2*i1, 2*j0, 2*j0+1))
+                to_subdivide.append((depth+1, 2*i0, 2*i1, 2*j0+1, 2*j0+2)) 
+            elif v and not h: # Split only vertically
+                to_subdivide.append((depth+1, 2*i0, 2*i0+1, 2*j0, 2*j1))
+                to_subdivide.append((depth+1, 2*i0+1, 2*i0+2, 2*j0, 2*j1))
+            else: # We are done, both sides are within mesh size limits
+                quads.append([(depth, i0, j0),
+                            (depth, i0, j1),
+                            (depth, i1, j0),
+                            (depth, i1, j1)])
         
         return quads
 
