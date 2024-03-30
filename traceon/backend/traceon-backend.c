@@ -1797,6 +1797,24 @@ line_intersection(double p0[2], double tangent[2], positions_2d positions, size_
 	return false;
 }
 
+EXPORT void triangle_areas(vertices_3d triangles, double *out, size_t N) {
+	
+	for(int i = 0; i < N; i++) {
+		double v1[3] = {
+			triangles[i][1][0] - triangles[i][0][0],
+			triangles[i][1][1] - triangles[i][0][1],
+			triangles[i][1][2] - triangles[i][0][2]
+		};
+		
+		double v2[3] = {
+			triangles[i][2][0] - triangles[i][0][0],
+			triangles[i][2][1] - triangles[i][0][1],
+			triangles[i][2][2] - triangles[i][0][2]
+		};
+
+		out[i] = 0.5*norm_cross_product_3d(v1, v2);
+	}
+}
 
 
 

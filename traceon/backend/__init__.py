@@ -166,7 +166,8 @@ backend_functions = {
     'fill_jacobian_buffer_3d': (None, jac_buffer_3d, pos_buffer_3d, vertices, sz),
     'fill_matrix_3d': (None, arr(ndim=2), vertices, arr(dtype=C.c_uint8, ndim=1), arr(ndim=1), jac_buffer_3d, pos_buffer_3d, sz, sz, C.c_int, C.c_int),
     'plane_intersection': (bool, v3, v3, arr(ndim=2), sz, arr(shape=(6,))),
-    'line_intersection': (bool, v2, v2, arr(ndim=2), sz, arr(shape=(4,)))
+    'line_intersection': (bool, v2, v2, arr(ndim=2), sz, arr(shape=(4,))),
+    'triangle_areas': (None, vertices, arr(ndim=1), sz)
 }
 
 
@@ -601,6 +602,14 @@ def line_intersection(positions, p0, tangent):
     return result if found else None
 
 
+def triangle_areas(triangles):
+    assert triangles.shape == (len(triangles), 3, 3)
+    out = np.zeros(len(triangles))
+    backend_lib.triangle_areas(triangles, out, len(triangles))
+    return out
+
+    
+    
 
 
 

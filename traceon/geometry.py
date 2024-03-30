@@ -23,7 +23,7 @@ from scipy.integrate import cumulative_simpson, quad
 from scipy.interpolate import CubicSpline
 
 from .util import Saveable
-from .backend import N_QUAD_2D, position_and_jacobian_radial, position_and_jacobian_3d, normal_3d
+from .backend import N_QUAD_2D, position_and_jacobian_radial, position_and_jacobian_3d, normal_3d, triangle_areas
 
 __pdoc__ = {}
 __pdoc__['discteize_path'] = False
@@ -65,7 +65,7 @@ class GeometricObject:
         pass
     
     def move(self, dx=0., dy=0., dz=0.):
-        assert isinstance(dx, float) or isinstance(dx, int)
+        assert all([isinstance(d, float) or isinstance(d, int) for d in [dx, dy, dz]])
         return self.map_points(lambda p: p + np.array([dx, dy, dz]))
      
     def rotate(self, Rx=0., Ry=0., Rz=0., origin=[0., 0., 0.]):
@@ -372,8 +372,6 @@ class Surface(GeometricObject):
                 yield Surface(fun, u1-u0, v1-v0, [], [])
        
     def __call__(self, u, v):
-        assert 0 <= u <= self.path_length1
-        assert 0 <= v <= self.path_length2
         return self.fun(u, v)
 
     def map_points(self, fun):
@@ -579,14 +577,8 @@ class Mesh(Saveable, GeometricObject):
         return Mesh(new_points, self.lines, self.triangles, self.physical_to_lines, self.physical_to_triangles)
     
     def remove_degenerate_triangles(self):
-        degenerate = np.full(len(self.triangles), False)
-        
-        for i, t in enumerate(self.triangles):
-            if _points_close(self.points[t[0]], self.points[t[1]]) or \
-                    _points_close(self.points[t[1]], self.points[t[2]]) or \
-                    _points_close(self.points[t[2]], self.points[t[0]]):
-                degenerate[i] = True
-
+        areas = triangle_areas(self.points[self.triangles])
+        degenerate = areas < 1e-12
         map_index = np.arange(len(self.triangles)) - np.cumsum(degenerate)
          
         self.triangles = self.triangles[~degenerate]
