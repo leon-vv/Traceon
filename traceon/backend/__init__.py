@@ -391,7 +391,11 @@ def axial_derivatives_radial_ring(z, charges, jac_buffer, pos_buffer):
     return derivs
 
 def potential_radial(point, charges, jac_buffer, pos_buffer):
-    assert point.shape == (2,)
+    assert point.shape == (2,) or point.shape == (3,)
+
+    if point.shape == (3,):
+        point = _vec_3d_to_2d(point) 
+    
     assert jac_buffer.shape == (len(charges), N_QUAD_2D)
     assert pos_buffer.shape == (len(charges), N_QUAD_2D, 2)
     return backend_lib.potential_radial(point.astype(np.float64), charges, jac_buffer, pos_buffer, len(charges))
