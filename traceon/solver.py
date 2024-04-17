@@ -681,6 +681,7 @@ class FieldRadialBEM(FieldBEM):
         if current_point_charges is None:
             current_point_charges = EffectivePointCharges.empty_3d()
          
+        self.symmetry = E.Symmetry.RADIAL
         super().__init__(electrostatic_point_charges, magnetostatic_point_charges, current_point_charges)
          
     def current_field_at_point(self, point):
@@ -904,6 +905,8 @@ class Field3D_BEM(FieldBEM):
             magnetostatic_point_charges = EffectivePointCharges.empty_3d()
          
         super().__init__(electrostatic_point_charges, magnetostatic_point_charges, EffectivePointCharges.empty_3d())
+        
+        self.symmetry = E.Symmetry.THREE_D
 
         for eff in [electrostatic_point_charges, magnetostatic_point_charges]:
             N = len(eff.charges)
@@ -1105,9 +1108,9 @@ class FieldRadialAxial(FieldAxial):
     """ """
     def __init__(self, z, electrostatic_coeffs=None, magnetostatic_coeffs=None):
         super().__init__(z, electrostatic_coeffs, magnetostatic_coeffs)
-        
         assert self.electrostatic_coeffs.shape == (len(z)-1, backend.DERIV_2D_MAX, 6)
         assert self.magnetostatic_coeffs.shape == (len(z)-1, backend.DERIV_2D_MAX, 6)
+        self.symmetry = E.Symmetry.RADIAL
     
     def electrostatic_field_at_point(self, point):
         """
@@ -1184,6 +1187,8 @@ class Field3DAxial(FieldAxial):
         
         assert electrostatic_coeffs.shape == (len(z)-1, 2, backend.NU_MAX, backend.M_MAX, 4)
         assert magnetostatic_coeffs.shape == (len(z)-1, 2, backend.NU_MAX, backend.M_MAX, 4)
+        
+        self.symmetry = E.Symmetry.THREE_D
      
     def electrostatic_field_at_point(self, point):
         """
