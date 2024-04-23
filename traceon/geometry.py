@@ -6,9 +6,6 @@ The GMSH library has the concept of _physical groups_. These are simply elements
 are assigned a given name. When using Traceon, usually every electrode gets assigned its
 own name (or physical group) with which it can be referenced when later specifying the excitation
 of this electrode.
-
-From this module you will likely use either the `Geometry` class when creating arbitrary geometries,
-or the `MEMSStack` class, if your geometry consists of a stack of MEMS fabricated elements.
 """
 from math import sqrt, pi, sqrt, sin, cos, atan2, ceil
 from enum import Enum
@@ -317,6 +314,10 @@ class Path(GeometricObject):
         return Path.line([xmin, ymin, 0.], [xmax, ymin, 0.]) \
             .line_to([xmax, ymax, 0.]).line_to([xmin, ymax, 0.]).close()
     
+    def aperture(height, radius, extent, z=0.):
+        return Path.line([extent, 0., -height/2], [radius, 0., -height/2])\
+                .line_to([radius, 0., height/2]).line_to([extent, 0., height/2]).move(dz=z)
+    
     def mesh(self, mesh_size=None, name=None, higher_order=False):
         
         if mesh_size is None:
@@ -438,19 +439,18 @@ class Surface(GeometricObject):
         breakpoints2 = path2.breakpoints + path4.breakpoints
          
         return Surface(f, length1, length2, sorted(breakpoints1), sorted(breakpoints2))
+      
+    def aperture(height, radius, extent, z=0.):
+        return Path.line([extent, 0., -height/2], [radius, 0., -height/2])\
+            .line_to([radius, 0., height/2]).line_to([extent, 0., height/2])\
+            .move(dz=z).revolve_z()
      
-        
     def mesh(self, mesh_size=None, name=None):
          
         if mesh_size is None:
             mesh_size = min(self.path_length1, self.path_length2)/10
         
         return mesh(self, mesh_size, name=name)
-
-def aperture(height, radius, extent, name=None, mesh_size=None):
-    l = Path.line([extent, 0., -height/2], [radius, 0., -height/2])\
-            .line_to([radius, 0., height/2]).line_to([extent, 0., height/2])
-    return l.revolve_z().mesh(name=name, mesh_size=mesh_size)
 
 
 def _concat_arrays(arr1, arr2):
