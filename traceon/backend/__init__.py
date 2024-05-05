@@ -60,6 +60,7 @@ dbl_p = C.POINTER(dbl)
 vp = C.c_void_p
 sz = C.c_size_t
 
+integration_cb_1d = C.CFUNCTYPE(dbl, dbl, vp)
 integration_cb_2d = C.CFUNCTYPE(dbl, dbl, dbl, dbl, dbl, vp)
 integration_cb_3d = C.CFUNCTYPE(dbl, dbl, dbl, dbl, dbl, dbl, dbl, vp)
 field_fun = C.CFUNCTYPE(None, C.POINTER(dbl), C.POINTER(dbl), vp);
@@ -124,6 +125,7 @@ backend_functions = {
     'ellipk' : (dbl, dbl),
     'ellipem1' : (dbl, dbl),
     'ellipe': (dbl, dbl),
+    'tanh_sinh_integration': (dbl, integration_cb_1d, dbl, dbl, dbl, dbl, vp),
     'normal_2d': (None, v2, v2, v2),
     'higher_order_normal_radial': (None, dbl, v2, v2, v2, v2, v2),
     'normal_3d': (None, v3, v3, v3, v3),
@@ -192,6 +194,10 @@ ellipkm1 = np.frompyfunc(backend_lib.ellipkm1, 1, 1)
 ellipk = np.frompyfunc(backend_lib.ellipk, 1, 1)
 ellipem1 = np.frompyfunc(backend_lib.ellipem1, 1, 1)
 ellipe = np.frompyfunc(backend_lib.ellipe, 1, 1)
+
+def tanh_sinh_integration(integrand, x_min, x_max, epsabs, epsrel):
+    wrapped = lambda x, args: integrand(x)
+    return backend_lib.tanh_sinh_integration(integration_cb_1d(wrapped), x_min, x_max, epsabs, epsrel, None);
 
 def higher_order_normal_radial(alpha, vertices):
     normal = np.zeros(2)

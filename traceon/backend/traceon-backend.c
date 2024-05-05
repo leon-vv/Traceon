@@ -4,6 +4,7 @@
 #include <stdlib.h>
 #include <stdint.h>
 #include <stdbool.h>
+#include <time.h>
 
 #include <gsl/gsl_integration.h>
 #include <gsl/gsl_errno.h>
@@ -171,6 +172,54 @@ EXPORT double ellipe(double k) {
 	if (0 <= k && k <= 1) return ellipem1(1-k);
 
 	return ellipem1(-1/(k-1.))*sqrt(1-k);
+}
+
+
+
+typedef double (*ts_integrand)(double, void*);
+
+
+double tanh_sinh_integration(ts_integrand f, double a, double b, double epsrel, double epsabs, void *args) {
+    double h = 2.7;
+    double S = 0.5 * M_PI * sinh(h);
+    double jacobian = (b-a)/2.;
+
+    double sum = jacobian * M_PI/2. * f(a + (b - a)/2., args);
+    double to_add = jacobian * M_PI/2. * cosh(h) / pow(cosh(S), 2) * (f(a + (b - a) * (-tanh(S) + 1) / 2., args) + f(a + (b - a) * (tanh(S) + 1) / 2., args));
+		
+	sum += isnormal(to_add) ? to_add : 0.0;
+	
+    double prev = sum;
+    int level = 1;
+
+    while (1) {
+        h /= 2;
+
+
+        for (int n = 0; n < level; n++) {
+            S = 0.5 * M_PI * sinh((2 * n + 1) * h);
+            double x = tanh(S);
+            double w = jacobian * 0.5 * M_PI * cosh((2 * n + 1) * h) / pow(cosh(S), 2);
+			
+			double x_left = a + (b - a) * (-x + 1) / 2.;
+			double x_right = a + (b - a) * (x + 1) / 2.;
+            to_add = w * (f(x_left, args) + f(x_right, args));
+			//printf("%f, %f, %f\n", a, x_left, b);
+			//printf("%f, %f, %f\n", a, x_right, b);
+			assert( (a <= x_left) && (x_left <= b) );
+			assert( (a <= x_right) && (x_right <= b) );
+			sum += isnormal(to_add) ? to_add : 0.0;
+        }
+
+		//printf("SUM: %f\n", h*sum);
+        if (fabs(h * sum - 2 * h * prev) < epsabs + epsrel * fabs(h * sum)) {
+			return h * sum;
+		}
+
+        
+        prev = sum;
+        level *= 2;
+    }
 }
 
 
