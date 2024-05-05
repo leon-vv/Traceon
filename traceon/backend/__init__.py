@@ -129,7 +129,6 @@ backend_functions = {
     'normal_2d': (None, v2, v2, v2),
     'higher_order_normal_radial': (None, dbl, v2, v2, v2, v2, v2),
     'normal_3d': (None, v3, v3, v3, v3),
-    'higher_order_normal_3d': (None, dbl, dbl, arr(shape=(6,3)), v3),
     'position_and_jacobian_3d': (None, dbl, dbl, arr(ndim=2), v3, dbl_p),
     'position_and_jacobian_radial': (None, dbl, v2, v2, v2, v2, v2, dbl_p),
     'trace_particle': (sz, times_block, tracing_block, field_fun, bounds, dbl, vp),
@@ -164,7 +163,6 @@ backend_functions = {
     'current_axial_derivatives_radial_ring': (None, arr(ndim=2), currents_2d, jac_buffer_3d, pos_buffer_3d, sz, z_values, sz),
     'fill_jacobian_buffer_radial': (None, jac_buffer_2d, pos_buffer_2d, vertices, sz),
     'fill_matrix_radial': (None, arr(ndim=2), lines, arr(dtype=C.c_uint8, ndim=1), arr(ndim=1), jac_buffer_2d, pos_buffer_2d, sz, sz, C.c_int, C.c_int),
-    'fill_jacobian_buffer_3d_higher_order': (None, jac_buffer_3d, pos_buffer_3d, vertices, sz),
     'fill_jacobian_buffer_3d': (None, jac_buffer_3d, pos_buffer_3d, vertices, sz),
     'fill_matrix_3d': (None, arr(ndim=2), vertices, arr(dtype=C.c_uint8, ndim=1), arr(ndim=1), jac_buffer_3d, pos_buffer_3d, sz, sz, C.c_int, C.c_int),
     'plane_intersection': (bool, v3, v3, arr(ndim=2), sz, arr(shape=(6,))),
@@ -210,13 +208,6 @@ def normal_2d(p1, p2):
     backend_lib.normal_2d(p1, p2, normal)
     return normal
 
-def higher_order_normal_3d(alpha, beta, vertices):
-    assert vertices.shape == (6,3)
-    normal = np.zeros(3)
-    backend_lib.higher_order_normal_3d(alpha, beta, vertices, normal)
-    assert np.isclose(np.linalg.norm(normal), 1.0)
-    return normal
- 
 # Remove the last argument, which is usually a void pointer to optional data
 # passed to the function. In Python we don't need this functionality
 # as we can simply use closures.
@@ -296,7 +287,7 @@ def wrap_field_fun(ff):
     return field_fun(wrapper)
 
 def position_and_jacobian_3d(alpha, beta, triangle):
-    assert triangle.shape == (6, 3)
+    assert triangle.shape == (3, 3)
      
     pos = np.zeros(3)
     jac = C.c_double(0.0)
@@ -548,17 +539,6 @@ def fill_matrix_radial(matrix, lines, excitation_types, excitation_values, jac_b
      
     backend_lib.fill_matrix_radial(matrix, lines, excitation_types, excitation_values, jac_buffer, pos_buffer, N, matrix.shape[0], start_index, end_index)
 
-def fill_jacobian_buffer_3d_higher_order(vertices):
-    N = len(vertices)
-    assert vertices.shape == (N, 6, 3)
-    
-    jac_buffer = np.zeros( (N, N_TRIANGLE_QUAD) )
-    pos_buffer = np.zeros( (N, N_TRIANGLE_QUAD, 3) )
-    
-    backend_lib.fill_jacobian_buffer_3d_higher_order(jac_buffer, pos_buffer, vertices, N)
-
-    return jac_buffer, pos_buffer
-
 def fill_jacobian_buffer_3d(vertices):
     N = len(vertices)
     assert vertices.shape == (N, 3, 3)
@@ -574,7 +554,7 @@ def fill_jacobian_buffer_3d(vertices):
 def fill_matrix_3d(matrix, vertices, excitation_types, excitation_values, jac_buffer, pos_buffer, start_index, end_index):
     N = len(vertices)
     assert matrix.shape[0] == N and matrix.shape[1] == N and matrix.shape[0] == matrix.shape[1]
-    assert vertices.shape == (N, 6, 3)
+    assert vertices.shape == (N, 3, 3)
     assert excitation_types.shape == (N,)
     assert excitation_values.shape == (N,)
     assert jac_buffer.shape == (N, N_TRIANGLE_QUAD)

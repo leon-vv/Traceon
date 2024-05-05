@@ -83,9 +83,8 @@ typedef double (*integration_cb_2d)(double, double, double, double, void*);
 typedef double (*vertices_2d)[4][3];
 typedef double (*charges_2d)[N_QUAD_2D];
 
-// See GMSH documentation
-typedef double triangle6[6][3];
-typedef double (*vertices_3d_higher_order)[6][3];
+typedef double (*integration_cb_3d)(double, double, double, double, double, double, void*);
+typedef double (triangle)[3][3];
 typedef double (*vertices_3d)[3][3];
 
 typedef double (*positions_3d)[6];
@@ -289,7 +288,6 @@ INLINE void position_and_jacobian_radial(double alpha, double *v1, double *v2, d
 //////////////////////////////// UTILITIES 3D
 
 
-typedef double (*integration_cb_3d)(double, double, double, double, double, double, void*);
 
 INLINE double
 norm_3d(double x, double y, double z) {
@@ -297,10 +295,10 @@ norm_3d(double x, double y, double z) {
 }
 
 EXPORT void
-normal_3d(double *p1, double *p2, double *p3, double *normal) {
-	double x1 = p1[0], y1 = p1[1], z1 = p1[2];
-	double x2 = p2[0], y2 = p2[1], z2 = p2[2];
-	double x3 = p3[0], y3 = p3[1], z3 = p3[2];
+normal_3d(double alpha, double beta, triangle t, double *normal) {
+	double x1 = t[0][0], y1 = t[0][1], z1 = t[0][2];
+	double x2 = t[1][0], y2 = t[1][1], z2 = t[1][2];
+	double x3 = t[2][0], y3 = t[2][1], z3 = t[2][2];
 
 	double normal_x = (y2-y1)*(z3-z1)-(y3-y1)*(z2-z1);
 	double normal_y = (x3-x1)*(z2-z1)-(x2-x1)*(z3-z1);
@@ -310,40 +308,6 @@ normal_3d(double *p1, double *p2, double *p3, double *normal) {
 	normal[0] = normal_x/length;
 	normal[1] = normal_y/length;
 	normal[2] = normal_z/length;
-}
-
-INLINE void higher_order_normal_3d(double alpha, double beta, triangle6 triangle, double normal[3]) {
-	double v0x = triangle[0][0], v0y = triangle[0][1], v0z = triangle[0][2];
-	double v1x = triangle[1][0], v1y = triangle[1][1], v1z = triangle[1][2];
-	double v2x = triangle[2][0], v2y = triangle[2][1], v2z = triangle[2][2];
-	double v3x = triangle[3][0], v3y = triangle[3][1], v3z = triangle[3][2];
-	double v4x = triangle[4][0], v4y = triangle[4][1], v4z = triangle[4][2];
-	double v5x = triangle[5][0], v5y = triangle[5][1], v5z = triangle[5][2];
-
-	double a=alpha, b=beta;
-	
-	double da[3] = {-4*b*v5x+4*b*v4x+(-4*b-8*a+4)*v3x+(4*a-1)*v1x+(4*b+4*a-3)*v0x,-4*b*v5y+4*b*v4y+(-4*b-8*a+4)*v3y+(4*a-1)*v1y+(4*b+4*a-3)*v0y,-4*b*v5z+4*b*v4z+(-4*b-8*a+4)*v3z+(4*a-1)*v1z+(4*b+4*a-3)*v0z};
-	double db[3] = {(-8*b-4*a+4)*v5x+4*a*v4x-4*a*v3x+(4*b-1)*v2x+(4*b+4*a-3)*v0x,(-8*b-4*a+4)*v5y+4*a*v4y-4*a*v3y+(4*b-1)*v2y+(4*b+4*a-3)*v0y,(-8*b-4*a+4)*v5z+4*a*v4z-4*a*v3z+(4*b-1)*v2z+(4*b+4*a-3)*v0z};
-	
-	double zero[3] = {0, 0, 0};
-	normal_3d(zero, da, db, normal);
-}
-
-INLINE void barycentric_coefficients_higher_order_triangle_3d(double alpha, double beta,
-	double v0, double v1, double v2, double v3, double v4, double v5, double coeffs[6]) {
-    coeffs[0] = v0;
-	coeffs[1] = 4*v3-v1-3*v0;
-	coeffs[2] = 4*v5-v2-3*v0;
-	coeffs[3] = -4*v3+2*v1+2*v0;
-	coeffs[4] = -4*v5+4*v4-4*v3+4*v0;
-	coeffs[5] = -4*v5+2*v2+2*v0;
-}
-
-INLINE double dot6(double *v1, double *v2) {
-	double sum = 0.0;
-	UNROLL
-	for(int i = 0; i < 6; i++) sum += v1[i]*v2[i];
-	return sum;
 }
 
 INLINE void
@@ -362,34 +326,20 @@ INLINE double norm_cross_product_3d(double v1[3], double v2[3]) {
 	return norm_3d(out[0], out[1], out[2]);
 }
 
-INLINE void position_and_jacobian_3d(double alpha, double beta, triangle6 v, double *pos_out, double *jac) {
+INLINE void position_and_jacobian_3d(double alpha, double beta, triangle t, double pos_out[3], double *jac) {
 
-	double coeffs_x[6], coeffs_y[6], coeffs_z[6];
-	barycentric_coefficients_higher_order_triangle_3d(alpha, beta, v[0][0], v[1][0], v[2][0], v[3][0], v[4][0], v[5][0], coeffs_x);
-	barycentric_coefficients_higher_order_triangle_3d(alpha, beta, v[0][1], v[1][1], v[2][1], v[3][1], v[4][1], v[5][1], coeffs_y);
-	barycentric_coefficients_higher_order_triangle_3d(alpha, beta, v[0][2], v[1][2], v[2][2], v[3][2], v[4][2], v[5][2], coeffs_z);
-	
-	double monomials[6] = {1, alpha, beta, pow(alpha,2), alpha*beta, pow(beta,2)};
-	double monomials_da[6] = {0, 1, 0, 2*alpha, beta, 0};
-	double monomials_db[6] = {0, 0, 1, 0, alpha, 2*beta};
+	double v1[3] = {t[1][0] - t[0][0], t[1][1] - t[0][1], t[1][2] - t[0][2]};
+	double v2[3] = {t[2][0] - t[0][0], t[2][1] - t[0][1], t[2][2] - t[0][2]};
 
-	pos_out[0] = dot6(coeffs_x, monomials);
-	pos_out[1] = dot6(coeffs_y, monomials);
-	pos_out[2] = dot6(coeffs_z, monomials);
+	double x = t[0][0] + alpha*v1[0] + beta*v2[0];
+	double y = t[0][1] + alpha*v1[1] + beta*v2[1];
+	double z = t[0][2] + alpha*v1[2] + beta*v2[2];
 
-	double da[3] = {
-		dot6(coeffs_x, monomials_da),
-		dot6(coeffs_y, monomials_da),
-		dot6(coeffs_z, monomials_da),
-	};
-	
-	double db[3] = {
-		dot6(coeffs_x, monomials_db),
-		dot6(coeffs_y, monomials_db),
-		dot6(coeffs_z, monomials_db),
-	};
-	
-	*jac = norm_cross_product_3d(da, db);
+
+	pos_out[0] = x;
+	pos_out[1] = y;
+	pos_out[2] = z;
+	*jac = norm_cross_product_3d(v1, v2);
 }
 
 struct self_voltage_3d_args {
@@ -447,7 +397,7 @@ triangle_integral_beta(double beta, void *args_p) {
 }
 
 double
-triangle_integral_adaptive(double target[3], triangle6 vertices, integration_cb_3d function, void *args) {
+triangle_integral_adaptive(double target[3], triangle vertices, integration_cb_3d function, void *args) {
 	// TODO: optimize this, put outside the loop over the matrix diagonal
 	gsl_integration_workspace * w = gsl_integration_workspace_alloc(ADAPTIVE_MAX_ITERATION);
 	gsl_integration_workspace * w_inner = gsl_integration_workspace_alloc(ADAPTIVE_MAX_ITERATION);
@@ -1587,7 +1537,7 @@ EXPORT void fill_matrix_radial(double *matrix,
 }
 
 void fill_self_voltages_3d(double *matrix, 
-                        vertices_3d_higher_order triangle_points,
+                        vertices_3d triangle_points,
 						uint8_t *excitation_types,
 						double *excitation_values,
 						size_t N_lines,
@@ -1608,29 +1558,20 @@ void fill_self_voltages_3d(double *matrix,
 		position_and_jacobian_3d(4/6., 1/6., &triangle_points[i][0], s1, &jac);
 		position_and_jacobian_3d(1/6., 4/6., &triangle_points[i][0], s2, &jac);
 					
-		triangle6 triangle1 = {
+		triangle triangle1 = {
 			{ t[0], t[1], t[2] },
 			{ v[0][0], v[0][1], v[0][2] },
-			{ v[1][0], v[1][1], v[1][2] },
-			{ s0[0], s0[1], s0[2] },
-			{ v[3][0], v[3][1], v[3][2] },
-			{ s1[0], s1[1], s1[2] } };
+			{ v[1][0], v[1][1], v[1][2] }};
 		
-		triangle6 triangle2 = {
+		triangle triangle2 = {
 			{ t[0], t[1], t[2] },
 			{ v[1][0], v[1][1], v[1][2] },
-			{ v[2][0], v[2][1], v[2][2] },
-			{ s1[0], s1[1], s1[2] },
-			{ v[4][0], v[4][1], v[4][2] },
-			{ s2[0], s2[1], s2[2] } };
+			{ v[2][0], v[2][1], v[2][2] } };
 			
-		triangle6 triangle3 = {
+		triangle triangle3 = {
 			{ t[0], t[1], t[2] },
 			{ v[2][0], v[2][1], v[2][2] },
-			{ v[0][0], v[0][1], v[0][2] },
-			{ s2[0], s2[1], s2[2] },
-			{ v[5][0], v[5][1], v[5][2] },
-			{ s0[0], s0[1], s0[2] } };
+			{ v[0][0], v[0][1], v[0][2] } };
 
 		if(excitation_types[i] != DIELECTRIC && excitation_types[i] != MAGNETIZABLE) {
 			matrix[i*N_matrix + i] = 0.0;
@@ -1642,29 +1583,6 @@ void fill_self_voltages_3d(double *matrix,
 			matrix[i*N_matrix + i] = -1.0;
 		}
 	}
-}
-
-EXPORT void fill_jacobian_buffer_3d_higher_order(
-	jacobian_buffer_3d jacobian_buffer,
-	position_buffer_3d pos_buffer,
-    vertices_3d_higher_order triangle_points,
-    size_t N_lines) {
-		
-    for(int i = 0; i < N_lines; i++) {  
-        for (int k=0; k < N_TRIANGLE_QUAD; k++) {  
-            double b1_ = QUAD_B1[k];  
-            double b2_ = QUAD_B2[k];  
-            double w = QUAD_WEIGHTS[k];  
-			
-            double pos[3], jac;  
-            position_and_jacobian_3d(b1_, b2_, &triangle_points[i][0], pos, &jac);  
-			
-            jacobian_buffer[i][k] = w*jac;  
-            pos_buffer[i][k][0] = pos[0];  
-            pos_buffer[i][k][1] = pos[1];  
-            pos_buffer[i][k][2] = pos[2];  
-        }
-    }
 }
 
 EXPORT void fill_jacobian_buffer_3d(
@@ -1700,7 +1618,7 @@ EXPORT void fill_jacobian_buffer_3d(
 
 
 EXPORT void fill_matrix_3d(double *restrict matrix, 
-                    vertices_3d_higher_order triangle_points, 
+                    vertices_3d triangle_points, 
                     uint8_t *excitation_types, 
                     double *excitation_values, 
 					jacobian_buffer_3d jacobian_buffer,
@@ -1735,7 +1653,7 @@ EXPORT void fill_matrix_3d(double *restrict matrix,
 		else if (type_ == DIELECTRIC || type_ == MAGNETIZABLE) {  
 			
 			double normal[3];  
-			higher_order_normal_3d(1/3., 1/3., &triangle_points[i][0], normal);
+			normal_3d(1/3., 1/3., &triangle_points[i][0], normal);
 			double K = excitation_values[i];  
 			
 			// This factor is hard to derive. It takes into account that the field

@@ -156,17 +156,17 @@ class Geometry(geo.Geometry):
         if self.size_from_distance:
             self.set_mesh_size_callback(self._mesh_size_callback)
         
+        assert not higher_order or self.is_2d(), "Higher order is not supported in 3d"
+        
         if dimension == 1 and higher_order:
             gmsh.option.setNumber('Mesh.ElementOrder', 3)
         elif dimension == 1 and not higher_order:
             gmsh.option.setNumber('Mesh.ElementOrder', 1)
-        elif dimension == 2 and higher_order:
-            gmsh.option.setNumber('Mesh.ElementOrder', 2)
-        elif dimension == 2 and not higher_order:
+        elif dimension == 2:
             gmsh.option.setNumber('Mesh.ElementOrder', 1)
         
         return Mesh.from_meshio(super().generate_mesh(dim=dimension, *args, **kwargs), self.symmetry)
-
+    
     def generate_line_mesh(self, higher_order, *args, **kwargs):
         """Generate boundary mesh in 2D, by splitting the boundary in line elements.
 
@@ -468,43 +468,16 @@ class Mesh(Saveable):
          
         assert np.allclose(p2, points[elements[:, 2]]) and np.allclose(p3, points[elements[:, 3]])
         return points, elements
-
-
-    def _triangles_to_higher_order(points, elements):
-        N_elements = len(elements)
-        N_points = len(points)
-         
-        v0, v1, v2 = elements.T
-        p3 = (points[v0] + points[v1])/2
-        p4 = (points[v1] + points[v2])/2
-        p5 = (points[v2] + points[v0])/2
-         
-        assert all(p.shape == (N_elements, points.shape[1]) for p in [p3,p4,p5])
-          
-        points = np.concatenate( (points, p3, p4, p5), axis=0)
-          
-        elements = np.array([
-            elements[:, 0], elements[:, 1], elements[:, 2],
-            np.arange(N_points, N_points + N_elements, dtype=np.uint64),
-            np.arange(N_points + N_elements, N_points + 2*N_elements, dtype=np.uint64),
-            np.arange(N_points + 2*N_elements, N_points + 3*N_elements, dtype=np.uint64)]).T
-         
-        assert np.allclose(p3, points[elements[:, 3]])
-        assert np.allclose(p4, points[elements[:, 4]])
-        assert np.allclose(p5, points[elements[:, 5]])
-        
-        return points, elements
-
+    
     def _to_higher_order_mesh(self):
+        assert self.is_2d()
         # The matrix solver currently only works with higher order meshes.
         # We can however convert a simple mesh easily to a higher order mesh, and solve that.
         
         points, lines, triangles = self.points, self.lines, self.triangles
-
+        
         if len(lines) and lines.shape[1] == 2:
             points, lines = Mesh._lines_to_higher_order(points, lines)
-        if len(triangles) and triangles.shape[1] == 3:
-            points, triangles = Mesh._triangles_to_higher_order(points, triangles) 
          
         return Mesh(self.symmetry,
             points=points,

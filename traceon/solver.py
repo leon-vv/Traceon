@@ -93,12 +93,12 @@ class Solver:
 
         two_d = self.is_2d()
         higher_order = self.is_higher_order()
+
+        assert not higher_order or two_d, "Higher order not supported in 3D"
         
         if two_d and higher_order:
             jac, pos = backend.fill_jacobian_buffer_radial(vertices)
-        elif not two_d and higher_order:
-            jac, pos = backend.fill_jacobian_buffer_3d_higher_order(vertices)
-        elif not two_d and not higher_order:
+        elif not two_d:
             jac, pos = backend.fill_jacobian_buffer_3d(vertices)
         else:
             raise ValueError('Input excitation is 2D but not higher order, this solver input is currently not supported. Consider upgrading mesh to higher order.')
@@ -143,8 +143,9 @@ class Solver:
         pass
          
     def get_matrix(self):
-        assert self.is_higher_order(), "Can only produce matrix for higher order meshes. Consider upgrading your mesh."
-        
+        assert (self.is_3d() and not self.is_higher_order()) or \
+            (self.is_2d() and self.is_higher_order()), "2D mesh needs to be higher order (consider upgrading mesh), 3D mesh needs to be simple (higher order not supported)."
+         
         N_matrix = self.get_number_of_matrix_elements()
         matrix = np.zeros( (N_matrix, N_matrix) )
         print(f'Using matrix solver, number of elements: {N_matrix}, size of matrix: {N_matrix} ({matrix.nbytes/1e6:.0f} MB), symmetry: {self.excitation.mesh.symmetry}, higher order: {self.excitation.mesh.is_higher_order()}')
@@ -449,7 +450,7 @@ def solve_bem(excitation, superposition=False, use_fmm=False, fmm_precision=0):
         else:
             return ElectrostaticSolver(excitation).solve_fmm(fmm_precision)
     else:
-        if not excitation.mesh.is_higher_order():
+        if excitation.mesh.is_2d() and not excitation.mesh.is_higher_order():
             excitation = _excitation_to_higher_order(excitation)
          
         if superposition:
