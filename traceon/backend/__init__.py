@@ -121,6 +121,10 @@ times_block = arr(shape=(TRACING_BLOCK_SIZE,))
 tracing_block = arr(shape=(TRACING_BLOCK_SIZE, 6))
 
 backend_functions = {
+    # triangle_contribution.c
+    'potential_normalized_triangle': (dbl, dbl, dbl, dbl, dbl),
+    'potential_triangle_target_over_v0': (dbl, v3, v3, v3, v3),
+    
     'ellipkm1' : (dbl, dbl),
     'ellipk' : (dbl, dbl),
     'ellipem1' : (dbl, dbl),
@@ -187,6 +191,9 @@ for (fun, (res, *args)) in backend_functions.items():
      
     libfun.restype = res
     libfun.argtypes = args
+
+potential_normalized_triangle = backend_lib.potential_normalized_triangle
+potential_triangle_target_over_v0 = backend_lib.potential_triangle_target_over_v0
 
 ellipkm1 = np.frompyfunc(backend_lib.ellipkm1, 1, 1)
 ellipk = np.frompyfunc(backend_lib.ellipk, 1, 1)
