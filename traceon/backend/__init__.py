@@ -125,6 +125,8 @@ backend_functions = {
     'potential_normalized_triangle': (dbl, dbl, dbl, dbl, dbl),
     'potential_triangle_target_over_v0': (dbl, v3, v3, v3, v3),
     'triangle_barycentric_coords': (None, v3, v3, v3, v3, v3),
+    'triangle_barycentric_coords': (None, v3, v3, v3, v3, v3),
+    'potential_triangle': (dbl, v3, v3, v3, v3),
      
     'ellipkm1' : (dbl, dbl),
     'ellipk' : (dbl, dbl),
@@ -200,6 +202,8 @@ def triangle_barycentric_coords(p, v0, v1, v2):
     out = np.zeros(3)
     backend_lib.triangle_barycentric_coords(p, v0, v1, v2, out)
     return out
+
+potential_triangle = backend_lib.potential_triangle
 
 ellipkm1 = np.frompyfunc(backend_lib.ellipkm1, 1, 1)
 ellipk = np.frompyfunc(backend_lib.ellipk, 1, 1)

@@ -22,6 +22,11 @@ double potential_normalized_triangle(double a, double b, double c, double z0) {
 	// the target is located at (0, 0, z0)
 	// this function returns the potential at the target for a triangle
 	// with unit charge density. One adaptive integration is needed.
+	
+	// If the triangle has no area the code is numerically unstable.
+	// So we check that first
+	if( fabs(a*c) < 1e-12 ) return 0.;
+	
 	gsl_integration_workspace *w = gsl_integration_workspace_alloc(ADAPTIVE_MAX_ITERATION);
 	
 	double args[4] = {a,b,c,z0};
@@ -108,6 +113,46 @@ void triangle_barycentric_coords(double p[3], double v0[3], double v1[3], double
 	out[1] = a;
 	out[2] = b;
 }
+
+double
+triangle_area(double v0[3], double v1[3], double v2[3]) {
+	double vec1[3] = {v1[0]-v0[0], v1[1]-v0[1], v1[2]-v0[2]};
+	double vec2[3] = {v2[0]-v0[0], v2[1]-v0[1], v2[2]-v0[2]};
+	
+	double out[3];
+	cross_product_3d(vec1, vec2, out);
+	return norm_3d(out[0], out[1], out[2])/2.0;
+}
+
+inline int sign(double x) {
+	return x > 0 ? 1 : -1;
+}
+
+double
+potential_triangle(double v0[3], double v1[3], double v2[3], double target[3]) {
+	double coords[3];
+	triangle_barycentric_coords(target, v0, v1, v2, coords);
+	
+	double area = triangle_area(v0, v1, v2);
+	
+	// Project of point in the triangle
+	// (a,b,c) = coords
+    // pt = a*v0 + b*v1 + c*v2
+	double pt[3] = {
+		coords[0]*v0[0] + coords[1]*v1[0] + coords[2]*v2[0],
+		coords[0]*v0[1] + coords[1]*v1[1] + coords[2]*v2[1],
+		coords[0]*v0[2] + coords[1]*v1[2] + coords[2]*v2[2]};
+		
+	double pot1 = potential_triangle_target_over_v0(pt, v0, v1, target);
+	double pot2 = potential_triangle_target_over_v0(pt, v1, v2, target);
+	double pot3 = potential_triangle_target_over_v0(pt, v2, v0, target);
+	
+	return (sign(coords[2])*pot1 + sign(coords[0])*pot2 + sign(coords[1])*pot3)/(2*area);
+}
+
+
+
+	
 
 
 

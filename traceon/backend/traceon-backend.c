@@ -286,11 +286,7 @@ normal_3d(double alpha, double beta, triangle t, double *normal) {
 	normal[2] = normal_z/length;
 }
 
-INLINE double norm_cross_product_3d(double v1[3], double v2[3]) {
-	double out[3];
-	cross_product_3d(v1, v2, out);
-	return norm_3d(out[0], out[1], out[2]);
-}
+
 
 INLINE void position_and_jacobian_3d(double alpha, double beta, triangle t, double pos_out[3], double *jac) {
 
@@ -305,7 +301,7 @@ INLINE void position_and_jacobian_3d(double alpha, double beta, triangle t, doub
 	pos_out[0] = x;
 	pos_out[1] = y;
 	pos_out[2] = z;
-	*jac = norm_cross_product_3d(v1, v2);
+	*jac = 2*triangle_area(t[0], t[1], t[2]);
 }
 
 struct self_voltage_3d_args {

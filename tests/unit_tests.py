@@ -99,7 +99,53 @@ class TestTriangleContribution(unittest.TestCase):
             pt = a*v0 + b*v1 + c*v2
             
             assert np.allclose(p/(pt + z*normal) - 1, 0.)
-    
+        
+    def test_potential_singular(self):
+        v0, v1, v2 = np.array([
+            [0., 0., 0.],
+            [1., 0., 0.],
+            [0., 1., 0.]])
+
+        target = np.array([2., 0., 0.])
+        correct = potential_exact_integrated(v0, v1, v2, target) 
+        approx = B.potential_triangle(v0, v1, v2, target)
+        assert np.isclose(approx, correct)
+        
+        target = np.array([1. + 1e-5, 0., 0.])
+        correct = potential_exact_integrated(v0, v1, v2, target) 
+        approx = B.potential_triangle(v0, v1, v2, target)
+        assert np.isclose(approx, correct)
+        
+        target = np.array([0., 1 + 1e-5, 0.])
+        correct = potential_exact_integrated(v0, v1, v2, target) 
+        approx = B.potential_triangle(v0, v1, v2, target)
+        assert np.isclose(approx, correct)
+        
+        target = np.array([0., 0., 0.])
+        correct = potential_exact_integrated(v0, v1, v2, target) 
+        approx = B.potential_triangle(v0, v1, v2, target)
+        assert np.isclose(approx, correct)
+     
+    def test_potential(self):
+        for _ in range(10):
+            v0, v1, v2 = rand(3,3)
+            target = rand(3)
+            
+            correct = potential_exact_integrated(v0, v1, v2, target) 
+            approx = B.potential_triangle(v0, v1, v2, target)
+            assert np.allclose(correct, approx)
+
+    def test_one_triangle_edwards(self):
+        v0, v1, v2 = np.array([
+            [11.591110,3.105829,5.000000],
+ 			[8.626804,3.649622,5.000000],
+ 			[9.000000,0.000000,5.000000]])
+        
+        target = np.array([9.739305,2.251817,5.000000])
+        assert np.allclose(target, v0 + 1/3*(v1-v0) + 1/3*(v2-v0))
+        assert np.isclose(
+            potential_exact_integrated(v0, v1, v2, target), 
+            B.potential_triangle(v0, v1, v2, target))
  
 
 class TestAdaptiveIntegration(unittest.TestCase):

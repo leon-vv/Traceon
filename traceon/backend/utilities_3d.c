@@ -27,6 +27,3 @@ cross_product_3d(double v1[3], double v2[3], double out[3]) {
 	out[2] = v1x*v2y-v1y*v2x;
 }
 
-
-
-
