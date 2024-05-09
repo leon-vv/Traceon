@@ -86,3 +86,37 @@ double potential_triangle_target_over_v0(double *v0, double *v1, double *v2, dou
 	return potential_normalized_triangle(a,b,c,z0);
 }
 
+// Get the barycentric coordinates of
+// the projection of the point on the plane of the triangle
+void triangle_barycentric_coords(double p[3], double v0[3], double v1[3], double v2[3], double out[3]) {
+	double x[3] = {v1[0]-v0[0], v1[1]-v0[1], v1[2]-v0[2]};
+	double y[3] = {v2[0]-v0[0], v2[1]-v0[1], v2[2]-v0[2]};
+	
+    double vx = dot_3d(v0, x);
+    double vy = dot_3d(v0, y);
+    double px = dot_3d(p, x);
+    double py = dot_3d(p, y);
+    double x2 = dot_3d(x, x);
+    double xy = dot_3d(x, y);
+    double y2 = dot_3d(y, y);
+		
+	double denom = (x2*y2 - xy*xy);
+	double a = -((vx-px)*y2+(py-vy)*xy)/denom;
+    double b = ((vx-px)*xy+(py-vy)*x2)/denom;
+
+	out[0] = 1-a-b;
+	out[1] = a;
+	out[2] = b;
+}
+
+
+
+
+
+
+
+
+
+
+
+

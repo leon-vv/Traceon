@@ -84,6 +84,22 @@ class TestTriangleContribution(unittest.TestCase):
             approx = B.potential_triangle_target_over_v0(v0, v1, v2, target)/(2*area)
              
             assert np.isclose(correct, approx)
+
+    def test_barycentric(self):
+        for _ in range(100):
+            v0, v1, v2 = rand(3,3)
+            p = rand(3)
+            
+            normal = np.cross(v1-v0, v2-v0)
+            normal /= np.linalg.norm(normal)
+            
+            z = np.dot((p-v0), normal)
+            
+            (a, b, c) = B.triangle_barycentric_coords(p, v0, v1, v2)
+            pt = a*v0 + b*v1 + c*v2
+            
+            assert np.allclose(p/(pt + z*normal) - 1, 0.)
+    
  
 
 class TestAdaptiveIntegration(unittest.TestCase):
