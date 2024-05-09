@@ -9,27 +9,9 @@
 #include <gsl/gsl_integration.h>
 #include <gsl/gsl_errno.h>
 
-#ifdef _MSC_VER
-#define EXPORT __declspec(dllexport)
-
-#include <Python.h>
-PyMODINIT_FUNC PyInit_traceon_backend(void) {
-	return NULL;
-}
-
-#else
-#define EXPORT extern
-#endif
-
-#define INLINE EXPORT inline
-
-#if defined(__clang__)
-	#define UNROLL _Pragma("clang loop unroll(full)")
-#elif defined(__GNUC__) || defined(__GNUG__)
-	#define UNROLL _Pragma("GCC unroll 100")
-#else
-	#define UNROLL
-#endif
+#include "defs.c"
+#include "utilities_3d.c"
+#include "triangle_contribution.c"
 
 
 #define DERIV_2D_MAX 9
@@ -288,12 +270,6 @@ INLINE void position_and_jacobian_radial(double alpha, double *v1, double *v2, d
 //////////////////////////////// UTILITIES 3D
 
 
-
-INLINE double
-norm_3d(double x, double y, double z) {
-	return sqrt(x*x + y*y + z*z);
-}
-
 EXPORT void
 normal_3d(double alpha, double beta, triangle t, double *normal) {
 	double x1 = t[0][0], y1 = t[0][1], z1 = t[0][2];
@@ -308,16 +284,6 @@ normal_3d(double alpha, double beta, triangle t, double *normal) {
 	normal[0] = normal_x/length;
 	normal[1] = normal_y/length;
 	normal[2] = normal_z/length;
-}
-
-INLINE void
-cross_product_3d(double v1[3], double v2[3], double out[3]) {
-	double v1x = v1[0], v1y = v1[1], v1z = v1[2];
-	double v2x = v2[0], v2y = v2[1], v2z = v2[2];
-
-	out[0] = v1y*v2z-v1z*v2y;
-	out[1] = v1z*v2x-v1x*v2z;
-	out[2] = v1x*v2y-v1y*v2x;
 }
 
 INLINE double norm_cross_product_3d(double v1[3], double v2[3]) {
@@ -372,7 +338,6 @@ triangle_integral_alpha(double alpha, void *args_p) {
 	return Jeta*jac*args->cb_fun(target[0], target[1], target[2], pos[0], pos[1], pos[2], args->cb_args);
 }
 
-#define ADAPTIVE_MAX_ITERATION 5000
 
 double
 triangle_integral_beta(double beta, void *args_p) {
