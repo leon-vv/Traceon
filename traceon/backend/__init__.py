@@ -125,6 +125,7 @@ backend_functions = {
     'potential_normalized_triangle': (dbl, dbl, dbl, dbl, dbl),
     'flux_normalized_triangle': (dbl, dbl, dbl, dbl, dbl, v3),
     'potential_triangle_target_over_v0': (dbl, v3, v3, v3, v3),
+    'flux_triangle_target_over_v0': (dbl, v3, v3, v3, v3, v3),
     'triangle_barycentric_coords': (None, v3, v3, v3, v3, v3),
     'triangle_barycentric_coords': (None, v3, v3, v3, v3, v3),
     'potential_triangle': (dbl, v3, v3, v3, v3),
@@ -200,6 +201,7 @@ potential_normalized_triangle = backend_lib.potential_normalized_triangle
 flux_normalized_triangle = backend_lib.flux_normalized_triangle
 
 potential_triangle_target_over_v0 = backend_lib.potential_triangle_target_over_v0
+flux_triangle_target_over_v0 = backend_lib.flux_triangle_target_over_v0
 
 def triangle_barycentric_coords(p, v0, v1, v2):
     out = np.zeros(3)

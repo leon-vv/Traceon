@@ -5,10 +5,30 @@
 #include <gsl/gsl_integration.h>
 #include <gsl/gsl_errno.h>
 
+// Triangle is defined by the vertices
+// (0, 0, 0), (a, 0, 0), (b, c, 0)
+// the target is located at (0, 0, z0)
+// this function returns the potential at the target for a triangle
+// with unit charge density. One adaptive integration is needed.
+
+// If the triangle has no area the code is numerically unstable.
+// So we check that first
+
+struct _normalized_triangle {
+	double a;
+	double b;
+	double c;
+	double z0;
+	double normal[3];
+};
+
 
 double _potential_normalized_triangle_integrand(double theta, void *args_p) {
-	double *args = (double*)args_p;
-	double a = args[0], b = args[1], c = args[2], z0 = args[3];
+	struct _normalized_triangle *args = (struct _normalized_triangle*)args_p;
+
+	double a = args->a; double b = args->b; double c = args->c;
+	double z0 = args->z0;
+	
 	assert(a > 0 && c > 0 && z0 >= 0);
 		
 	double rmax = -a*c/((b-a)*sin(theta) - c*cos(theta));
@@ -25,27 +45,29 @@ double potential_normalized_triangle(double a, double b, double c, double z0) {
 	
 	// If the triangle has no area the code is numerically unstable.
 	// So we check that first
-	if( fabs(a*c) < 1e-12 ) return 0.;
+
+	struct _normalized_triangle tri = { a, b, c, z0 };
+
+	if( fabs(tri.a*tri.c) < 1e-12 ) return 0.;
 	
 	gsl_integration_workspace *w = gsl_integration_workspace_alloc(ADAPTIVE_MAX_ITERATION);
 	
-	double args[4] = {a,b,c,z0};
-	
 	gsl_function F;
 	F.function = _potential_normalized_triangle_integrand;
-	F.params = (void*)args;
+	F.params = (void*) &tri;
 	
 	double result, error;
-	gsl_integration_qags(&F, 0, atan2(c, b), 0, 1e-8, ADAPTIVE_MAX_ITERATION, w, &result, &error);
+	gsl_integration_qags(&F, 0, atan2(tri.c, tri.b), 0, 1e-8, ADAPTIVE_MAX_ITERATION, w, &result, &error);
     gsl_integration_workspace_free(w);
 	return result;
 }
 
 double _flux_normalized_triangle_integrand(double theta, void *args_p) {
-	double *args = (double*) args_p;
-	double a = args[0], b = args[1], c = args[2], z0 = args[3];
-	double n0 = args[4], n1 = args[5], n2 = args[6];
-
+	struct _normalized_triangle *args = (struct _normalized_triangle*)args_p;
+	
+	double a = args->a; double b = args->b; double c = args->c;
+	double z0 = args->z0;
+	
 	double rmax = -a*c/((b-a)*sin(theta)-c*cos(theta));
 
 	double z02 = z0*z0;
@@ -55,30 +77,31 @@ double _flux_normalized_triangle_integrand(double theta, void *args_p) {
 	double dy = -(rmax*sqrt(z02+rmax2)*sin(theta)+(-asinh(rmax/z0)*z02-rmax2*asinh(rmax/z0))*sin(theta))/(z02+rmax2);
 	double dz = -(sqrt(z02+rmax2)-z0)/sqrt(z02+rmax2);
 		
-	return dx*n0 + dy*n1 + dz*n2;	
+	return dx*args->normal[0] + dy*args->normal[1] + dz*args->normal[2];
 }
 
 double flux_normalized_triangle(double a, double b, double c, double z0, double normal[3]) {
 	// See comment in potential_normalized_triangle
-	if( fabs(a*c) < 1e-12 ) return 0.;
+
+	struct _normalized_triangle tri = { a, b, c, z0, {normal[0], normal[1], normal[2]} };
+	
+	if( fabs(tri.a*tri.c) < 1e-12 ) return 0.;
 		
 	gsl_integration_workspace *w = gsl_integration_workspace_alloc(ADAPTIVE_MAX_ITERATION);
 	
-	double args[7] = {a,b,c,z0,normal[0],normal[1],normal[2]};
-	
 	gsl_function F;
 	F.function = _flux_normalized_triangle_integrand;
-	F.params = (void*)args;
+	F.params = (void*) &tri;
 		
 	double result, error;
-	gsl_integration_qags(&F, 0, atan2(c, b), 0, 1e-8, ADAPTIVE_MAX_ITERATION, w, &result, &error);
+	gsl_integration_qags(&F, 0, atan2(tri.c, tri.b), 0, 1e-8, ADAPTIVE_MAX_ITERATION, w, &result, &error);
     gsl_integration_workspace_free(w);
 	return result;
 
 
 }
 
-void _express_triangle_in_local_coordinate_system(double *v0, double *v1, double *v2, double *target, double out[4]) {
+void _express_triangle_in_local_coordinate_system(double *v0, double *v1, double *v2, double *target, double *normal, struct _normalized_triangle *out) {
 	// Define a local coordinate system.
 	// The x normal is parallel to v0-v1
 	// The z normal goes through v0 and the target, ensuring that the target lives at positive z0
@@ -111,21 +134,33 @@ void _express_triangle_in_local_coordinate_system(double *v0, double *v1, double
 	normalize_3d(y_normal); 
 	normalize_3d(z_normal);
 
-	double a = dot_3d(x_normal, p1);
-	double b = dot_3d(x_normal, p2);
-	double c = dot_3d(y_normal, p2); 
-	double z0 = dot_3d(z_normal, p3);
+	out->a = dot_3d(x_normal, p1);
+	out->b = dot_3d(x_normal, p2);
+	out->c = dot_3d(y_normal, p2); 
+	out->z0 = dot_3d(z_normal, p3);
 
-	out[0] = a; out[1] = b; out[2] = c; out[3] = z0;
+	if(normal != NULL) {
+		out->normal[0] = dot_3d(x_normal, normal);
+		out->normal[1] = dot_3d(y_normal, normal);
+		out->normal[2] = dot_3d(z_normal, normal);
+	}
 }
 
 double potential_triangle_target_over_v0(double *v0, double *v1, double *v2, double *target) {
 	// General triangle, but the target has to lie on the line defined
 	// by v0 and the normal to the triangle.
-	double abcz0[4];
-	_express_triangle_in_local_coordinate_system(v0, v1, v2, target, abcz0);
-	double a = abcz0[0], b = abcz0[1], c = abcz0[2], z0 = abcz0[3];
-	return potential_normalized_triangle(a,b,c,z0);
+	struct _normalized_triangle tr;
+	_express_triangle_in_local_coordinate_system(v0, v1, v2, target, NULL, &tr);
+	return potential_normalized_triangle(tr.a, tr.b, tr.c, tr.z0);
+}
+
+double flux_triangle_target_over_v0(double *v0, double *v1, double *v2, double *target, double *normal) {
+	// General triangle, but the target has to lie on the line defined
+	// by v0 and the normal to the triangle.
+	
+	struct _normalized_triangle tr;
+	_express_triangle_in_local_coordinate_system(v0, v1, v2, target, normal, &tr);
+	return flux_normalized_triangle(tr.a, tr.b, tr.c, tr.z0, tr.normal);
 }
 
 // Get the barycentric coordinates of

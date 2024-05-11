@@ -102,6 +102,23 @@ class TestTriangleContribution(unittest.TestCase):
             approx = B.potential_triangle_target_over_v0(v0, v1, v2, target)/(2*area)
              
             assert np.isclose(correct, approx)
+    
+    def test_flux_one_triangle(self):
+        for _ in range(10):
+            v0, v1, v2 = rand(3, 3)
+            normal = rand(3)
+            cross = np.cross(v1-v0, v2-v0)
+            cross /= np.linalg.norm(cross)
+            target = v0 + cross*np.random.uniform(-10, 10)
+             
+            area = np.linalg.norm(np.cross(v1-v0, v2-v0))/2.
+                
+            correct = derivative_exact_integrated(v0, v1, v2, target, normal)
+            approx = B.flux_triangle_target_over_v0(v0, v1, v2, target, normal)/(2*area)
+             
+            assert np.isclose(correct, approx)
+
+
 
     def test_barycentric(self):
         for _ in range(100):
