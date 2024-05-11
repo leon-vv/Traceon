@@ -169,7 +169,17 @@ class TestTriangleContribution(unittest.TestCase):
             correct = potential_exact_integrated(v0, v1, v2, target) 
             approx = B.potential_triangle(v0, v1, v2, target)
             assert np.allclose(correct, approx)
-
+    
+    def test_flux(self):
+        for _ in range(100):
+            v0, v1, v2 = rand(3,3)
+            target = rand(3)
+            normal = rand(3)
+            
+            correct = derivative_exact_integrated(v0, v1, v2, target, normal) 
+            approx = B.flux_triangle(v0, v1, v2, target, normal)
+            assert np.allclose(correct, approx)
+    
     def test_one_triangle_edwards(self):
         v0, v1, v2 = np.array([
             [11.591110,3.105829,5.000000],

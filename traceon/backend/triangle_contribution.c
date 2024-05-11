@@ -222,6 +222,30 @@ potential_triangle(double v0[3], double v1[3], double v2[3], double target[3]) {
 	return (sign(coords[2])*pot1 + sign(coords[0])*pot2 + sign(coords[1])*pot3)/(2*area);
 }
 
+double
+flux_triangle(double v0[3], double v1[3], double v2[3], double target[3], double normal[3]) {
+	double coords[3];
+	triangle_barycentric_coords(target, v0, v1, v2, coords);
+	
+	double area = triangle_area(v0, v1, v2);
+	
+	// Project of point in the triangle
+	// (a,b,c) = coords
+    // pt = a*v0 + b*v1 + c*v2
+	double pt[3] = {
+		coords[0]*v0[0] + coords[1]*v1[0] + coords[2]*v2[0],
+		coords[0]*v0[1] + coords[1]*v1[1] + coords[2]*v2[1],
+		coords[0]*v0[2] + coords[1]*v1[2] + coords[2]*v2[2]};
+		
+	double flux1 = flux_triangle_target_over_v0(pt, v0, v1, target, normal);
+	double flux2 = flux_triangle_target_over_v0(pt, v1, v2, target, normal);
+	double flux3 = flux_triangle_target_over_v0(pt, v2, v0, target, normal);
+	
+	return (sign(coords[2])*flux1 + sign(coords[0])*flux2 + sign(coords[1])*flux3)/(2*area);
+}
+
+
+
 
 
 	
