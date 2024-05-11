@@ -123,6 +123,7 @@ tracing_block = arr(shape=(TRACING_BLOCK_SIZE, 6))
 backend_functions = {
     # triangle_contribution.c
     'potential_normalized_triangle': (dbl, dbl, dbl, dbl, dbl),
+    'flux_normalized_triangle': (dbl, dbl, dbl, dbl, dbl, v3),
     'potential_triangle_target_over_v0': (dbl, v3, v3, v3, v3),
     'triangle_barycentric_coords': (None, v3, v3, v3, v3, v3),
     'triangle_barycentric_coords': (None, v3, v3, v3, v3, v3),
@@ -196,6 +197,8 @@ for (fun, (res, *args)) in backend_functions.items():
     libfun.argtypes = args
 
 potential_normalized_triangle = backend_lib.potential_normalized_triangle
+flux_normalized_triangle = backend_lib.flux_normalized_triangle
+
 potential_triangle_target_over_v0 = backend_lib.potential_triangle_target_over_v0
 
 def triangle_barycentric_coords(p, v0, v1, v2):

@@ -41,6 +41,43 @@ double potential_normalized_triangle(double a, double b, double c, double z0) {
 	return result;
 }
 
+double _flux_normalized_triangle_integrand(double theta, void *args_p) {
+	double *args = (double*) args_p;
+	double a = args[0], b = args[1], c = args[2], z0 = args[3];
+	double n0 = args[4], n1 = args[5], n2 = args[6];
+
+	double rmax = -a*c/((b-a)*sin(theta)-c*cos(theta));
+
+	double z02 = z0*z0;
+	double rmax2 = rmax*rmax;
+		
+	double dx = -(rmax*sqrt(z02+rmax2)*cos(theta)+(-asinh(rmax/z0)*z02-rmax2*asinh(rmax/z0))*cos(theta))/(z02+rmax2);
+	double dy = -(rmax*sqrt(z02+rmax2)*sin(theta)+(-asinh(rmax/z0)*z02-rmax2*asinh(rmax/z0))*sin(theta))/(z02+rmax2);
+	double dz = -(sqrt(z02+rmax2)-z0)/sqrt(z02+rmax2);
+		
+	return dx*n0 + dy*n1 + dz*n2;	
+}
+
+double flux_normalized_triangle(double a, double b, double c, double z0, double normal[3]) {
+	// See comment in potential_normalized_triangle
+	if( fabs(a*c) < 1e-12 ) return 0.;
+		
+	gsl_integration_workspace *w = gsl_integration_workspace_alloc(ADAPTIVE_MAX_ITERATION);
+	
+	double args[7] = {a,b,c,z0,normal[0],normal[1],normal[2]};
+	
+	gsl_function F;
+	F.function = _flux_normalized_triangle_integrand;
+	F.params = (void*)args;
+		
+	double result, error;
+	gsl_integration_qags(&F, 0, atan2(c, b), 0, 1e-8, ADAPTIVE_MAX_ITERATION, w, &result, &error);
+    gsl_integration_workspace_free(w);
+	return result;
+
+
+}
+
 void _express_triangle_in_local_coordinate_system(double *v0, double *v1, double *v2, double *target, double out[4]) {
 	// Define a local coordinate system.
 	// The x normal is parallel to v0-v1

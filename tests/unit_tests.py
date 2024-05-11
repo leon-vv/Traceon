@@ -57,6 +57,24 @@ class TestTriangleContribution(unittest.TestCase):
             approx = B.potential_normalized_triangle(a, b, c, z0)/(2*area)
             assert np.isclose(correct, approx)
     
+    def test_flux_quadrants(self):
+        z0 = 2
+        
+        for (a, b, c) in ([2., 2., 2.], [2., -2, 2]):
+            v0, v1, v2 = np.array([
+                [0., 0., 0.],
+                [a, 0., 0.],
+                [b, c, 0.]])
+            
+            normal = np.array([1., 1., 1.])
+            target = np.array([0., 0., z0])
+            
+            area = np.linalg.norm(np.cross(v1-v0, v2-v0))/2
+            correct = derivative_exact_integrated(v0, v1, v2, target, normal)
+            approx = B.flux_normalized_triangle(a, b, c, z0, normal)/(2*area)
+            assert np.isclose(correct, approx)
+
+    
     def test_pot_one_triangle_simple(self):
         target = np.array([0., 0., -5])
         v0, v1, v2 = np.array([
