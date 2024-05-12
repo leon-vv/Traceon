@@ -259,8 +259,8 @@ class Mesh(Saveable):
     Lines and triangles can be higher order (curved) or not. But a mesh cannot contain
     both curved and simple elements at the same time.
     
-    When the elements are higher order (curved), triangles consists of 6 points and lines of four points.
-    These correspond with the GMSH line4 and triangle6 types."""
+    When lines are higher order they consist of four points each (corresponding to GMSH line4 type).
+    Higher order triangles are not supported."""
      
     def __init__(self, symmetry,
             points=[],
@@ -409,9 +409,10 @@ class Mesh(Saveable):
         
         if 'triangle' in mesh.cells_dict:
             triangles, physical_triangles = extract('triangle')
-        elif 'triangle6' in mesh.cells_dict:
-            triangles, physical_triangles = extract('triangle6')
         
+        if 'triangle6' in mesh.cells_dict:
+            print('WARNING: triangle6 present in mesh but not supported')
+         
         return Mesh(symmetry,
             points=mesh.points,
             lines=lines, physical_to_lines=physical_lines,

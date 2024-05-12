@@ -1513,32 +1513,9 @@ void fill_self_voltages_3d(double *matrix,
 		// Target
 		double t[3], jac;
 		position_and_jacobian_3d(1/3., 1/3., &triangle_points[i][0], t, &jac);
-
-		double s0[3], s1[3], s2[3];
-		position_and_jacobian_3d(1/6., 1/6., &triangle_points[i][0], s0, &jac);
-		position_and_jacobian_3d(4/6., 1/6., &triangle_points[i][0], s1, &jac);
-		position_and_jacobian_3d(1/6., 4/6., &triangle_points[i][0], s2, &jac);
-					
-		triangle triangle1 = {
-			{ t[0], t[1], t[2] },
-			{ v[0][0], v[0][1], v[0][2] },
-			{ v[1][0], v[1][1], v[1][2] }};
-		
-		triangle triangle2 = {
-			{ t[0], t[1], t[2] },
-			{ v[1][0], v[1][1], v[1][2] },
-			{ v[2][0], v[2][1], v[2][2] } };
-			
-		triangle triangle3 = {
-			{ t[0], t[1], t[2] },
-			{ v[2][0], v[2][1], v[2][2] },
-			{ v[0][0], v[0][1], v[0][2] } };
-
 		if(excitation_types[i] != DIELECTRIC && excitation_types[i] != MAGNETIZABLE) {
-			matrix[i*N_matrix + i] = 0.0;
-			matrix[i*N_matrix + i] += triangle_integral_adaptive(t, triangle1, potential_3d_point, NULL);
-			matrix[i*N_matrix + i] += triangle_integral_adaptive(t, triangle2, potential_3d_point, NULL);
-			matrix[i*N_matrix + i] += triangle_integral_adaptive(t, triangle3, potential_3d_point, NULL);
+			double a = triangle_area(v[0], v[1], v[2]);
+			matrix[i*N_matrix + i] = potential_triangle(v[0], v[1], v[2], t) * (2*a/(4*M_PI));
 		}
 		else {
 			matrix[i*N_matrix + i] = -1.0;
