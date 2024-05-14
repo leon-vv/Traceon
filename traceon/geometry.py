@@ -20,7 +20,7 @@ import gmsh
 import meshio
 
 from .util import Saveable
-from .backend import N_QUAD_2D, position_and_jacobian_radial, position_and_jacobian_3d, normal_3d
+from .backend import N_QUAD_2D, position_and_jacobian_radial, position_and_jacobian_3d
 
 def revolve_around_optical_axis(geom, elements, factor=1.0):
     """

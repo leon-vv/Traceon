@@ -259,6 +259,8 @@ class MagnetostaticSolver(Solver):
         # TODO: optimize in backend?
         N = len(self.vertices) 
         normals = np.zeros( (N, 2) if self.is_2d() else (N, 3) )
+
+        assert not higher_order or two_d, "Higher order not supported in 3D"
         
         for i, v in enumerate(self.vertices):
             if self.is_2d() and not self.is_higher_order():
@@ -266,10 +268,8 @@ class MagnetostaticSolver(Solver):
             elif self.is_2d() and self.is_higher_order():
                 normals[i] = backend.higher_order_normal_radial(0.0, v[:, :2])
             elif self.is_3d() and not self.is_higher_order():
-                normals[i] = backend.normal_3d(*v)
-            elif self.is_3d() and self.is_higher_order():
-                normals[i] = backend.higher_order_normal_3d(1/3, 1/3, v)
-
+                normals[i] = backend.normal_3d(1/3, 1/3, v)
+        
         self.normals = normals
     
     def get_active_elements(self):
