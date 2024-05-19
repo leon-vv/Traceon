@@ -18,6 +18,8 @@ class TwoCurrentCoils(Validation):
         self.plot_colors = dict(coil1='blue', coil2='red', block='orange')
     
     def create_mesh(self, MSF, symmetry, higher_order):
+        assert symmetry == G.Symmetry.RADIAL, "3D meshes not yet supported in magnetostatics"
+        
         with G.Geometry(G.Symmetry.RADIAL) as geom:
             
             circle1 = geom.add_circle([10e-3, 5e-3], 1.0e-3)

@@ -259,8 +259,6 @@ class MagnetostaticSolver(Solver):
         # TODO: optimize in backend?
         N = len(self.vertices) 
         normals = np.zeros( (N, 2) if self.is_2d() else (N, 3) )
-
-        assert not higher_order or two_d, "Higher order not supported in 3D"
         
         for i, v in enumerate(self.vertices):
             if self.is_2d() and not self.is_higher_order():
@@ -289,7 +287,7 @@ class MagnetostaticSolver(Solver):
         if not len(mesh.triangles) or not self.excitation.has_current():
             return EffectivePointCharges.empty_3d()
          
-        jac, pos = backend.fill_jacobian_buffer_3d_higher_order(mesh.points[mesh.triangles])
+        jac, pos = backend.fill_jacobian_buffer_3d(mesh.points[mesh.triangles])
         
         for n, v in self.excitation.excitation_types.items():
             if not v[0] == E.ExcitationType.CURRENT or not n in mesh.physical_to_triangles:
