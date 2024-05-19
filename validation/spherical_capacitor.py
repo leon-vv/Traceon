@@ -69,7 +69,7 @@ class SphericalCapacitor(Validation):
                 geom.add_physical(s2, 'outer')
             
             geom.set_mesh_size_factor(MSF)
-            return geom.generate_line_mesh(higher_order) if geom.is_2d() else geom.generate_triangle_mesh(higher_order)
+            return geom.generate_line_mesh(higher_order) if geom.is_2d() else geom.generate_triangle_mesh()
 
     def get_excitation(self, mesh):
         exc = E.Excitation(mesh)

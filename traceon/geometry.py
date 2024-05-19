@@ -20,7 +20,7 @@ import gmsh
 import meshio
 
 from .util import Saveable
-from .backend import N_QUAD_2D, position_and_jacobian_radial, position_and_jacobian_3d, normal_3d
+from .backend import N_QUAD_2D, position_and_jacobian_radial, position_and_jacobian_3d
 
 def revolve_around_optical_axis(geom, elements, factor=1.0):
     """
@@ -156,17 +156,17 @@ class Geometry(geo.Geometry):
         if self.size_from_distance:
             self.set_mesh_size_callback(self._mesh_size_callback)
         
+        assert not higher_order or self.is_2d(), "Higher order is not supported in 3d"
+        
         if dimension == 1 and higher_order:
             gmsh.option.setNumber('Mesh.ElementOrder', 3)
         elif dimension == 1 and not higher_order:
             gmsh.option.setNumber('Mesh.ElementOrder', 1)
-        elif dimension == 2 and higher_order:
-            gmsh.option.setNumber('Mesh.ElementOrder', 2)
-        elif dimension == 2 and not higher_order:
+        elif dimension == 2:
             gmsh.option.setNumber('Mesh.ElementOrder', 1)
         
         return Mesh.from_meshio(super().generate_mesh(dim=dimension, *args, **kwargs), self.symmetry)
-
+    
     def generate_line_mesh(self, higher_order, *args, **kwargs):
         """Generate boundary mesh in 2D, by splitting the boundary in line elements.
 
@@ -183,18 +183,20 @@ class Geometry(geo.Geometry):
             gmsh.option.setNumber('Mesh.MeshSizeFactor', 1/self.MSF)
         return self._generate_mesh(*args, higher_order=higher_order, dimension=1, **kwargs)
     
-    def generate_triangle_mesh(self, higher_order, *args, **kwargs):
+    def generate_triangle_mesh(self, higher_order=False, *args, **kwargs):
         """Generate triangle mesh. Note that also 2D meshes can have triangles, which can current coils.
         
         Parameters
         -----------------
         higher_order: bool
-            Whether to use higher order (curved) line elements.
+            Outdated. Do not use.
         
         Returns
         ----------------
         `Mesh`
         """
+        assert higher_order is False, "Higher order meshes are not supported in 3D"
+         
         if self.MSF is not None:
             # GMSH seems to produce meshes which contain way more elements for 3D geometries
             # with the same mesh factor. This is confusing for users and therefore we arbtrarily
@@ -259,8 +261,8 @@ class Mesh(Saveable):
     Lines and triangles can be higher order (curved) or not. But a mesh cannot contain
     both curved and simple elements at the same time.
     
-    When the elements are higher order (curved), triangles consists of 6 points and lines of four points.
-    These correspond with the GMSH line4 and triangle6 types."""
+    When lines are higher order they consist of four points each (corresponding to GMSH line4 type).
+    Higher order triangles are not supported."""
      
     def __init__(self, symmetry,
             points=[],
@@ -409,9 +411,10 @@ class Mesh(Saveable):
         
         if 'triangle' in mesh.cells_dict:
             triangles, physical_triangles = extract('triangle')
-        elif 'triangle6' in mesh.cells_dict:
-            triangles, physical_triangles = extract('triangle6')
         
+        if 'triangle6' in mesh.cells_dict:
+            print('WARNING: triangle6 present in mesh but not supported')
+         
         return Mesh(symmetry,
             points=mesh.points,
             lines=lines, physical_to_lines=physical_lines,
@@ -468,43 +471,16 @@ class Mesh(Saveable):
          
         assert np.allclose(p2, points[elements[:, 2]]) and np.allclose(p3, points[elements[:, 3]])
         return points, elements
-
-
-    def _triangles_to_higher_order(points, elements):
-        N_elements = len(elements)
-        N_points = len(points)
-         
-        v0, v1, v2 = elements.T
-        p3 = (points[v0] + points[v1])/2
-        p4 = (points[v1] + points[v2])/2
-        p5 = (points[v2] + points[v0])/2
-         
-        assert all(p.shape == (N_elements, points.shape[1]) for p in [p3,p4,p5])
-          
-        points = np.concatenate( (points, p3, p4, p5), axis=0)
-          
-        elements = np.array([
-            elements[:, 0], elements[:, 1], elements[:, 2],
-            np.arange(N_points, N_points + N_elements, dtype=np.uint64),
-            np.arange(N_points + N_elements, N_points + 2*N_elements, dtype=np.uint64),
-            np.arange(N_points + 2*N_elements, N_points + 3*N_elements, dtype=np.uint64)]).T
-         
-        assert np.allclose(p3, points[elements[:, 3]])
-        assert np.allclose(p4, points[elements[:, 4]])
-        assert np.allclose(p5, points[elements[:, 5]])
-        
-        return points, elements
-
+    
     def _to_higher_order_mesh(self):
+        assert self.is_2d()
         # The matrix solver currently only works with higher order meshes.
         # We can however convert a simple mesh easily to a higher order mesh, and solve that.
         
         points, lines, triangles = self.points, self.lines, self.triangles
-
+        
         if len(lines) and lines.shape[1] == 2:
             points, lines = Mesh._lines_to_higher_order(points, lines)
-        if len(triangles) and triangles.shape[1] == 3:
-            points, triangles = Mesh._triangles_to_higher_order(points, triangles) 
          
         return Mesh(self.symmetry,
             points=points,

@@ -64,7 +64,7 @@ with G.Geometry(G.Symmetry.THREE_D, size_from_distance=True) as geom:
     # accuracy at the expense of computation time.
     geom.set_mesh_size_factor(250)
     
-    mesh = geom.generate_triangle_mesh(True)
+    mesh = geom.generate_triangle_mesh()
 
 # Show the generated triangle mesh.
 P.plot_mesh(mesh, ground='green', deflector_positive='red', deflector_negative='blue')

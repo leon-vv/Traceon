@@ -325,7 +325,7 @@ class Excitation:
         ---------
         integer number
         """
-        return self._get_number_of_active_elements('magnetostatic')
+        return self._get_number_of_active_elements('electrostatic')
 
         
 

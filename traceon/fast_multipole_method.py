@@ -77,7 +77,7 @@ def get_geometry_in_fortran_layout(triangles):
     
     triangles = triangles
     centroids = np.mean(triangles, axis=1)
-    normals = np.array([backend.normal_3d(*t) for t in triangles])
+    normals = np.array([backend.normal_3d(1/3, 1/3, t) for t in triangles])
       
     # Convert to Fortran order..
     # This file will work in Fotran order, to be compatible with the FMM library used

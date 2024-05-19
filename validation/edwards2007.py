@@ -59,7 +59,7 @@ class Edwards2007(Validation):
                 geom.add_physical(inner, 'inner')
                 geom.add_physical(boundary, 'boundary')
                      
-                return geom.generate_triangle_mesh(higher_order)
+                return geom.generate_triangle_mesh()
             else:
                 geom.add_physical([l1, l2, l3], 'inner')
                 geom.add_physical([l4, l5, l6], 'boundary')

@@ -57,7 +57,7 @@ class SimpleMirror(Validation):
             if _3d:
                 revolved = G.revolve_around_optical_axis(geom, mirror_line)
                 geom.add_physical(revolved, 'mirror')
-                return geom.generate_triangle_mesh(higher_order)
+                return geom.generate_triangle_mesh()
             else:
                 geom.add_physical(mirror_line, 'mirror')
                 return geom.generate_line_mesh(higher_order)

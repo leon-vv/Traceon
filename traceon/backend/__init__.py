@@ -121,6 +121,16 @@ times_block = arr(shape=(TRACING_BLOCK_SIZE,))
 tracing_block = arr(shape=(TRACING_BLOCK_SIZE, 6))
 
 backend_functions = {
+    # triangle_contribution.c
+    'potential_normalized_triangle': (dbl, dbl, dbl, dbl, dbl),
+    'flux_normalized_triangle': (dbl, dbl, dbl, dbl, dbl, v3),
+    'potential_triangle_target_over_v0': (dbl, v3, v3, v3, v3),
+    'flux_triangle_target_over_v0': (dbl, v3, v3, v3, v3, v3),
+    'triangle_barycentric_coords': (None, v3, v3, v3, v3, v3),
+    'triangle_barycentric_coords': (None, v3, v3, v3, v3, v3),
+    'potential_triangle': (dbl, v3, v3, v3, v3),
+    'flux_triangle': (dbl, v3, v3, v3, v3, v3),
+     
     'ellipkm1' : (dbl, dbl),
     'ellipk' : (dbl, dbl),
     'ellipem1' : (dbl, dbl),
@@ -128,8 +138,7 @@ backend_functions = {
     'tanh_sinh_integration': (dbl, integration_cb_1d, dbl, dbl, dbl, dbl, vp),
     'normal_2d': (None, v2, v2, v2),
     'higher_order_normal_radial': (None, dbl, v2, v2, v2, v2, v2),
-    'normal_3d': (None, v3, v3, v3, v3),
-    'higher_order_normal_3d': (None, dbl, dbl, arr(shape=(6,3)), v3),
+    'normal_3d': (None, dbl, dbl, arr(shape=(3,3)), v3),
     'position_and_jacobian_3d': (None, dbl, dbl, arr(ndim=2), v3, dbl_p),
     'position_and_jacobian_radial': (None, dbl, v2, v2, v2, v2, v2, dbl_p),
     'trace_particle': (sz, times_block, tracing_block, field_fun, bounds, dbl, vp),
@@ -164,7 +173,6 @@ backend_functions = {
     'current_axial_derivatives_radial_ring': (None, arr(ndim=2), currents_2d, jac_buffer_3d, pos_buffer_3d, sz, z_values, sz),
     'fill_jacobian_buffer_radial': (None, jac_buffer_2d, pos_buffer_2d, vertices, sz),
     'fill_matrix_radial': (None, arr(ndim=2), lines, arr(dtype=C.c_uint8, ndim=1), arr(ndim=1), jac_buffer_2d, pos_buffer_2d, sz, sz, C.c_int, C.c_int),
-    'fill_jacobian_buffer_3d_higher_order': (None, jac_buffer_3d, pos_buffer_3d, vertices, sz),
     'fill_jacobian_buffer_3d': (None, jac_buffer_3d, pos_buffer_3d, vertices, sz),
     'fill_matrix_3d': (None, arr(ndim=2), vertices, arr(dtype=C.c_uint8, ndim=1), arr(ndim=1), jac_buffer_3d, pos_buffer_3d, sz, sz, C.c_int, C.c_int),
     'plane_intersection': (bool, v3, v3, arr(ndim=2), sz, arr(shape=(6,))),
@@ -190,6 +198,20 @@ for (fun, (res, *args)) in backend_functions.items():
     libfun.restype = res
     libfun.argtypes = args
 
+potential_normalized_triangle = backend_lib.potential_normalized_triangle
+flux_normalized_triangle = backend_lib.flux_normalized_triangle
+
+potential_triangle_target_over_v0 = backend_lib.potential_triangle_target_over_v0
+flux_triangle_target_over_v0 = backend_lib.flux_triangle_target_over_v0
+
+def triangle_barycentric_coords(p, v0, v1, v2):
+    out = np.zeros(3)
+    backend_lib.triangle_barycentric_coords(p, v0, v1, v2, out)
+    return out
+
+potential_triangle = backend_lib.potential_triangle
+flux_triangle = backend_lib.flux_triangle
+
 ellipkm1 = np.frompyfunc(backend_lib.ellipkm1, 1, 1)
 ellipk = np.frompyfunc(backend_lib.ellipk, 1, 1)
 ellipem1 = np.frompyfunc(backend_lib.ellipem1, 1, 1)
@@ -210,22 +232,15 @@ def normal_2d(p1, p2):
     backend_lib.normal_2d(p1, p2, normal)
     return normal
 
-def higher_order_normal_3d(alpha, beta, vertices):
-    assert vertices.shape == (6,3)
-    normal = np.zeros(3)
-    backend_lib.higher_order_normal_3d(alpha, beta, vertices, normal)
-    assert np.isclose(np.linalg.norm(normal), 1.0)
-    return normal
- 
 # Remove the last argument, which is usually a void pointer to optional data
 # passed to the function. In Python we don't need this functionality
 # as we can simply use closures.
 def remove_arg(fun):
     return lambda *args: fun(*args[:-1])
 
-def normal_3d(p1, p2, p3):
+def normal_3d(alpha, beta, tri):
     normal = np.zeros( (3,) )
-    backend_lib.normal_3d(p1, p2, p3, normal)
+    backend_lib.normal_3d(alpha, beta, tri, normal)
     return normal
    
 def _vec_2d_to_3d(vec):
@@ -296,7 +311,7 @@ def wrap_field_fun(ff):
     return field_fun(wrapper)
 
 def position_and_jacobian_3d(alpha, beta, triangle):
-    assert triangle.shape == (6, 3)
+    assert triangle.shape == (3, 3)
      
     pos = np.zeros(3)
     jac = C.c_double(0.0)
@@ -548,17 +563,6 @@ def fill_matrix_radial(matrix, lines, excitation_types, excitation_values, jac_b
      
     backend_lib.fill_matrix_radial(matrix, lines, excitation_types, excitation_values, jac_buffer, pos_buffer, N, matrix.shape[0], start_index, end_index)
 
-def fill_jacobian_buffer_3d_higher_order(vertices):
-    N = len(vertices)
-    assert vertices.shape == (N, 6, 3)
-    
-    jac_buffer = np.zeros( (N, N_TRIANGLE_QUAD) )
-    pos_buffer = np.zeros( (N, N_TRIANGLE_QUAD, 3) )
-    
-    backend_lib.fill_jacobian_buffer_3d_higher_order(jac_buffer, pos_buffer, vertices, N)
-
-    return jac_buffer, pos_buffer
-
 def fill_jacobian_buffer_3d(vertices):
     N = len(vertices)
     assert vertices.shape == (N, 3, 3)
@@ -574,7 +578,7 @@ def fill_jacobian_buffer_3d(vertices):
 def fill_matrix_3d(matrix, vertices, excitation_types, excitation_values, jac_buffer, pos_buffer, start_index, end_index):
     N = len(vertices)
     assert matrix.shape[0] == N and matrix.shape[1] == N and matrix.shape[0] == matrix.shape[1]
-    assert vertices.shape == (N, 6, 3)
+    assert vertices.shape == (N, 3, 3)
     assert excitation_types.shape == (N,)
     assert excitation_values.shape == (N,)
     assert jac_buffer.shape == (N, N_TRIANGLE_QUAD)

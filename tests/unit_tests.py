@@ -15,6 +15,183 @@ import traceon.solver as S
 import traceon.backend as B
 import traceon.plotting as P
 
+def rand(*shape, min_=-100, max_=100):
+    return min_ + np.random.rand(*shape)*(max_-min_)
+
+def potential_exact(a, b, target, points):
+    v0, v1, v2 = points
+    p = v0 + a*(v1-v0) + b*(v2-v0)
+     
+    return 1/np.linalg.norm(p - target)
+
+def derivative_exact(a, b, target, points, normal):
+    v0, v1, v2 = points
+    x, y, z = v0 + a*(v1-v0) + b*(v2-v0)
+    x0, y0, z0 = target
+    denominator = ((x-x0)**2 + (y-y0)**2 + (z-z0)**2)**(3/2)
+    dx = (x-x0)/denominator
+    dy = (y-y0)/denominator
+    dz = (z-z0)/denominator
+    return np.dot(normal, [dx, dy, dz])
+
+def potential_exact_integrated(v0, v1, v2, target):
+    return dblquad(potential_exact, 0, 1, 0, lambda x: 1-x, epsabs=1e-12, epsrel=1e-12, args=(target, (v0, v1, v2)))[0]
+
+def derivative_exact_integrated(v0, v1, v2, target, normal):
+    return dblquad(derivative_exact, 0, 1, 0, lambda x: 1-x, epsabs=1e-12, epsrel=1e-12, args=(target, (v0, v1, v2), normal))[0]
+
+class TestTriangleContribution(unittest.TestCase):
+    
+    def test_pot_quadrants(self):
+        z0 = 2
+        
+        for (a, b, c) in ([2., 2., 2.], [2., -2, 2]):
+            v0, v1, v2 = np.array([
+                [0., 0., 0.],
+                [a, 0., 0.],
+                [b, c, 0.]])
+            
+            target = np.array([0., 0., z0])
+            area = np.linalg.norm(np.cross(v1-v0, v2-v0))/2
+            correct = potential_exact_integrated(v0, v1, v2, target)
+            approx = B.potential_normalized_triangle(a, b, c, z0)/(2*area)
+            assert np.isclose(correct, approx)
+    
+    def test_flux_quadrants(self):
+        z0 = 2
+        
+        for (a, b, c) in ([2., 2., 2.], [2., -2, 2]):
+            v0, v1, v2 = np.array([
+                [0., 0., 0.],
+                [a, 0., 0.],
+                [b, c, 0.]])
+            
+            normal = np.array([1., 1., 1.])
+            target = np.array([0., 0., z0])
+            
+            area = np.linalg.norm(np.cross(v1-v0, v2-v0))/2
+            correct = derivative_exact_integrated(v0, v1, v2, target, normal)
+            approx = B.flux_normalized_triangle(a, b, c, z0, normal)/(2*area)
+            assert np.isclose(correct, approx)
+
+    
+    def test_pot_one_triangle_simple(self):
+        target = np.array([0., 0., -5])
+        v0, v1, v2 = np.array([
+            [0., 0, 0],
+            [3., 0., 0.],
+            [-2., 7., 0.]])
+            
+        area = np.linalg.norm(np.cross(v1-v0, v2-v0))/2.
+            
+        correct = potential_exact_integrated(v0, v1, v2, target)
+        approx = B.potential_triangle_target_over_v0(v0, v1, v2, target)/(2*area)
+            
+        assert np.isclose(correct, approx)
+    
+    def test_pot_one_triangle(self):
+        for _ in range(10):
+            v0, v1, v2 = rand(3, 3)
+            cross = np.cross(v1-v0, v2-v0)
+            cross /= np.linalg.norm(cross)
+            target = v0 + cross*np.random.uniform(-10, 10)
+             
+            area = np.linalg.norm(np.cross(v1-v0, v2-v0))/2.
+                
+            correct = potential_exact_integrated(v0, v1, v2, target)
+            approx = B.potential_triangle_target_over_v0(v0, v1, v2, target)/(2*area)
+             
+            assert np.isclose(correct, approx)
+    
+    def test_flux_one_triangle(self):
+        for _ in range(10):
+            v0, v1, v2 = rand(3, 3)
+            normal = rand(3)
+            cross = np.cross(v1-v0, v2-v0)
+            cross /= np.linalg.norm(cross)
+            target = v0 + cross*np.random.uniform(-10, 10)
+             
+            area = np.linalg.norm(np.cross(v1-v0, v2-v0))/2.
+                
+            correct = derivative_exact_integrated(v0, v1, v2, target, normal)
+            approx = B.flux_triangle_target_over_v0(v0, v1, v2, target, normal)/(2*area)
+             
+            assert np.isclose(correct, approx)
+
+
+
+    def test_barycentric(self):
+        for _ in range(100):
+            v0, v1, v2 = rand(3,3)
+            p = rand(3)
+            
+            normal = np.cross(v1-v0, v2-v0)
+            normal /= np.linalg.norm(normal)
+            
+            z = np.dot((p-v0), normal)
+            
+            (a, b, c) = B.triangle_barycentric_coords(p, v0, v1, v2)
+            pt = a*v0 + b*v1 + c*v2
+            
+            assert np.allclose(p/(pt + z*normal) - 1, 0.)
+        
+    def test_potential_singular(self):
+        v0, v1, v2 = np.array([
+            [0., 0., 0.],
+            [1., 0., 0.],
+            [0., 1., 0.]])
+
+        target = np.array([2., 0., 0.])
+        correct = potential_exact_integrated(v0, v1, v2, target) 
+        approx = B.potential_triangle(v0, v1, v2, target)
+        assert np.isclose(approx, correct)
+        
+        target = np.array([1. + 1e-5, 0., 0.])
+        correct = potential_exact_integrated(v0, v1, v2, target) 
+        approx = B.potential_triangle(v0, v1, v2, target)
+        assert np.isclose(approx, correct)
+        
+        target = np.array([0., 1 + 1e-5, 0.])
+        correct = potential_exact_integrated(v0, v1, v2, target) 
+        approx = B.potential_triangle(v0, v1, v2, target)
+        assert np.isclose(approx, correct)
+        
+        target = np.array([0., 0., 0.])
+        correct = potential_exact_integrated(v0, v1, v2, target) 
+        approx = B.potential_triangle(v0, v1, v2, target)
+        assert np.isclose(approx, correct)
+     
+    def test_potential(self):
+        for _ in range(10):
+            v0, v1, v2 = rand(3,3)
+            target = rand(3)
+            
+            correct = potential_exact_integrated(v0, v1, v2, target) 
+            approx = B.potential_triangle(v0, v1, v2, target)
+            assert np.allclose(correct, approx)
+    
+    def test_flux(self):
+        for _ in range(100):
+            v0, v1, v2 = rand(3,3)
+            target = rand(3)
+            normal = rand(3)
+            
+            correct = derivative_exact_integrated(v0, v1, v2, target, normal) 
+            approx = B.flux_triangle(v0, v1, v2, target, normal)
+            assert np.allclose(correct, approx)
+    
+    def test_one_triangle_edwards(self):
+        v0, v1, v2 = np.array([
+            [11.591110,3.105829,5.000000],
+ 			[8.626804,3.649622,5.000000],
+ 			[9.000000,0.000000,5.000000]])
+        
+        target = np.array([9.739305,2.251817,5.000000])
+        assert np.allclose(target, v0 + 1/3*(v1-v0) + 1/3*(v2-v0))
+        assert np.isclose(
+            potential_exact_integrated(v0, v1, v2, target), 
+            B.potential_triangle(v0, v1, v2, target))
+ 
 
 class TestAdaptiveIntegration(unittest.TestCase):
     def test_x_squared(self):
