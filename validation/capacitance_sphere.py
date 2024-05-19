@@ -61,7 +61,7 @@ class CapacitanceSphere(Validation):
             
             geom.set_mesh_size_factor(MSF)
             
-            return geom.generate_line_mesh(higher_order) if symmetry.is_2d() else geom.generate_triangle_mesh(higher_order)
+            return geom.generate_line_mesh(higher_order) if symmetry.is_2d() else geom.generate_triangle_mesh()
 
     def get_excitation(self, geom):
         exc = E.Excitation(geom)

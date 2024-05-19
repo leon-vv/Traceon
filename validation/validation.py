@@ -134,6 +134,9 @@ class Validation:
     
     def run_validation(self):
         args = self.parse_args()
+        
+        assert args.symmetry != '3d' or not args.higher_order, "Higher order meshes not supported in 3D"
+        
         plot = args.plot_geometry or args.plot_normals or args.plot_charge_density or args.plot_charges
         symmetry = Validation.args_to_symmetry(args)
         MSF = args.MSF if args.MSF != None else self.default_MSF(symmetry)[1]

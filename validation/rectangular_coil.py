@@ -34,7 +34,7 @@ class RectangularCoil(Validation):
             rect = geom.add_rectangle(2, 3, 2, 3, 0)
             geom.add_physical(rect.surface, 'coil')
             geom.set_mesh_size_factor(MSF)
-            mesh2 = geom.generate_triangle_mesh(higher_order)
+            mesh2 = geom.generate_triangle_mesh()
 
         return mesh1 + mesh2
 

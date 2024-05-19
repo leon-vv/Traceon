@@ -183,18 +183,20 @@ class Geometry(geo.Geometry):
             gmsh.option.setNumber('Mesh.MeshSizeFactor', 1/self.MSF)
         return self._generate_mesh(*args, higher_order=higher_order, dimension=1, **kwargs)
     
-    def generate_triangle_mesh(self, higher_order, *args, **kwargs):
+    def generate_triangle_mesh(self, higher_order=False, *args, **kwargs):
         """Generate triangle mesh. Note that also 2D meshes can have triangles, which can current coils.
         
         Parameters
         -----------------
         higher_order: bool
-            Whether to use higher order (curved) line elements.
+            Outdated. Do not use.
         
         Returns
         ----------------
         `Mesh`
         """
+        assert higher_order is False, "Higher order meshes are not supported in 3D"
+         
         if self.MSF is not None:
             # GMSH seems to produce meshes which contain way more elements for 3D geometries
             # with the same mesh factor. This is confusing for users and therefore we arbtrarily

@@ -27,7 +27,7 @@ class TwoCurrentCoils(Validation):
             geom.add_physical(circle2.plane_surface, 'coil2')
             
             geom.set_mesh_size_factor(20*MSF)
-            mesh1 = geom.generate_triangle_mesh(higher_order)
+            mesh1 = geom.generate_triangle_mesh()
 
         with G.Geometry(G.Symmetry.RADIAL) as geom:
             rectangle = geom.add_rectangle(5e-3, 15e-3, -1e-3, 1e-3, 0)
