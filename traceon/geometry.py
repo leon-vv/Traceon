@@ -414,32 +414,33 @@ class Surface(GeometricObject):
         
         return Surface(f, length1, length2)
 
-    
-    def _from_boundary_paths(path1, path2, path3, path4):
-        pl1, pl2, pl3, pl4 = path1.path_length, path2.path_length, \
-            path3.path_length, path4.path_length
-         
-        length1 = (pl1+pl3)/2
-        length2 = (pl2+pl4)/2
-        
+    def from_boundary_paths(p1, p2, p3, p4):
+        path_length_p1_and_p3 = (p1.path_length + p3.path_length)/2
+        path_length_p2_and_p4 = (p2.path_length + p4.path_length)/2
+
         def f(u, v):
-            k = u/length1
-            l = v/length2
-            p1 = path1(k*pl1)
-            p2 = path2(l*pl2)
-            p3 = path3((1-k)*pl3)
-            p4 = path4((1-l)*pl4)
-             
-            sum_ = (k**2 - k)*( (1-l) + l) + (l**2-l)*((1-k) + k)
-            return ( (k**2 - k)*((1-l)*p1 + l*p3) + (l**2-l)*((1-k)*p2 + k*p4) )/sum_
+            u /= path_length_p1_and_p3
+            v /= path_length_p2_and_p4
             
-            return (1-k)*p2 + k*p4 #+ (1-l)*p1 + l*p3
+            a = (1-v)
+            b = (1-u)
+             
+            c = v
+            d = u
+            
+            return 1/2*(a*p1(u*p1.path_length) + \
+                        b*p4((1-v)*p4.path_length) + \
+                        c*p3((1-u)*p3.path_length) + \
+                        d*p2(v*p2.path_length))
         
-        breakpoints1 = path1.breakpoints + path3.breakpoints
-        breakpoints2 = path2.breakpoints + path4.breakpoints
-         
-        return Surface(f, length1, length2, sorted(breakpoints1), sorted(breakpoints2))
-      
+        # Scale the breakpoints appropriately
+        b1 = sorted([b/p1.path_length * path_length_p1_and_p3 for b in p1.breakpoints] + \
+                [b/p3.path_length * path_length_p1_and_p3 for b in p3.breakpoints])
+        b2 = sorted([b/p2.path_length * path_length_p2_and_p4 for b in p2.breakpoints] + \
+                [b/p4.path_length * path_length_p2_and_p4 for b in p4.breakpoints])
+        
+        return Surface(f, path_length_p1_and_p3, path_length_p2_and_p4, b1, b2)
+     
     def aperture(height, radius, extent, z=0.):
         return Path.line([extent, 0., -height/2], [radius, 0., -height/2])\
             .line_to([radius, 0., height/2]).line_to([extent, 0., height/2])\
