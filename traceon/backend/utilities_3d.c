@@ -8,6 +8,11 @@ norm_3d(double x, double y, double z) {
 	return sqrt(x*x + y*y + z*z);
 }
 
+INLINE double
+distance_3d(double v0[3], double v1[3]) {
+	return norm_3d(v0[0]-v1[0], v0[1]-v1[1], v0[2]-v1[2]);
+}
+
 INLINE void
 normalize_3d(double *v) {
 	double length = norm_3d(v[0], v[1], v[2]);

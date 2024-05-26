@@ -51,11 +51,51 @@ const double GAUSS_QUAD_POINTS[N_QUAD_2D] = {-0.0950125098376374, 0.095012509837
 //const double QUAD_B1[N_TRIANGLE_QUAD] = {0.27146251, 0.10925783, 0.44011165, 0.48820375, 0.02464636, 0.27146251, 0.10925783, 0.44011165, 0.48820375, 0.02464636, 0.45707499, 0.78148434, 0.1197767 , 0.0235925 , 0.95070727, 0.11629602, 0.02138249, 0.02303416, 0.62824975, 0.85133779, 0.68531016, 0.25545423, 0.12727972, 0.29165568, 0.25545423, 0.12727972, 0.29165568, 0.62824975, 0.85133779, 0.68531016, 0.11629602, 0.02138249, 0.02303416};
 //const double QUAD_B2[N_TRIANGLE_QUAD] = {0.27146251, 0.10925783, 0.44011165, 0.48820375, 0.02464636, 0.45707499, 0.78148434, 0.1197767 , 0.0235925 , 0.95070727, 0.27146251, 0.10925783, 0.44011165, 0.48820375, 0.02464636, 0.25545423, 0.12727972, 0.29165568, 0.11629602, 0.02138249, 0.02303416, 0.62824975, 0.85133779, 0.68531016, 0.11629602, 0.02138249, 0.02303416, 0.25545423, 0.12727972, 0.29165568, 0.62824975, 0.85133779, 0.68531016};
 
-#define N_TRIANGLE_QUAD 4
+#define N_TRIANGLE_QUAD 12
 EXPORT const int N_TRIANGLE_QUAD_SYM = N_TRIANGLE_QUAD;
-const double QUAD_WEIGHTS[N_TRIANGLE_QUAD] = {-0.28125   ,  0.26041667,  0.26041667,  0.26041667};
-const double QUAD_B1[N_TRIANGLE_QUAD] = {0.33333333333333333333, 0.60000000000000000000, 0.20000000000000000000, 0.20000000000000000000};
-const double QUAD_B2[N_TRIANGLE_QUAD] = {0.33333333333333333333, 0.20000000000000000000, 0.60000000000000000000, 0.20000000000000000000};
+
+const double QUAD_WEIGHTS[N_TRIANGLE_QUAD] =
+ {0.0254224531851035,
+  0.0254224531851035,
+  0.0254224531851035,
+  0.0583931378631895,
+  0.0583931378631895,
+  0.0583931378631895,
+  0.041425537809187,
+  0.041425537809187,
+  0.041425537809187,
+  0.041425537809187,
+  0.041425537809187,
+  0.041425537809187};
+
+const double QUAD_B1[N_TRIANGLE_QUAD] =
+ {0.873821971016996,
+  0.063089014491502,
+  0.063089014491502,
+  0.501426509658179,
+  0.249286745170910,
+  0.249286745170910,
+  0.636502499121399,
+  0.636502499121399,
+  0.310352451033785,
+  0.310352451033785,
+  0.053145049844816,
+  0.053145049844816};
+
+const double QUAD_B2[N_TRIANGLE_QUAD] =
+ {0.063089014491502,
+  0.873821971016996,
+  0.063089014491502,
+  0.249286745170910,
+  0.501426509658179,
+  0.249286745170910,
+  0.310352451033785,
+  0.053145049844816,
+  0.636502499121399,
+  0.053145049844816,
+  0.636502499121399,
+  0.310352451033785};
+
 
 
 //////////////////////////////// TYPEDEFS
@@ -1506,32 +1546,6 @@ EXPORT void fill_matrix_radial(double *matrix,
 	fill_self_voltages_radial(matrix, line_points, excitation_types, excitation_values, N_lines, N_matrix, lines_range_start, lines_range_end);
 }
 
-void fill_self_voltages_3d(double *matrix, 
-                        vertices_3d triangle_points,
-						uint8_t *excitation_types,
-						double *excitation_values,
-						size_t N_lines,
-						size_t N_matrix,
-                        int lines_range_start, 
-                        int lines_range_end) {
-
-	for (int i = lines_range_start; i <= lines_range_end; i++) {
-		
-		double (*v)[3] = &triangle_points[i][0];
-				
-		// Target
-		double t[3], jac;
-		position_and_jacobian_3d(1/3., 1/3., &triangle_points[i][0], t, &jac);
-		if(excitation_types[i] != DIELECTRIC && excitation_types[i] != MAGNETIZABLE) {
-			double a = triangle_area(v[0], v[1], v[2]);
-			matrix[i*N_matrix + i] = potential_triangle(v[0], v[1], v[2], t) * (2*a/(4*M_PI));
-		}
-		else {
-			matrix[i*N_matrix + i] = -1.0;
-		}
-	}
-}
-
 EXPORT void fill_jacobian_buffer_3d(
 	jacobian_buffer_3d jacobian_buffer,
 	position_buffer_3d pos_buffer,
@@ -1579,7 +1593,6 @@ EXPORT void fill_matrix_3d(double *restrict matrix,
 	assert(lines_range_start < N_lines && lines_range_end < N_lines);
 		
     for (int i = lines_range_start; i <= lines_range_end; i++) {
-		// TODO: higher order
 		double target[3], jac;
 		position_and_jacobian_3d(1/3., 1/3., &triangle_points[i][0], target, &jac);
 			
@@ -1587,14 +1600,26 @@ EXPORT void fill_matrix_3d(double *restrict matrix,
 		 
         if (type_ == VOLTAGE_FIXED || type_ == VOLTAGE_FUN || type_ == MAGNETOSTATIC_POT) {
             for (int j = 0; j < N_lines; j++) {
-				
-				UNROLL
-				for(int k = 0; k < N_TRIANGLE_QUAD; k++) {
-						
-					double *pos = pos_buffer[j][k];
-					double jac = jacobian_buffer[j][k];
-					matrix[i*N_matrix + j] += jac * potential_3d_point(target[0], target[1], target[2], pos[0], pos[1], pos[2], NULL);
+
+				// Position of first integration point. Check if 
+				// close to the target triangle.
+				double distance = distance_3d(triangle_points[j][0], target);
+				double characteristic_length = distance_3d(triangle_points[j][0], triangle_points[j][1]);
+
+				if(i != j && distance > 5*characteristic_length) {
+					for(int k = 0; k < N_TRIANGLE_QUAD; k++) {
+							
+						double *pos = pos_buffer[j][k];
+						double jac = jacobian_buffer[j][k];
+						matrix[i*N_matrix + j] += jac * potential_3d_point(target[0], target[1], target[2], pos[0], pos[1], pos[2], NULL);
+					}
+					
 				}
+				else {
+					double a = triangle_area(triangle_points[j][0], triangle_points[j][1], triangle_points[j][2]);
+					matrix[i*N_matrix + j] = potential_triangle(triangle_points[j][0], triangle_points[j][1], triangle_points[j][2], target) * (2*a/(4*M_PI));
+				}
+				
             }
         } 
 		else if (type_ == DIELECTRIC || type_ == MAGNETIZABLE) {  
@@ -1610,13 +1635,24 @@ EXPORT void fill_matrix_3d(double *restrict matrix,
 				
 			for (int j = 0; j < N_lines; j++) {  
 					
-				UNROLL  
-				for(int k = 0; k < N_TRIANGLE_QUAD; k++) {  
-					double *pos = pos_buffer[j][k];  
-					double jac = jacobian_buffer[j][k];  
-					
-					matrix[i*N_matrix + j] += factor * jac * field_dot_normal_3d(target[0], target[1], target[2], pos[0], pos[1], pos[2], normal);  
-				}  
+				double distance = distance_3d(triangle_points[j][0], target);
+				double characteristic_length = distance_3d(triangle_points[j][0], triangle_points[j][1]);
+
+				if(i == j) {
+					matrix[i*N_matrix + j] = -1.0;
+				}
+				else if(true) {//&& distance > 5*characteristic_length) {
+					for(int k = 0; k < N_TRIANGLE_QUAD; k++) {
+						double *pos = pos_buffer[j][k];  
+						double jac = jacobian_buffer[j][k];  
+						
+						matrix[i*N_matrix + j] += factor * jac * field_dot_normal_3d(target[0], target[1], target[2], pos[0], pos[1], pos[2], normal);  
+					}
+				}
+				else {
+					double a = triangle_area(triangle_points[j][0], triangle_points[j][1], triangle_points[j][2]);
+					matrix[i*N_matrix + j] = -factor * flux_triangle(triangle_points[j][0], triangle_points[j][1], triangle_points[j][2], target, normal) * (2*a/(4*M_PI));
+				}
 			}  
 		}  
         else {
@@ -1624,8 +1660,6 @@ EXPORT void fill_matrix_3d(double *restrict matrix,
             exit(1);
         }
     }
-	
-	fill_self_voltages_3d(matrix, triangle_points, excitation_types, excitation_values, N_lines, N_matrix, lines_range_start, lines_range_end);
 }
 
 EXPORT bool
