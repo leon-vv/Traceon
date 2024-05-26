@@ -200,7 +200,7 @@ EXPORT double ellipe(double k) {
 typedef double (*ts_integrand)(double, void*);
 
 
-double tanh_sinh_integration(ts_integrand f, double a, double b, double epsrel, double epsabs, void *args) {
+EXPORT double tanh_sinh_integration(ts_integrand f, double a, double b, double epsrel, double epsabs, void *args) {
     double h = 2.7;
     double S = 0.5 * M_PI * sinh(h);
     double jacobian = (b-a)/2.;
