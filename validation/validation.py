@@ -21,6 +21,7 @@ class Validation:
     def __init__(self, description=''):
         self.description = description
         self.plot_colors = {}
+        self.args = self.parse_args()
      
     def parse_args(self):
         parser = argparse.ArgumentParser(formatter_class=argparse.RawDescriptionHelpFormatter)
@@ -37,6 +38,8 @@ class Validation:
         parser.add_argument('--plot-charge-density', action='store_true', help='When plotting geometry, base the colors on the computed charge density')
         parser.add_argument('--plot-charges', action='store_true', help='When plotting geometry, base the colors on the charge on each element')
         parser.add_argument('--use-fmm', action='store_true', help='Use fast multipole method to solve 3D geometry')
+        parser.add_argument('--fmm-precision', type=int, choices=[-2, -1,0,1,2,3], default=0, help='Use fast multipole method to solve 3D geometry')
+        
         return parser.parse_args()
     
     def default_MSF(self, symmetry):
@@ -51,17 +54,17 @@ class Validation:
     def supports_3d(self):
         return True
     
-    def plot_geometry(self, MSF, symmetry, higher_order=False, use_fmm=False, plot_charges=False, plot_charge_density=False, plot_normals=False):
+    def plot_geometry(self, MSF, symmetry, higher_order=False, plot_charges=False, plot_charge_density=False, plot_normals=False):
         geom = self.create_mesh(MSF, symmetry, higher_order)
         assert geom.symmetry == symmetry 
          
         if plot_charges or plot_charge_density:
-            exc, field = self.compute_field(geom, use_fmm=use_fmm)
+            exc, field = self.compute_field(geom)
             P.plot_charge_density(exc, field, density=plot_charge_density)
         else:
             P.plot_mesh(geom, show_normals=plot_normals, **self.plot_colors) 
     
-    def plot_accuracy(self, MSFs, symmetry, higher_order, use_fmm=False):
+    def plot_accuracy(self, MSFs, symmetry, higher_order):
         num_lines = []
         times = []
         correct = []
@@ -72,7 +75,7 @@ class Validation:
             print('-'*81, f' MSF={n}')
             st = time.time()
             geom = self.create_mesh(n, symmetry, higher_order)
-            exc, field = self.compute_field(geom, use_fmm=use_fmm)
+            exc, field = self.compute_field(geom)
             
             corr = self.correct_value_of_interest()  
             comp = self.compute_value_of_interest(geom, field)
@@ -109,10 +112,10 @@ class Validation:
         plt.ylabel('Computation time (ms)')
         plt.show()
 
-    def print_accuracy(self, MSF, symmetry, higher_order=True, use_fmm=False):
+    def print_accuracy(self, MSF, symmetry, higher_order=True):
         st = time.time()
         geom = self.create_mesh(MSF, symmetry, higher_order)
-        exc, field = self.compute_field(geom, use_fmm=use_fmm)
+        exc, field = self.compute_field(geom)
         
         correct = self.correct_value_of_interest()  
         computed = self.compute_value_of_interest(geom, field)
@@ -147,9 +150,9 @@ class Validation:
                                             plot_charge_density=args.plot_charge_density,
                                             plot_normals=args.plot_normals) 
         elif args.plot_accuracy:
-            self.plot_accuracy(self.default_MSF(symmetry), symmetry, args.higher_order, use_fmm=args.use_fmm)
+            self.plot_accuracy(self.default_MSF(symmetry), symmetry)
         else:
-            self.print_accuracy(MSF, symmetry, args.higher_order, use_fmm=args.use_fmm)
+            self.print_accuracy(MSF, symmetry, args.higher_order)
 
     # Should be implemented by each of the validations
     def create_mesh(self, MSF, symmetry, higher_order):
@@ -158,9 +161,9 @@ class Validation:
     def get_excitation(self, geometry):
         pass
 
-    def compute_field(self, geometry, use_fmm=False):
+    def compute_field(self, geometry):
         exc = self.get_excitation(geometry)
-        return exc, S.solve_bem(exc, use_fmm=use_fmm)
+        return exc, S.solve_bem(exc, use_fmm=self.args.use_fmm, fmm_precision=self.args.fmm_precision)
      
     def compute_value_of_interest(self, geometry, field):
         pass
