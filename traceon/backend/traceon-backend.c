@@ -467,15 +467,24 @@ trace_particle(double *times_array, double *pos_array, field_fun field, double b
 			produce_new_k(ys, k, index, h, field, args);
 		}
 		
-		double TE = 0.0; // Error 
-		
-		for(int i = 0; i < 6; i++) {
+		double max_position_error = 0.0;
+		double max_velocity_error = 0.0;
+
+		for(int i = 0; i < 3; i++) {
 			double err = 0.0;
 			for(int j = 0; j < 6; j++) err += CT[j]*k[j][i];
-			if(fabs(err) > TE) TE = fabs(err);
+			if(fabs(err) > max_position_error) max_position_error = fabs(err);
 		}
+		
+		for(int i = 3; i < 6; i++) {
+			double err = 0.0;
+			for(int j = 0; j < 6; j++) err += CT[j]*k[j][i];
+			if(fabs(err) > max_velocity_error) max_velocity_error = fabs(err);
+		}
+		
+		double error = max_position_error + h*max_velocity_error;
 			
-		if(TE <= atol) {
+		if(error <= atol) {
 			for(int i = 0; i < 6; i++) {
 				y[i] += CH[0]*k[0][i] + CH[1]*k[1][i] + CH[2]*k[2][i] + CH[3]*k[3][i] + CH[4]*k[4][i] + CH[5]*k[5][i];
 				positions[N][i] = y[i];
@@ -486,7 +495,7 @@ trace_particle(double *times_array, double *pos_array, field_fun field, double b
 			if(N==TRACING_BLOCK_SIZE) return N;
 		}
 		
-		h = fmin(0.9 * h * pow(atol / TE, 0.2), hmax);
+		h = fmin(0.9 * h * pow(atol / error, 0.2), hmax);
 	}
 		
 	return N;
