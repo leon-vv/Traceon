@@ -36,7 +36,7 @@ double _potential_normalized_triangle_integrand(double theta, void *args_p) {
 	return sqrt(z0*z0 + rmax*rmax) - fabs(z0);
 }
 
-double potential_normalized_triangle(double a, double b, double c, double z0) {
+EXPORT double potential_normalized_triangle(double a, double b, double c, double z0) {
 	// Triangle is defined by the vertices
 	// (0, 0, 0), (a, 0, 0), (b, c, 0)
 	// the target is located at (0, 0, z0)
@@ -80,7 +80,7 @@ double _flux_normalized_triangle_integrand(double theta, void *args_p) {
 	return dx*args->normal[0] + dy*args->normal[1] + dz*args->normal[2];
 }
 
-double flux_normalized_triangle(double a, double b, double c, double z0, double normal[3]) {
+EXPORT double flux_normalized_triangle(double a, double b, double c, double z0, double normal[3]) {
 	// See comment in potential_normalized_triangle
 
 	struct _normalized_triangle tri = { a, b, c, z0, {normal[0], normal[1], normal[2]} };
@@ -146,7 +146,7 @@ void _express_triangle_in_local_coordinate_system(double *v0, double *v1, double
 	}
 }
 
-double potential_triangle_target_over_v0(double *v0, double *v1, double *v2, double *target) {
+EXPORT double potential_triangle_target_over_v0(double *v0, double *v1, double *v2, double *target) {
 	// General triangle, but the target has to lie on the line defined
 	// by v0 and the normal to the triangle.
 	struct _normalized_triangle tr;
@@ -154,7 +154,7 @@ double potential_triangle_target_over_v0(double *v0, double *v1, double *v2, dou
 	return potential_normalized_triangle(tr.a, tr.b, tr.c, tr.z0);
 }
 
-double flux_triangle_target_over_v0(double *v0, double *v1, double *v2, double *target, double *normal) {
+EXPORT double flux_triangle_target_over_v0(double *v0, double *v1, double *v2, double *target, double *normal) {
 	// General triangle, but the target has to lie on the line defined
 	// by v0 and the normal to the triangle.
 	
@@ -165,7 +165,7 @@ double flux_triangle_target_over_v0(double *v0, double *v1, double *v2, double *
 
 // Get the barycentric coordinates of
 // the projection of the point on the plane of the triangle
-void triangle_barycentric_coords(double p[3], double v0[3], double v1[3], double v2[3], double out[3]) {
+EXPORT void triangle_barycentric_coords(double p[3], double v0[3], double v1[3], double v2[3], double out[3]) {
 	double x[3] = {v1[0]-v0[0], v1[1]-v0[1], v1[2]-v0[2]};
 	double y[3] = {v2[0]-v0[0], v2[1]-v0[1], v2[2]-v0[2]};
 	
@@ -200,7 +200,7 @@ inline int sign(double x) {
 	return x > 0 ? 1 : -1;
 }
 
-double
+EXPORT double
 potential_triangle(double v0[3], double v1[3], double v2[3], double target[3]) {
 	double coords[3];
 	triangle_barycentric_coords(target, v0, v1, v2, coords);
@@ -222,7 +222,7 @@ potential_triangle(double v0[3], double v1[3], double v2[3], double target[3]) {
 	return (sign(coords[2])*pot1 + sign(coords[0])*pot2 + sign(coords[1])*pot3)/(2*area);
 }
 
-double
+EXPORT double
 flux_triangle(double v0[3], double v1[3], double v2[3], double target[3], double normal[3]) {
 	double coords[3];
 	triangle_barycentric_coords(target, v0, v1, v2, coords);

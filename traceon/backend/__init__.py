@@ -127,7 +127,6 @@ backend_functions = {
     'potential_triangle_target_over_v0': (dbl, v3, v3, v3, v3),
     'flux_triangle_target_over_v0': (dbl, v3, v3, v3, v3, v3),
     'triangle_barycentric_coords': (None, v3, v3, v3, v3, v3),
-    'triangle_barycentric_coords': (None, v3, v3, v3, v3, v3),
     'potential_triangle': (dbl, v3, v3, v3, v3),
     'flux_triangle': (dbl, v3, v3, v3, v3, v3),
      
