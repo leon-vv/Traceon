@@ -1616,8 +1616,7 @@ EXPORT void fill_matrix_3d(double *restrict matrix,
 					
 				}
 				else {
-					double a = triangle_area(triangle_points[j][0], triangle_points[j][1], triangle_points[j][2]);
-					matrix[i*N_matrix + j] = potential_triangle(triangle_points[j][0], triangle_points[j][1], triangle_points[j][2], target) * (2*a/(4*M_PI));
+					matrix[i*N_matrix + j] = potential_triangle(triangle_points[j][0], triangle_points[j][1], triangle_points[j][2], target) / (4*M_PI);
 				}
 				
             }

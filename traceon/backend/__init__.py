@@ -122,12 +122,8 @@ tracing_block = arr(shape=(TRACING_BLOCK_SIZE, 6))
 
 backend_functions = {
     # triangle_contribution.c
-    'potential_normalized_triangle': (dbl, dbl, dbl, dbl, dbl),
-    'flux_normalized_triangle': (dbl, dbl, dbl, dbl, dbl, v3),
-    'potential_triangle_target_over_v0': (dbl, v3, v3, v3, v3),
-    'flux_triangle_target_over_v0': (dbl, v3, v3, v3, v3, v3),
-    'triangle_barycentric_coords': (None, v3, v3, v3, v3, v3),
     'potential_triangle': (dbl, v3, v3, v3, v3),
+    'self_potential_triangle': (dbl, v3, v3, v3),
     'flux_triangle': (dbl, v3, v3, v3, v3, v3),
      
     'ellipkm1' : (dbl, dbl),
@@ -197,17 +193,7 @@ for (fun, (res, *args)) in backend_functions.items():
     libfun.restype = res
     libfun.argtypes = args
 
-potential_normalized_triangle = backend_lib.potential_normalized_triangle
-flux_normalized_triangle = backend_lib.flux_normalized_triangle
-
-potential_triangle_target_over_v0 = backend_lib.potential_triangle_target_over_v0
-flux_triangle_target_over_v0 = backend_lib.flux_triangle_target_over_v0
-
-def triangle_barycentric_coords(p, v0, v1, v2):
-    out = np.zeros(3)
-    backend_lib.triangle_barycentric_coords(p, v0, v1, v2, out)
-    return out
-
+self_potential_triangle = backend_lib.self_potential_triangle
 potential_triangle = backend_lib.potential_triangle
 flux_triangle = backend_lib.flux_triangle
 
