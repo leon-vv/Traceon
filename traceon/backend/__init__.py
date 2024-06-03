@@ -123,7 +123,8 @@ tracing_block = arr(shape=(TRACING_BLOCK_SIZE, 6))
 backend_functions = {
     # triangle_contribution.c
     'potential_triangle': (dbl, v3, v3, v3, v3),
-    'self_potential_triangle': (dbl, v3, v3, v3),
+    'self_potential_triangle_v0': (dbl, v3, v3, v3),
+    'self_potential_triangle': (dbl, v3, v3, v3, v3),
     'flux_triangle': (dbl, v3, v3, v3, v3, v3),
      
     'ellipkm1' : (dbl, dbl),
@@ -193,6 +194,7 @@ for (fun, (res, *args)) in backend_functions.items():
     libfun.restype = res
     libfun.argtypes = args
 
+self_potential_triangle_v0 = backend_lib.self_potential_triangle_v0
 self_potential_triangle = backend_lib.self_potential_triangle
 potential_triangle = backend_lib.potential_triangle
 flux_triangle = backend_lib.flux_triangle

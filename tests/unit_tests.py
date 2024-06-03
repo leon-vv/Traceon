@@ -52,8 +52,10 @@ class TestTriangleContribution(unittest.TestCase):
                     [a, 0., 0.],
                     [b, c, 0.]])
             
-            correct = potential_exact_integrated(v0, v1, v2, np.array([0., 0., 0.]))
-            assert np.isclose(B.self_potential_triangle(v0, v1, v2), correct, atol=0., rtol=1e-15)
+            target = np.array([0., 0., 0.])
+            correct = potential_exact_integrated(v0, v1, v2, target)
+            approx = B.self_potential_triangle_v0(v0, v1, v2)
+            assert np.isclose(approx, correct, atol=0., rtol=1e-15)
         
         test(1, 0, 1) # right triangle quadrant 1 
         test(1, 1, 1) # right triangle quadrant 1
@@ -71,8 +73,11 @@ class TestTriangleContribution(unittest.TestCase):
                     [a, 0., 0.],
                     [b, c, 0.]])
             
-            correct = potential_exact_integrated(v0, v1, v2, np.array([0., 0., 0.]))
-            assert np.isclose(B.self_potential_triangle(v0, v1, v2), correct, atol=0., rtol=1e-12), (a,b,c)
+            target = (v0+v1+v2)/3
+             
+            correct = potential_exact_integrated(v0, v1, v2, target)
+            approx = B.self_potential_triangle(v0, v1, v2, target)
+            assert np.isclose(approx, correct, atol=0., rtol=1e-12), (a,b,c)
 
         for (a,b,c) in rand(3, 3):
             test(a,b,c)
@@ -214,7 +219,7 @@ class TestTriangleContribution(unittest.TestCase):
             target = v0
              
             correct = potential_exact_integrated(v0, v1, v2, target) 
-            approx = B.self_potential_triangle(v0, v1, v2)
+            approx = B.self_potential_triangle_v0(v0, v1, v2)
             assert np.allclose(correct, approx)
      
     def test_potential(self):

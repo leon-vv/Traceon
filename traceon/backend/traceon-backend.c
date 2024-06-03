@@ -1605,7 +1605,10 @@ EXPORT void fill_matrix_3d(double *restrict matrix,
 				// close to the target triangle.
 				double distance = distance_3d(triangle_points[j][0], target);
 				double characteristic_length = distance_3d(triangle_points[j][0], triangle_points[j][1]);
-
+				
+				if(i == j) {
+					matrix[i*N_matrix + j] = self_potential_triangle(&triangle_points[j][0][0], &triangle_points[j][1][0], &triangle_points[j][2][0], target);
+				}
 				if(i != j && distance > 5*characteristic_length) {
 					for(int k = 0; k < N_TRIANGLE_QUAD; k++) {
 							
