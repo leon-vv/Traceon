@@ -199,10 +199,10 @@ self_potential_triangle = backend_lib.self_potential_triangle
 potential_triangle = backend_lib.potential_triangle
 flux_triangle = backend_lib.flux_triangle
 
-ellipkm1 = np.frompyfunc(backend_lib.ellipkm1, 1, 1)
-ellipk = np.frompyfunc(backend_lib.ellipk, 1, 1)
-ellipem1 = np.frompyfunc(backend_lib.ellipem1, 1, 1)
-ellipe = np.frompyfunc(backend_lib.ellipe, 1, 1)
+ellipkm1 = np.vectorize(backend_lib.ellipkm1)
+ellipk = np.vectorize(backend_lib.ellipk)
+ellipem1 = np.vectorize(backend_lib.ellipem1)
+ellipe = np.vectorize(backend_lib.ellipe)
 
 def tanh_sinh_integration(integrand, x_min, x_max, epsabs, epsrel):
     wrapped = lambda x, args: integrand(x)

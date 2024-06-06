@@ -7,6 +7,7 @@ import matplotlib.pyplot as plt
 from scipy.interpolate import CubicSpline
 from scipy.integrate import quad, solve_ivp, dblquad
 from scipy.constants import m_e, e, mu_0, epsilon_0
+from scipy.special import ellipe, ellipk, ellipkm1
 
 import traceon.geometry as G
 import traceon.excitation as E
@@ -41,6 +42,32 @@ def potential_exact_integrated(v0, v1, v2, target):
 def flux_exact_integrated(v0, v1, v2, target, normal):
     area = np.linalg.norm(np.cross(v1-v0, v2-v0))/2
     return dblquad(flux_exact, 0, 1, 0, lambda x: 1-x, epsabs=5e-14, epsrel=5e-14, args=(target, (v0, v1, v2), normal))[0] * (2*area)
+
+
+
+class TestElliptic(unittest.TestCase):
+    
+    def test_ellipk(self):
+        x = np.linspace(-1, 1, 40)[1:-1]
+        # ellipk is slightly inaccurate, but is not used in electrostatic
+        # solver. Only ellipkm1 is used
+        assert np.allclose(B.ellipk(x), ellipk(x), atol=0., rtol=1e-5)
+    
+    def test_ellipe(self):
+        x = np.linspace(-1, 1, 40)[1:-1]
+        assert np.allclose(B.ellipe(x), ellipe(x), atol=0., rtol=1e-12)
+ 
+    def test_ellipkm1_big(self):
+        x = np.linspace(0, 1)[1:-1]
+        assert np.allclose(ellipkm1(x), B.ellipkm1(x), atol=0., rtol=1e-12)
+ 
+    def test_ellipkm1_small_many(self):
+        x = np.linspace(1, 100, 5)
+        assert np.allclose(ellipkm1(10**(-x)), B.ellipkm1(10**(-x)), atol=0., rtol=1e-12)
+    
+    def test_ellipem1_small_many(self):
+        x = np.linspace(1, 100, 5)
+        assert np.allclose(ellipe(1 - 10**(-x)), B.ellipem1(10**(-x)), atol=0., rtol=1e-12)
 
 
 class TestTriangleContribution(unittest.TestCase):
