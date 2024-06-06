@@ -636,11 +636,10 @@ class TestBackend(unittest.TestCase):
         z_ring = 0
         
         z = np.linspace(-5, 5, 250)
-        
+        # http://hyperphysics.phy-astr.gsu.edu/hbase/magnetic/curloo.html
         field_correct = r_ring**2 / (2*((z-z_ring)**2 + r_ring**2)**(3/2))
         field_z = np.array([B.current_field_radial_ring(0., z_, r_ring, z_ring)[1] for z_ in z])
         
-        print(field_correct, field_z)
         assert np.allclose(field_correct, field_z)
     
     def test_current_field_in_plane(self):
