@@ -140,12 +140,12 @@ double _flux_integrand(double y, void *args_p) {
 	double yy02 = (y+y0)*(y+y0);
 	double xmax2 = xmax*xmax;
 
-	double deriv[3];
-    deriv[0] = 1/sqrt(z2+yy02+xmax2) - 1/sqrt(z2+yy02+xmin2);
-    deriv[1] = -(xmax*(y+y0))/((z2+yy02)*sqrt(z2+yy02+xmax2)) + (xmin*(y+y0))/((z2+yy02)*sqrt(z2+yy02+xmin2));
-    deriv[2] = (xmax*z)/((z2+yy02)*sqrt(z2+yy02+xmax2)) - (xmin*z)/((z2+yy02)*sqrt(z2+yy02+xmin2));
+	double flux[3];
+    flux[0] = 1/sqrt(z2+yy02+xmax2) - 1/sqrt(z2+yy02+xmin2);
+    flux[1] = -(xmax*(y+y0))/((z2+yy02)*sqrt(z2+yy02+xmax2)) + (xmin*(y+y0))/((z2+yy02)*sqrt(z2+yy02+xmin2));
+    flux[2] = (xmax*z)/((z2+yy02)*sqrt(z2+yy02+xmax2)) - (xmin*z)/((z2+yy02)*sqrt(z2+yy02+xmin2));
 	
-	return -dot_3d(args.normal, deriv);
+	return dot_3d(args.normal, flux);
 }
 
 

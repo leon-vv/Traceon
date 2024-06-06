@@ -1643,7 +1643,7 @@ EXPORT void fill_matrix_3d(double *restrict matrix,
 				if(i == j) {
 					matrix[i*N_matrix + j] = -1.0;
 				}
-				else if(true) {//&& distance > 5*characteristic_length) {
+				else if(distance > 5*characteristic_length) {
 					for(int k = 0; k < N_TRIANGLE_QUAD; k++) {
 						double *pos = pos_buffer[j][k];  
 						double jac = jacobian_buffer[j][k];  
@@ -1653,7 +1653,7 @@ EXPORT void fill_matrix_3d(double *restrict matrix,
 				}
 				else {
 					double a = triangle_area(triangle_points[j][0], triangle_points[j][1], triangle_points[j][2]);
-					matrix[i*N_matrix + j] = -factor * flux_triangle(triangle_points[j][0], triangle_points[j][1], triangle_points[j][2], target, normal) * (2*a/(4*M_PI));
+					matrix[i*N_matrix + j] = factor * flux_triangle(triangle_points[j][0], triangle_points[j][1], triangle_points[j][2], target, normal) / (4*M_PI);
 				}
 			}  
 		}  

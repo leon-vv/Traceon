@@ -24,23 +24,23 @@ def potential_exact(a, b, target, points):
      
     return 1/np.linalg.norm(p - target)
 
-def derivative_exact(a, b, target, points, normal):
+def flux_exact(a, b, target, points, normal):
     v0, v1, v2 = points
     x, y, z = v0 + a*(v1-v0) + b*(v2-v0)
     x0, y0, z0 = target
     denominator = ((x-x0)**2 + (y-y0)**2 + (z-z0)**2)**(3/2)
-    dx = (x-x0)/denominator
-    dy = (y-y0)/denominator
-    dz = (z-z0)/denominator
+    dx = -(x-x0)/denominator
+    dy = -(y-y0)/denominator
+    dz = -(z-z0)/denominator
     return np.dot(normal, [dx, dy, dz])
 
 def potential_exact_integrated(v0, v1, v2, target):
     area = np.linalg.norm(np.cross(v1-v0, v2-v0))/2
     return dblquad(potential_exact, 0, 1, 0, lambda x: 1-x, epsabs=1e-12, epsrel=1e-12, args=(target, (v0, v1, v2)))[0] * (2*area)
 
-def derivative_exact_integrated(v0, v1, v2, target, normal):
+def flux_exact_integrated(v0, v1, v2, target, normal):
     area = np.linalg.norm(np.cross(v1-v0, v2-v0))/2
-    return dblquad(derivative_exact, 0, 1, 0, lambda x: 1-x, epsabs=5e-14, epsrel=5e-14, args=(target, (v0, v1, v2), normal))[0] * (2*area)
+    return dblquad(flux_exact, 0, 1, 0, lambda x: 1-x, epsabs=5e-14, epsrel=5e-14, args=(target, (v0, v1, v2), normal))[0] * (2*area)
 
 
 class TestTriangleContribution(unittest.TestCase):
@@ -93,7 +93,7 @@ class TestTriangleContribution(unittest.TestCase):
             target = np.array([0., 0., z0])
             normal = np.array([1., 0., 0.])
             
-            correct = derivative_exact_integrated(v0, v1, v2, target, normal)
+            correct = flux_exact_integrated(v0, v1, v2, target, normal)
             approx = B.flux_triangle(v0, v1, v2, target, normal)
             assert np.isclose(correct, approx, atol=0., rtol=1e-12), (x0, a,b,c, z0)
         
@@ -102,7 +102,7 @@ class TestTriangleContribution(unittest.TestCase):
         test(1, 0, -1, 0.1) # right triangle quadrant 4
         test(1, 1, -1, 0.1) # right triangle quadrant 4
     
-    def test_derivative_x(self):
+    def test_flux_x(self):
         def test(x0, a, b, c, z0):
             v0, v1, v2 = np.array([
                     [x0, 0., 0.],
@@ -112,7 +112,7 @@ class TestTriangleContribution(unittest.TestCase):
             target = np.array([0., 0., z0])
             normal = np.array([1., 0., 0.])
             
-            correct = derivative_exact_integrated(v0, v1, v2, target, [1., 0, 0])
+            correct = flux_exact_integrated(v0, v1, v2, target, [1., 0, 0])
             approx = B.flux_triangle(v0, v1, v2, target, normal)
             assert np.isclose(correct, approx, atol=0., rtol=5e-12), (x0, a,b,c, z0)
 
@@ -126,7 +126,7 @@ class TestTriangleContribution(unittest.TestCase):
 
             test(x0, a, b, c, z0)
 
-    def test_derivative_x_special_case(self):
+    def test_flux_x_special_case(self):
         def test(x0, a, b, c, z0):
             v0, v1, v2 = np.array([
                     [x0, 0., 0.],
@@ -136,7 +136,7 @@ class TestTriangleContribution(unittest.TestCase):
             target = np.array([0., 0., z0])
             normal = np.array([1., 0., 0.])
             
-            correct = derivative_exact_integrated(v0, v1, v2, target, normal)
+            correct = flux_exact_integrated(v0, v1, v2, target, normal)
             approx = B.flux_triangle(v0, v1, v2, target, normal)
             assert np.isclose(correct, approx, atol=0., rtol=5e-12), (x0, a,b,c, z0)
          
@@ -170,7 +170,7 @@ class TestTriangleContribution(unittest.TestCase):
             target = np.array([0., 0., z0])
             
             area = np.linalg.norm(np.cross(v1-v0, v2-v0))/2
-            correct = derivative_exact_integrated(v0, v1, v2, target, normal)
+            correct = flux_exact_integrated(v0, v1, v2, target, normal)
             approx = B.flux_triangle(v0, v1, v2, target, normal)
             assert np.isclose(correct, approx)
 
@@ -237,7 +237,7 @@ class TestTriangleContribution(unittest.TestCase):
             target = rand(3)
             normal = rand(3)
             
-            correct = derivative_exact_integrated(v0, v1, v2, target, normal) 
+            correct = flux_exact_integrated(v0, v1, v2, target, normal) 
             approx = B.flux_triangle(v0, v1, v2, target, normal)
             assert np.allclose(correct, approx)
     
