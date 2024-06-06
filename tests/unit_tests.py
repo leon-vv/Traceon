@@ -330,6 +330,20 @@ class TestTriangleContribution(unittest.TestCase):
  
 
 class TestAdaptiveIntegration(unittest.TestCase):
+    def test_potential_field_radial_single_ring(self):
+        rs = 1 # Source point
+        zs = 0
+
+        r = np.linspace(1.1, 2, 10000)
+        pot = [B.potential_radial_ring(r_, zs, rs, zs) for r_ in r]
+        deriv = [B.dr1_potential_radial_ring(r_, zs, rs, zs) for r_ in r]
+        assert np.allclose(CubicSpline(r, pot)(r, 1), deriv, atol=0., rtol=1e-9)
+        
+        z = np.linspace(0.1, 1, 10000)
+        pot = [B.potential_radial_ring(rs, z_, rs, zs) for z_ in z]
+        deriv = [B.dz1_potential_radial_ring(rs, z_, rs, zs) for z_ in z]
+        assert np.allclose(CubicSpline(z, pot)(z, 1), deriv, atol=0., rtol=1e-9)
+    
     def test_x_squared(self):
         import time
         st = time.time()
