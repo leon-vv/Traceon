@@ -551,6 +551,79 @@ class TestPotentialRing(unittest.TestCase):
 
 class TestBackend(unittest.TestCase):
     
+    def test_plane_intersection(self):
+        p = np.array([
+            [3, 0, 0, 0, 0, 0],
+            [1, 0, 0, 0, 0, 0],
+            [-1, 0, 0, 0, 0, 0.]]);
+
+        result = T.plane_intersection(p, np.zeros(3), np.array([4.0,0.0,0.0]))
+        assert np.allclose(result, np.array([0.0, 0.0, 0.0, 0.0, 0.0, 0.0]))
+
+        p = np.array([
+            [2, 2, 2, 0, 0, 0],
+            [1, 1, 1, 0, 0, 0],
+            [-1, -1, -1, 0, 0, 0.]]);
+
+        result = T.plane_intersection(p, np.zeros(3), np.array([2.0,2.0,2.0]))
+        assert np.allclose(result, np.array([0.0, 0.0, 0.0, 0.0, 0.0, 0.0]))
+
+        result = T.plane_intersection(p, np.zeros(3), np.array([-1.0,-1.0,-1.0]))
+        assert np.allclose(result, np.array([0.0, 0.0, 0.0, 0.0, 0.0, 0.0]))
+
+        p = np.array([
+            [2, 2, 2, 0, 0, 0],
+            [2, 2, 1, 0, 1, 0],
+            [2, 2, -3, 0, 0, 0.]]);
+
+        result = T.plane_intersection(p, np.array([2.,2.,1.0]), np.array([0.0,0.0,1.0]))
+        assert np.allclose(result, np.array([2.0, 2.0, 1.0, 0.0, 1.0, 0.0]))
+
+        result = T.plane_intersection(p, np.array([2.,2.,1.0]), np.array([0.0,0.0,-1.0]))
+        assert result is not None and np.allclose(result, np.array([2.0, 2.0, 1.0, 0.0, 1.0, 0.0]))
+
+        p = np.array([
+            [0., 0, -3, 0, 0, 0],
+            [0., 0, 9, 0, 0, 0]])
+
+        result = T.plane_intersection(p, np.array([0.,1.,0.0]), np.array([1.0,1.0,1.0]))
+        assert np.allclose(result, np.array([0.0, 0.0, 1.0, 0.0, 0.0, 0.0]))
+        result = T.plane_intersection(p, np.array([0.,1.,0.0]), -np.array([1.0,1.0,1.0]))
+        assert np.allclose(result, np.array([0.0, 0.0, 1.0, 0.0, 0.0, 0.0]))
+
+        p = np.array([
+            [1.0, 0.0, 0.0, 0.0],
+            [1.0, 1.0, 0.0, 0.0]])
+        r = T.xy_plane_intersection(p, 0.5)[0]
+        assert np.isclose(r, 1.0)
+
+        p = np.array([
+            [1.0, 0.0, 0.0, 0.0],
+            [1.0, -1.0, 0.0, 0.0]])
+        r = T.xy_plane_intersection(p, -0.5)[0]
+        assert np.isclose(r, 1.0)
+
+        p = np.array([
+            [0.0, 0.0, 0.0, 0.0],
+            [1.0, -1.0, 0.0, 0.0],
+            [2.0, -2.0, 0.0, 0.0]])
+        r = T.xy_plane_intersection(p, -1.5)[0]
+        assert np.isclose(r, 1.5)
+
+        p = np.array([
+            [0.0, 0.0, 0.0, 0.0],
+            [1.0, 1.0, 0.0, 0.0],
+            [4.0, 2.0, 0.0, 0.0]])
+        r = T.xy_plane_intersection(p, 1.75)[0]
+        assert np.isclose(r, 3.25)
+
+        p = np.array([
+            [0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
+            [0.0, 1.0, 1.0, 0.0, 0.0, 0.0],
+            [0.0, 4.0, 2.0, 0.0, 0.0, 0.0]])
+        y = T.xy_plane_intersection(p, 1.75)[1]
+        assert np.isclose(y, 3.25)
+    
     def test_potential_radial_ring(self):
         for r0, z0, r, z in np.random.rand(10, 4):
             assert np.isclose(B.potential_radial_ring(r0, z0, r, z)/epsilon_0, potential_of_ring_arbitrary(1., r0, z0, r, z))
@@ -1027,9 +1100,6 @@ class TestMagnetic(unittest.TestCase):
         correct = np.array([correct_r, correct_z])
         
         assert np.allclose(computed, correct, atol=1e-11)
-
-        
-
 
 if __name__ == '__main__':
     unittest.main()
