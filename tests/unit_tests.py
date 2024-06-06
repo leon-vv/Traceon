@@ -551,6 +551,22 @@ class TestPotentialRing(unittest.TestCase):
 
 class TestBackend(unittest.TestCase):
     
+    def test_position_and_jacobian_radial(self):
+        line = np.array([
+            [0.0, 0.0, 0.0],
+            [0.25, 0.0, 0.0],
+            [0.5, 0.0, 0.0],
+            [1.0, 0.0, 0.0]])
+
+        _, pos = B.position_and_jacobian_radial(-1, *line)
+        assert np.all(np.isclose(pos, line[0, :2]))
+        _, pos = B.position_and_jacobian_radial(-1 + 2/3, *line)
+        assert np.all(np.isclose(pos, line[1, :2]))
+        _, pos = B.position_and_jacobian_radial(-1 + 4/3, *line)
+        assert np.all(np.isclose(pos, line[2, :2]))
+        _, pos = B.position_and_jacobian_radial(1, *line)
+        assert np.all(np.isclose(pos, line[3, :2]))
+    
     def test_plane_intersection(self):
         p = np.array([
             [3, 0, 0, 0, 0, 0],
