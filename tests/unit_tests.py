@@ -15,6 +15,7 @@ import traceon.tracing as T
 import traceon.solver as S
 import traceon.backend as B
 import traceon.plotting as P
+import traceon.fast_multipole_method as FMM
 
 def rand(*shape, min=-100, max=100):
     return min + np.random.rand(*shape)*(max-min)
@@ -42,6 +43,52 @@ def potential_exact_integrated(v0, v1, v2, target):
 def flux_exact_integrated(v0, v1, v2, target, normal):
     area = np.linalg.norm(np.cross(v1-v0, v2-v0))/2
     return dblquad(flux_exact, 0, 1, 0, lambda x: 1-x, epsabs=5e-14, epsrel=5e-14, args=(target, (v0, v1, v2), normal))[0] * (2*area)
+
+
+class TestFMM(unittest.TestCase):
+    
+    def test_matrix_application_edwards2007(self):
+        with G.Geometry(G.Symmetry.THREE_D) as geom:
+            points = [ [0, 0], [0, 5], [12, 5], [12, 15],
+                [0, 15], [0, 20], [20, 20], [20, 0] ]
+            
+            geom.set_mesh_size_factor(15)
+            
+            points = [geom.add_point([p[0], 0.0, p[1]]) for p in points]
+            
+            l1 = geom.add_line(points[1], points[2])
+            l2 = geom.add_line(points[2], points[3])
+            l3 = geom.add_line(points[3], points[4])
+            
+            l4 = geom.add_line(points[0], points[-1])
+            l5 = geom.add_line(points[-3], points[-2])
+            l6 = geom.add_line(points[-2], points[-1])
+            
+            inner = G.revolve_around_optical_axis(geom, [l1, l2, l3])
+            boundary = G.revolve_around_optical_axis(geom, [l4, l5, l6])
+            
+            geom.add_physical(inner, 'inner')
+            geom.add_physical(boundary, 'boundary')
+                    
+            mesh = geom.generate_triangle_mesh()
+        
+        exc = E.Excitation(mesh)
+        exc.add_voltage(inner=10, boundary=0)
+        
+        solver = S.ElectrostaticSolver(exc)
+        
+        dielectric_indices = solver.get_flux_indices()
+        dielectric_values = solver.excitation_values[dielectric_indices]
+        dielectric_factors = np.array([backend.flux_density_to_charge_factor(k) for k in dielectric_values])
+         
+        charges = rand(len(mesh.triangles), min=-3, max=3)
+        
+        geom_fortran = FMM.get_geometry_in_fortran_layout(solver.vertices)
+        result_fmm = FMM.apply_matrix(charges, geom_fortran, 5, dielectric_indices, dielectric_factors)
+         
+        result_direct =  solver.get_matrix() @ charges
+         
+        assert np.allclose(result_fmm, result_direct, atol=0.0, rtol=1e-6)
 
 
 
