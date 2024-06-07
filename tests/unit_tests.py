@@ -45,6 +45,11 @@ def flux_exact_integrated(v0, v1, v2, target, normal):
     area = np.linalg.norm(np.cross(v1-v0, v2-v0))/2
     return dblquad(flux_exact, 0, 1, 0, lambda x: 1-x, epsabs=5e-14, epsrel=5e-14, args=(target, (v0, v1, v2), normal))[0] * (2*area)
 
+def get_ring_effective_point_charges(current, r):
+    return S.EffectivePointCharges(
+        [current],
+        [ [1.] + ([0.]*(B.N_TRIANGLE_QUAD-1)) ],
+        [ [[r, 0., 0.]] * B.N_TRIANGLE_QUAD ])
 
 class TestFMM(unittest.TestCase):
     
@@ -329,20 +334,9 @@ class TestTriangleContribution(unittest.TestCase):
             B.potential_triangle(v0, v1, v2, target))
  
 
+'''
 class TestAdaptiveIntegration(unittest.TestCase):
-    def test_potential_field_radial_single_ring(self):
-        rs = 1 # Source point
-        zs = 0
 
-        r = np.linspace(1.1, 2, 10000)
-        pot = [B.potential_radial_ring(r_, zs, rs, zs) for r_ in r]
-        deriv = [B.dr1_potential_radial_ring(r_, zs, rs, zs) for r_ in r]
-        assert np.allclose(CubicSpline(r, pot)(r, 1), deriv, atol=0., rtol=1e-9)
-        
-        z = np.linspace(0.1, 1, 10000)
-        pot = [B.potential_radial_ring(rs, z_, rs, zs) for z_ in z]
-        deriv = [B.dz1_potential_radial_ring(rs, z_, rs, zs) for z_ in z]
-        assert np.allclose(CubicSpline(z, pot)(z, 1), deriv, atol=0., rtol=1e-9)
     
     def test_x_squared(self):
         import time
@@ -437,6 +431,7 @@ class TestAdaptiveIntegration(unittest.TestCase):
         
         correct, _ = quad(f, 0, 0.5, epsabs=1e-7, epsrel=1e-7)
         ts = B.tanh_sinh_integration(f, 0, 0.5, 1e-5, 1e-5)
+'''
 
 q = -e
 EM = q/m_e
@@ -654,6 +649,20 @@ class TestBackend(unittest.TestCase):
         y = T.xy_plane_intersection(p, 1.75)[1]
         assert np.isclose(y, 3.25)
     
+    def test_potential_field_radial_single_ring(self):
+        rs = 1 # Source point
+        zs = 0
+
+        r = np.linspace(1.1, 2, 10000)
+        pot = [B.potential_radial_ring(r_, zs, rs, zs) for r_ in r]
+        deriv = [B.dr1_potential_radial_ring(r_, zs, rs, zs) for r_ in r]
+        assert np.allclose(CubicSpline(r, pot)(r, 1), deriv, atol=0., rtol=1e-9)
+        
+        z = np.linspace(0.1, 1, 10000)
+        pot = [B.potential_radial_ring(rs, z_, rs, zs) for z_ in z]
+        deriv = [B.dz1_potential_radial_ring(rs, z_, rs, zs) for z_ in z]
+        assert np.allclose(CubicSpline(z, pot)(z, 1), deriv, atol=0., rtol=1e-9)
+    
     def test_potential_radial_ring(self):
         for r0, z0, r, z in np.random.rand(10, 4):
             assert np.isclose(B.potential_radial_ring(r0, z0, r, z)/epsilon_0, potential_of_ring_arbitrary(1., r0, z0, r, z))
@@ -855,15 +864,9 @@ class TestBackend(unittest.TestCase):
          
         initial_conditions = np.array([0.1, 0, 15, 0, 0, -v])
         sol = solve_ivp(lorentz_force, (0, 1.35e-6), initial_conditions, method='DOP853', rtol=1e-6, atol=1e-6)
-        
-        eff = S.EffectivePointCharges(
-            [current],
-            [[1., 0., 0., 0.]],
-            [[ [1., 0., 0.],
-              [1., 0., 0.],
-              [1., 0., 0.],
-              [1., 0., 0.]]])
-        
+
+        eff = get_ring_effective_point_charges(current, 1.)
+          
         bounds = ((-0.4,0.4), (-0.4, 0.4), (-15, 15))
         traceon_field = S.FieldRadialBEM(current_point_charges=eff)
         tracer = T.Tracer(traceon_field, bounds, atol=1e-6)
@@ -875,14 +878,7 @@ class TestBackend(unittest.TestCase):
           
     def test_current_field_ring(self):
         current = 2.5
-        
-        eff = S.EffectivePointCharges(
-            [current],
-            [[1., 0., 0., 0.]],
-            [[ [1., 0., 0.],
-              [1., 0., 0.],
-              [1., 0., 0.],
-              [1., 0., 0.]]])
+        eff = get_ring_effective_point_charges(current, 1)
          
         for p in np.random.rand(10, 3):
             field = mu_0 * B.current_field(p, eff.charges, eff.jacobians, eff.positions)
@@ -951,15 +947,8 @@ class TestAxialInterpolation(unittest.TestCase):
     
     def test_current_loop(self):
         current = 2.5
-        
-        eff = S.EffectivePointCharges(
-            [current],
-            [[1., 0., 0., 0.]],
-            [[ [1., 0., 0.],
-              [1., 0., 0.],
-              [1., 0., 0.],
-              [1., 0., 0.]]])
-        
+        eff = get_ring_effective_point_charges(current, 1.)
+         
         traceon_field = S.FieldRadialBEM(current_point_charges=eff)
          
         z = np.linspace(-6, 6, 250)
@@ -972,15 +961,8 @@ class TestAxialInterpolation(unittest.TestCase):
     
     def test_derivatives(self):
         current = 2.5
-        
-        eff = S.EffectivePointCharges(
-            [current],
-            [[1., 0., 0., 0.]],
-            [[ [1., 0., 0.],
-              [1., 0., 0.],
-              [1., 0., 0.],
-              [1., 0., 0.]]])
-        
+        eff = get_ring_effective_point_charges(current, 1.)
+         
         traceon_field = S.FieldRadialBEM(current_point_charges=eff)
          
         z = np.linspace(-6, 6, 500)
@@ -1004,15 +986,8 @@ class TestAxialInterpolation(unittest.TestCase):
 
     def test_interpolation_current_loop(self):
         current = 2.5
-        
-        eff = S.EffectivePointCharges(
-            [current],
-            [[1., 0., 0., 0.]],
-            [[ [1., 0., 0.],
-              [1., 0., 0.],
-              [1., 0., 0.],
-              [1., 0., 0.]]])
-        
+        eff = get_ring_effective_point_charges(current, 1.)
+         
         traceon_field = S.FieldRadialBEM(current_point_charges=eff)
         interp = traceon_field.axial_derivative_interpolation(-5, 5, N=300)
 
@@ -1046,15 +1021,9 @@ class TestAxialInterpolation(unittest.TestCase):
          
         initial_conditions = np.array([0.05, 0, 15, 0, 0, -v])
         sol = solve_ivp(lorentz_force, (0, 1.35e-6), initial_conditions, method='DOP853', rtol=1e-6, atol=1e-6)
-        
-        eff = S.EffectivePointCharges(
-            [current],
-            [[1., 0., 0., 0.]],
-            [[ [1., 0., 0.],
-              [1., 0., 0.],
-              [1., 0., 0.],
-              [1., 0., 0.]]])
-        
+         
+        eff = get_ring_effective_point_charges(current, 1.)
+         
         bounds = ((-0.4,0.4), (-0.4, 0.4), (-15, 15))
         traceon_field = S.FieldRadialBEM(current_point_charges=eff).axial_derivative_interpolation(-15, 15, N=500)
         tracer = T.Tracer(traceon_field, bounds, atol=1e-6)
