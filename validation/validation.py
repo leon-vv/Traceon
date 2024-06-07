@@ -59,7 +59,7 @@ class Validation:
         assert geom.symmetry == symmetry 
          
         if plot_charges or plot_charge_density:
-            exc, field = self.compute_field(geom)
+            exc, field = self.compute_field(geom, self.args.use_fmm)
             P.plot_charge_density(exc, field, density=plot_charge_density)
         else:
             P.plot_mesh(geom, show_normals=plot_normals, **self.plot_colors) 
@@ -75,7 +75,7 @@ class Validation:
             print('-'*81, f' MSF={n}')
             st = time.time()
             geom = self.create_mesh(n, symmetry, higher_order)
-            exc, field = self.compute_field(geom)
+            exc, field = self.compute_field(geom, self.args.use_fmm)
             
             corr = self.correct_value_of_interest()  
             comp = self.compute_value_of_interest(geom, field)
@@ -112,10 +112,10 @@ class Validation:
         plt.ylabel('Computation time (ms)')
         plt.show()
 
-    def print_accuracy(self, MSF, symmetry, higher_order=True):
+    def print_accuracy(self, MSF, symmetry, higher_order=True, use_fmm=False):
         st = time.time()
         geom = self.create_mesh(MSF, symmetry, higher_order)
-        exc, field = self.compute_field(geom)
+        exc, field = self.compute_field(geom, use_fmm)
         
         correct = self.correct_value_of_interest()  
         computed = self.compute_value_of_interest(geom, field)
@@ -152,7 +152,7 @@ class Validation:
         elif args.plot_accuracy:
             self.plot_accuracy(self.default_MSF(symmetry), symmetry)
         else:
-            self.print_accuracy(MSF, symmetry, args.higher_order)
+            self.print_accuracy(MSF, symmetry, args.higher_order, args.use_fmm)
 
     # Should be implemented by each of the validations
     def create_mesh(self, MSF, symmetry, higher_order):
@@ -161,9 +161,9 @@ class Validation:
     def get_excitation(self, geometry):
         pass
 
-    def compute_field(self, geometry):
+    def compute_field(self, geometry, use_fmm):
         exc = self.get_excitation(geometry)
-        return exc, S.solve_bem(exc, use_fmm=self.args.use_fmm, fmm_precision=self.args.fmm_precision)
+        return exc, S.solve_bem(exc, use_fmm=use_fmm, fmm_precision=self.args.fmm_precision)
      
     def compute_value_of_interest(self, geometry, field):
         pass
