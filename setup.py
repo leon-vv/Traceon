@@ -1,10 +1,14 @@
+import os
+
 from setuptools import setup, Extension
 import platform
 
 VCPKG_DIR = 'C:\\Users\\leonv\\vcpkg'
 
+
 if platform.system() in ['Linux', 'Darwin']:
-    compiler_kwargs = dict(extra_compile_args=['-O3', '-mavx', '-ffast-math', '-DNDEBUG'], extra_link_args=['-lm', '-lgsl'])
+    os.environ['CC'] = 'clang' # Clang is known to produce faster binaries.
+    compiler_kwargs = dict(extra_compile_args=['-O3', '-mavx', '-ffast-math', '-DNDEBUG'], extra_link_args=['-lm', '-l:libgsl.a', '-l:libgslcblas.a'])
     extra_objects = []
     include_dirs = []
 elif platform.system() == 'Windows':
@@ -21,7 +25,7 @@ backend_extension = Extension(
 
 setup(
     name='traceon',
-    version='0.5.0',
+    version='0.6.0',
     description='Solver and tracer for electrostatic problems',
     url='https://github.com/leon-vv/Traceon',
     author='Léon van Velzen',
