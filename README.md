@@ -10,6 +10,8 @@ Traceon is completely free to use and open source. The source code is distribute
 
 [Examples](https://github.com/leon-vv/Traceon/tree/main/examples)
 
+[API documentation v0.6.0](https://traceon.org/docs/v0.6.0/index.html)
+
 [API documentation v0.5.0](https://traceon.org/docs/v0.5.0/index.html)
 
 [API documentation v0.4.0](https://traceon.org/docs/v0.4.0/index.html)
@@ -21,7 +23,7 @@ Traceon is completely free to use and open source. The source code is distribute
 Please cite the software as follows:
 
 ```
-L.B. van Velzen. Traceon software (version 0.5.0). 2023. https://doi.org/10.5281/zenodo.10775276
+L.B. van Velzen. Traceon software (version 0.6.0). 2023. https://doi.org/10.5281/zenodo.11528404
 ```
 
 ## Installation
@@ -60,6 +62,14 @@ Don't worry. You can reach me.
 ![Image of 3D deflector](https://raw.githubusercontent.com/leon-vv/traceon/main/images/deflector-image.png)
 
 ## Features
+
+v0.6.0:
+- New methods to integrate triangle potential and field contribution over a triangle
+- Fix 3D convergence issues by more accurately calculating neighbouring triangle interactions
+- Fix error calculation in particle tracing
+- Introduce logging module to control verbosity of printing
+- Clean up unit tests
+- Remove higher order (curved) triangle support, in preparation of parametric meshers and improved FFM implementation
 
 v0.5.0:
 - Add preliminary support for magnetostatics
