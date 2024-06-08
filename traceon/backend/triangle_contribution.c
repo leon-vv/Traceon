@@ -91,7 +91,7 @@ potential_triangle(double v0[3], double v1[3], double v2[3], double target[3]) {
 	return result;
 }
 
-double self_potential_triangle_v0(double v0[3], double v1[3], double v2[3]) {
+EXPORT double self_potential_triangle_v0(double v0[3], double v1[3], double v2[3]) {
 	double vec1[3] = {v1[0]-v0[0], v1[1]-v0[1], v1[2]-v0[2]};
 	double vec2[3] = {v2[0]-v0[0], v2[1]-v0[1], v2[2]-v0[2]};
 
@@ -117,7 +117,7 @@ double self_potential_triangle_v0(double v0[3], double v1[3], double v2[3]) {
              asinh(beta) * a) / sqrt(beta * beta + 1);
 }
 
-double self_potential_triangle(double v0[3], double v1[3], double v2[3], double target[3]) {
+EXPORT double self_potential_triangle(double v0[3], double v1[3], double v2[3], double target[3]) {
 
 	return 
 		self_potential_triangle_v0(target, v0, v1) +
