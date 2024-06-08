@@ -9,7 +9,12 @@ import platform
 from numpy.ctypeslib import ndpointer
 import numpy as np
 
+from .. import logging
+
 DEBUG = False
+
+if DEBUG:
+    logging.set_log_level(logging.LogLevel.DEBUG)
 
 ## Attempt 1: load local
 if platform.system() in ['Linux', 'Darwin']:

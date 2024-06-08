@@ -225,14 +225,11 @@ EXPORT double tanh_sinh_integration(ts_integrand f, double a, double b, double e
 			double x_left = a + (b - a) * (-x + 1) / 2.;
 			double x_right = a + (b - a) * (x + 1) / 2.;
             to_add = w * (f(x_left, args) + f(x_right, args));
-			//printf("%f, %f, %f\n", a, x_left, b);
-			//printf("%f, %f, %f\n", a, x_right, b);
 			assert( (a <= x_left) && (x_left <= b) );
 			assert( (a <= x_right) && (x_right <= b) );
 			sum += isnormal(to_add) ? to_add : 0.0;
         }
 
-		//printf("SUM: %f\n", h*sum);
         if (fabs(h * sum - 2 * h * prev) < epsabs + epsrel * fabs(h * sum)) {
 			return h * sum;
 		}
@@ -928,14 +925,7 @@ field_radial_traceable(double point[6], double result[3], void *args_p) {
 		current_field(point, curr_field,
 			current_charges->charges, current_charges->jacobians, current_charges->positions, current_charges->N);
 			
-		//printf("=======");
-		//printf("elec_field: %f, %f, %f\n", elec_field[0], elec_field[1], elec_field[2]);
-		//printf("mag_field: %f, %f, %f\n", mag_field[0], mag_field[1], mag_field[2]);
-		//printf("curr_field: %f, %f, %f\n", curr_field[0], curr_field[1], curr_field[2]);
 		combine_elec_magnetic_field(point + 3, elec_field, mag_field, curr_field, result);
-		//printf("velocity: %f, %f, %f\n", point[3], point[4], point[5]);
-		//printf("result: %f, %f, %f\n", result[0], result[1], result[2]);
-		//exit(0);
 	}
 	else {
 		result[0] = 0.;
@@ -1397,7 +1387,6 @@ double self_voltage_radial(double alpha, void *args_p) {
 	
 	struct {double *normal; double K;} cb_args = {args->normal, args->K};
 	
-	//printf("normal: %f, %f\n", args->normal[0], args->normal[1]);	
 	return jac * args->cb_fun(args->target[0], args->target[1], pos[0], pos[1], &cb_args);
 }
 
@@ -1427,7 +1416,6 @@ void fill_self_voltages_radial(double *matrix,
 			
 		enum ExcitationType type_ = excitation_types[i];
 			
-		//printf("Type: %d\n", type_);
 		struct self_voltage_radial_args integration_args = {
 			.target = target,
 			.line_points = &line_points[i][0],

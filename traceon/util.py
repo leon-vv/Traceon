@@ -5,6 +5,7 @@ import numpy as np
 import pickle
 
 from .backend import DEBUG
+from . import logging
 
 class Saveable:
     def write(self, filename):
@@ -48,12 +49,14 @@ def get_number_of_threads():
      
     return threads
 
-def collect_multi_threaded(f, args):
+def split_collect(f, array):
     
     if DEBUG:
-        print('Running on a single thread since DEBUG=True')
-        return [f(a) for a in args]
+        logging.log_debug(f'Running function \'{f.__name__}\' on a single thread since DEBUG=True')
+        return [f(array)]
     
+    args = np.array_split(array, get_number_of_threads())
+     
     results = [None]*len(args)
     
     def set_result(index):
@@ -67,15 +70,6 @@ def collect_multi_threaded(f, args):
         t.join()
 
     return results
- 
-def split_collect(f, array):
-    
-    if DEBUG:
-        print('Running on a single thread since DEBUG=True')
-        return [f(array)]
-
-    splitted = np.array_split(array, get_number_of_threads())
-    return collect_multi_threaded(f, splitted)
             
 
 

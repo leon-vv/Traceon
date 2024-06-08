@@ -57,6 +57,7 @@ from scipy.integrate import quad
 
 from . import geometry as G
 from . import excitation as E
+from . import logging
 from . import backend
 from . import util
 from . import fast_multipole_method
@@ -148,7 +149,7 @@ class Solver:
          
         N_matrix = self.get_number_of_matrix_elements()
         matrix = np.zeros( (N_matrix, N_matrix) )
-        print(f'Using matrix solver, number of elements: {N_matrix}, size of matrix: {N_matrix} ({matrix.nbytes/1e6:.0f} MB), symmetry: {self.excitation.mesh.symmetry}, higher order: {self.excitation.mesh.is_higher_order()}')
+        logging.log_info(f'Using matrix solver, number of elements: {N_matrix}, size of matrix: {N_matrix} ({matrix.nbytes/1e6:.0f} MB), symmetry: {self.excitation.mesh.symmetry}, higher order: {self.excitation.mesh.is_higher_order()}')
         
         fill_fun = backend.fill_matrix_3d if self.is_3d() else backend.fill_matrix_radial
         
@@ -161,7 +162,7 @@ class Solver:
         
         st = time.time()
         util.split_collect(fill_matrix_rows, np.arange(N_matrix))    
-        print(f'Time for building matrix: {(time.time()-st)*1000:.0f} ms')
+        logging.log_info(f'Time for building matrix: {(time.time()-st)*1000:.0f} ms')
         
         assert np.all(np.isfinite(matrix))
          
@@ -184,7 +185,7 @@ class Solver:
          
         st = time.time()
         charges = np.linalg.solve(matrix, F.T).T
-        print(f'Time for solving matrix: {(time.time()-st)*1000:.0f} ms')
+        logging.log_info(f'Time for solving matrix: {(time.time()-st)*1000:.0f} ms')
         assert np.all(np.isfinite(charges)) and charges.shape == F.shape
         
         result = [self.charges_to_field(EffectivePointCharges(c, self.jac_buffer, self.pos_buffer)) for c in charges]
@@ -197,7 +198,7 @@ class Solver:
         assert isinstance(precision, int) and -2 <= precision <= 5, "Precision should be an intenger -2 <= precision <= 5"
          
         triangles = self.vertices
-        print(f'Using FMM solver, number of elements: {len(triangles)}, symmetry: {self.excitation.mesh.symmetry}, precision: {precision}')
+        logging.log_info(f'Using FMM solver, number of elements: {len(triangles)}, symmetry: {self.excitation.mesh.symmetry}, precision: {precision}')
         
         N = len(triangles)
         assert triangles.shape == (N, 3, 3)
@@ -209,7 +210,7 @@ class Solver:
         dielectric_indices = self.get_flux_indices()
         dielectric_values = self.excitation_values[dielectric_indices]
         charges, count = fast_multipole_method.solve_iteratively(self.vertices, dielectric_indices, dielectric_values, F, precision=precision)
-        print(f'Time for solving FMM: {(time.time()-st)*1000:.0f} ms (iterations: {count})')
+        logging.log_info(f'Time for solving FMM: {(time.time()-st)*1000:.0f} ms (iterations: {count})')
         
         return self.charges_to_field(EffectivePointCharges(charges, self.jac_buffer, self.pos_buffer))
 
@@ -330,7 +331,7 @@ class MagnetostaticSolver(Solver):
                 F[i] = -backend.flux_density_to_charge_factor(value) * np.dot(field_at_center, self.normals[i])
          
         assert np.all(np.isfinite(F))
-        print(f'Computing right hand side of linear system took {(time.time()-st)*1000:.0f} ms')
+        logging.log_info(f'Computing right hand side of linear system took {(time.time()-st)*1000:.0f} ms')
         return F
      
     def charges_to_field(self, charges):
@@ -399,7 +400,7 @@ class EffectivePointCharges:
         
      
 def _excitation_to_higher_order(excitation):
-    print('Upgrading mesh to higher to be compatible with matrix solver')
+    logging.log_info('Upgrading mesh to higher to be compatible with matrix solver')
     # Upgrade mesh, such that matrix solver will support it
     excitation = copy.copy(excitation)
     mesh = copy.copy(excitation.mesh)
@@ -882,7 +883,7 @@ class FieldRadialBEM(FieldBEM):
         mag_derivs = np.concatenate(util.split_collect(self.get_magnetostatic_axial_potential_derivatives, z), axis=0)
         mag_coeffs = _quintic_spline_coefficients(z, mag_derivs.T)
         
-        print(f'Computing derivative interpolation took {(time.time()-st)*1000:.2f} ms ({len(z)} items)')
+        logging.log_info(f'Computing derivative interpolation took {(time.time()-st)*1000:.2f} ms ({len(z)} items)')
         
         return FieldRadialAxial(z, elec_coeffs, mag_coeffs)
     
@@ -1017,11 +1018,11 @@ class Field3D_BEM(FieldBEM):
         N = N if N is not None else int(FACTOR_AXIAL_DERIV_SAMPLING_3D*N_charges)
         z = np.linspace(zmin, zmax, N)
         
-        print(f'Number of points on z-axis: {len(z)}')
+        logging.log_info(f'Number of points on z-axis: {len(z)}')
         st = time.time()
         elec_coeff = self._effective_point_charges_to_coeff(self.electrostatic_point_charges, z)
         mag_coeff = self._effective_point_charges_to_coeff(self.magnetostatic_point_charges, z)
-        print(f'Time for calculating radial series expansion coefficients: {(time.time()-st)*1000:.0f} ms ({len(z)} items)')
+        logging.log_info(f'Time for calculating radial series expansion coefficients: {(time.time()-st)*1000:.0f} ms ({len(z)} items)')
         
         return Field3DAxial(z, elec_coeff, mag_coeff)
     

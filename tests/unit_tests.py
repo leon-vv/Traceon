@@ -16,7 +16,10 @@ import traceon.tracing as T
 import traceon.solver as S
 import traceon.backend as B
 import traceon.plotting as P
+import traceon.logging as logging
 import traceon.fast_multipole_method as FMM
+
+logging.set_log_level(logging.LogLevel.SILENT)
 
 def rand(*shape, min=-100, max=100):
     return min + np.random.rand(*shape)*(max-min)

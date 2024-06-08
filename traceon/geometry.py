@@ -21,6 +21,7 @@ import meshio
 
 from .util import Saveable
 from .backend import N_QUAD_2D, position_and_jacobian_radial, position_and_jacobian_3d
+from . import logging
 
 def revolve_around_optical_axis(geom, elements, factor=1.0):
     """
@@ -413,7 +414,7 @@ class Mesh(Saveable):
             triangles, physical_triangles = extract('triangle')
         
         if 'triangle6' in mesh.cells_dict:
-            print('WARNING: triangle6 present in mesh but not supported')
+            logging.warning('triangle6 present in mesh but not supported')
          
         return Mesh(symmetry,
             points=mesh.points,
