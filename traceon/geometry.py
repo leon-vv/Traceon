@@ -442,9 +442,7 @@ class Surface(GeometricObject):
         return Surface(f, path_length_p1_and_p3, path_length_p2_and_p4, b1, b2)
      
     def aperture(height, radius, extent, z=0.):
-        return Path.line([extent, 0., -height/2], [radius, 0., -height/2])\
-            .line_to([radius, 0., height/2]).line_to([extent, 0., height/2])\
-            .move(dz=z).revolve_z()
+        return Path.aperture(height, radius, extent, z=z).revolve_z()
      
     def mesh(self, mesh_size=None, name=None):
          
