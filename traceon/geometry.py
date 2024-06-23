@@ -98,13 +98,14 @@ class GeometricObject:
 
 class Path(GeometricObject):
     
-    def __init__(self, fun, path_length, breakpoints=[]):
+    def __init__(self, fun, path_length, breakpoints=[], name=None):
         # Assumption: fun takes in p, the path length
         # and returns the point on the path
         self.fun = fun
         self.path_length = path_length
         assert self.path_length > 0
         self.breakpoints = breakpoints
+        self.name = name
     
     def from_irregular_function(to_point, N=100, breakpoints=[]):
         # Construct a path from a function that
@@ -144,7 +145,7 @@ class Path(GeometricObject):
         return quad(lambda s: fun(self(s)), 0, self.path_length, points=self.breakpoints)[0]/self.path_length
      
     def map_points(self, fun):
-        return Path(lambda u: fun(self(u)), self.path_length, self.breakpoints)
+        return Path(lambda u: fun(self(u)), self.path_length, self.breakpoints, name=self.name)
      
     def __call__(self, t):
         return self.fun(t)
@@ -158,7 +159,7 @@ class Path(GeometricObject):
         def fun(u):
             return self( (l + u) % self.path_length )
         
-        return Path(fun, self.path_length, sorted([(b-l)%self.path_length for b in self.breakpoints + [0.]]))
+        return Path(fun, self.path_length, sorted([(b-l)%self.path_length for b in self.breakpoints + [0.]]), name=self.name)
      
     def __rshift__(self, other):
         assert isinstance(other, Path), "Exteding path with object that is not actually a Path"
@@ -175,7 +176,7 @@ class Path(GeometricObject):
             else:
                 return other(t - self.path_length)
         
-        return Path(f, total, self.breakpoints + [self.path_length] + other.breakpoints)
+        return Path(f, total, self.breakpoints + [self.path_length] + other.breakpoints, name=self.name)
 
     def starting_point(self):
         return self(0.)
@@ -236,7 +237,7 @@ class Path(GeometricObject):
             r = sqrt(p[1]**2 + p[2]**2)
             return np.array([p[0], r*cos(theta + v/length2*angle), r*sin(theta + v/length2*angle)])
          
-        return Surface(f, self.path_length, length2, self.breakpoints)
+        return Surface(f, self.path_length, length2, self.breakpoints, name=self.name)
     
     def revolve_y(self, angle=2*pi):
         pstart, pfinal = self.starting_point(), self.final_point()
@@ -249,7 +250,7 @@ class Path(GeometricObject):
             r = sqrt(p[0]*p[0] + p[2]*p[2])
             return np.array([r*cos(theta + v/length2*angle), p[1], r*sin(theta + v/length2*angle)])
          
-        return Surface(f, self.path_length, length2, self.breakpoints)
+        return Surface(f, self.path_length, length2, self.breakpoints, name=self.name)
     
     def revolve_z(self, angle=2*pi):
         pstart, pfinal = self.starting_point(), self.final_point()
@@ -262,7 +263,7 @@ class Path(GeometricObject):
             r = sqrt(p[0]*p[0] + p[1]*p[1])
             return np.array([r*cos(theta + v/length2*angle), r*sin(theta + v/length2*angle), p[2]])
         
-        return Surface(f, self.path_length, length2, self.breakpoints)
+        return Surface(f, self.path_length, length2, self.breakpoints, name=self.name)
      
     def extrude(self, vector):
         vector = np.array(vector)
@@ -300,7 +301,7 @@ class Path(GeometricObject):
         return Path(lambda pl: (1-pl/length)*from_ + pl/length*to, length)
 
     def cut(self, length):
-        return Path(self.fun, length, [b for b in self.breakpoints if b <= length])
+        return Path(self.fun, length, [b for b in self.breakpoints if b <= length], name=self.name)
 
     def rectangle_xz(xmin, xmax, zmin, zmax):
         return Path.line([xmin, 0., zmin], [xmin, 0, zmax]) \
@@ -318,7 +319,16 @@ class Path(GeometricObject):
         return Path.line([extent, 0., -height/2], [radius, 0., -height/2])\
                 .line_to([radius, 0., height/2]).line_to([extent, 0., height/2]).move(dz=z)
     
-    def mesh(self, mesh_size=None, name=None, higher_order=False):
+    def __add__(self, other):
+        if not isinstance(other, Path) and not isinstance(other, PathCollection):
+            return NotImplemented
+        
+        if isinstance(other, Path):
+            return PathCollection([self, other])
+        elif isinstance(other, PathCollection):
+            return PathCollection([self] + [other.paths])
+     
+    def mesh(self, mesh_size=None, higher_order=False):
         
         if mesh_size is None:
             mesh_size = self.path_length/10
@@ -344,22 +354,78 @@ class Path(GeometricObject):
           
         assert lines.dtype == np.int64
          
-        if name is not None:
-            physical_to_lines = {name:np.arange(len(lines))}
+        if self.name is not None:
+            physical_to_lines = {self.name:np.arange(len(lines))}
         else:
             physical_to_lines = {}
         
         return Mesh(points=points, lines=lines, physical_to_lines=physical_to_lines)
 
 
+class PathCollection(GeometricObject):
+    
+    def __init__(self, paths):
+        assert all([isinstance(p, Path) for p in paths])
+        self.paths = paths
+    
+    def map_points(self, fun):
+        return PathCollection([p.map_points(fun) for p in self.paths])
+     
+    def mesh(self, mesh_size=None, higher_order=False):
+        mesh = Mesh()
+        
+        for p in self.paths:
+            mesh = mesh + p.mesh(mesh_size=mesh_size, higher_order=higher_order)
+
+        return mesh
+
+    def _map_to_surfaces(self, f, *args, **kwargs):
+        surfaces = []
+
+        for p in self.paths:
+            surfaces.append(f(p, *args, **kwargs))
+
+        return SurfaceCollection(surfaces)
+    
+    def __add__(self, other):
+        if not isinstance(other, Path) and not isinstance(other, PathCollection):
+            return NotImplemented
+        
+        if isinstance(other, Path):
+            return PathCollection(self.paths+[other])
+        else:
+            return PathCollection(self.paths+other.paths)
+      
+    def __iadd__(self, other):
+        assert isinstance(other, PathCollection) or isinstance(other, Path)
+
+        if isinstance(other, Path):
+            self.paths.append(other)
+        else:
+            self.paths.extend(other.paths)
+       
+    def revolve_x(self, angle=2*pi):
+        return self._map_to_surfaces(Path.revolve_x, angle=angle)
+    def revolve_y(self, angle=2*pi):
+        return self._map_to_surfaces(Path.revolve_y, angle=angle)
+    def revolve_z(self, angle=2*pi):
+        return self._map_to_surfaces(Path.revolve_z, angle=angle)
+    def extrude(self, vector):
+        return self._map_to_surface(Path.extrude, vector)
+    def extrude_by_path(self, p2):
+        return self._map_to_surface(Path.extrude_by_path, p2)
+     
+
+
 class Surface(GeometricObject):
-    def __init__(self, fun, path_length1, path_length2, breakpoints1=[], breakpoints2=[]):
+    def __init__(self, fun, path_length1, path_length2, breakpoints1=[], breakpoints2=[], name=None):
         self.fun = fun
         self.path_length1 = path_length1
         self.path_length2 = path_length2
         assert self.path_length1 > 0 and self.path_length2 > 0
         self.breakpoints1 = breakpoints1
         self.breakpoints2 = breakpoints2
+        self.name = name
 
     def sections(self): 
         # Iterate over the sections defined by
@@ -444,12 +510,21 @@ class Surface(GeometricObject):
     def aperture(height, radius, extent, z=0.):
         return Path.aperture(height, radius, extent, z=z).revolve_z()
      
-    def mesh(self, mesh_size=None, name=None):
-         
+    def __add__(self, other):
+        if not isinstance(other, Surface) and not isinstance(other, SurfaceCollection):
+            return NotImplemented
+
+        if isinstance(other, Surface):
+            return SurfaceCollection([self, other])
+        else:
+            return SurfaceCollection([self] + other.surfaces)
+     
+    def mesh(self, mesh_size=None):
+          
         if mesh_size is None:
             mesh_size = min(self.path_length1, self.path_length2)/10
-        
-        return mesh(self, mesh_size, name=name)
+         
+        return mesh(self, mesh_size, name=self.name)
 
 
 def _concat_arrays(arr1, arr2):
@@ -543,7 +618,8 @@ class Mesh(Saveable, GeometricObject):
         return dict_
      
     def __add__(self, other):
-        assert isinstance(other, Mesh)
+        if not isinstance(other, Mesh):
+            return NotImplemented
          
         N_points = len(self.points)
         N_lines = len(self.lines)
@@ -564,7 +640,7 @@ class Mesh(Saveable, GeometricObject):
                     triangles=triangles,
                     physical_to_lines=physical_lines,
                     physical_to_triangles=physical_triangles)
-    
+     
     def extract_physical_group(self, name):
         assert name in self.physical_to_lines or name in self.physical_to_triangles, "Physical group not in mesh, so cannot extract"
 
@@ -772,6 +848,46 @@ class Mesh(Saveable, GeometricObject):
             f'\tElements in physical line groups: {physical_lines_nums}\n' \
             f'\tPhysical triangles: {physical_triangles}\n' \
             f'\tElements in physical triangle groups: {physical_triangles_nums}>'
+
+
+class SurfaceCollection(GeometricObject):
+     
+    def __init__(self, surfaces):
+        assert all([isinstance(s, Surface) for s in surfaces])
+        self.surfaces = surfaces
+     
+    def map_points(self, fun):
+        return SurfaceCollection([s.map_points(fun) for s in self.surfaces])
+     
+    def mesh(self, mesh_size=None, name=None):
+        mesh = Mesh()
+        
+        for s in self.surfaces:
+            mesh = mesh + s.mesh(mesh_size=mesh_size)
+         
+        return mesh
+     
+    def __add__(self, other):
+        if not isinstance(other, Surface) and not isinstance(other, SurfaceCollection):
+            return NotImplemented
+              
+        if isinstance(other, Surface):
+            return SurfaceCollection(self.surfaces+[other])
+        else:
+            return SurfaceCollection(self.surfaces+other.surfaces)
+     
+    def __iadd__(self, other):
+        assert isinstance(other, SurfaceCollection) or isinstance(other, Surface)
+        
+        if isinstance(other, Surface):
+            self.surfaces.append(other)
+        else:
+            self.surfaces.extend(other.surfaces)
+    
+
+
+
+
 
 
 
