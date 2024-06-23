@@ -38,22 +38,28 @@ class DohiMirror(Validation):
         ms = 10/MSF # mesh size
 
         mirror = G.Path.aperture(0.15, r, extent, z=t/2)
+        mirror.name = 'mirror'
+        
         mirror_line = G.Path.line([0., 0., 0.], [r, 0., 0.])
-        lens = G.Path.aperture(0.15, r, extent, z=t + st + t/2)
-        ground = G.Path.aperture(0.15, r, extent, z=t+st+t+st+t/2)
+        mirror_line.name = 'mirror'
 
+        lens = G.Path.aperture(0.15, r, extent, z=t + st + t/2)
+        lens.name = 'lens'
+        
+        ground = G.Path.aperture(0.15, r, extent, z=t+st+t+st+t/2)
+        ground.name = 'ground'
+    
         boundary = G.Path.line([0., 0., -0.3], [rmax, 0., -0.3]) \
             .line_to([rmax, 0., 1.75]).line_to([0., 0., 1.75])
-
-        if symmetry.is_3d():
-            mirror = mirror.revolve_z()
-            mirror_line = mirror_line.revolve_z()
-            lens = lens.revolve_z()
-            ground = ground.revolve_z()
-            boundary = boundary.revolve_z()
+        boundary.name = 'boundary'
+        
+        geom = mirror+mirror_line+lens+ground+boundary
          
-        return mirror_line.mesh(ms, name='mirror') + mirror.mesh(ms, name='mirror') + lens.mesh(ms, name='lens') + ground.mesh(ms, name='ground') + boundary.mesh(ms, name='boundary')
-    
+        if symmetry.is_3d():
+            geom = geom.revolve_z()
+        
+        return geom.mesh(ms)
+     
     def get_excitation(self, mesh, symmetry):
         exc = E.Excitation(mesh, symmetry)
         exc.add_voltage(ground=0.0, mirror=-1250, lens=710.0126605741955)
