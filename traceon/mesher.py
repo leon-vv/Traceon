@@ -1,6 +1,7 @@
 from math import *
 import numpy as np
 import time
+from itertools import chain
 
 import meshio
 
@@ -623,7 +624,7 @@ def mesh(surface, mesh_size, start_depth=3, name=None):
     else:
         physical_to_triangles = {}
     
-    return G.Mesh(points=points, triangles=triangles, physical_to_triangles=physical_to_triangles)
+    return Mesh(points=points, triangles=triangles, physical_to_triangles=physical_to_triangles)
 
 
 
