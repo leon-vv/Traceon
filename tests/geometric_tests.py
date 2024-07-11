@@ -1,9 +1,20 @@
+import os.path as path
+
 import unittest
 from math import *
 
 from traceon.geometry import *
 import traceon.plotting as P
 
+class MeshTests(unittest.TestCase):
+
+    def test_loading_mesh(self):
+        m = Mesh.import_file('world.stl')
+        p = path.join(path.dirname(__file__), 'world_out.stl')
+        m2 = Mesh.import_file(p)
+        
+        assert np.allclose(m.points, m2.points)
+        assert np.allclose(m.triangles, m2.triangles)
 
 class PathTests(unittest.TestCase):
     def test_from_irregular_function(self):
