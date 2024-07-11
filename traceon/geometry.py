@@ -13,7 +13,7 @@ import numpy as np
 from scipy.integrate import cumulative_simpson, quad
 from scipy.interpolate import CubicSpline
 
-from .mesher import GeometricObject, mesh
+from .mesher import GeometricObject, mesh, Mesh
 
 __pdoc__ = {}
 __pdoc__['discteize_path'] = False
@@ -94,6 +94,11 @@ class Path(GeometricObject):
         interpolation = CubicSpline(cum_sum, u) # Path length to u
 
         return Path(lambda pl: fun(interpolation(pl)), path_length, breakpoints=breakpoints)
+    
+    def spline_through_points(points, N=100):
+        x = np.linspace(0, 1, len(points))
+        interp = CubicSpline(x, points)
+        return Path.from_irregular_function(interp, N=N)
      
     def average(self, fun):
         return quad(lambda s: fun(self(s)), 0, self.path_length, points=self.breakpoints)[0]/self.path_length

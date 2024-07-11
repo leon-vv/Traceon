@@ -33,7 +33,19 @@ class PathTests(unittest.TestCase):
         assert np.allclose(f(a), y(0.5*y.path_length))
         assert np.allclose(yhalf.final_point(), y.middle_point())
         assert np.allclose(f(1.), y.final_point())
-    
+
+    def test_spline_through_points(self):
+        points = [
+            [0, 0, 0],
+            [0, 1, 1],
+            [1, 1, 1],
+            [1, 0, 1],
+            [0, 0, 2]]
+
+        path = Path.spline_through_points(points)
+        assert np.allclose(path.starting_point(), points[0])
+        assert np.allclose(path.final_point(), points[-1])
+     
     def test_irregular_path_length(self):
         y = Path.from_irregular_function(lambda x: np.array([x, x**2, 0.]))
         assert np.isclose(y.path_length, 1.478942857544597), y.path_length
