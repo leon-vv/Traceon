@@ -12,7 +12,7 @@ if platform.system() == 'Linux':
     include_dirs = []
 elif platform.system() == 'Darwin':
     os.environ['CC'] = 'clang' # Clang is known to produce faster binaries.
-    compiler_kwargs = dict(extra_compile_args=['-O3', '-mavx', '-ffast-math', '-DNDEBUG'], extra_link_args=['-lm', '-L/opt/homebrew/lib', '-l:libgsl.a', '-l:libgslcblas.a'])
+    compiler_kwargs = dict(extra_compile_args=['-O3', '-mavx', '-ffast-math', '-DNDEBUG'], extra_link_args=['-lm', '-L/opt/homebrew/lib', '-lgsl', '-lgslcblas'])
     extra_objects = []
     include_dirs = ['/opt/homebrew/include/']
 elif platform.system() == 'Windows':
