@@ -24,6 +24,7 @@ elif platform.system() == 'Windows':
 backend_extension = Extension(
     name='traceon.backend.traceon_backend',
     sources=['traceon/backend/traceon-backend.c'],
+    depends=[f'traceon/backend/{f}.c' for f in ['defs', 'triangle_contribution', 'utilities_3d']],
     extra_objects=extra_objects,
     **compiler_kwargs)
 
