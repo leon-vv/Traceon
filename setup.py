@@ -24,7 +24,6 @@ elif platform.system() == 'Windows':
 backend_extension = Extension(
     name='traceon.backend.traceon_backend',
     sources=['traceon/backend/traceon-backend.c'],
-    depends=[f'traceon/backend/{f}.c' for f in ['defs', 'triangle_contribution', 'utilities_3d']],
     extra_objects=extra_objects,
     **compiler_kwargs)
 
@@ -39,6 +38,9 @@ setup(
     license='AGPLv3',
     ext_modules=[backend_extension],
     packages=['traceon', 'traceon.backend'],
+    package_data={
+        'traceon.backend': ['*.c']
+    },
     long_description = open('README.md').read(),
     long_description_content_type='text/markdown',
     install_requires=['matplotlib', 'vedo', 'numpy', 'gmsh>=4.9', 'pygmsh>=7.1.13', 'scipy'],
