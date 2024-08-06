@@ -120,7 +120,7 @@ def solve_iteratively(triangles, dielectric_indices, dielectric_values, right_ha
         right_hand_side,
         callback=increase_count,
         restart=500,
-        atol=0., tol=tol)
+        atol=0., rtol=tol)
     assert np.all(np.isfinite(charges))
     
     return charges, count
