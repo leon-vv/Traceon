@@ -171,13 +171,13 @@ class Path(GeometricObject):
         return self.fun(t)
      
     def is_closed(self):
-        """Determine whether the path is closed, by comparing the starting and final point.
+        """Determine whether the path is closed, by comparing the starting and endpoint.
 
         Returns
         ----------------------
         bool
             True if the path is closed, False otherwise."""
-        return _points_close(self.starting_point(), self.final_point())
+        return _points_close(self.starting_point(), self.endpoint())
     
     def add_phase(self, l):
         """Add a phase to a closed path. A path is closed when the starting point is equal to the
@@ -200,7 +200,7 @@ class Path(GeometricObject):
         return Path(fun, self.path_length, sorted([(b-l)%self.path_length for b in self.breakpoints + [0.]]), name=self.name)
      
     def __rshift__(self, other):
-        """Combine two paths to create a single path. The final point of the first path needs
+        """Combine two paths to create a single path. The endpoint of the first path needs
         to match the starting point of the second path. This common point is marked as a breakpoint and
         always included in the mesh. To use this function use the right shift operator (p1 >> p2).
 
@@ -215,7 +215,7 @@ class Path(GeometricObject):
 
         assert isinstance(other, Path), "Exteding path with object that is not actually a Path"
 
-        assert _points_close(self.final_point(), other.starting_point())
+        assert _points_close(self.endpoint(), other.starting_point())
 
         total = self.path_length + other.path_length
          
@@ -247,18 +247,18 @@ class Path(GeometricObject):
             The point at the middle of the path."""
         return self(self.path_length/2)
     
-    def final_point(self):
-        """Returns the final point of the path.
+    def endpoint(self):
+        """Returns the endpoint of the path.
 
         Returns
         ------------------------
         (3,) float
-            The final point of the path."""
+            The endpoint of the path."""
         return self(self.path_length)
     
     def line_to(self, point):
         point = np.array(point)
-        l = Path.line(self.final_point(), point)
+        l = Path.line(self.endpoint(), point)
         return self >> l
      
     def circle(radius, angle=2*pi):
@@ -269,7 +269,7 @@ class Path(GeometricObject):
         return Path(f, angle*radius)
     
     def arc_to(self, center, end, reverse=False):
-        start = self.final_point()
+        start = self.endpoint()
         return self >> Path.arc(center, start, end, reverse=reverse)
     
     def arc(center, start, end, reverse=False):
@@ -298,7 +298,7 @@ class Path(GeometricObject):
         return Path(f, path_length)
      
     def revolve_x(self, angle=2*pi):
-        pstart, pmiddle, pfinal = self.starting_point(), self.middle_point(), self.final_point()
+        pstart, pmiddle, pend = self.starting_point(), self.middle_point(), self.endpoint()
         r_avg = self.average(lambda p: sqrt(p[1]**2 + p[2]**2))
         length2 = 2*pi*r_avg
          
@@ -311,7 +311,7 @@ class Path(GeometricObject):
         return Surface(f, self.path_length, length2, self.breakpoints, name=self.name)
     
     def revolve_y(self, angle=2*pi):
-        pstart, pfinal = self.starting_point(), self.final_point()
+        pstart, pend = self.starting_point(), self.endpoint()
         r_avg = self.average(lambda p: sqrt(p[0]**2 + p[2]**2))
         length2 = 2*pi*r_avg
          
@@ -324,7 +324,7 @@ class Path(GeometricObject):
         return Surface(f, self.path_length, length2, self.breakpoints, name=self.name)
     
     def revolve_z(self, angle=2*pi):
-        pstart, pfinal = self.starting_point(), self.final_point()
+        pstart, pend = self.starting_point(), self.endpoint()
         r_avg = self.average(lambda p: sqrt(p[0]**2 + p[1]**2))
         length2 = 2*pi*r_avg
         
@@ -522,7 +522,7 @@ class Surface(GeometricObject):
         length1 = max(path1.path_length, path2.path_length)
         
         length_start = np.linalg.norm(path1.starting_point() - path2.starting_point())
-        length_final = np.linalg.norm(path1.final_point() - path2.final_point())
+        length_final = np.linalg.norm(path1.endpoint() - path2.endpoint())
         length2 = (length_start + length_final)/2
          
         def f(u, v):
