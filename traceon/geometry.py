@@ -372,8 +372,9 @@ class Path(GeometricObject):
         return Path(lambda pl: (1-pl/length)*from_ + pl/length*to, length)
 
     def cut(self, length):
-        return Path(self.fun, length, [b for b in self.breakpoints if b <= length], name=self.name)
 
+        return (Path(self.fun, length, [b for b in self.breakpoints if b <= length], name=self.name),
+                Path(lambda l: self.fun(l + length), self.path_length - length, [b - length for b in self.breakpoints if b >= length], name=self.name))
     def rectangle_xz(xmin, xmax, zmin, zmax):
         return Path.line([xmin, 0., zmin], [xmin, 0, zmax]) \
             .line_to([xmax, 0, zmax]).line_to([xmax, 0., zmin]).close()
