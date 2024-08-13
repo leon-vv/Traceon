@@ -10,9 +10,9 @@ import traceon.plotting as P
 class MeshTests(unittest.TestCase):
 
     def test_loading_mesh(self):
-        m = M.Mesh.import_file('world.stl')
+        m = M.Mesh.read_file('world.stl')
         p = path.join(path.dirname(__file__), 'world_out.stl')
-        m2 = M.Mesh.import_file(p)
+        m2 = M.Mesh.read_file(p)
         
         assert np.allclose(m.points, m2.points)
         assert np.allclose(m.triangles, m2.triangles)

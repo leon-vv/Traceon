@@ -16,7 +16,7 @@ import numpy as np
 from scipy.integrate import cumulative_simpson, quad
 from scipy.interpolate import CubicSpline
 
-from .mesher import GeometricObject, mesh, Mesh
+from .mesher import GeometricObject, _mesh, Mesh
 
 __pdoc__ = {}
 __pdoc__['discretize_path'] = False
@@ -838,7 +838,7 @@ class Surface(GeometricObject):
         if mesh_size is None:
             mesh_size = min(self.path_length1, self.path_length2)/10
          
-        return mesh(self, mesh_size, name=self.name)
+        return _mesh(self, mesh_size, name=self.name)
 
 
 

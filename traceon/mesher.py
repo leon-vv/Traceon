@@ -91,7 +91,7 @@ class Mesh(Saveable, GeometricObject):
         self.physical_to_lines = physical_to_lines.copy()
         self.physical_to_triangles = physical_to_triangles.copy()
 
-        self.remove_degenerate_triangles()
+        self._remove_degenerate_triangles()
         
         assert np.all( (0 <= self.lines) & (self.lines < len(self.points)) ), "Lines reference points outside points array"
         assert np.all( (0 <= self.triangles) & (self.triangles < len(self.points)) ), "Triangles reference points outside points array"
@@ -111,7 +111,7 @@ class Mesh(Saveable, GeometricObject):
         
         return Mesh(new_points, self.lines, self.triangles, self.physical_to_lines, self.physical_to_triangles)
     
-    def remove_degenerate_triangles(self):
+    def _remove_degenerate_triangles(self):
         areas = triangle_areas(self.points[self.triangles[:,:3]])
         degenerate = areas < 1e-12
         map_index = np.arange(len(self.triangles)) - np.cumsum(degenerate)
@@ -186,7 +186,7 @@ class Mesh(Saveable, GeometricObject):
         elif name in self.physical_to_triangles:
             return Mesh(points=points, triangles=triangles, physical_to_triangles=physical_to_elements)
      
-    def import_file(filename,  name=None):
+    def read_file(filename,  name=None):
         meshio_obj = meshio.read(filename)
         mesh = Mesh.from_meshio(meshio_obj)
          
@@ -196,22 +196,22 @@ class Mesh(Saveable, GeometricObject):
          
         return mesh
      
-    def export_file(self, filename):
+    def write_file(self, filename):
         meshio_obj = self.to_meshio()
         meshio_obj.write(filename)
      
     def to_meshio(self):
-        to_export = []
+        to_write = []
         
         if len(self.lines):
             line_type = 'line' if self.lines.shape[1] == 2 else 'line4'
-            to_export.append( (line_type, self.lines) )
+            to_write.append( (line_type, self.lines) )
         
         if len(self.triangles):
             triangle_type = 'triangle' if self.triangles.shape[1] == 3 else 'triangle6'
-            to_export.append( (triangle_type, self.triangles) )
+            to_write.append( (triangle_type, self.triangles) )
         
-        return meshio.Mesh(self.points, to_export)
+        return meshio.Mesh(self.points, to_write)
      
     def from_meshio(mesh):
         def extract(type_):
@@ -525,7 +525,7 @@ class PointsWithQuads:
         self.indices.__setitem__(*args, **kwargs)
 
 
-def subdivide_quads(pstack, mesh_size, to_subdivide=[], quads=[]): 
+def _subdivide_quads(pstack, mesh_size, to_subdivide=[], quads=[]): 
     assert isinstance(pstack, PointStack)
      
     if not callable(mesh_size):
@@ -564,7 +564,7 @@ def subdivide_quads(pstack, mesh_size, to_subdivide=[], quads=[]):
         else: # We are done, both sides are within mesh size limits
             quads.append((depth, i0, i1, j0, j1))
 
-def mesh_subsections_to_quads(surface, mesh_size, start_depth):
+def _mesh_subsections_to_quads(surface, mesh_size, start_depth):
     all_pstacks = []
     all_quads = []
     points = []
@@ -575,7 +575,7 @@ def mesh_subsections_to_quads(surface, mesh_size, start_depth):
         
         for i in range(pstack.get_number_of_indices(start_depth) - 1):
             for j in range(pstack.get_number_of_indices(start_depth) - 1):
-                subdivide_quads(pstack, mesh_size, to_subdivide=[(start_depth, i, i+1, j, j+1)], quads=quads)
+                _subdivide_quads(pstack, mesh_size, to_subdivide=[(start_depth, i, i+1, j, j+1)], quads=quads)
         
         all_pstacks.append(pstack)
         all_quads.append(quads)
@@ -583,7 +583,7 @@ def mesh_subsections_to_quads(surface, mesh_size, start_depth):
 
     return points, all_pstacks, all_quads
     
-def copy_over_edge(e1, e2):
+def _copy_over_edge(e1, e2):
     assert e1.shape == e2.shape
     mask = e2 != -1
     e1[mask] = e2[mask]
@@ -591,9 +591,9 @@ def copy_over_edge(e1, e2):
     mask = e1 != -1
     e2[mask] = e1[mask]
 
-def mesh(surface, mesh_size, start_depth=3, name=None):
+def _mesh(surface, mesh_size, start_depth=3, name=None):
     # Create a point stack for each subsection
-    points, point_stacks, quads = mesh_subsections_to_quads(surface, mesh_size, start_depth)
+    points, point_stacks, quads = _mesh_subsections_to_quads(surface, mesh_size, start_depth)
      
     max_depth = max([p.depth() for p in point_stacks])
      
@@ -606,11 +606,11 @@ def mesh(surface, mesh_size, start_depth=3, name=None):
 
     for i in range(Nx-1):
         for j in range(Ny): # Horizontal copying
-            copy_over_edge(point_with_quads[j*Nx + i][-1, :], point_with_quads[j*Nx + i + 1][0, :])
+            _copy_over_edge(point_with_quads[j*Nx + i][-1, :], point_with_quads[j*Nx + i + 1][0, :])
      
     for i in range(Nx):
         for j in range(Ny-1): # Vertical copying
-            copy_over_edge(point_with_quads[j*Nx + i][:, -1], point_with_quads[(j+1)*Nx + i][:, 0])
+            _copy_over_edge(point_with_quads[j*Nx + i][:, -1], point_with_quads[(j+1)*Nx + i][:, 0])
      
     points = np.array(points)
     triangles = np.concatenate([pq.to_triangles() for pq in point_with_quads], axis=0)
