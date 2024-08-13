@@ -8,15 +8,75 @@ import meshio
 from .util import Saveable
 from .backend import triangle_areas
 
+
+__pdoc__ = {}
+__pdoc__['PointsWithQuads'] = False
+__pdoc__['PointStack'] = False
+__pdoc__['__add__'] = True
+
+
 class GeometricObject:
+    """The Mesh class (and the classes defined in `traceon.geometry`) are subclasses
+    of GeometricObject. This means that they all can be moved, rotated, mirrored."""
+    
     def map_points(self, fun):
+        """Create a new geometric object, by mapping each point by a function.
+        
+        Parameters
+        -------------------------
+        fun: (3,) float -> (3,) float
+            Function taking a three dimensional point and returning a 
+            three dimensional point.
+
+        Returns
+        ------------------------
+        GeometricObject
+
+        This function returns the same type as the object on which this method was called."""
         pass
     
     def move(self, dx=0., dy=0., dz=0.):
+        """Move along x, y or z axis.
+
+        Parameters
+        ---------------------------
+        dx: float
+            Amount to move along the x-axis.
+        dy: float
+            Amount to move along the y-axis.
+        dz: float
+            Amount to move along the z-axis.
+
+        Returns
+        ---------------------------
+        GeometricObject
+        
+        This function returns the same type as the object on which this method was called."""
+    
         assert all([isinstance(d, float) or isinstance(d, int) for d in [dx, dy, dz]])
         return self.map_points(lambda p: p + np.array([dx, dy, dz]))
      
     def rotate(self, Rx=0., Ry=0., Rz=0., origin=[0., 0., 0.]):
+        """Rotate counter clockwise around the x, y or z axis. Only one axis supported at the same time
+        (rotations do not commute).
+
+        Parameters
+        ------------------------------------
+        Rx: float
+            Amount to rotate around the x-axis (radians).
+        Ry: float
+            Amount to rotate around the y-axis (radians).
+        Rz: float
+            Amount to rotate around the z-axis (radians).
+        origin: (3,) float
+            Point around which to rotate, which is the origin by default.
+
+        Returns
+        --------------------------------------
+        GeometricObject
+        
+        This function returns the same type as the object on which this method was called."""
+        
         assert sum([Rx==0., Ry==0., Rz==0.]) >= 2, "Only supply one axis of rotation"
         origin = np.array(origin)
         assert origin.shape == (3,), "Please supply a 3D point for origin"
@@ -37,12 +97,32 @@ class GeometricObject:
         return self.map_points(lambda p: origin + matrix @ (p - origin))
 
     def mirror_xz(self):
+        """Mirror object in the XZ plane.
+
+        Returns
+        --------------------------------------
+        GeometricObject
+        
+        This function returns the same type as the object on which this method was called."""
         return self.map_points(lambda p: np.array([p[0], -p[1], p[2]]))
      
     def mirror_yz(self):
+        """Mirror object in the YZ plane.
+
+        Returns
+        --------------------------------------
+        GeometricObject
+        This function returns the same type as the object on which this method was called."""
         return self.map_points(lambda p: np.array([-p[0], p[1], p[2]]))
     
     def mirror_xy(self):
+        """Mirror object in the XY plane.
+
+        Returns
+        --------------------------------------
+        GeometricObject
+        
+        This function returns the same type as the object on which this method was called."""
         return self.map_points(lambda p: np.array([p[0], p[1], -p[2]]))
  
 
@@ -57,13 +137,9 @@ def _concat_arrays(arr1, arr2):
     return np.concatenate( (arr1, arr2), axis=0)
 
 class Mesh(Saveable, GeometricObject):
-    """Class containing a mesh.
-    For now, to make things manageable only lines and triangles are supported.
-    Lines and triangles can be higher order (curved) or not. But a mesh cannot contain
-    both curved and simple elements at the same time.
-    
-    When the elements are higher order (curved), triangles consists of 6 points and lines of four points.
-    These correspond with the GMSH line4 and triangle6 types."""
+    """Mesh containing lines and triangles. Groups of lines or triangles can be named. These
+    names are later used to apply the correct excitation. Line elements can be curved (or 'higher order'), 
+    in which case they are represented by four points per element."""
      
     def __init__(self,
             points=[],
@@ -101,9 +177,17 @@ class Mesh(Saveable, GeometricObject):
         assert not len(self.triangles) or self.triangles.shape[1] in [3,6], "Triangles should contain either 3 or 6 points"
     
     def is_higher_order(self):
+        """Whether the mesh contains higher order elements.
+
+        Returns
+        ----------------------------
+        bool"""
         return (len(self.lines) and self.lines.shape[1] == 4) or (len(self.triangles) and self.triangles.shape[1] == 6)
     
     def map_points(self, fun):
+        """See `GeometricObject`
+
+        """
         new_points = np.empty_like(self.points)
         for i in range(len(self.points)):
             new_points[i] = fun(self.points[i])
@@ -137,6 +221,13 @@ class Mesh(Saveable, GeometricObject):
         return dict_
      
     def __add__(self, other):
+        """Add meshes together, using the + operator (mesh1 + mesh2).
+        
+        Returns
+        ------------------------------
+        Mesh
+
+        A new mesh consisting of the elements of the added meshes"""
         if not isinstance(other, Mesh):
             return NotImplemented
          
@@ -161,6 +252,18 @@ class Mesh(Saveable, GeometricObject):
                     physical_to_triangles=physical_triangles)
      
     def extract_physical_group(self, name):
+        """Extract a named group from the mesh.
+
+        Parameters
+        ---------------------------
+        name: str
+            Name of the group of elements
+
+        Returns
+        --------------------------
+        Mesh
+
+        Subset of the mesh consisting only of the elements with the given name."""
         assert name in self.physical_to_lines or name in self.physical_to_triangles, "Physical group not in mesh, so cannot extract"
 
         if name in self.physical_to_lines:
@@ -187,6 +290,18 @@ class Mesh(Saveable, GeometricObject):
             return Mesh(points=points, triangles=triangles, physical_to_triangles=physical_to_elements)
      
     def read_file(filename,  name=None):
+        """Create a mesh from a given file. All formats supported by meshio are accepted.
+
+        Parameters
+        ------------------------------
+        filename: str
+            Path of the file to convert to Mesh
+        name: str
+            (optional) name to assign to all elements readed
+
+        Returns
+        -------------------------------
+        Mesh"""
         meshio_obj = meshio.read(filename)
         mesh = Mesh.from_meshio(meshio_obj)
          
@@ -197,10 +312,22 @@ class Mesh(Saveable, GeometricObject):
         return mesh
      
     def write_file(self, filename):
+        """Write a mesh to a given file. The format is determined from the file extension.
+        All formats supported by meshio are supported.
+
+        Parameters
+        ----------------------------------
+        filename: str
+            The name of the file to write the mesh to."""
         meshio_obj = self.to_meshio()
         meshio_obj.write(filename)
      
     def to_meshio(self):
+        """Convert the Mesh to a meshio object.
+
+        Returns
+        ------------------------------------
+        meshio.Mesh"""
         to_write = []
         
         if len(self.lines):
@@ -214,6 +341,16 @@ class Mesh(Saveable, GeometricObject):
         return meshio.Mesh(self.points, to_write)
      
     def from_meshio(mesh):
+        """Create a Traceon mesh from a meshio.Mesh object.
+
+        Parameters
+        --------------------------
+        mesh: meshio.Mesh
+            The mesh to convert to a Traceon mesh
+
+        Returns
+        -------------------------
+        Mesh"""
         def extract(type_):
             elements = mesh.cells_dict[type_]
             physical = {k:v[type_] for k,v in mesh.cell_sets_dict.items() if type_ in v}
@@ -237,22 +374,31 @@ class Mesh(Saveable, GeometricObject):
             triangles=triangles, physical_to_triangles=physical_triangles)
      
     def is_3d(self):
-        """Check if the mesh is three dimensional.
+        """Check if the mesh is three dimensional by checking whether any z coordinate is non-zero.
 
         Returns
         ----------------
-        True if mesh is three dimensional, False if the mesh is two dimensional"""
+        bool
+
+        Whether the mesh is three dimensional"""
         return np.any(self.points[:, 1] != 0.)
     
     def is_2d(self):
-        """Check if the mesh is two dimensional.
+        """Check if the mesh is two dimensional, by checking that all z coordinates are zero.
         
         Returns
         ----------------
-        True if mesh is two dimensional, False if the mesh is three dimensional"""
+        bool
+
+        Whether the mesh is two dimensional"""
         return np.all(self.points[:, 1] == 0.)
     
     def flip_normals(self):
+        """Flip the normals in the mesh by inverting the 'orientation' of the elements.
+
+        Returns
+        ----------------------------
+        Mesh"""
         lines = self.lines
         triangles = self.triangles
         
@@ -277,18 +423,29 @@ class Mesh(Saveable, GeometricObject):
             physical_to_triangles=self.physical_to_triangles)
      
     def remove_lines(self):
+        """Remove all the lines from the mesh.
+
+        Returns
+        -----------------------------
+        Mesh"""
         return Mesh(self.points, triangles=self.triangles, physical_to_triangles=self.physical_to_triangles)
     
     def remove_triangles(self):
+        """Remove all triangles from the mesh.
+
+        Returns
+        -------------------------------------
+        Mesh"""
         return Mesh(self.points, lines=self.lines, physical_to_lines=self.physical_to_lines)
      
     def get_electrodes(self):
-        """Get the names of all the electrodes in the geometry.
+        """Get the names of all the named groups (i.e. electrodes) in the mesh
          
         Returns
         ---------
-        List of electrode names
+        str iterable
 
+        Names
         """
         return list(self.physical_to_lines.keys()) + list(self.physical_to_triangles.keys())
      
