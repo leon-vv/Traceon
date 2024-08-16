@@ -77,7 +77,7 @@ class Validation:
             comp = self.compute_value_of_interest(geom, field)
             err = self.compute_accuracy(comp, corr)
              
-            num_lines.append(exc.get_number_of_electrostatic_matrix_elements())
+            num_lines.append(len(exc.get_electrostatic_active_elements()[0]))
             times.append( (time.time() - st)*1000)
             correct.append(corr)
             computed.append(comp)
@@ -118,7 +118,7 @@ class Validation:
         err = self.compute_accuracy(computed, correct)
          
         duration = (time.time() - st)*1000
-        print_info([MSF], [exc.get_number_of_electrostatic_matrix_elements()], [duration], [correct], [computed], [err])
+        print_info([MSF], [len(exc.get_electrostatic_active_elements()[0])], [duration], [correct], [computed], [err])
         return duration, err
      
     def args_to_symmetry(args):

@@ -278,29 +278,11 @@ class Excitation:
                     if n in self.excitation_types and type_check(self.excitation_types[n][0])}
          
         return self.mesh.points[ elements[~inactive] ], names
-    
-    def _get_number_of_active_elements(self, type_):
-        assert type_ in ['electrostatic', 'magnetostatic']
-         
-        if self.symmetry == Symmetry.RADIAL:
-            elements = self.mesh.lines
-            physicals = self.mesh.physical_to_lines
-        else:
-            elements = self.mesh.triangles
-            physicals = self.mesh.physical_to_triangles
-        
-        def type_check(excitation_type):
-            if type_ == 'electrostatic':
-                return excitation_type.is_electrostatic()
-            else:
-                return excitation_type in [ExcitationType.MAGNETOSTATIC_POT, ExcitationType.MAGNETIZABLE]
-         
-        return sum(len(physicals[n]) for n, v in self.excitation_types.items() if type_check(v[0]))
-    
+     
     def get_electrostatic_active_elements(self):
-        """Get elements in the mesh that are active, in the sense that
-        an excitation to them has been applied. 
-    
+        """Get elements in the mesh that have an electrostatic excitation
+        applied to them. 
+         
         Returns
         --------
         A tuple of two elements: (points, names). points is a Numpy array of shape (N, 4, 3) in the case of 2D and (N, 3, 3) in the case of 3D. \
@@ -313,7 +295,8 @@ class Excitation:
         return self._get_active_elements('electrostatic')
     
     def get_magnetostatic_active_elements(self):
-        """Get elements in the mesh that are active, in the sense that an excitation to them has been applied. 
+        """Get elements in the mesh that have an magnetostatic excitation
+        applied to them. This does not include current excitation, as these are not part of the matrix.
     
         Returns
         --------
@@ -327,27 +310,3 @@ class Excitation:
 
         return self._get_active_elements('magnetostatic')
      
-    def get_number_of_electrostatic_active_elements(self):
-        """Get elements in the mesh that are active, in the sense that
-        an excitation to them has been applied. This is the length of the points
-        array returned by the `Excitation.get_electrostatic_active_elements`.
-
-        Returns
-        --------
-        int, giving the number of elements. """
-        return self._get_number_of_active_elements('electrostatic')
-    
-    def get_number_of_electrostatic_matrix_elements(self):
-        """Gets the number of elements along one axis of the matrix. If this function returns N, the
-        matrix will have size NxN. The matrix consists of 64bit float values. Therefore the size of the matrix
-        in bytes is 8·NxN.
-
-        Returns
-        ---------
-        integer number
-        """
-        return self._get_number_of_active_elements('magnetostatic')
-
-        
-
-
