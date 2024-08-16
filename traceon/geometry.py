@@ -627,7 +627,7 @@ class Path(GeometricObject):
         elif isinstance(other, PathCollection):
             return PathCollection([self] + [other.paths])
      
-    def mesh(self, mesh_size=None, higher_order=False):
+    def mesh(self, mesh_size=None, mesh_size_factor=None, higher_order=False):
         """Mesh the path, so it can be used in the BEM solver.
 
         Parameters
@@ -635,6 +635,10 @@ class Path(GeometricObject):
         mesh_size: float
             Determines amount of elements in the mesh. A smaller
             mesh size leads to more elements.
+        mesh_size_factor: float
+            Alternative way to specify the mesh size, which scales
+            with the dimensions of the geometry, and therefore more
+            easily translates between different geometries.
         higher_order: bool
             Whether to generate a higher order mesh. A higher order
             produces curved line elements (determined by 4 points on
@@ -645,8 +649,11 @@ class Path(GeometricObject):
         ----------------------------
         Path"""
         if mesh_size is None:
-            mesh_size = self.path_length/10
-        
+            if mesh_size_factor is not None:
+                mesh_size = self.path_length/(25*mesh_size_factor)
+            else:
+                mesh_size = self.path_length/10
+
         u = discretize_path(self.path_length, self.breakpoints, mesh_size, N_factor=3 if higher_order else 1)
         
         N = len(u) 
@@ -685,11 +692,11 @@ class PathCollection(GeometricObject):
     def map_points(self, fun):
         return PathCollection([p.map_points(fun) for p in self.paths])
      
-    def mesh(self, mesh_size=None, higher_order=False):
+    def mesh(self, mesh_size=None, mesh_size_factor=None, higher_order=False):
         mesh = Mesh()
         
         for p in self.paths:
-            mesh = mesh + p.mesh(mesh_size=mesh_size, higher_order=higher_order)
+            mesh = mesh + p.mesh(mesh_size=mesh_size, mesh_size_factor=mesh_size_factor, higher_order=higher_order)
 
         return mesh
 
@@ -833,10 +840,18 @@ class Surface(GeometricObject):
         else:
             return SurfaceCollection([self] + other.surfaces)
      
-    def mesh(self, mesh_size=None):
+    def mesh(self, mesh_size=None, mesh_size_factor=None):
           
         if mesh_size is None:
-            mesh_size = min(self.path_length1, self.path_length2)/10
+            path_length = min(self.path_length1, self.path_length2)
+            
+            if mesh_size_factor is not None:
+                # Take sqrt, since the number points on the surface scale quadratically
+                # with the points on the edges. We want to keep the total number of elements
+                # roughly equal in 2D and 3D.
+                mesh_size = 4*sqrt(path_length/mesh_size_factor)
+            else:
+                mesh_size = path_length/10
          
         return _mesh(self, mesh_size, name=self.name)
 
@@ -851,11 +866,11 @@ class SurfaceCollection(GeometricObject):
     def map_points(self, fun):
         return SurfaceCollection([s.map_points(fun) for s in self.surfaces])
      
-    def mesh(self, mesh_size=None, name=None):
+    def mesh(self, mesh_size=None, mesh_size_factor=None, name=None):
         mesh = Mesh()
         
         for s in self.surfaces:
-            mesh = mesh + s.mesh(mesh_size=mesh_size)
+            mesh = mesh + s.mesh(mesh_size=mesh_size, mesh_size_factor=mesh_size_factor)
          
         return mesh
      
