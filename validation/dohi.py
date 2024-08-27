@@ -35,7 +35,6 @@ class DohiMirror(Validation):
         t = 0.15 # thickness
         r = 0.075 # radius
         st = 0.5  # spacer thickness
-        ms = 10/MSF # mesh size
 
         mirror = G.Path.aperture(0.15, r, extent, z=t/2)
         mirror.name = 'mirror'
@@ -58,7 +57,7 @@ class DohiMirror(Validation):
         if symmetry.is_3d():
             geom = geom.revolve_z()
         
-        return geom.mesh(ms)
+        return geom.mesh(mesh_size_factor=MSF)
      
     def get_excitation(self, mesh, symmetry):
         exc = E.Excitation(mesh, symmetry)

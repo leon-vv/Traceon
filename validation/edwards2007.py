@@ -45,10 +45,11 @@ class Edwards2007(Validation):
         if symmetry.is_3d():
             inner = inner.revolve_z()
             boundary = boundary.revolve_z()
-
-        ms = 10/MSF
-        return inner.mesh(mesh_size=ms, name='inner') + \
-                boundary.mesh(mesh_size=ms, name='boundary')
+        
+        inner.name = 'inner'
+        boundary.name = 'boundary'
+        
+        return (inner+boundary).mesh(mesh_size_factor=MSF)
     
     def get_excitation(self, geometry, symmetry):
         excitation = E.Excitation(geometry, symmetry)

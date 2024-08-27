@@ -43,12 +43,13 @@ class SphericalCapacitor(Validation):
         
         def add_shell(radius, name):
             arc = G.Path.arc([0., 0., 0.], [0, 0, -radius], [radius, 0, 0.]).arc_to([0., 0., 0.], [0., 0., radius])
+            arc.name = name
 
             if symmetry.is_3d():
                 arc = arc.revolve_z()
-                return arc.mesh(name=name, mesh_size=ms)
+                return arc.mesh(mesh_size_factor=MSF)
             else:
-                return arc.mesh(name=name, mesh_size=ms, higher_order=higher_order)
+                return arc.mesh(mesh_size_factor=MSF, higher_order=higher_order)
          
         return add_shell(r1, 'inner') + add_shell(r2, 'outer')
  

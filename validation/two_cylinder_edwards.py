@@ -35,25 +35,23 @@ class TwoCylinderEdwards(Validation):
             return [25, 100, 200, 400]
     
     def create_mesh(self, MSF, symmetry, higher_order):
-        
-        
         cylinder_length = (boundary_length - gap_size)/2
         
         bottom  = G.Path.line([0., 0., 0.], [R, 0., 0.]).line_to([R, 0., cylinder_length])
         gap = G.Path.line([R, 0., cylinder_length], [R, 0., cylinder_length+gap_size])
         top = G.Path.line([R, 0., cylinder_length+gap_size], [R, 0., boundary_length]).line_to([0., 0., boundary_length])
-        
-        ms = 10/MSF
-        
-        if symmetry.is_2d():
-            return bottom.mesh(mesh_size=ms, name='v1', higher_order=higher_order) + \
-                gap.mesh(mesh_size=ms, name='gap', higher_order=higher_order) + \
-                top.mesh(mesh_size=ms, name='v2', higher_order=higher_order)
-        else:
+
+        bottom.name = 'v1'
+        gap.name = 'gap'
+        top.name = 'v2'
+         
+        if symmetry.is_3d():
             bottom = bottom.revolve_z()
             gap = gap.revolve_z()
             top = top.revolve_z()
-            return bottom.mesh(mesh_size=ms, name='v1') + gap.mesh(mesh_size=ms, name='gap') + top.mesh(mesh_size=ms, name='v2')
+            return (bottom + gap + top).mesh(mesh_size_factor=MSF)
+        else:
+            return (bottom + gap + top).mesh(mesh_size_factor=MSF, higher_order=higher_order)
     
     def get_excitation(self, geom, symmetry):
         exc = E.Excitation(geom, symmetry)

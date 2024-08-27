@@ -17,7 +17,7 @@ class SimpleMirror(Validation):
 
     def __init__(self):
         super().__init__('Calculated a trajectory through a simple flat mirror.')
-        self.plot_colors = dict(mirror='brown', lens='blue', ground='green')
+        self.plot_colors = dict(mirror='brown', lens='blue', boundary='green')
 
     def default_MSF(self, symmetry):
         if symmetry.is_3d():
@@ -26,22 +26,23 @@ class SimpleMirror(Validation):
             return [10, 50, 150, 250, 600]
 
     def create_mesh(self, MSF, symmetry, higher_order):
+        boundary = G.Path.line([0, 0, -1], [2, 0, -1]).line_to([2, 0, 1]).line_to([0.3, 0., 1])
+        mirror = G.Path.line([0., 0., 0.], [1., 0., 0.])
+
+        boundary.name = 'boundary'
+        mirror.name = 'mirror'
+        
         _3d = symmetry.is_3d()
          
-        if _3d:
-            boundary = G.Path.line([0, 0, -1], [2, 0, -1]).line_to([2, 0, 1]).line_to([0.3, 0., 1]).revolve_z()
-            mirror = G.Path.line([0., 0., 0.], [1., 0., 0.]).revolve_z()
-        else:
-            boundary = G.Path.line([0, -1], [2, -1]).line_to([2, 1]).line_to([0.3, 1])
-            mirror = G.Path.line([0., 0.], [1., 0.])
-         
-        ms = 1/MSF
-        return boundary.mesh(mesh_size=ms, name='ground', higher_order=higher_order) + \
-                mirror.mesh(mesh_size=ms, name='mirror', higher_order=higher_order)
+        if symmetry.is_3d():
+            boundary = boundary.revolve_z()
+            mirror = mirror.revolve_z()
         
+        return (boundary + mirror).mesh(mesh_size_factor=MSF)
+     
     def get_excitation(self, mesh, symmetry):
         excitation = E.Excitation(mesh, symmetry)
-        excitation.add_voltage(mirror=-110, ground=0.0)
+        excitation.add_voltage(mirror=-110, boundary=0.0)
         return excitation
     
     def correct_value_of_interest(self): 

@@ -307,6 +307,8 @@ def position_and_jacobian_radial(alpha, v1, v2, v3, v4):
     assert v3.shape == (2,) or v3.shape == (3,)
     assert v4.shape == (2,) or v4.shape == (3,)
     
+    assert all([v.shape == (2,) or v[2] == 0. for v in [v1,v2,v3,v4]])
+    
     pos = np.zeros(2)
     jac = C.c_double(0.0)
      

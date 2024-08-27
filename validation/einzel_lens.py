@@ -32,23 +32,19 @@ class EinzelLens(Validation):
         middle = G.Path.aperture(THICKNESS, RADIUS, extent)
         top = G.Path.aperture(THICKNESS, RADIUS, extent, THICKNESS + SPACING)
          
-        ms = 100/MSF
-        
         if symmetry.is_3d():
             boundary = boundary.revolve_z()
             bottom = bottom.revolve_z()
             middle = middle.revolve_z()
             top = top.revolve_z()
-            return boundary.mesh(name='boundary', mesh_size=ms) \
-             + bottom.mesh(name='ground', mesh_size=ms) \
-             + middle.mesh(name='lens', mesh_size=ms) \
-             + top.mesh(name='ground', mesh_size=ms)
-        else:
-            return boundary.mesh(name='boundary', mesh_size=ms, higher_order=higher_order) \
-             + bottom.mesh(name='ground', mesh_size=ms, higher_order=higher_order) \
-             + middle.mesh(name='lens', mesh_size=ms, higher_order=higher_order) \
-             + top.mesh(name='ground', mesh_size=ms, higher_order=higher_order)
 
+        boundary.name = 'boundary'
+        bottom.name = 'ground'
+        middle.name = 'lens'
+        top.name = 'ground'
+        
+        return (boundary + bottom + middle + top).mesh(mesh_size_factor=MSF)
+    
     def get_excitation(self, mesh, symmetry):
         excitation = E.Excitation(mesh, symmetry)
         excitation.add_voltage(ground=0.0, lens=1000)

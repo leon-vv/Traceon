@@ -31,13 +31,14 @@ class CapacitanceSphere(Validation):
         
         def add_shell(radius, name, reverse=False):
             arc = G.Path.arc([0., 0., 0.], [0, 0, -radius], [radius, 0, 0.]).arc_to([0., 0., 0.], [0., 0., radius])
+            arc.name = name
 
             if symmetry.is_3d():
                 arc = arc.revolve_z()
-                mesh = arc.mesh(name=name, mesh_size=ms)
+                mesh = arc.mesh(mesh_size_factor=MSF)
             else:
-                mesh = arc.mesh(name=name, mesh_size=ms, higher_order=higher_order)
-
+                mesh = arc.mesh(mesh_size_factor=MSF, higher_order=higher_order)
+            
             return mesh.flip_normals() if reverse else mesh
         
         return add_shell(r1, 'inner') + add_shell(r2, 'outer') + add_shell(r3, 'dielectric', True) + add_shell(r4, 'dielectric')
