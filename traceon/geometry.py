@@ -439,7 +439,7 @@ class Path(GeometricObject):
         def f(u, v):
             return self(u) + v/length*vector
         
-        return Surface(f, self.path_length, length, self.breakpoints)
+        return Surface(f, self.path_length, length, self.breakpoints, name=self.name)
     
     def extrude_by_path(self, p2):
         """Create a surface by extruding the path along a second path. The second
@@ -459,7 +459,7 @@ class Path(GeometricObject):
         def f(u, v):
             return self(u) + p2(v) - p0
 
-        return Surface(f, self.path_length, p2.path_length, self.breakpoints, p2.breakpoints)
+        return Surface(f, self.path_length, p2.path_length, self.breakpoints, p2.breakpoints, name=self.name)
 
     def close(self):
         """Close the path, by making a straight line to the starting point.
@@ -688,6 +688,7 @@ class PathCollection(GeometricObject):
     def __init__(self, paths):
         assert all([isinstance(p, Path) for p in paths])
         self.paths = paths
+        self.name = None
     
     def map_points(self, fun):
         return PathCollection([p.map_points(fun) for p in self.paths])
@@ -696,6 +697,8 @@ class PathCollection(GeometricObject):
         mesh = Mesh()
         
         for p in self.paths:
+            if self.name is not None:
+                p.name = self.name
             mesh = mesh + p.mesh(mesh_size=mesh_size, mesh_size_factor=mesh_size_factor, higher_order=higher_order)
 
         return mesh
@@ -862,6 +865,7 @@ class SurfaceCollection(GeometricObject):
     def __init__(self, surfaces):
         assert all([isinstance(s, Surface) for s in surfaces])
         self.surfaces = surfaces
+        self.name = None
      
     def map_points(self, fun):
         return SurfaceCollection([s.map_points(fun) for s in self.surfaces])
@@ -870,6 +874,9 @@ class SurfaceCollection(GeometricObject):
         mesh = Mesh()
         
         for s in self.surfaces:
+            if self.name is not None:
+                s.name = self.name
+            
             mesh = mesh + s.mesh(mesh_size=mesh_size, mesh_size_factor=mesh_size_factor)
          
         return mesh
