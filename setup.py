@@ -50,6 +50,7 @@ setup(
         'Issues': "https://github.com/leon-vv/traceon/issues"
     },
     include_dirs=include_dirs,
+    python_requires='>=3.7',
 )
 
 
