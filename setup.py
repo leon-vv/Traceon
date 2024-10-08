@@ -25,6 +25,7 @@ backend_extension = Extension(
     name='traceon.backend.traceon_backend',
     sources=['traceon/backend/traceon-backend.c'],
     extra_objects=extra_objects,
+    py_limited_api=True,
     **compiler_kwargs)
 
 setup(
@@ -51,6 +52,7 @@ setup(
     },
     include_dirs=include_dirs,
     python_requires='>=3.7',
+    options={'bdist_wheel': {'py_limited_api': 'cp37'}},
 )
 
 
