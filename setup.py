@@ -17,8 +17,8 @@ elif platform.system() == 'Darwin':
     include_dirs = ['/opt/homebrew/include/']
 elif platform.system() == 'Windows':
     compiler_kwargs = dict(extra_compile_args=['/fp:fast', '/Ox', '/Ob3', '/Oi', '/GL', '/arch:AVX', '-I .\\traceon\\backend\\'])
-    extra_objects = [VCPKG_DIR + '\\packages\\gsl_x64-windows-static-release\\lib\\gsl.lib']
-    include_dirs = VCPKG_DIR + '\\packages\\gsl_x64-windows-static-release\\include'
+    extra_objects = [VCPKG_DIR + '\\packages\\gsl_x64-windows-static\\lib\\gsl.lib']
+    include_dirs = VCPKG_DIR + '\\packages\\gsl_x64-windows-static\\include'
 
 
 backend_extension = Extension(
