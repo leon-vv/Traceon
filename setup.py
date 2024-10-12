@@ -3,7 +3,7 @@ import os
 from setuptools import setup, Extension
 import platform
 
-VCPKG_DIR = 'C:\\Users\\leonv\\vcpkg'
+VCPKG_DIR = 'C:\\vcpkg'
 
 if platform.system() == 'Linux':
     os.environ['CC'] = 'clang' # Clang is known to produce faster binaries.
