@@ -9,7 +9,7 @@ on:
 
 jobs:
   build_ubuntu:
-    runs-on: ubuntu-18.04
+    runs-on: ubuntu-20.04
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
@@ -25,7 +25,9 @@ jobs:
       - name: Build the wheel
         run: python setup.py bdist_wheel
       - name: Repair wheel with auditwheel
-        run: auditwheel repair dist/*.whl --plat manylinux2014_x86_64 -w wheelhouse/
+        run: |
+            auditwheel show dist/*.whl
+            auditwheel repair dist/*.whl --plat manylinux_2_31_x86_64 -w wheelhouse/
       - name: Upload wheel artifact
         uses: actions/upload-artifact@v3
         with:
@@ -44,8 +46,7 @@ jobs:
       - name: Install dependencies
         shell: powershell
         run: |
-          choco install -y vcpkg
-          vcpkg install gsl
+          vcpkg install gsl:x64-windows-static
           pip install --upgrade pip setuptools wheel
       - name: Build the wheel
         run: python setup.py bdist_wheel
@@ -57,45 +58,49 @@ jobs:
 
   test_ubuntu:
     needs: build_ubuntu
-    runs-on: ubuntu-18.04
+    runs-on: ubuntu-20.04
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v3
       - name: Set up Python
         uses: actions/setup-python@v4
         with:
           python-version: "3.8"
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y gmsh
+      - name: Checkout code
+        uses: actions/checkout@v3
       - name: Download wheel artifact
         uses: actions/download-artifact@v3
         with:
           name: ubuntu-wheel
           path: ./
       - name: Install the wheel
-        run: pip install *.whl
-      - name: Run unit tests
+        run: |
+          pip install traceon-*.whl
+          pip show traceon
+      - name: Run tests
         run: python -m unittest tests.unit_tests
 
   test_windows:
     needs: build_windows
     runs-on: windows-latest
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v3
       - name: Set up Python
         uses: actions/setup-python@v4
         with:
           python-version: "3.8"
-      - name: Install dependencies
-        shell: powershell
-        run: |
-          choco install -y vcpkg
-          vcpkg install gsl
+      - name: Checkout code
+        uses: actions/checkout@v3
       - name: Download wheel artifact
         uses: actions/download-artifact@v3
         with:
           name: windows-wheel
           path: ./
       - name: Install the wheel
-        run: pip install *.whl
-      - name: Run unit tests
+        run: |
+          pip install (get-item traceon-*.whl)
+          pip show traceon
+      - name: Run tests
         run: python -m unittest tests.unit_tests
+
