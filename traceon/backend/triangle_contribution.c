@@ -146,11 +146,23 @@ double _flux_integrand(double y, void *args_p) {
 	double xmin2 = xmin*xmin;
 	double yy02 = (y+y0)*(y+y0);
 	double xmax2 = xmax*xmax;
+	double r2 = z2 + yy02;
 
 	double flux[3];
-    flux[0] = 1/sqrt(z2+yy02+xmax2) - 1/sqrt(z2+yy02+xmin2);
-    flux[1] = -(xmax*(y+y0))/((z2+yy02)*sqrt(z2+yy02+xmax2)) + (xmin*(y+y0))/((z2+yy02)*sqrt(z2+yy02+xmin2));
-    flux[2] = (xmax*z)/((z2+yy02)*sqrt(z2+yy02+xmax2)) - (xmin*z)/((z2+yy02)*sqrt(z2+yy02+xmin2));
+
+	flux[0] = 1 / sqrt(r2 + xmax2) - 1 / sqrt(r2 + xmin2);
+
+	// Singularity when r2 is small...
+	if (fabs(r2) < 1e-9) {
+		flux[1] = ((xmin2 - xmax2) * y0 + (xmin2 - xmax2) * y) / (2.0 * xmax2 * xmin2);
+		flux[2] = -((xmin2 - xmax2) * z) / (2.0 * xmax2 * xmin2);
+	} else {
+		double denom_max = r2 * sqrt(r2 + xmax2);
+		double denom_min = r2 * sqrt(r2 + xmin2);
+
+		flux[1] = -((xmax * (y + y0)) / denom_max) + (xmin * (y + y0)) / denom_min;
+		flux[2] = (xmax * z) / denom_max - (xmin * z) / denom_min;
+	}
 	
 	return dot_3d(args.normal, flux);
 }
