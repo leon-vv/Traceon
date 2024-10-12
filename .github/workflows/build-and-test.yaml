@@ -127,7 +127,7 @@ jobs:
         env:
           TWINE_USERNAME: ${{ secrets.PYPI_USERNAME }}
           TWINE_PASSWORD: ${{ secrets.PYPI_PASSWORD }}
-        run: python -m twine upload traceon-*.whl
+        run: python -m twine upload --repository pypi traceon-*.whl
     
   upload_windows:
     needs: build_windows
@@ -152,7 +152,7 @@ jobs:
         env:
           TWINE_USERNAME: ${{ secrets.PYPI_USERNAME }}
           TWINE_PASSWORD: ${{ secrets.PYPI_PASSWORD }}
-        run: python -m twine upload (get-item traceon-*.whl)
+        run: python -m twine upload --repository pypi (get-item traceon-*.whl)
 
 
 
