@@ -164,6 +164,47 @@ class TestTriangleContribution(unittest.TestCase):
 
         for (a,b,c) in rand(3, 3):
             test(a,b,c)
+    
+    def test_potential_triangle_close(self):
+        v0 = np.array([0.0, 0.0, 0.0])
+        v1 = np.array([1.0, 0.0, 0.0])
+        v2 = np.array([0.0, 1.0, 0.0])
+
+        for x in range(-20, 21):
+            target = np.array([x, 0.0, 0.5])
+            assert np.isclose(B.potential_triangle(v0, v1, v2, target), potential_exact_integrated(v0, v1, v2, target), atol=0.0, rtol=1e-9)
+
+        for x in range(-20, 21):
+            target = np.array([x, 0.0, -0.5])
+            assert np.isclose(B.potential_triangle(v0, v1, v2, target), potential_exact_integrated(v0, v1, v2, target), atol=0.0, rtol=1e-9)
+
+        for y in range(-20, 21):
+            target = np.array([0.0, y, 0.5])
+            assert np.isclose(B.potential_triangle(v0, v1, v2, target), potential_exact_integrated(v0, v1, v2, target), atol=0.0, rtol=1e-9)
+
+        for y in range(-20, 21):
+            target = np.array([0.0, y, -0.5])
+            assert np.isclose(B.potential_triangle(v0, v1, v2, target), potential_exact_integrated(v0, v1, v2, target), atol=0.0, rtol=1e-9)
+
+        for z in range(-20, 21):
+            target = np.array([1.0, 1.0, z])
+            assert np.isclose(B.potential_triangle(v0, v1, v2, target), potential_exact_integrated(v0, v1, v2, target), atol=0.0, rtol=1e-9)
+
+        for z in range(-20, 21):
+            target = np.array([-1.0, -1.0, z])
+            assert np.isclose(B.potential_triangle(v0, v1, v2, target), potential_exact_integrated(v0, v1, v2, target), atol=0.0, rtol=1e-9)
+
+        for z in range(-20, 21):
+            target = np.array([-0.5, 0.5, z])
+            assert np.isclose(B.potential_triangle(v0, v1, v2, target), potential_exact_integrated(v0, v1, v2, target), atol=0.0, rtol=1e-9)
+
+        for z in range(-20, 21):
+            target = np.array([0.5, -0.5, z])
+            assert np.isclose(B.potential_triangle(v0, v1, v2, target), potential_exact_integrated(v0, v1, v2, target), atol=0.0, rtol=1e-9)
+
+        for k in range(-20, 21):
+            target = np.array([k, k, 0.5])
+            assert np.isclose(B.potential_triangle(v0, v1, v2, target), potential_exact_integrated(v0, v1, v2, target), atol=0.0, rtol=1e-9)
 
     def test_derivative_x_quadrants(self):
         def test(a, b, c, z0):

@@ -40,6 +40,13 @@ double _potential_integrand(double y, void *args_p) {
 	double xmax = args.x0 + args.a + y/args.c*(args.b-args.a);
 		
 	double denom = sqrt((y+args.y0)*(y+args.y0) + args.z*args.z);
+
+	if(denom < 1e-12) {
+		// The asinh(xmax/denom) - asinh(xmin/denom) is numerical 
+		// unstable when denom is small. Taking the taylor expansion
+		// of denom -> 0 we find
+		return log(xmax) - log(xmin);
+	}
     return asinh(xmax/denom) - asinh(xmin/denom);
 }
 
