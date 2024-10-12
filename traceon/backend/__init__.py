@@ -19,15 +19,25 @@ if DEBUG:
 ## Attempt 1: load local
 if platform.system() in ['Linux', 'Darwin']:
     local_path = path.join(path.dirname(__file__), 'traceon_backend.so')
+    global_file = 'traceon/backend/traceon_backend.abi3.so'
 else:
     local_path = path.join(path.dirname(__file__), 'traceon_backend.dll')
+    global_file = 'traceon/backend/traceon_backend.pyd'
 
 if path.isfile(local_path):
     backend_lib = C.CDLL(local_path)
 else:
-    ## Attempt 2: load from pip installed path
-    global_path = importlib.util.find_spec('traceon.backend.traceon_backend')
+    ## Attempt 2: use getsitepackages
+    import site
+    paths = site.getsitepackages()
     
+    global_path = None
+
+    for p in paths:
+        if path.isfile(path.join(p, global_file)):
+            global_path = path.join(p, global_file)
+            break
+     
     if global_path is None:
         help_txt = '''
         Cannot find Traceon backend (C compiled dynamic library).
@@ -35,11 +45,10 @@ else:
         If you're running this package locally (i.e. git clone) you have to build this dynamic library yourself.
         On Linux you can use:
             gcc ./traceon/backend/traceon-backend.c -o ./traceon/backend/traceon-backend.so -lm -shared -fPIC -O3 -ffast-math -std=c99 -march=native'''
-
+        
         raise RuntimeError(help_txt)
-
-    global_path = global_path.origin
-    backend_lib = C.cdll.LoadLibrary(global_path)
+    
+    backend_lib = C.CDLL(global_path)
 
 
 TRACING_BLOCK_SIZE = C.c_size_t.in_dll(backend_lib, 'TRACING_BLOCK_SIZE').value

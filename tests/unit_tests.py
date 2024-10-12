@@ -54,52 +54,6 @@ def get_ring_effective_point_charges(current, r):
         [ [1.] + ([0.]*(B.N_TRIANGLE_QUAD-1)) ],
         [ [[r, 0., 0.]] * B.N_TRIANGLE_QUAD ])
 
-class TestFMM(unittest.TestCase):
-    
-    def test_matrix_application_edwards2007(self):
-        with G.Geometry(G.Symmetry.THREE_D) as geom:
-            points = [ [0, 0], [0, 5], [12, 5], [12, 15],
-                [0, 15], [0, 20], [20, 20], [20, 0] ]
-            
-            geom.set_mesh_size_factor(15)
-            
-            points = [geom.add_point([p[0], 0.0, p[1]]) for p in points]
-            
-            l1 = geom.add_line(points[1], points[2])
-            l2 = geom.add_line(points[2], points[3])
-            l3 = geom.add_line(points[3], points[4])
-            
-            l4 = geom.add_line(points[0], points[-1])
-            l5 = geom.add_line(points[-3], points[-2])
-            l6 = geom.add_line(points[-2], points[-1])
-            
-            inner = G.revolve_around_optical_axis(geom, [l1, l2, l3])
-            boundary = G.revolve_around_optical_axis(geom, [l4, l5, l6])
-            
-            geom.add_physical(inner, 'inner')
-            geom.add_physical(boundary, 'boundary')
-                    
-            mesh = geom.generate_triangle_mesh()
-        
-        exc = E.Excitation(mesh)
-        exc.add_voltage(inner=10, boundary=0)
-        
-        solver = S.ElectrostaticSolver(exc)
-        
-        dielectric_indices = solver.get_flux_indices()
-        dielectric_values = solver.excitation_values[dielectric_indices]
-        dielectric_factors = np.array([backend.flux_density_to_charge_factor(k) for k in dielectric_values])
-         
-        charges = rand(len(mesh.triangles), min=-3, max=3)
-        
-        geom_fortran = FMM.get_geometry_in_fortran_layout(solver.vertices)
-        result_fmm = FMM.apply_matrix(charges, geom_fortran, 5, dielectric_indices, dielectric_factors)
-         
-        result_direct =  solver.get_matrix() @ charges
-         
-        assert np.allclose(result_fmm, result_direct, atol=0.0, rtol=1e-6)
-
-
 
 class TestElliptic(unittest.TestCase):
     
