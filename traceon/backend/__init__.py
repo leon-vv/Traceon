@@ -29,7 +29,7 @@ if path.isfile(local_path):
 else:
     ## Attempt 2: use getsitepackages
     import site
-    paths = site.getsitepackages()
+    paths = site.getsitepackages() + [site.getusersitepackages()]
     
     global_path = None
 
