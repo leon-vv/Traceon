@@ -163,6 +163,19 @@ class Solver:
         st = time.time()
         util.split_collect(fill_matrix_rows, np.arange(N_matrix))    
         logging.log_info(f'Time for building matrix: {(time.time()-st)*1000:.0f} ms')
+
+        if not self.is_3d():
+            # Technical detail: radial cannot compute their own self potential/field
+            # need to fill it in here
+            for i in range(N_matrix):
+                type_ = self.excitation_types[i]
+                val = self.excitation_values[i]
+                
+                if type_ == E.ExcitationType.DIELECTRIC or type_ == E.ExcitationType.MAGNETIZABLE:
+                    # -1 follows from matrix equation
+                    matrix[i, i] = backend.self_field_dot_normal_radial(self.vertices[i], self.excitation_values[i]) - 1
+                else:
+                    matrix[i, i] = backend.self_potential_radial(self.vertices[i])
         
         assert np.all(np.isfinite(matrix))
          

@@ -1284,6 +1284,50 @@ enum ExcitationType{
 	MAGNETOSTATIC_POT=5,
 	MAGNETIZABLE=6};
 
+double self_potential_radial(double alpha, double line_points[4][3]) {
+
+	double *v1 = line_points[0];
+	double *v2 = line_points[2];
+	double *v3 = line_points[3];
+	double *v4 = line_points[1];
+	
+	double pos[2], jac;
+	position_and_jacobian_radial(alpha, v1, v2, v3, v4, pos, &jac);
+	
+	double target[2], jac2;
+	position_and_jacobian_radial(0, v1, v2, v3, v4, target, &jac2);
+
+	return jac*potential_radial_ring(target[0], target[1], pos[0], pos[1], NULL);
+}
+
+struct self_field_dot_normal_radial_args {
+	double (*line_points)[3];
+	double K;
+};
+
+double self_field_dot_normal_radial(double alpha, struct self_field_dot_normal_radial_args* args) {
+	
+	double *v1 = args->line_points[0];
+	double *v2 = args->line_points[2];
+	double *v3 = args->line_points[3];
+	double *v4 = args->line_points[1];
+	
+	double pos[2], jac;
+	position_and_jacobian_radial(alpha, v1, v2, v3, v4, pos, &jac);
+	
+	double target[2], jac2;
+	position_and_jacobian_radial(0, v1, v2, v3, v4, target, &jac2);
+	
+	double normal[2];
+	higher_order_normal_radial(0.0, v1, v2, v3, v4, normal);
+	
+	struct {double *normal; double K;} cb_args = {normal, args->K};
+
+	return jac*field_dot_normal_radial(target[0], target[1], pos[0], pos[1], (void*) &cb_args);
+}
+
+
+
 
 struct self_voltage_radial_args {
 	double (*line_points)[3];
@@ -1451,7 +1495,7 @@ EXPORT void fill_matrix_radial(double *matrix,
 		}
 	}
 	
-	fill_self_voltages_radial(matrix, line_points, excitation_types, excitation_values, N_lines, N_matrix, lines_range_start, lines_range_end);
+	//fill_self_voltages_radial(matrix, line_points, excitation_types, excitation_values, N_lines, N_matrix, lines_range_start, lines_range_end);
 }
 
 EXPORT void fill_jacobian_buffer_3d(
