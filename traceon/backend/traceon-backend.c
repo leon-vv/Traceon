@@ -986,34 +986,6 @@ EXPORT double self_field_dot_normal_radial(double alpha, struct self_field_dot_n
 	return jac*field_dot_normal_radial(target[0], target[1], pos[0], pos[1], (void*) &cb_args);
 }
 
-
-
-
-struct self_voltage_radial_args {
-	double (*line_points)[3];
-	double *target;
-	integration_cb_2d cb_fun;
-	double *normal;
-	double K;
-};
-
-double self_voltage_radial(double alpha, void *args_p) {
-	
-	struct self_voltage_radial_args* args = (struct self_voltage_radial_args*) args_p;
-	
-	double *v1 = args->line_points[0];
-	double *v2 = args->line_points[2];
-	double *v3 = args->line_points[3];
-	double *v4 = args->line_points[1];
-	
-	double pos[2], jac;
-	position_and_jacobian_radial(alpha, v1, v2, v3, v4, pos, &jac);
-	
-	struct {double *normal; double K;} cb_args = {args->normal, args->K};
-	
-	return jac * args->cb_fun(args->target[0], args->target[1], pos[0], pos[1], &cb_args);
-}
-
 EXPORT void fill_jacobian_buffer_radial(
 	jacobian_buffer_2d jacobian_buffer,
 	position_buffer_2d pos_buffer,
