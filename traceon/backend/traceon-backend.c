@@ -104,7 +104,6 @@ typedef double (*vertices_2d)[4][3];
 typedef double (*charges_2d)[N_QUAD_2D];
 
 typedef double (*integration_cb_3d)(double, double, double, double, double, double, void*);
-typedef double (triangle)[3][3];
 typedef double (*vertices_3d)[3][3];
 
 typedef double (*positions_3d)[6];
@@ -184,39 +183,7 @@ INLINE void position_and_jacobian_radial(double alpha, double *v1, double *v2, d
 //////////////////////////////// UTILITIES 3D
 
 
-EXPORT void
-normal_3d(double alpha, double beta, triangle t, double *normal) {
-	double x1 = t[0][0], y1 = t[0][1], z1 = t[0][2];
-	double x2 = t[1][0], y2 = t[1][1], z2 = t[1][2];
-	double x3 = t[2][0], y3 = t[2][1], z3 = t[2][2];
 
-	double normal_x = (y2-y1)*(z3-z1)-(y3-y1)*(z2-z1);
-	double normal_y = (x3-x1)*(z2-z1)-(x2-x1)*(z3-z1);
-	double normal_z = (x2-x1)*(y3-y1)-(x3-x1)*(y2-y1);
-	double length = norm_3d(normal_x, normal_y, normal_z);
-	
-	normal[0] = normal_x/length;
-	normal[1] = normal_y/length;
-	normal[2] = normal_z/length;
-}
-
-
-
-INLINE void position_and_jacobian_3d(double alpha, double beta, triangle t, double pos_out[3], double *jac) {
-
-	double v1[3] = {t[1][0] - t[0][0], t[1][1] - t[0][1], t[1][2] - t[0][2]};
-	double v2[3] = {t[2][0] - t[0][0], t[2][1] - t[0][1], t[2][2] - t[0][2]};
-
-	double x = t[0][0] + alpha*v1[0] + beta*v2[0];
-	double y = t[0][1] + alpha*v1[1] + beta*v2[1];
-	double z = t[0][2] + alpha*v1[2] + beta*v2[2];
-
-
-	pos_out[0] = x;
-	pos_out[1] = y;
-	pos_out[2] = z;
-	*jac = 2*triangle_area(t[0], t[1], t[2]);
-}
 
 INLINE double potential_3d_point(double x0, double y0, double z0, double x, double y, double z, void *_) {
 	double r = norm_3d(x-x0, y-y0, z-z0);

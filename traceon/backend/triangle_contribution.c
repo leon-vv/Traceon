@@ -47,16 +47,6 @@ double _potential_integrand(double y, void *args_p) {
     return asinh(xmax/denom) - asinh(xmin/denom);
 }
 
-double
-triangle_area(double v0[3], double v1[3], double v2[3]) {
-	double vec1[3] = {v1[0]-v0[0], v1[1]-v0[1], v1[2]-v0[2]};
-	double vec2[3] = {v2[0]-v0[0], v2[1]-v0[1], v2[2]-v0[2]};
-	
-	double out[3];
-	cross_product_3d(vec1, vec2, out);
-	return norm_3d(out[0], out[1], out[2])/2.0;
-}
-
 EXPORT double
 potential_triangle(double v0[3], double v1[3], double v2[3], double target[3]) {
 	double vec1[3] = {v1[0]-v0[0], v1[1]-v0[1], v1[2]-v0[2]};
