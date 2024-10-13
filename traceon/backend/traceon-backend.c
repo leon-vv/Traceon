@@ -119,51 +119,6 @@ typedef double (*jacobian_buffer_2d)[N_QUAD_2D];
 typedef double (*position_buffer_2d)[N_QUAD_2D][2];
 
 
-
-typedef double (*ts_integrand)(double, void*);
-
-
-EXPORT double tanh_sinh_integration(ts_integrand f, double a, double b, double epsrel, double epsabs, void *args) {
-    double h = 2.7;
-    double S = 0.5 * M_PI * sinh(h);
-    double jacobian = (b-a)/2.;
-
-    double sum = jacobian * M_PI/2. * f(a + (b - a)/2., args);
-    double to_add = jacobian * M_PI/2. * cosh(h) / pow(cosh(S), 2) * (f(a + (b - a) * (-tanh(S) + 1) / 2., args) + f(a + (b - a) * (tanh(S) + 1) / 2., args));
-		
-	sum += isnormal(to_add) ? to_add : 0.0;
-	
-    double prev = sum;
-    int level = 1;
-
-    while (1) {
-        h /= 2;
-
-
-        for (int n = 0; n < level; n++) {
-            S = 0.5 * M_PI * sinh((2 * n + 1) * h);
-            double x = tanh(S);
-            double w = jacobian * 0.5 * M_PI * cosh((2 * n + 1) * h) / pow(cosh(S), 2);
-			
-			double x_left = a + (b - a) * (-x + 1) / 2.;
-			double x_right = a + (b - a) * (x + 1) / 2.;
-            to_add = w * (f(x_left, args) + f(x_right, args));
-			assert( (a <= x_left) && (x_left <= b) );
-			assert( (a <= x_right) && (x_right <= b) );
-			sum += isnormal(to_add) ? to_add : 0.0;
-        }
-
-        if (fabs(h * sum - 2 * h * prev) < epsabs + epsrel * fabs(h * sum)) {
-			return h * sum;
-		}
-
-        
-        prev = sum;
-        level *= 2;
-    }
-}
-
-
 //////////////////////////////// UTILITIES 2D
 
 

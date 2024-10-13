@@ -147,7 +147,6 @@ backend_functions = {
     'ellipk' : (dbl, dbl),
     'ellipem1' : (dbl, dbl),
     'ellipe': (dbl, dbl),
-    'tanh_sinh_integration': (dbl, integration_cb_1d, dbl, dbl, dbl, dbl, vp),
     'normal_2d': (None, v2, v2, v2),
     'higher_order_normal_radial': (None, dbl, v2, v2, v2, v2, v2),
     'normal_3d': (None, dbl, dbl, arr(shape=(3,3)), v3),
@@ -226,10 +225,6 @@ ellipkm1 = np.vectorize(backend_lib.ellipkm1)
 ellipk = np.vectorize(backend_lib.ellipk)
 ellipem1 = np.vectorize(backend_lib.ellipem1)
 ellipe = np.vectorize(backend_lib.ellipe)
-
-def tanh_sinh_integration(integrand, x_min, x_max, epsabs, epsrel):
-    wrapped = lambda x, args: integrand(x)
-    return backend_lib.tanh_sinh_integration(integration_cb_1d(wrapped), x_min, x_max, epsabs, epsrel, None);
 
 def higher_order_normal_radial(alpha, vertices):
     normal = np.zeros(2)
