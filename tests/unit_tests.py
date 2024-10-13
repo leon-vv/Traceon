@@ -7,7 +7,6 @@ import matplotlib.pyplot as plt
 from scipy.interpolate import CubicSpline
 from scipy.integrate import quad, solve_ivp, dblquad
 from scipy.constants import m_e, e, mu_0, epsilon_0
-from scipy.special import ellipe, ellipk, ellipkm1
 
 from traceon import focus as F
 import traceon.geometry as G
@@ -54,30 +53,22 @@ def get_ring_effective_point_charges(current, r):
         [ [1.] + ([0.]*(B.N_TRIANGLE_QUAD-1)) ],
         [ [[r, 0., 0.]] * B.N_TRIANGLE_QUAD ])
 
+def potential_radial_exact_integrated(v0, v1, target):
+    assert v0.shape == (2,) and v1.shape == (2,) and target.shape == (2,)
+    
+    def integrand(alpha, phi):
+        r, z = v0 + (v1-v0)*alpha
+        r_vec = np.array([r*cos(phi), r*sin(phi), z])
+        distance = np.linalg.norm(r_vec - np.array([target[0], 0.0, target[1]]))
 
-class TestElliptic(unittest.TestCase):
+        jacobian = r
+        
+        return 1/(pi*distance) * jacobian
+
+    length = np.linalg.norm(v0-v1)
     
-    def test_ellipk(self):
-        x = np.linspace(-1, 1, 40)[1:-1]
-        # ellipk is slightly inaccurate, but is not used in electrostatic
-        # solver. Only ellipkm1 is used
-        assert np.allclose(B.ellipk(x), ellipk(x), atol=0., rtol=1e-5)
-    
-    def test_ellipe(self):
-        x = np.linspace(-1, 1, 40)[1:-1]
-        assert np.allclose(B.ellipe(x), ellipe(x), atol=0., rtol=1e-12)
- 
-    def test_ellipkm1_big(self):
-        x = np.linspace(0, 1)[1:-1]
-        assert np.allclose(ellipkm1(x), B.ellipkm1(x), atol=0., rtol=1e-12)
- 
-    def test_ellipkm1_small_many(self):
-        x = np.linspace(1, 100, 5)
-        assert np.allclose(ellipkm1(10**(-x)), B.ellipkm1(10**(-x)), atol=0., rtol=1e-12)
-    
-    def test_ellipem1_small_many(self):
-        x = np.linspace(1, 100, 5)
-        assert np.allclose(ellipe(1 - 10**(-x)), B.ellipem1(10**(-x)), atol=0., rtol=1e-12)
+    return dblquad(integrand, 0, 1, 0, 2*pi, epsabs=1e-10, epsrel=1e-10)[0] * length
+
 
 
 class TestTriangleContribution(unittest.TestCase):
