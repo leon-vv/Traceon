@@ -1354,59 +1354,6 @@ double self_voltage_radial(double alpha, void *args_p) {
 	return jac * args->cb_fun(args->target[0], args->target[1], pos[0], pos[1], &cb_args);
 }
 
-void fill_self_voltages_radial(double *matrix, 
-                        vertices_2d line_points,
-						uint8_t *excitation_types,
-						double *excitation_values,
-						size_t N_lines,
-						size_t N_matrix,
-                        int lines_range_start, 
-                        int lines_range_end) {
-	 
-	gsl_integration_workspace * w = gsl_integration_workspace_alloc(ADAPTIVE_MAX_ITERATION);
-	
-	for(int i = lines_range_start; i <= lines_range_end; i++) {
-		double *v1 = &line_points[i][0][0];
-		double *v2 = &line_points[i][2][0];
-		double *v3 = &line_points[i][3][0];
-		double *v4 = &line_points[i][1][0];
-		
-		double target[2], jac;
-		position_and_jacobian_radial(0.0, v1, v2, v3, v4, target, &jac);
-		
-		double normal[2];
-		higher_order_normal_radial(0.0, v1, v2, v3, v4, normal);
-		//normal_2d(v1, v2, normal);
-			
-		enum ExcitationType type_ = excitation_types[i];
-			
-		struct self_voltage_radial_args integration_args = {
-			.target = target,
-			.line_points = &line_points[i][0],
-			.normal = normal,
-			.K = excitation_values[i],
-			.cb_fun = (type_ != DIELECTRIC && type_ != MAGNETIZABLE) ? potential_radial_ring : field_dot_normal_radial
-		};
-			
-		gsl_function F;
-		F.function = &self_voltage_radial;
-		F.params = &integration_args;
-			
-		double result, error;
-		double singular_points[3] = {-1, 0, 1};
-		gsl_integration_qagp(&F, singular_points, 3, 1e-9, 1e-9, ADAPTIVE_MAX_ITERATION, w, &result, &error);
-
-		if(type_ == DIELECTRIC || type_ == MAGNETIZABLE) {
-			matrix[N_matrix*i + i] = result - 1;
-		}
-		else {
-			matrix[N_matrix*i + i] = result;
-		}
-	}
-	
-	gsl_integration_workspace_free(w);
-}
-
 EXPORT void fill_jacobian_buffer_radial(
 	jacobian_buffer_2d jacobian_buffer,
 	position_buffer_2d pos_buffer,
@@ -1494,8 +1441,6 @@ EXPORT void fill_matrix_radial(double *matrix,
             exit(1);
 		}
 	}
-	
-	//fill_self_voltages_radial(matrix, line_points, excitation_types, excitation_values, N_lines, N_matrix, lines_range_start, lines_range_end);
 }
 
 EXPORT void fill_jacobian_buffer_3d(
