@@ -107,12 +107,9 @@ typedef double (*charges_2d)[N_QUAD_2D];
 typedef double (*integration_cb_3d)(double, double, double, double, double, double, void*);
 typedef double (*vertices_3d)[3][3];
 
-typedef double (*positions_3d)[6];
-
 typedef double (*jacobian_buffer_3d)[N_TRIANGLE_QUAD];
 typedef double (*position_buffer_3d)[N_TRIANGLE_QUAD][3];
 
-typedef double (*positions_2d)[4];
 
 typedef double (*jacobian_buffer_2d)[N_QUAD_2D];
 typedef double (*position_buffer_2d)[N_QUAD_2D][2];
@@ -1221,91 +1218,5 @@ EXPORT void fill_matrix_3d(double *restrict matrix,
         }
     }
 }
-
-EXPORT bool
-plane_intersection(double p0[3], double normal[3], positions_3d positions, size_t N_p, double result[6]) {
-	
-	assert(N_p > 1);
-		
-	double xp = p0[0], yp = p0[1], zp = p0[2];
-	double xn = normal[0], yn = normal[1], zn = normal[2];
-
-	// Initial sign
-	int i = N_p-1;
-	
-	double x = positions[i][0], y = positions[i][1], z = positions[i][2];	
-	double prev_kappa = (zn*zp-z*zn+yn*yp-y*yn+xn*xp-x*xn)/norm_3d(xn, yn, zn);
-		
-	i -= 1;
-			
-	for(; i >= 0; i--) {
-		double x = positions[i][0], y = positions[i][1], z = positions[i][2];	
-		double kappa = (zn*zp-z*zn+yn*yp-y*yn+xn*xp-x*xn)/norm_3d(xn, yn, zn);
-		
-		int sign_kappa = kappa > 0 ? 1 : -1;
-		int sign_prev = prev_kappa > 0 ? 1 : -1;
-		
-		if(sign_kappa != sign_prev) {
-			double diff = kappa - prev_kappa;
-			
-			double factor = -prev_kappa / diff;
-			double prev_factor = kappa / diff;
-			
-			for(int k = 0; k < 6; k++)
-				result[k] = prev_factor*positions[i+1][k] + factor*positions[i][k];
-
-			return true;
-		}
-		
-		prev_kappa = kappa;
-	}
-	
-	return false;
-}
-
-EXPORT bool
-line_intersection(double p0[2], double tangent[2], positions_2d positions, size_t N_p, double result[4]) {
-	
-	assert(N_p > 1);
-		
-	double xp = p0[0], yp = p0[1];
-	// Normal components, perpendicular to tangent
-	double xn = tangent[1], yn = -tangent[0];
-
-	// Initial sign
-	int i = N_p-1;
-	
-	double x = positions[i][0], y = positions[i][1];
-	double prev_kappa = (yn*yp-y*yn+xn*xp-x*xn)/norm_2d(xn, yn);
-		
-	i -= 1;
-			
-	for(; i >= 0; i--) {
-		double x = positions[i][0], y = positions[i][1];
-		double kappa = (yn*yp-y*yn+xn*xp-x*xn)/norm_2d(xn, yn);
-			
-		int sign_kappa = kappa > 0 ? 1 : -1;
-		int sign_prev = prev_kappa > 0 ? 1 : -1;
-		
-		if(sign_kappa != sign_prev) {
-			double diff = kappa - prev_kappa;
-			
-			double factor = -prev_kappa / diff;
-			double prev_factor = kappa / diff;
-			
-			for(int k = 0; k < 4; k++)
-				result[k] = prev_factor*positions[i+1][k] + factor*positions[i][k];
-
-			return true;
-		}
-		
-		prev_kappa = kappa;
-	}
-	
-	return false;
-}
-
-
-
 
 
