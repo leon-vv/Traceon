@@ -78,7 +78,7 @@ jobs:
           pip install traceon-*.whl
           pip show traceon
       - name: Run tests
-        run: python -m unittest tests.unit_tests
+        run: python -m unittest tests/*.py
 
   test_windows:
     needs: build_windows
@@ -100,7 +100,7 @@ jobs:
           pip install (get-item traceon-*.whl)
           pip show traceon
       - name: Run tests
-        run: python -m unittest tests.unit_tests
+        run: python -m unittest (get-item tests/*.py)
     
   upload_ubuntu:
     needs: build_ubuntu
