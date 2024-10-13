@@ -6,9 +6,6 @@
 #include <stdbool.h>
 #include <time.h>
 
-#include <gsl/gsl_integration.h>
-#include <gsl/gsl_errno.h>
-
 #include "kronrod.c"
 #include "defs.c"
 #include "utilities_3d.c"
@@ -1391,7 +1388,6 @@ EXPORT void fill_matrix_radial(double *matrix,
                         int lines_range_start, 
                         int lines_range_end) {
     
-	gsl_set_error_handler_off();
 	assert(lines_range_start < N_lines && lines_range_end < N_lines);
 	assert(N_matrix >= N_lines);
 		
@@ -1487,7 +1483,6 @@ EXPORT void fill_matrix_3d(double *restrict matrix,
                     int lines_range_start, 
                     int lines_range_end) {
 	
-	gsl_set_error_handler_off();
 	assert(lines_range_start < N_lines && lines_range_end < N_lines);
 		
     for (int i = lines_range_start; i <= lines_range_end; i++) {

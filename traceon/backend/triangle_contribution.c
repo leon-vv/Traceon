@@ -2,9 +2,6 @@
 #include <time.h>
 #include <math.h>
 
-#include <gsl/gsl_integration.h>
-#include <gsl/gsl_errno.h>
-
 // To efficiently compute the double integrals we define
 // a coordinate system as follows.
 // Let v0, v1, v2 be the vertices of the source triangle
