@@ -9,6 +9,7 @@
 #include <gsl/gsl_integration.h>
 #include <gsl/gsl_errno.h>
 
+#include "kronrod.c"
 #include "defs.c"
 #include "utilities_3d.c"
 #include "triangle_contribution.c"
