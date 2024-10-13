@@ -20,5 +20,9 @@ PyMODINIT_FUNC PyInit_traceon_backend(void) {
 	#define UNROLL
 #endif
 
-#define ADAPTIVE_MAX_ITERATION 5000
+#ifndef M_PI
+    #define M_PI 3.14159265358979323846
+#endif
+
+
 
