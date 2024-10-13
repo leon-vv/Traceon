@@ -8,6 +8,8 @@ import platform
 
 from numpy.ctypeslib import ndpointer
 import numpy as np
+from scipy import LowLevelCallable
+from scipy.integrate import quad
 
 from .. import logging
 
@@ -182,6 +184,8 @@ backend_functions = {
     'current_field': (None, v3, v3, currents_2d, jac_buffer_3d, pos_buffer_3d, sz),
     'current_axial_derivatives_radial_ring': (None, arr(ndim=2), currents_2d, jac_buffer_3d, pos_buffer_3d, sz, z_values, sz),
     'fill_jacobian_buffer_radial': (None, jac_buffer_2d, pos_buffer_2d, vertices, sz),
+    'self_potential_radial': (dbl, dbl, vp),
+    'self_field_dot_normal_radial': (dbl, dbl, vp),
     'fill_matrix_radial': (None, arr(ndim=2), lines, arr(dtype=C.c_uint8, ndim=1), arr(ndim=1), jac_buffer_2d, pos_buffer_2d, sz, sz, C.c_int, C.c_int),
     'fill_jacobian_buffer_3d': (None, jac_buffer_3d, pos_buffer_3d, vertices, sz),
     'fill_matrix_3d': (None, arr(ndim=2), vertices, arr(dtype=C.c_uint8, ndim=1), arr(ndim=1), jac_buffer_3d, pos_buffer_3d, sz, sz, C.c_int, C.c_int),
@@ -196,14 +200,19 @@ def ensure_contiguous_aligned(arr):
     assert not DEBUG or (new_arr is arr), "Made copy while ensuring contiguous array"
     return new_arr
 
+# These are passed directly to scipy.LowLevelCallable, so we shouldn't wrap them in a function
+# that checks the numpy arrays
+numpy_wrapper_exceptions = ['self_potential_radial', 'self_field_dot_normal_radial']
+
 for (fun, (res, *args)) in backend_functions.items():
     libfun = getattr(backend_lib, fun)
-
-    def backend_check_numpy_requirements_wrapper(*args, _cfun_reference=libfun, _cfun_name=fun):
-        new_args = [ (ensure_contiguous_aligned(a) if isinstance(a, np.ndarray) else a) for a in args ]
-        return _cfun_reference(*new_args)
-      
-    setattr(backend_lib, fun, backend_check_numpy_requirements_wrapper)
+    
+    if fun not in numpy_wrapper_exceptions:
+        def backend_check_numpy_requirements_wrapper(*args, _cfun_reference=libfun, _cfun_name=fun):
+            new_args = [ (ensure_contiguous_aligned(a) if isinstance(a, np.ndarray) else a) for a in args ]
+            return _cfun_reference(*new_args)
+        
+        setattr(backend_lib, fun, backend_check_numpy_requirements_wrapper)
      
     libfun.restype = res
     libfun.argtypes = args
@@ -551,6 +560,30 @@ def fill_jacobian_buffer_radial(vertices):
     backend_lib.fill_jacobian_buffer_radial(jac_buffer, pos_buffer, vertices, N)
     
     return jac_buffer, pos_buffer
+
+def self_potential_radial(vertices):
+    assert vertices.shape == (4,3) and vertices.dtype == np.double
+    user_data = vertices.ctypes.data_as(C.c_void_p)
+    low_level = LowLevelCallable(backend_lib.self_potential_radial, user_data=user_data)
+    return quad(low_level, -1, 1, points=(0,), epsabs=1e-9, epsrel=1e-9)[0]
+
+class SelfFieldDotNormalRadialArgs(C.Structure):
+    _fields_ = [("line_points", C.POINTER(C.c_double)), ("K", C.c_double)]
+
+def self_field_dot_normal_radial(vertices, K):
+    assert vertices.shape == (4,3) and vertices.dtype == np.double
+    user_data = vertices.ctypes.data_as(C.c_void_p)
+
+    args = SelfFieldDotNormalRadialArgs()
+    args.K = float(K)
+    args.line_points = vertices.ctypes.data_as(dbl_p)
+
+    user_data = C.cast(C.pointer(args), vp)
+    
+    low_level = LowLevelCallable(backend_lib.self_field_dot_normal_radial, user_data=user_data)
+    return quad(low_level, -1, 1, points=(0,), epsabs=1e-9, epsrel=1e-9)[0]
+
+
 
 def fill_matrix_radial(matrix, lines, excitation_types, excitation_values, jac_buffer, pos_buffer, start_index, end_index):
     N = len(lines)

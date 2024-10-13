@@ -3,22 +3,20 @@ import os
 from setuptools import setup, Extension
 import platform
 
-VCPKG_DIR = 'C:\\vcpkg'
-
 if platform.system() == 'Linux':
     os.environ['CC'] = 'clang' # Clang is known to produce faster binaries.
-    compiler_kwargs = dict(extra_compile_args=['-O3', '-mavx', '-ffast-math', '-DNDEBUG'], extra_link_args=['-lm', '-l:libgsl.a', '-l:libgslcblas.a'])
+    compiler_kwargs = dict(extra_compile_args=['-O3', '-mavx', '-ffast-math', '-DNDEBUG'], extra_link_args=['-lm'])
     extra_objects = []
     include_dirs = []
 elif platform.system() == 'Darwin':
     os.environ['CC'] = 'clang' # Clang is known to produce faster binaries.
-    compiler_kwargs = dict(extra_compile_args=['-O3', '-mavx', '-ffast-math', '-DNDEBUG'], extra_link_args=['-lm', '-L/opt/homebrew/lib', '-lgsl', '-lgslcblas'])
+    compiler_kwargs = dict(extra_compile_args=['-O3', '-mavx', '-ffast-math', '-DNDEBUG'], extra_link_args=['-lm', '-L/opt/homebrew/lib'])
     extra_objects = []
     include_dirs = ['/opt/homebrew/include/']
 elif platform.system() == 'Windows':
     compiler_kwargs = dict(extra_compile_args=['/fp:fast', '/Ox', '/Ob3', '/Oi', '/GL', '/arch:AVX', '-I .\\traceon\\backend\\'])
-    extra_objects = [VCPKG_DIR + '\\packages\\gsl_x64-windows-static\\lib\\gsl.lib']
-    include_dirs = VCPKG_DIR + '\\packages\\gsl_x64-windows-static\\include'
+    extra_objects = []
+    include_dirs = []
 
 
 backend_extension = Extension(

@@ -2,9 +2,6 @@
 #include <time.h>
 #include <math.h>
 
-#include <gsl/gsl_integration.h>
-#include <gsl/gsl_errno.h>
-
 // To efficiently compute the double integrals we define
 // a coordinate system as follows.
 // Let v0, v1, v2 be the vertices of the source triangle
@@ -86,16 +83,7 @@ potential_triangle(double v0[3], double v1[3], double v2[3], double target[3]) {
 	
 	struct _normalized_triangle tri = {x0, y0, a,b,c,z};
 
-	gsl_function F;
-	F.function = _potential_integrand;
-	F.params = (void*) &tri;
-
-	double result, error;
-	gsl_integration_workspace *w = gsl_integration_workspace_alloc(ADAPTIVE_MAX_ITERATION);
-    gsl_integration_qag(&F, 0, c, 1e-9, 1e-9, ADAPTIVE_MAX_ITERATION, GSL_INTEG_GAUSS31, w, &result, &error);
-	gsl_integration_workspace_free(w);
-
-	return result;
+	return kronrod_adaptive(_potential_integrand, 0, c, (void*) &tri, 1e-9, 1e-9);
 }
 
 EXPORT double self_potential_triangle_v0(double v0[3], double v1[3], double v2[3]) {
@@ -200,16 +188,7 @@ flux_triangle(double v0[3], double v1[3], double v2[3], double target[3], double
 		
 	struct _normalized_triangle tri = {x0, y0, a, b, c, z, new_normal};
 	
-	gsl_function F;
-	F.function = _flux_integrand;
-	F.params = (void*) &tri;
-	
-	double result, error;
-	gsl_integration_workspace *w = gsl_integration_workspace_alloc(ADAPTIVE_MAX_ITERATION);
-    gsl_integration_qag(&F, 0, c, 1e-9, 1e-9, ADAPTIVE_MAX_ITERATION, GSL_INTEG_GAUSS31, w, &result, &error);
-	gsl_integration_workspace_free(w);
-	
-	return result;
+	return kronrod_adaptive(_flux_integrand, 0, c, (void*) &tri, 1e-9, 1e-9);
 }
 
 

@@ -20,7 +20,6 @@ jobs:
       - name: Install dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y libgsl-dev libgslcblas0
           pip install --upgrade pip setuptools wheel auditwheel patchelf
       - name: Build the wheel
         run: python setup.py bdist_wheel
@@ -46,7 +45,6 @@ jobs:
       - name: Install dependencies
         shell: powershell
         run: |
-          vcpkg install gsl:x64-windows-static
           pip install --upgrade pip setuptools wheel
       - name: Build the wheel
         run: python setup.py bdist_wheel
