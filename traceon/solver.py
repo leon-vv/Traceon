@@ -53,7 +53,6 @@ import copy
 import numpy as np
 from scipy.interpolate import CubicSpline, BPoly, PPoly
 from scipy.special import legendre
-from scipy.integrate import quad
 
 from . import geometry as G
 from . import excitation as E

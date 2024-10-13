@@ -565,7 +565,7 @@ def self_potential_radial(vertices):
     assert vertices.shape == (4,3) and vertices.dtype == np.double
     user_data = vertices.ctypes.data_as(C.c_void_p)
     low_level = LowLevelCallable(backend_lib.self_potential_radial, user_data=user_data)
-    return quad(low_level, -1, 1, points=(0,), epsabs=1e-9, epsrel=1e-9)[0]
+    return quad(low_level, -1, 1, points=(0,), epsabs=1e-9, epsrel=1e-9, limit=250)[0]
 
 class SelfFieldDotNormalRadialArgs(C.Structure):
     _fields_ = [("line_points", C.POINTER(C.c_double)), ("K", C.c_double)]
@@ -581,7 +581,7 @@ def self_field_dot_normal_radial(vertices, K):
     user_data = C.cast(C.pointer(args), vp)
     
     low_level = LowLevelCallable(backend_lib.self_field_dot_normal_radial, user_data=user_data)
-    return quad(low_level, -1, 1, points=(0,), epsabs=1e-9, epsrel=1e-9)[0]
+    return quad(low_level, -1, 1, points=(0,), epsabs=1e-9, epsrel=1e-9, limit=250)[0]
 
 
 
