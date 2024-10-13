@@ -1282,7 +1282,7 @@ enum ExcitationType{
 	MAGNETOSTATIC_POT=5,
 	MAGNETIZABLE=6};
 
-double self_potential_radial(double alpha, double line_points[4][3]) {
+EXPORT double self_potential_radial(double alpha, double line_points[4][3]) {
 
 	double *v1 = line_points[0];
 	double *v2 = line_points[2];
@@ -1303,7 +1303,7 @@ struct self_field_dot_normal_radial_args {
 	double K;
 };
 
-double self_field_dot_normal_radial(double alpha, struct self_field_dot_normal_radial_args* args) {
+EXPORT double self_field_dot_normal_radial(double alpha, struct self_field_dot_normal_radial_args* args) {
 	
 	double *v1 = args->line_points[0];
 	double *v2 = args->line_points[2];
