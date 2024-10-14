@@ -1,5 +1,5 @@
 
-
+#define DERIV_2D_MAX 9
 
 INLINE double flux_density_to_charge_factor(double K) {
 // There is quite some derivation to this factor.
@@ -103,4 +103,18 @@ current_field_radial_ring(double x0, double y0, double x, double y, double resul
 	result[1] = 1./M_PI * 1/(2*sqrt(A)) * ( (pow(a,2) - pow(z,2) - pow(r,2))/B * ellipe(k) + ellipk(k) );
 }
 
+EXPORT void
+axial_derivatives_radial_ring(double z0, double r, double z, double derivs[DERIV_2D_MAX]) {
+	
+	double R = norm_2d(z0-z, r);
+	
+	derivs[0] = 1/R;
+	derivs[1] = -(z0-z)/pow(R, 3);
+		
+	for(int n = 1; n+1 < DERIV_2D_MAX; n++)
+		derivs[n+1] = -1./pow(R,2) *( (2*n + 1)*(z0-z)*derivs[n] + pow(n,2)*derivs[n-1]);
+	
+	for(int n = 0; n < DERIV_2D_MAX; n++)
+		derivs[n] *= r/2;
+}
 

@@ -154,7 +154,7 @@ backend_functions = {
     'potential_radial_ring': (dbl, dbl, dbl, dbl, dbl, vp), 
     'dr1_potential_radial_ring': (dbl, dbl, dbl, dbl, dbl, vp), 
     'dz1_potential_radial_ring': (dbl, dbl, dbl, dbl, dbl, vp), 
-    'axial_derivatives_radial_ring': (None, arr(ndim=2), charges_2d, jac_buffer_2d, pos_buffer_2d, sz, z_values, sz),
+    'axial_derivatives_radial': (None, arr(ndim=2), charges_2d, jac_buffer_2d, pos_buffer_2d, sz, z_values, sz),
     'potential_radial': (dbl, v2, charges_2d, jac_buffer_2d, pos_buffer_2d, sz),
     'potential_radial_derivs': (dbl, v2, z_values, arr(ndim=3), sz),
     'flux_density_to_charge_factor': (dbl, dbl),
@@ -403,14 +403,14 @@ potential_radial_ring = lambda *args: backend_lib.potential_radial_ring(*args, N
 dr1_potential_radial_ring = lambda *args: backend_lib.dr1_potential_radial_ring(*args, None)
 dz1_potential_radial_ring = lambda *args: backend_lib.dz1_potential_radial_ring(*args, None)
 
-def axial_derivatives_radial_ring(z, charges, jac_buffer, pos_buffer):
+def axial_derivatives_radial(z, charges, jac_buffer, pos_buffer):
     derivs = np.zeros( (z.size, DERIV_2D_MAX) )
     
     assert jac_buffer.shape == (len(charges), N_QUAD_2D)
     assert pos_buffer.shape == (len(charges), N_QUAD_2D, 2)
     assert charges.shape == (len(charges),)
      
-    backend_lib.axial_derivatives_radial_ring(derivs,charges, jac_buffer, pos_buffer, len(charges), z, len(z))
+    backend_lib.axial_derivatives_radial(derivs,charges, jac_buffer, pos_buffer, len(charges), z, len(z))
     return derivs
 
 def potential_radial(point, charges, jac_buffer, pos_buffer):

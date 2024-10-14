@@ -1,5 +1,4 @@
 
-#define DERIV_2D_MAX 9
 
 EXPORT const int DERIV_2D_MAX_SYM = DERIV_2D_MAX;
 
@@ -17,7 +16,7 @@ struct effective_point_charges_2d {
 
 
 EXPORT void
-axial_derivatives_radial_ring(double *derivs_p, double *charges, jacobian_buffer_2d jac_buffer, position_buffer_2d pos_buffer, size_t N_lines, double *z, size_t N_z) {
+axial_derivatives_radial(double *derivs_p, double *charges, jacobian_buffer_2d jac_buffer, position_buffer_2d pos_buffer, size_t N_lines, double *z, size_t N_z) {
 
 	double (*derivs)[DERIV_2D_MAX] = (double (*)[DERIV_2D_MAX]) derivs_p;	
 		
@@ -25,18 +24,14 @@ axial_derivatives_radial_ring(double *derivs_p, double *charges, jacobian_buffer
 	for(int j = 0; j < N_lines; j++)
 	for(int k = 0; k < N_QUAD_2D; k++) {
 		double z0 = z[i];
-		double r = pos_buffer[j][k][0], z = pos_buffer[j][k][1];
+		double r = pos_buffer[j][k][0];
+		double z = pos_buffer[j][k][1];
+
+		double D[DERIV_2D_MAX];
+
+		axial_derivatives_radial_ring(z0, r, z, D);
 		
-		double R = norm_2d(z0-z, r);
-		
-		double D[DERIV_2D_MAX] = {0.}; // Derivatives of the currently considered line element.
-		D[0] = 1/R;
-		D[1] = -(z0-z)/pow(R, 3);
-			
-		for(int n = 1; n+1 < DERIV_2D_MAX; n++)
-			D[n+1] = -1./pow(R,2) *( (2*n + 1)*(z0-z)*D[n] + pow(n,2)*D[n-1]);
-			
-		for(int l = 0; l < DERIV_2D_MAX; l++) derivs[i][l] += jac_buffer[j][k] * charges[j] * r/2 * D[l];
+		for(int l = 0; l < DERIV_2D_MAX; l++) derivs[i][l] += jac_buffer[j][k] * charges[j] * D[l];
 	}
 }
 
