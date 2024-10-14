@@ -25,4 +25,20 @@ PyMODINIT_FUNC PyInit_traceon_backend(void) {
 #endif
 
 
+// python -c "from scipy.constants import m_e, e; print(-e/m_e);"
+const double EM = -175882001077.2163; // Electron charge over electron mass
+// python -c "from scipy.constants import mu_0; print(mu_0);"
+const double MU_0 = 1.25663706212e-06;
+
+
+enum ExcitationType{
+    VOLTAGE_FIXED = 1,
+    VOLTAGE_FUN = 2,
+    DIELECTRIC = 3,
+	CURRENT=4,
+	MAGNETOSTATIC_POT=5,
+	MAGNETIZABLE=6};
+
+
+
 

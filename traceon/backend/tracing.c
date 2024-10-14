@@ -6,11 +6,6 @@ typedef double (*positions_3d)[6];
 
 EXPORT const size_t TRACING_BLOCK_SIZE = (size_t) 1e5;
 
-// python -c "from scipy.constants import m_e, e; print(-e/m_e);"
-const double EM = -175882001077.2163; // Electron charge over electron mass
-// python -c "from scipy.constants import mu_0; print(mu_0);"
-const double MU_0 = 1.25663706212e-06;
-
 const double A[]  = {0.0, 2./9., 1./3., 3./4., 1., 5./6.};	// https://en.wikipedia.org/wiki/Runge%E2%80%93Kutta%E2%80%93Fehlberg_method
 const double B6[] = {65./432., -5./16., 13./16., 4./27., 5./144.};
 const double B5[] = {-17./12., 27./4., -27./5., 16./15.};
