@@ -118,3 +118,17 @@ axial_derivatives_radial_ring(double z0, double r, double z, double derivs[DERIV
 		derivs[n] *= r/2;
 }
 
+EXPORT void
+current_axial_derivatives_radial_ring(double z0, double r, double z, double derivs[DERIV_2D_MAX]) {
+
+	double dz = z0-z;	
+	double R = norm_2d(dz, r);
+	double mu = dz/R;
+	
+	derivs[0] = -dz/(2*sqrt(dz*dz + r*r));
+	derivs[1] = -r*r/(2*pow(dz*dz + r*r, 1.5));
+		
+	for(int n = 2; n < DERIV_2D_MAX; n++)
+		derivs[n] = -(2*n-1)*mu/R*derivs[n-1] - (n*n - 2*n)/(R*R)*derivs[n-2];
+}
+

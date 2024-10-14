@@ -858,7 +858,7 @@ class FieldRadialBEM(FieldBEM):
         currents = self.current_point_charges.charges
         jacobians = self.current_point_charges.jacobians
         positions = self.current_point_charges.positions
-        return backend.current_axial_derivatives_radial_ring(z, currents, jacobians, positions)
+        return backend.current_axial_derivatives_radial(z, currents, jacobians, positions)
       
     def axial_derivative_interpolation(self, zmin, zmax, N=None):
         """

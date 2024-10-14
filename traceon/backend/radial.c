@@ -82,9 +82,8 @@ current_field(double point[3], double result[3], double *currents,
 	result[2] = Bz;
 }
 
-// TODO: fix name, radial_ring is not consistent with other naming
 EXPORT void
-current_axial_derivatives_radial_ring(double *derivs_p,
+current_axial_derivatives_radial(double *derivs_p,
 		double *currents, jacobian_buffer_3d jac_buffer, position_buffer_3d pos_buffer, size_t N_vertices, double *z, size_t N_z) {
 
 	double (*derivs)[DERIV_2D_MAX] = (double (*)[DERIV_2D_MAX]) derivs_p;	
@@ -95,16 +94,9 @@ current_axial_derivatives_radial_ring(double *derivs_p,
 		double z0 = z[i];
 		double r = pos_buffer[j][k][0], z = pos_buffer[j][k][1];
 
-		double dz = z0-z;	
-		double R = norm_2d(dz, r);
-		double mu = dz/R;
+		double D[DERIV_2D_MAX];
 		
-		double D[DERIV_2D_MAX] = {0.}; // Derivatives of the currently considered line element.
-		D[0] = -dz/(2*sqrt(dz*dz + r*r));
-		D[1] = -r*r/(2*pow(dz*dz + r*r, 1.5));
-			
-		for(int n = 2; n < DERIV_2D_MAX; n++)
-			D[n] = -(2*n-1)*mu/R*D[n-1] - (n*n - 2*n)/(R*R)*D[n-2];
+		current_axial_derivatives_radial_ring(z0, r, z, D);
 			
 		for(int l = 0; l < DERIV_2D_MAX; l++) derivs[i][l] += jac_buffer[j][k] * currents[j] * D[l];
 	}
