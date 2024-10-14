@@ -40,7 +40,7 @@ const double K15_NODES[K15_WEIGHTS_SIZE] = {
     0.991455371120813,
 };
 
-double kronrod_adaptive(double (*f)(double, void*), double a, double b, void* args, double abs_tol, double rel_tol) {
+EXPORT double kronrod_adaptive(double (*f)(double, void*), double a, double b, void* args, double abs_tol, double rel_tol) {
     double result = 0.0;
     double current_start = a;
     double current_end = b;

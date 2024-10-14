@@ -140,6 +140,7 @@ backend_functions = {
     'self_potential_triangle_v0': (dbl, v3, v3, v3),
     'self_potential_triangle': (dbl, v3, v3, v3, v3),
     'flux_triangle': (dbl, v3, v3, v3, v3, v3),
+    'kronrod_adaptive': (dbl, integration_cb_1d, dbl, dbl, vp, dbl, dbl),
      
     'ellipkm1' : (dbl, dbl),
     'ellipk' : (dbl, dbl),
@@ -223,6 +224,10 @@ ellipkm1 = np.vectorize(backend_lib.ellipkm1)
 ellipk = np.vectorize(backend_lib.ellipk)
 ellipem1 = np.vectorize(backend_lib.ellipem1)
 ellipe = np.vectorize(backend_lib.ellipe)
+
+def kronrod_adaptive(fun, a, b, epsabs=1.49e-08, epsrel=1.49e-08):
+    callback = integration_cb_1d(lambda x, _: fun(x))
+    return backend_lib.kronrod_adaptive(callback, a, b, vp(None), epsabs, epsrel)
 
 def higher_order_normal_radial(alpha, vertices):
     normal = np.zeros(2)
