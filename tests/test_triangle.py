@@ -33,7 +33,7 @@ def flux_exact_integrated(v0, v1, v2, target, normal):
     return dblquad(flux_exact, 0, 1, 0, lambda x: 1-x, epsabs=5e-14, epsrel=5e-14, args=(target, (v0, v1, v2), normal))[0] * (2*area)
 
 
-class TestTriangleContribution(unittest.TestCase):
+class TestTriangle(unittest.TestCase):
 
     def test_self_potential_quadrants(self):
         def test(a, b, c):

@@ -11,10 +11,10 @@
 #include "kronrod.c"
 #include "utilities_2d.c"
 #include "utilities_3d.c"
+#include "triangle.c"
 
 
 #include "radial_ring.c"
-#include "triangle_contribution.c"
 #include "three_d_point.c"
 #include "three_d.c"
 #include "radial.c"
