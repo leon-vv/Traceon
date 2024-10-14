@@ -1,6 +1,5 @@
 
 
-#define MIN_DISTANCE_AXIS 1e-10
 
 INLINE double flux_density_to_charge_factor(double K) {
 // There is quite some derivation to this factor.

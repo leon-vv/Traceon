@@ -1,4 +1,5 @@
 
+#define MIN_DISTANCE_AXIS 1e-10
 #define NU_MAX 4
 #define M_MAX 8
 
