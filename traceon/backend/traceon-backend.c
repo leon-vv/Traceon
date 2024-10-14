@@ -6,7 +6,7 @@
 #include <stdbool.h>
 #include <time.h>
 
-#include "defs.c"
+#include "definitions.c"
 #include "elliptic.c"
 #include "kronrod.c"
 #include "utilities_2d.c"
