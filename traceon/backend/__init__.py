@@ -77,8 +77,6 @@ vp = C.c_void_p
 sz = C.c_size_t
 
 integration_cb_1d = C.CFUNCTYPE(dbl, dbl, vp)
-integration_cb_2d = C.CFUNCTYPE(dbl, dbl, dbl, dbl, dbl, vp)
-integration_cb_3d = C.CFUNCTYPE(dbl, dbl, dbl, dbl, dbl, dbl, dbl, vp)
 field_fun = C.CFUNCTYPE(None, C.POINTER(dbl), C.POINTER(dbl), vp);
 
 vertices = arr(ndim=3)

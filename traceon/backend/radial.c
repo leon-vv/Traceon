@@ -1,6 +1,8 @@
 
 #define DERIV_2D_MAX 9
 
+EXPORT const int DERIV_2D_MAX_SYM = DERIV_2D_MAX;
+
 typedef double (*jacobian_buffer_2d)[N_QUAD_2D];
 typedef double (*position_buffer_2d)[N_QUAD_2D][2];
 
@@ -215,58 +217,6 @@ struct field_evaluation_args {
 	double *bounds;
 };
 
-void
-field_radial_traceable(double point[6], double result[3], void *args_p) {
-	
-	struct field_evaluation_args *args = (struct field_evaluation_args*) args_p;
-
-	struct effective_point_charges_2d *elec_charges = (struct effective_point_charges_2d*) args->elec_charges;
-	struct effective_point_charges_2d *mag_charges = (struct effective_point_charges_2d*) args->mag_charges;
-	struct effective_point_charges_3d *current_charges = (struct effective_point_charges_3d*) args->current_charges;
-	
-	double (*bounds)[2] = (double (*)[2]) args->bounds;
-	
-	if(args->bounds == NULL || ((bounds[0][0] < point[0]) && (point[0] < bounds[0][1])
-						 && (bounds[1][0] < point[1]) && (point[1] < bounds[1][1]))) {
-		
-		double elec_field[3] = {0.};
-		double mag_field[3] = {0.};
-		double curr_field[3] = {0.};
-		
-		field_radial(point, elec_field,
-			elec_charges->charges, elec_charges->jacobians, elec_charges->positions, elec_charges->N);
-		
-		field_radial(point, mag_field,
-			mag_charges->charges, mag_charges->jacobians, mag_charges->positions, mag_charges->N);
-			
-		current_field(point, curr_field,
-			current_charges->charges, current_charges->jacobians, current_charges->positions, current_charges->N);
-			
-		combine_elec_magnetic_field(point + 3, elec_field, mag_field, curr_field, result);
-	}
-	else {
-		result[0] = 0.;
-		result[1] = 0.;
-		result[2] = 0.;
-	}
-}
-
-EXPORT size_t
-trace_particle_radial(double *times_array, double *pos_array, double tracer_bounds[3][2], double atol, double *field_bounds,
-		struct effective_point_charges_2d eff_elec,
-		struct effective_point_charges_2d eff_mag,
-		struct effective_point_charges_3d eff_current) {
-	
-	struct field_evaluation_args args = {
-		.elec_charges = (void*) &eff_elec,
-		.mag_charges = (void*) &eff_mag,
-		.current_charges = (void*) &eff_current,
-		.bounds = field_bounds
-	};
-		
-	return trace_particle(times_array, pos_array, field_radial_traceable, tracer_bounds, atol, (void*) &args);
-}
-
 EXPORT double self_potential_radial(double alpha, double line_points[4][3]) {
 
 	double *v1 = line_points[0];
@@ -396,5 +346,41 @@ EXPORT void fill_matrix_radial(double *matrix,
 		}
 	}
 }
+
+EXPORT void
+field_radial_derivs(double point[3], double field[3], double *z_inter, double *coeff_p, size_t N_z) {
+	double (*coeff)[DERIV_2D_MAX][6] = (double (*)[DERIV_2D_MAX][6]) coeff_p;
+	
+	double r = norm_2d(point[0], point[1]), z = point[2];
+	double z0 = z_inter[0], zlast = z_inter[N_z-1];
+	
+	if(!(z0 < z && z < zlast)) {
+		field[0] = 0.0; field[1] = 0.0; field[2] = 0.0;
+		return;
+	}
+	
+	double dz = z_inter[1] - z_inter[0];
+	int index = (int) ( (z-z0)/dz );
+	double diffz = z - z_inter[index];
+		
+	double (*C)[6] = &coeff[index][0];
+		
+	double derivs[DERIV_2D_MAX];
+
+	for(int i = 0; i < DERIV_2D_MAX; i++)
+		derivs[i] = C[i][0]*pow(diffz, 5) + C[i][1]*pow(diffz, 4) + C[i][2]*pow(diffz, 3)
+			      +	C[i][3]*pow(diffz, 2) + C[i][4]*diffz		  + C[i][5];
+		
+	// Field radial is already divided by r, such that x/r*field and y/r*field below do not cause divide by zero errors
+	double field_radial = 0.5*(derivs[2] - pow(r,2)/8*derivs[4] + pow(r,4)/192*derivs[6] - pow(r,6)/9216*derivs[8]);
+	double field_z = -derivs[1] + pow(r,2)/4*derivs[3] - pow(r,4)/64*derivs[5] + pow(r,6)/2304*derivs[7];
+
+	field[0] = point[0]*field_radial;
+	field[1] = point[1]*field_radial;
+	field[2] = field_z;
+}
+
+
+
 
 

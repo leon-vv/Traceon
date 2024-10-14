@@ -111,6 +111,264 @@ trace_particle(double *times_array, double *pos_array, field_fun field, double b
 	return N;
 }
 
+void
+field_radial_traceable(double point[6], double result[3], void *args_p) {
+	
+	struct field_evaluation_args *args = (struct field_evaluation_args*) args_p;
+
+	struct effective_point_charges_2d *elec_charges = (struct effective_point_charges_2d*) args->elec_charges;
+	struct effective_point_charges_2d *mag_charges = (struct effective_point_charges_2d*) args->mag_charges;
+	struct effective_point_charges_3d *current_charges = (struct effective_point_charges_3d*) args->current_charges;
+	
+	double (*bounds)[2] = (double (*)[2]) args->bounds;
+	
+	if(args->bounds == NULL || ((bounds[0][0] < point[0]) && (point[0] < bounds[0][1])
+						 && (bounds[1][0] < point[1]) && (point[1] < bounds[1][1]))) {
+		
+		double elec_field[3] = {0.};
+		double mag_field[3] = {0.};
+		double curr_field[3] = {0.};
+		
+		field_radial(point, elec_field,
+			elec_charges->charges, elec_charges->jacobians, elec_charges->positions, elec_charges->N);
+		
+		field_radial(point, mag_field,
+			mag_charges->charges, mag_charges->jacobians, mag_charges->positions, mag_charges->N);
+			
+		current_field(point, curr_field,
+			current_charges->charges, current_charges->jacobians, current_charges->positions, current_charges->N);
+			
+		combine_elec_magnetic_field(point + 3, elec_field, mag_field, curr_field, result);
+	}
+	else {
+		result[0] = 0.;
+		result[1] = 0.;
+		result[2] = 0.;
+	}
+}
+
+
+
+EXPORT size_t
+trace_particle_radial(double *times_array, double *pos_array, double tracer_bounds[3][2], double atol, double *field_bounds,
+		struct effective_point_charges_2d eff_elec,
+		struct effective_point_charges_2d eff_mag,
+		struct effective_point_charges_3d eff_current) {
+	
+	struct field_evaluation_args args = {
+		.elec_charges = (void*) &eff_elec,
+		.mag_charges = (void*) &eff_mag,
+		.current_charges = (void*) &eff_current,
+		.bounds = field_bounds
+	};
+		
+	return trace_particle(times_array, pos_array, field_radial_traceable, tracer_bounds, atol, (void*) &args);
+}
+
+void
+field_radial_derivs_traceable(double point[6], double field[3], void *args_p) {
+	struct field_derivs_args *args = (struct field_derivs_args*) args_p;
+
+	double elec_field[3];
+	field_radial_derivs(point, elec_field, args->z_interpolation, args->electrostatic_axial_coeffs, args->N_z);
+	
+	double mag_field[3];
+	field_radial_derivs(point, mag_field, args->z_interpolation, args->magnetostatic_axial_coeffs, args->N_z);
+
+	double curr_field[3] = {0., 0., 0.};
+	combine_elec_magnetic_field(point + 3, elec_field, mag_field, curr_field, field);
+}
+
+EXPORT size_t
+trace_particle_radial_derivs(double *times_array, double *pos_array, double bounds[3][2], double atol,
+	double *z_interpolation, double *electrostatic_coeffs, double *magnetostatic_coeffs, size_t N_z) {
+
+	struct field_derivs_args args = { z_interpolation, electrostatic_coeffs, magnetostatic_coeffs, N_z };
+		
+	return trace_particle(times_array, pos_array, field_radial_derivs_traceable, bounds, atol, (void*) &args);
+}
+
+void
+field_3d_traceable(double point[6], double result[3], void *args_p) {
+	struct field_evaluation_args *args = (struct field_evaluation_args*)args_p;
+	struct effective_point_charges_3d *elec_charges = (struct effective_point_charges_3d*) args->elec_charges;
+	struct effective_point_charges_3d *mag_charges = (struct effective_point_charges_3d*) args->mag_charges;
+	
+	double (*bounds)[2] = (double (*)[2]) args->bounds;
+	
+	if(	bounds == NULL || ((bounds[0][0] < point[0]) && (point[0] < bounds[0][1])
+		&& (bounds[1][0] < point[1]) && (point[1] < bounds[1][1])
+		&& (bounds[2][0] < point[2]) && (point[2] < bounds[2][1])) ) {
+
+		double elec_field[3] = {0.};
+		double mag_field[3] = {0.};
+		double curr_field[3] = {0.};
+			
+		field_3d(point, elec_field, elec_charges->charges, elec_charges->jacobians, elec_charges->positions, elec_charges->N);
+		field_3d(point, mag_field, mag_charges->charges, mag_charges->jacobians, mag_charges->positions, mag_charges->N);
+		combine_elec_magnetic_field(point + 3, elec_field, mag_field, curr_field, result);
+	}
+	else {
+		result[0] = 0.0;
+		result[1] = 0.0;
+		result[2] = 0.0;
+	}
+}
+
+EXPORT size_t
+trace_particle_3d(double *times_array, double *pos_array, double tracer_bounds[3][2], double atol,
+		struct effective_point_charges_3d eff_elec, struct effective_point_charges_3d eff_mag, double *field_bounds) {
+	
+	struct field_evaluation_args args = {.elec_charges = (void*) &eff_elec, .mag_charges = (void*) &eff_mag, .bounds = field_bounds};
+	
+	return trace_particle(times_array, pos_array, field_3d_traceable, tracer_bounds, atol, (void*) &args);
+}
+
+
+
+void
+field_3d_derivs_traceable(double point[6], double field[3], void *args_p) {
+	struct field_derivs_args *args = (struct field_derivs_args*) args_p;
+	
+	double elec_field[3];
+	field_3d_derivs(point, elec_field, args->z_interpolation, args->electrostatic_axial_coeffs, args->N_z);
+	
+	double mag_field[3];
+	field_3d_derivs(point, mag_field, args->z_interpolation, args->magnetostatic_axial_coeffs, args->N_z);
+	
+	double curr_field[3] = {0., 0., 0.};
+	combine_elec_magnetic_field(point + 3, elec_field, mag_field, curr_field, field);
+}
+
+EXPORT size_t
+trace_particle_3d_derivs(double *times_array, double *pos_array, double bounds[3][2], double atol,
+	double *z_interpolation, double *electrostatic_coeffs, double *magnetostatic_coeffs, size_t N_z) {
+
+	struct field_derivs_args args = { z_interpolation, electrostatic_coeffs, magnetostatic_coeffs, N_z };
+	
+	return trace_particle(times_array, pos_array, field_3d_derivs_traceable, bounds, atol, (void*) &args);
+}
+
+
+EXPORT void fill_jacobian_buffer_3d(
+	jacobian_buffer_3d jacobian_buffer,
+	position_buffer_3d pos_buffer,
+    vertices_3d t,
+    size_t N_triangles) {
+		
+    for(int i = 0; i < N_triangles; i++) {  
+		
+		double x1 = t[i][0][0], y1 = t[i][0][1], z1 = t[i][0][2];
+		double x2 = t[i][1][0], y2 = t[i][1][1], z2 = t[i][1][2];
+		double x3 = t[i][2][0], y3 = t[i][2][1], z3 = t[i][2][2];
+				
+		double area = 0.5*sqrt(
+			pow((y2-y1)*(z3-z1)-(y3-y1)*(z2-z1), 2) +
+			pow((x3-x1)*(z2-z1)-(x2-x1)*(z3-z1), 2) +
+			pow((x2-x1)*(y3-y1)-(x3-x1)*(y2-y1), 2));
+		
+        for (int k=0; k < N_TRIANGLE_QUAD; k++) {  
+            double b1_ = QUAD_B1[k];  
+            double b2_ = QUAD_B2[k];  
+            double w = QUAD_WEIGHTS[k];  
+			
+            jacobian_buffer[i][k] = 2 * w * area;
+            pos_buffer[i][k][0] = x1 + b1_*(x2 - x1) + b2_*(x3 - x1);
+            pos_buffer[i][k][1] = y1 + b1_*(y2 - y1) + b2_*(y3 - y1);
+            pos_buffer[i][k][2] = z1 + b1_*(z2 - z1) + b2_*(z3 - z1);
+        }
+    }
+}
+
+EXPORT void fill_matrix_3d(double *restrict matrix, 
+                    vertices_3d triangle_points, 
+                    uint8_t *excitation_types, 
+                    double *excitation_values, 
+					jacobian_buffer_3d jacobian_buffer,
+					position_buffer_3d pos_buffer,
+					size_t N_lines,
+					size_t N_matrix,
+                    int lines_range_start, 
+                    int lines_range_end) {
+	
+	assert(lines_range_start < N_lines && lines_range_end < N_lines);
+		
+    for (int i = lines_range_start; i <= lines_range_end; i++) {
+		double target[3], jac;
+		position_and_jacobian_3d(1/3., 1/3., &triangle_points[i][0], target, &jac);
+			
+        enum ExcitationType type_ = excitation_types[i];
+		 
+        if (type_ == VOLTAGE_FIXED || type_ == VOLTAGE_FUN || type_ == MAGNETOSTATIC_POT) {
+            for (int j = 0; j < N_lines; j++) {
+
+				// Position of first integration point. Check if 
+				// close to the target triangle.
+				double distance = distance_3d(triangle_points[j][0], target);
+				double characteristic_length = distance_3d(triangle_points[j][0], triangle_points[j][1]);
+				
+				if(i == j) {
+					matrix[i*N_matrix + j] = self_potential_triangle(&triangle_points[j][0][0], &triangle_points[j][1][0], &triangle_points[j][2][0], target);
+				}
+				if(i != j && distance > 5*characteristic_length) {
+					for(int k = 0; k < N_TRIANGLE_QUAD; k++) {
+							
+						double *pos = pos_buffer[j][k];
+						double jac = jacobian_buffer[j][k];
+						matrix[i*N_matrix + j] += jac * potential_3d_point(target[0], target[1], target[2], pos[0], pos[1], pos[2], NULL);
+					}
+					
+				}
+				else {
+					matrix[i*N_matrix + j] = potential_triangle(triangle_points[j][0], triangle_points[j][1], triangle_points[j][2], target) / (4*M_PI);
+				}
+				
+            }
+        } 
+		else if (type_ == DIELECTRIC || type_ == MAGNETIZABLE) {  
+			
+			double normal[3];  
+			normal_3d(1/3., 1/3., &triangle_points[i][0], normal);
+			double K = excitation_values[i];  
+			
+			// This factor is hard to derive. It takes into account that the field
+			// calculated at the edge of the dielectric is basically the average of the
+			// field at either side of the surface of the dielecric (the field makes a jump).
+			double factor = flux_density_to_charge_factor(K);
+				
+			for (int j = 0; j < N_lines; j++) {  
+					
+				double distance = distance_3d(triangle_points[j][0], target);
+				double characteristic_length = distance_3d(triangle_points[j][0], triangle_points[j][1]);
+
+				if(i == j) {
+					matrix[i*N_matrix + j] = -1.0;
+				}
+				else if(distance > 5*characteristic_length) {
+					for(int k = 0; k < N_TRIANGLE_QUAD; k++) {
+						double *pos = pos_buffer[j][k];  
+						double jac = jacobian_buffer[j][k];  
+						
+						matrix[i*N_matrix + j] += factor * jac * field_dot_normal_3d(target[0], target[1], target[2], pos[0], pos[1], pos[2], normal);  
+					}
+				}
+				else {
+					double a = triangle_area(triangle_points[j][0], triangle_points[j][1], triangle_points[j][2]);
+					matrix[i*N_matrix + j] = factor * flux_triangle(triangle_points[j][0], triangle_points[j][1], triangle_points[j][2], target, normal) / (4*M_PI);
+				}
+			}  
+		}  
+        else {
+            printf("ExcitationType unknown\n");
+            exit(1);
+        }
+    }
+}
+
+
+
+
+
 EXPORT bool
 plane_intersection(double p0[3], double normal[3], positions_3d positions, size_t N_p, double result[6]) {
 	
