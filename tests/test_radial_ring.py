@@ -3,11 +3,58 @@ from math import pi, cos
 
 import numpy as np
 from scipy.interpolate import CubicSpline
-from scipy.constants import mu_0, epsilon_0
+from scipy.constants import e, m_e, mu_0, epsilon_0
 from scipy.integrate import quad
 
 import traceon.backend as B
-from tests.unit_tests import biot_savart_loop, get_ring_effective_point_charges, magnetic_field_of_loop
+import traceon.logging as logging
+
+logging.set_log_level(logging.LogLevel.SILENT)
+
+
+
+def potential_radial_exact_integrated(v0, v1, target):
+    assert v0.shape == (2,) and v1.shape == (2,) and target.shape == (2,)
+    
+    def integrand(alpha, phi):
+        r, z = v0 + (v1-v0)*alpha
+        r_vec = np.array([r*cos(phi), r*sin(phi), z])
+        distance = np.linalg.norm(r_vec - np.array([target[0], 0.0, target[1]]))
+
+        jacobian = r
+        
+        return 1/(pi*distance) * jacobian
+
+    length = np.linalg.norm(v0-v1)
+    
+    return dblquad(integrand, 0, 1, 0, 2*pi, epsabs=1e-10, epsrel=1e-10)[0] * length
+
+
+q = -e
+EM = q/m_e
+
+# This function is known to give the correct values for the magnetic
+# field for the 'unit loop' (loop with radius 1, in the xy-plane, centered around the origin).
+# Very useful to test against values produced by Traceon.
+# See also https://tiggerntatie.github.io/emagnet/offaxis/iloopcalculator.htm 
+def biot_savart_loop(current, r_point):
+    def biot_savart_integrand(t, axis):
+        r_loop = np.array([np.cos(t), np.sin(t), 0])  # Position vector of the loop element
+        dl = np.array([-np.sin(t), np.cos(t), 0])  # Differential element of the loop
+        r = np.array(r_point) - r_loop  # Displacement vector
+        db = np.cross(dl, r) / np.linalg.norm(r)**3
+        return db[axis]
+        
+    # Magnetic field components
+    Bx, _ = quad(biot_savart_integrand, 0, 2*np.pi, args=(0,), epsabs=5e-13)
+    By, _ = quad(biot_savart_integrand, 0, 2*np.pi, args=(1,), epsabs=5e-13)
+    Bz, _ = quad(biot_savart_integrand, 0, 2*np.pi, args=(2,), epsabs=5e-13)
+    
+    return current * mu_0 / (4 * np.pi) * np.array([Bx, By, Bz])
+
+def magnetic_field_of_loop(current, radius, point):
+    return biot_savart_loop(current, point/radius)/radius
+
 
 def potential_of_ring_arbitrary(dq, r0, z0, r, z):
     def integrand(theta):

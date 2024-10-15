@@ -9,7 +9,9 @@ from scipy.interpolate import CubicSpline
 import traceon.backend as B
 import traceon.solver as S
 import traceon.tracing as T
-from tests.unit_tests import biot_savart_loop, get_ring_effective_point_charges
+
+from tests.test_radial_ring import biot_savart_loop
+from tests.test_radial import get_ring_effective_point_charges
 
 q = -e
 EM = q/m_e
@@ -182,5 +184,24 @@ class TestTracing(unittest.TestCase):
             [0.0, 4.0, 2.0, 0.0, 0.0, 0.0]])
         y = T.xy_plane_intersection(p, 1.75)[1]
         assert np.isclose(y, 3.25)
- 
+    
+    def test_cyclotron_radius(self):
+         
+        x0 = np.array([1., 0., 0.])
+        v0 = np.array([0., 1., 0.])
+        bounds = ((-2., 2.), (0., 2.), (-2., 2.))
+         
+        def field(x, y, z, vx, vy, vz):
+            p, v = np.array([x,y,z]), np.array([vx, vy, vz])
+            mag_field = np.array([0, 0, -1.])
+            return np.cross(v, mag_field) / EM # Return acceleration
+        
+        times, positions = B.trace_particle(x0, v0, field, bounds, 1e-10)
+
+        # Map y-position to state
+        interp = CubicSpline(positions[-10:, 1][::-1], positions[-10:][::-1])
+        
+        # State of particle at intersection of y-axis
+        y_intersection = interp(0.)
+        assert np.allclose(y_intersection, np.array([-1., 0, 0, 0, -1, 0]))
      
