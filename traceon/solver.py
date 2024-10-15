@@ -438,14 +438,10 @@ def solve_bem(excitation, superposition=False, use_fmm=False, fmm_precision=0):
         matrix does not have to be inverted multiple times). However, voltage functions are invalid in the superposition process (position dependent voltages).
     
     use_fmm : bool
-        Use the fast multipole method to calculate the charge distribution. This method is currently only implemented for 3D geometries without
-        higher order elements. This function only works if [pyfmmlib](https://github.com/inducer/pyfmmlib) is installed
-        (version 2023.1 or later). The fast multipole method is usually slower for small 3D problems, but scales much better to problems with >10^5
-        number of triangles.
-
+        Use the fast multipole method to calculate the charge distribution. 
+    
     fmm_precision : int
-        Precision flag passed to the fast multipole library (see iprec argument in the [official documentation](https://github.com/zgimbutas/fmmlib3d/blob/master/doc/fmm3dpart_manual3.pdf)).
-        Usually values -1, 0, 1, 2 will work, choose higher numbers if more precision is desired.
+        Precision flag passed to the fast multipole library, should be one of -1, 0, 1, 2, 3, 4. Choose higher numbers if more precision is desired.
     
     Returns
     -------
