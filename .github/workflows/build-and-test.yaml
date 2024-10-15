@@ -23,6 +23,8 @@ jobs:
           pip install --upgrade pip setuptools wheel auditwheel patchelf
       - name: Build the wheel
         run: python setup.py bdist_wheel
+      - name: Build the source distribution
+        run: python setup.py sdist
       - name: Repair wheel with auditwheel
         run: |
             auditwheel show dist/*.whl
@@ -32,6 +34,12 @@ jobs:
         with:
           name: ubuntu-wheel
           path: wheelhouse/*.whl
+      - name: Upload source distribution
+        uses: actions/upload-artifact@v3
+        with:
+          name: source-distribution
+          path: dist/*.tar.gz
+
 
   build_windows:
     runs-on: windows-latest
