@@ -9,6 +9,11 @@ import traceon.tracing as T
 
 from validation import Validation
 
+try:
+    from traceon_pro import *
+except ImportError:
+    pass
+
 THICKNESS = 0.5
 SPACING = 0.5
 RADIUS = 0.15
@@ -51,7 +56,7 @@ class EinzelLens(Validation):
         #plt.show()
         
         bounds = ((-RADIUS, RADIUS), (-RADIUS, RADIUS), (-5, 3.5))
-        tracer = T.Tracer(field_axial, bounds)
+        tracer = field_axial.get_tracer(bounds)
         
         p0 = np.array([RADIUS/3, 3]) if not _3d else np.array([RADIUS/3, 0.0, 3])
         v0 = T.velocity_vec_xz_plane(1000, 0, three_dimensional=_3d)

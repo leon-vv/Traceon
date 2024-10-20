@@ -60,9 +60,9 @@ from . import logging
 from . import backend
 from . import util
 from . import fast_multipole_method
+from . import tracing as T
 
 FACTOR_AXIAL_DERIV_SAMPLING_2D = 0.2
-FACTOR_AXIAL_DERIV_SAMPLING_3D = 0.06
 
 class Solver:
     
@@ -900,6 +900,10 @@ class FieldRadialBEM(FieldBEM):
         positions = self.electrostatic_point_charges.positions
         return 2*np.pi*np.sum(jacobians[i] * positions[i, :, 0])
     
+    def get_tracer(self, bounds):
+        return T.TracerRadialBEM(self, bounds)
+    
+    
 class Field3D_BEM(FieldBEM):
     """An electrostatic field resulting from a general 3D geometry. The field is a result of the surface charges as computed by the
     `solve_bem` function. See the comments in `FieldBEM`."""
@@ -1021,18 +1025,7 @@ class Field3D_BEM(FieldBEM):
         `Field3DAxial` object allowing fast field evaluations.
 
         """
-        assert zmax > zmin
-        N_charges = max(len(self.electrostatic_point_charges.charges), len(self.magnetostatic_point_charges.charges))
-        N = N if N is not None else int(FACTOR_AXIAL_DERIV_SAMPLING_3D*N_charges)
-        z = np.linspace(zmin, zmax, N)
-        
-        logging.log_info(f'Number of points on z-axis: {len(z)}')
-        st = time.time()
-        elec_coeff = self._effective_point_charges_to_coeff(self.electrostatic_point_charges, z)
-        mag_coeff = self._effective_point_charges_to_coeff(self.magnetostatic_point_charges, z)
-        logging.log_info(f'Time for calculating radial series expansion coefficients: {(time.time()-st)*1000:.0f} ms ({len(z)} items)')
-        
-        return Field3DAxial(z, elec_coeff, mag_coeff)
+        raise NotImplementedError("Axial interpolation in 3D is only supported in Traceon Pro. Please use 'from traceon_pro import *' at the top of the file.")
     
     def _effective_point_charges_to_coeff(self, eff, z): 
         charges = eff.charges
@@ -1047,7 +1040,9 @@ class Field3D_BEM(FieldBEM):
     def area_of_element(self, i):
         jacobians = self.electrostatic_point_charges.jacobians
         return np.sum(jacobians[i])
-
+    
+    def get_tracer(self, bounds):
+        return T.Tracer3D_BEM(self, bounds)
      
 
 class FieldAxial(Field):
@@ -1183,82 +1178,10 @@ class FieldRadialAxial(FieldAxial):
         assert point.shape == (2,)
         return backend.potential_radial_derivs(point, self.z, self.magnetostatic_coeffs)
     
-class Field3DAxial(FieldAxial):
-    """Field computed using a radial series expansion around the optical axis (z-axis). See comments at the start of this page.
-     """
-    
-    def __init__(self, z, electrostatic_coeffs=None, magnetostatic_coeffs=None):
-        super().__init__(z, electrostatic_coeffs, magnetostatic_coeffs)
-        
-        assert electrostatic_coeffs.shape == (len(z)-1, 2, backend.NU_MAX, backend.M_MAX, 4)
-        assert magnetostatic_coeffs.shape == (len(z)-1, 2, backend.NU_MAX, backend.M_MAX, 4)
-     
-    def electrostatic_field_at_point(self, point):
-        """
-        Compute the electric field, \( \\vec{E} = -\\nabla \phi \)
-        
-        Parameters
-        ----------
-        point: (3,) array of float64
-            Position at which to compute the field.
-             
-        Returns
-        -------
-        Numpy array containing the field strengths (in units of V/mm) in the x, y and z directions.
-        """
-        assert point.shape == (3,)
-        return backend.field_3d_derivs(point, self.z, self.electrostatic_coeffs)
-     
-    def electrostatic_potential_at_point(self, point):
-        """
-        Compute the electrostatic potential.
-
-        Parameters
-        ----------
-        point: (3,) array of float64
-            Position at which to compute the potential.
-        
-        Returns
-        -------
-        Potential as a float value (in units of V).
-        """
-        point = np.array(point).astype(np.float64)
-        assert point.shape == (3,)
-        return backend.potential_3d_derivs(point, self.z, self.electrostatic_coeffs)
-    
-    def magnetostatic_field_at_point(self, point):
-        """
-        Compute the magnetic field \\( \\vec{H} \\)
-        
-        Parameters
-        ----------
-        point: (3,) array of float64
-            Position at which to compute the field.
-             
-        Returns
-        -------
-        (3,) np.ndarray of float64 containing the field strength (in units of A/m) in the x, y and z directions.
-        """
-        point = np.array(point).astype(np.float64)
-        assert point.shape == (3,)
-        return backend.field_3d_derivs(point, self.z, self.magnetostatic_coeffs)
-     
-    def magnetostatic_potential_at_point(self, point):
-        """
-        Compute the magnetostatic scalar potential (satisfying \\(\\vec{H} = -\\nabla \\phi \\)) close to the axis.
-        
-        Parameters
-        ----------
-        point: (3,) array of float64
-            Position at which to compute the field.
-        
-        Returns
-        -------
-        Potential as a float value (in units of A).
-        """
-        assert point.shape == (3,)
-        return backend.potential_3d_derivs(point, self.z, self.magnetostatic_coeffs)
+    def get_tracer(self, bounds):
+        return T.TracerRadialAxial(self, bounds)
     
 
     
+   
 

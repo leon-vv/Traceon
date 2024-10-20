@@ -12,6 +12,11 @@ import traceon.solver as S
 
 from validation import Validation
 
+try:
+    from traceon_pro import *
+except ImportError:
+    pass
+
 
 class SimpleMirror(Validation):
 
@@ -75,7 +80,7 @@ class SimpleMirror(Validation):
         bounds = ((-0.22, 0.22), (-0.22, 0.22), (0.02, 11))
          
         axial_field = field.axial_derivative_interpolation(0.02, 4)
-        tracer = T.Tracer(axial_field, bounds)
+        tracer = axial_field.get_tracer(bounds)
          
         pos = np.array([0.0, 10.0]) if not _3d else np.array([0.0, 0.0, 10.0])
         vel = T.velocity_vec_xz_plane(100, 1e-3, three_dimensional=_3d)

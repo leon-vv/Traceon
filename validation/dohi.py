@@ -10,6 +10,10 @@ import traceon.solver as S
 
 from validation import Validation
 
+try:
+    from traceon_pro import *
+except ImportError:
+    pass
 
 class DohiMirror(Validation):
 
@@ -73,7 +77,7 @@ class DohiMirror(Validation):
         field.set_bounds(bounds)
         
         bounds = ((-0.1, 0.1), (-0.03, 0.03), (0.05, 19.0))
-        tracer_derivs = T.Tracer(axial_field, bounds)
+        tracer_derivs = axial_field.get_tracer(bounds)
         
         angle = 0.5e-3
         z0 = 15
