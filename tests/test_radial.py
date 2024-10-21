@@ -12,6 +12,7 @@ import traceon.solver as S
 import traceon.excitation as E
 import traceon.backend as B
 import traceon.logging as logging
+from traceon.interpolation import FieldRadialAxial
 
 from tests.test_radial_ring import potential_of_ring_arbitrary, biot_savart_loop, magnetic_field_of_loop
 
@@ -163,8 +164,9 @@ class TestRadial(unittest.TestCase):
         eff = get_ring_effective_point_charges(current, 1.)
          
         traceon_field = S.FieldRadialBEM(current_point_charges=eff)
-        interp = traceon_field.axial_derivative_interpolation(-5, 5, N=300)
 
+        interp = FieldRadialAxial(traceon_field, -5, 5, N=300)
+         
         z = interp.z[1:-1]
 
         pot = [traceon_field.current_potential_axial(z_) for z_ in z]
@@ -198,7 +200,7 @@ class TestRadial(unittest.TestCase):
         e.add_magnetostatic_potential(r2 = -10)
          
         field = S.solve_bem(e)
-        field_axial = field.axial_derivative_interpolation(-4.5, 4.5, N=1000)
+        field_axial = FieldRadialAxial(field, -4.5, 4.5, N=1000)
           
         z = np.linspace(-4.5, 4.5, 300)
         derivs = field.get_magnetostatic_axial_potential_derivatives(z)

@@ -51,7 +51,6 @@ import os.path as path
 import copy
 
 import numpy as np
-from scipy.interpolate import CubicSpline, BPoly, PPoly
 from scipy.special import legendre
 
 from . import geometry as G
@@ -205,26 +204,6 @@ class Solver:
         assert len(result) == len(F)
         return result
         
-    def solve_fmm(self, precision=0):
-        assert self.is_3d() and not self.is_higher_order(), "Fast multipole method is only supported for simple 3D geometries (non higher order triangles)."
-        assert isinstance(precision, int) and -2 <= precision <= 5, "Precision should be an intenger -2 <= precision <= 5"
-         
-        triangles = self.vertices
-        logging.log_info(f'Using FMM solver, number of elements: {len(triangles)}, symmetry: {self.excitation.mesh.symmetry}, precision: {precision}')
-        
-        N = len(triangles)
-        assert triangles.shape == (N, 3, 3)
-         
-        F = self.get_right_hand_side()
-        assert F.shape == (N,)
-         
-        st = time.time()
-        dielectric_indices = self.get_flux_indices()
-        dielectric_values = self.excitation_values[dielectric_indices]
-        charges, count = fast_multipole_method.solve_iteratively(self.vertices, dielectric_indices, dielectric_values, F, precision=precision)
-        logging.log_info(f'Time for solving FMM: {(time.time()-st)*1000:.0f} ms (iterations: {count})')
-        
-        return self.charges_to_field(EffectivePointCharges(charges, self.jac_buffer, self.pos_buffer))
 
 class ElectrostaticSolver(Solver):
     
@@ -491,33 +470,9 @@ def solve_bem(excitation, superposition=False, use_fmm=False, fmm_precision=0):
             elif mag and not elec:
                 return MagnetostaticSolver(excitation).solve_matrix()[0]
 
-def _get_one_dimensional_high_order_ppoly(z, y, dydz, dydz2):
-    bpoly = BPoly.from_derivatives(z, np.array([y, dydz, dydz2]).T)
-    return PPoly.from_bernstein_basis(bpoly)
 
-def _quintic_spline_coefficients(z, derivs):
-    # k is degree of polynomial
-    #assert derivs.shape == (z.size, backend.DERIV_2D_MAX)
-    c = np.zeros( (z.size-1, 9, 6) )
-    
-    dz = z[1] - z[0]
-    assert np.all(np.isclose(np.diff(z), dz)) # Equally spaced
-     
-    for i, d in enumerate(derivs):
-        high_order = i + 2 < len(derivs)
-        
-        if high_order:
-            ppoly = _get_one_dimensional_high_order_ppoly(z, d, derivs[i+1], derivs[i+2])
-            start_index = 0
-        else:
-            ppoly = CubicSpline(z, d)
-            start_index = 2
-        
-        c[:, i, start_index:], x, k = ppoly.c.T, ppoly.x, ppoly.c.shape[0]-1
-        assert np.all(x == z)
-        assert (high_order and k == 5) or (not high_order and k == 3)
-    
-    return c
+
+
 
 class Field:
     def field_at_point(self, point):
@@ -856,45 +811,6 @@ class FieldRadialBEM(FieldBEM):
         positions = self.current_point_charges.positions
         return backend.current_axial_derivatives_radial(z, currents, jacobians, positions)
       
-    def axial_derivative_interpolation(self, zmin, zmax, N=None):
-        """
-        Use a radial series expansion based on the potential derivatives at the optical axis
-        to allow very fast field evaluations.
-        
-        Parameters
-        ----------
-        zmin : float
-            Location on the optical axis where to start sampling the derivatives.
-            
-        zmax : float
-            Location on the optical axis where to stop sampling the derivatives. Any field
-            evaluation outside [zmin, zmax] will return a zero field strength.
-        N: int, optional
-            Number of samples to take on the optical axis, if N=None the amount of samples
-            is determined by taking into account the number of elements in the mesh.
-            
-
-        Returns
-        -------
-        `FieldRadialAxial` object allowing fast field evaluations.
-
-        """
-        assert zmax > zmin
-        N_charges = max(len(self.electrostatic_point_charges.charges), len(self.magnetostatic_point_charges.charges))
-        N = N if N is not None else int(FACTOR_AXIAL_DERIV_SAMPLING_2D*N_charges)
-        z = np.linspace(zmin, zmax, N)
-        
-        st = time.time()
-        elec_derivs = np.concatenate(util.split_collect(self.get_electrostatic_axial_potential_derivatives, z), axis=0)
-        elec_coeffs = _quintic_spline_coefficients(z, elec_derivs.T)
-        
-        mag_derivs = np.concatenate(util.split_collect(self.get_magnetostatic_axial_potential_derivatives, z), axis=0)
-        mag_coeffs = _quintic_spline_coefficients(z, mag_derivs.T)
-        
-        logging.log_info(f'Computing derivative interpolation took {(time.time()-st)*1000:.2f} ms ({len(z)} items)')
-        
-        return FieldRadialAxial(z, elec_coeffs, mag_coeffs)
-    
     def area_of_element(self, i):
         jacobians = self.electrostatic_point_charges.jacobians
         positions = self.electrostatic_point_charges.positions
@@ -1026,16 +942,6 @@ class Field3D_BEM(FieldBEM):
 
         """
         raise NotImplementedError("Axial interpolation in 3D is only supported in Traceon Pro. Please use 'from traceon_pro import *' at the top of the file.")
-    
-    def _effective_point_charges_to_coeff(self, eff, z): 
-        charges = eff.charges
-        jacobians = eff.jacobians
-        positions = eff.positions
-        coeffs = util.split_collect(lambda z: backend.axial_coefficients_3d(charges, jacobians, positions, z), z)
-        coeffs = np.concatenate(coeffs, axis=0)
-        interpolated_coeffs = CubicSpline(z, coeffs).c
-        interpolated_coeffs = np.moveaxis(interpolated_coeffs, 0, -1)
-        return np.require(interpolated_coeffs, requirements=('C_CONTIGUOUS', 'ALIGNED'))
     
     def area_of_element(self, i):
         jacobians = self.electrostatic_point_charges.jacobians
