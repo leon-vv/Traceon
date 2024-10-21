@@ -11,6 +11,11 @@ import traceon.tracing as T
 
 from validation import Validation
 
+try:
+    from traceon_pro import *
+except ImportError:
+    pass
+
 THICKNESS = 0.5
 SPACING = 0.5
 RADIUS = 0.15
@@ -50,7 +55,7 @@ class MagneticEinzelLens(Validation):
         field_axial = field.axial_derivative_interpolation(-1.5, 1.5, 1000)
          
         bounds = ((-RADIUS, RADIUS), (-RADIUS, RADIUS), (-5, 3.5))
-        tracer = T.Tracer(field_axial, bounds)
+        tracer = field_axial.get_tracer(bounds)
         
         p0 = np.array([RADIUS/5, 3]) if not _3d else np.array([RADIUS/5, 0.0, 3])
         v0 = T.velocity_vec_xz_plane(1000, 0, three_dimensional=_3d)

@@ -14,7 +14,7 @@ The software is currently distributed under the `AGPLv3` license.
 In general, one starts with the `traceon.geometry` module to create a mesh. For the BEM only the boundary of 
 electrodes needs to be meshed. So in 2D (radial symmetry) the mesh consists of line elements while in 3D the
 mesh consists of triangles.  Next, one specifies a suitable excitation (voltages) using the `traceon.excitation` module.
-The excited geometry can then be passed to the `traceon.solver.solve_bem` function, which computes the resulting field. 
+The excited geometry can then be passed to the `traceon.solver.solve_direct` function, which computes the resulting field. 
 The field can be passed to the `traceon.tracing.Tracer` class to compute the trajectory of electrons moving through the field.
 
 # Validations

@@ -9,6 +9,7 @@ from scipy.interpolate import CubicSpline
 import traceon.backend as B
 import traceon.solver as S
 import traceon.tracing as T
+from traceon.interpolation import FieldRadialAxial
 
 from tests.test_radial_ring import biot_savart_loop
 from tests.test_radial import get_ring_effective_point_charges
@@ -77,8 +78,8 @@ class TestTracing(unittest.TestCase):
           
         bounds = ((-0.4,0.4), (-0.4, 0.4), (-15, 15))
         traceon_field = S.FieldRadialBEM(current_point_charges=eff)
-        tracer = T.Tracer(traceon_field, bounds, atol=1e-6)
-        times, positions = tracer(initial_conditions[:3], T.velocity_vec(eV, [0, 0, -1]))
+        tracer = traceon_field.get_tracer(bounds)
+        times, positions = tracer(initial_conditions[:3], T.velocity_vec(eV, [0, 0, -1]), atol=1e-6)
         
         interp = CubicSpline(positions[::-1, 2], np.array([positions[::-1, 0], positions[::-1, 1]]).T)
         
@@ -104,10 +105,13 @@ class TestTracing(unittest.TestCase):
         eff = get_ring_effective_point_charges(current, 1.)
          
         bounds = ((-0.4,0.4), (-0.4, 0.4), (-15, 15))
-        traceon_field = S.FieldRadialBEM(current_point_charges=eff).axial_derivative_interpolation(-15, 15, N=500)
-        tracer = T.Tracer(traceon_field, bounds, atol=1e-6)
-        times, positions = tracer(initial_conditions[:3], T.velocity_vec(eV, [0, 0, -1]))
-        
+
+        field = S.FieldRadialBEM(current_point_charges=eff)
+        axial_field = FieldRadialAxial(field, -15, 15, N=500)
+         
+        tracer = axial_field.get_tracer(bounds)
+        times, positions = tracer(initial_conditions[:3], T.velocity_vec(eV, [0, 0, -1]), atol=1e-6)
+         
         interp = CubicSpline(positions[::-1, 2], np.array([positions[::-1, 0], positions[::-1, 1]]).T)
         
         assert np.allclose(interp(sol.y[2]), np.array([sol.y[0], sol.y[1]]).T, atol=1e-4, rtol=5e-5)

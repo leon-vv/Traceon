@@ -5,9 +5,12 @@ import traceon.geometry as G
 import traceon.solver as S
 import traceon.excitation as E
 import traceon.plotting as P
+from traceon.interpolation import FieldRadialAxial
 import traceon.tracing as T
 
 from validation import Validation
+
+from traceon_pro.interpolation import Field3DAxial
 
 THICKNESS = 0.5
 SPACING = 0.5
@@ -43,15 +46,16 @@ class EinzelLens(Validation):
         _3d = geom.is_3d()
         
         field.set_bounds( ((-RADIUS, RADIUS), (-RADIUS, RADIUS), (-1.5,1.5)) )
-        field_axial = field.axial_derivative_interpolation(-1.5, 1.5, 600)
         
+        field_axial = FieldRadialAxial(field, -1.5, 1.5, 600) if not _3d else Field3DAxial(field, -1.5, 1.5, 600)
+         
         z = np.linspace(-1.5, 1.5, 150)
         pot = [field.potential_at_point(np.array([0.0, z_] if not _3d else [0.0, 0.0, z_])) for z_ in z]
         #plt.plot(z, pot)
         #plt.show()
         
         bounds = ((-RADIUS, RADIUS), (-RADIUS, RADIUS), (-5, 3.5))
-        tracer = T.Tracer(field_axial, bounds)
+        tracer = field_axial.get_tracer(bounds)
         
         p0 = np.array([RADIUS/3, 3]) if not _3d else np.array([RADIUS/3, 0.0, 3])
         v0 = T.velocity_vec_xz_plane(1000, 0, three_dimensional=_3d)
