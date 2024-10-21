@@ -398,9 +398,39 @@ def _excitation_to_higher_order(excitation):
     excitation.mesh = mesh._to_higher_order_mesh()
     return excitation
 
-def solve_bem(excitation, superposition=False, use_fmm=False, fmm_precision=0):
+def solve_direct_superposition(excitation):
     """
-    Solve for the charges on the surface of the geometry by using the Boundary Element Method (BEM) and taking
+    superposition : bool
+        When using superposition the function returns multiple fields. Each field corresponds with a unity excitation (1V)
+        of a physical group that was previously assigned a non-zero fixed voltage value. This is useful when a geometry needs
+        to be analyzed for many different voltage settings. In this case taking a linear superposition of the returned fields
+        allows to select a different voltage 'setting' without inducing any computational cost. There is no computational cost
+        involved in using `superposition=True` since a direct solver is used which easily allows for multiple right hand sides (the
+        matrix does not have to be inverted multiple times). However, voltage functions are invalid in the superposition process (position dependent voltages).
+    """
+    if excitation.mesh.is_2d() and not excitation.mesh.is_higher_order():
+        excitation = _excitation_to_higher_order(excitation)
+    
+    # Speedup: invert matrix only once, when using superposition
+    excitations = excitation._split_for_superposition()
+    
+    # Solve for elec fields
+    elec_names = [n for n, v in excitations.items() if v.is_electrostatic()]
+    right_hand_sides = np.array([ElectrostaticSolver(excitations[n]).get_right_hand_side() for n in elec_names])
+    solutions = ElectrostaticSolver(excitation).solve_matrix(right_hand_sides)
+    elec_dict = {n:s for n, s in zip(elec_names, solutions)}
+    
+    # Solve for mag fields 
+    mag_names = [n for n, v in excitations.items() if v.is_magnetostatic()]
+    right_hand_sides = np.array([MagnetostaticSolver(excitations[n]).get_right_hand_side() for n in mag_names])
+    solutions = MagnetostaticSolver(excitation).solve_matrix(right_hand_sides)
+    mag_dict = {n:s for n, s in zip(mag_names, solutions)}
+        
+    return {**elec_dict, **mag_dict}
+
+def solve_direct(excitation):
+    """
+    Solve for the charges on the surface of the geometry by using a direct method and taking
     into account the specified `excitation`. 
 
     Parameters
@@ -408,69 +438,26 @@ def solve_bem(excitation, superposition=False, use_fmm=False, fmm_precision=0):
     excitation : traceon.excitation.Excitation
         The excitation that produces the resulting field.
      
-    superposition : bool
-        When `superposition=True` the function returns multiple fields. Each field corresponds with a unity excitation (1V)
-        of a physical group that was previously assigned a non-zero fixed voltage value. This is useful when a geometry needs
-        to be analyzed for many different voltage settings. In this case taking a linear superposition of the returned fields
-        allows to select a different voltage 'setting' without inducing any computational cost. There is no computational cost
-        involved in using `superposition=True` since a direct solver is used which easily allows for multiple right hand sides (the
-        matrix does not have to be inverted multiple times). However, voltage functions are invalid in the superposition process (position dependent voltages).
-    
-    use_fmm : bool
-        Use the fast multipole method to calculate the charge distribution. 
-    
-    fmm_precision : int
-        Precision flag passed to the fast multipole library, should be one of -1, 0, 1, 2, 3, 4. Choose higher numbers if more precision is desired.
-    
     Returns
     -------
-    A `FieldRadialBEM` if the geometry (contained in the given `excitation`) is radially symmetric. If the geometry is a generic three
-    dimensional geometry `Field3D_BEM` is returned. Alternatively, when `superposition=True` a dictionary is returned, where the keys
-    are the physical groups with unity excitation, and the values are the resulting fields.
+    A `FieldRadialBEM` if the geometry (contained in the given `excitation`) is radially symmetric. If the geometry is a three
+    dimensional geometry `Field3D_BEM` is returned. 
     """
-    if use_fmm:
-        assert not excitation.is_magnetostatic(), "Magnetostatic not yet supported for FMM"
-        if superposition:
-            excitations = excitation._split_for_superposition()
-            return {name:ElectrostaticSolver(exc).solve_fmm(fmm_precision) for name, exc in excitations.items()}
-        else:
-            return ElectrostaticSolver(excitation).solve_fmm(fmm_precision)
-    else:
-        if excitation.mesh.is_2d() and not excitation.mesh.is_higher_order():
-            excitation = _excitation_to_higher_order(excitation)
-         
-        if superposition:
-            # Speedup: invert matrix only once, when using superposition
-            excitations = excitation._split_for_superposition()
-            
-            # Solve for elec fields
-            elec_names = [n for n, v in excitations.items() if v.is_electrostatic()]
-            right_hand_sides = np.array([ElectrostaticSolver(excitations[n]).get_right_hand_side() for n in elec_names])
-            solutions = ElectrostaticSolver(excitation).solve_matrix(right_hand_sides)
-            elec_dict = {n:s for n, s in zip(elec_names, solutions)}
-            
-            # Solve for mag fields 
-            mag_names = [n for n, v in excitations.items() if v.is_magnetostatic()]
-            right_hand_sides = np.array([MagnetostaticSolver(excitations[n]).get_right_hand_side() for n in mag_names])
-            solutions = MagnetostaticSolver(excitation).solve_matrix(right_hand_sides)
-            mag_dict = {n:s for n, s in zip(mag_names, solutions)}
-             
-            return {**elec_dict, **mag_dict}
-        else:
-            mag, elec = excitation.is_magnetostatic(), excitation.is_electrostatic()
+    if excitation.mesh.is_2d() and not excitation.mesh.is_higher_order():
+        excitation = _excitation_to_higher_order(excitation)
+    
+    mag, elec = excitation.is_magnetostatic(), excitation.is_electrostatic()
 
-            assert mag or elec, "Solving for an empty excitation"
-             
-            if mag and elec:
-                elec_field = ElectrostaticSolver(excitation).solve_matrix()[0]
-                mag_field = MagnetostaticSolver(excitation).solve_matrix()[0]
-                return elec_field + mag_field
-            elif elec and not mag:
-                return ElectrostaticSolver(excitation).solve_matrix()[0]
-            elif mag and not elec:
-                return MagnetostaticSolver(excitation).solve_matrix()[0]
-
-
+    assert mag or elec, "Solving for an empty excitation"
+        
+    if mag and elec:
+        elec_field = ElectrostaticSolver(excitation).solve_matrix()[0]
+        mag_field = MagnetostaticSolver(excitation).solve_matrix()[0]
+        return elec_field + mag_field
+    elif elec and not mag:
+        return ElectrostaticSolver(excitation).solve_matrix()[0]
+    elif mag and not elec:
+        return MagnetostaticSolver(excitation).solve_matrix()[0]
 
 
 
@@ -525,7 +512,7 @@ class Field:
     
 class FieldBEM(Field):
     """An electrostatic field (resulting from surface charges) as computed from the Boundary Element Method. You should
-    not initialize this class yourself, but it is used as a base class for the fields returned by the `solve_bem` function. 
+    not initialize this class yourself, but it is used as a base class for the fields returned by the `solve_direct` function. 
     This base class overloads the +,*,- operators so it is very easy to take a superposition of different fields."""
     
     def __init__(self, electrostatic_point_charges, magnetostatic_point_charges, current_point_charges):
@@ -634,7 +621,7 @@ class FieldBEM(Field):
 
 class FieldRadialBEM(FieldBEM):
     """A radially symmetric electrostatic field. The field is a result of the surface charges as computed by the
-    `solve_bem` function. See the comments in `FieldBEM`."""
+    `solve_direct` function. See the comments in `FieldBEM`."""
     
     def __init__(self, electrostatic_point_charges=None, magnetostatic_point_charges=None, current_point_charges=None):
         if electrostatic_point_charges is None:
@@ -822,7 +809,7 @@ class FieldRadialBEM(FieldBEM):
     
 class Field3D_BEM(FieldBEM):
     """An electrostatic field resulting from a general 3D geometry. The field is a result of the surface charges as computed by the
-    `solve_bem` function. See the comments in `FieldBEM`."""
+    `solve_direct` function. See the comments in `FieldBEM`."""
      
     def __init__(self, electrostatic_point_charges=None, magnetostatic_point_charges=None):
         

@@ -173,7 +173,7 @@ class Validation:
             assert traceon_pro is not None, "traceon_pro should be installed to use fast multipole method"
             return exc, traceon_pro.solver.solve_fmm(exc, l_max=self.args.fmm_precision)
         else:
-            return exc, S.solve_bem(exc)
+            return exc, S.solve_direct(exc)
      
     def compute_value_of_interest(self, geometry, field):
         pass

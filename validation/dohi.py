@@ -100,7 +100,7 @@ if __name__ == '__main__':
     geom = dohi.create_mesh(200, G.Symmetry.RADIAL)
     exc = dohi.get_excitation(geom)
     exc.add_voltage(lens=720)
-    fields = S.solve_bem(exc, superposition=True)
+    fields = S.solve_direct(exc, superposition=True)
 
     def opt(lens_voltage):
         field = -1250*fields['mirror'] + lens_voltage*fields['lens']

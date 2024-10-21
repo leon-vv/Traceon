@@ -43,7 +43,7 @@ excitation.add_electrostatic_boundary('boundary')
 
 # Use the Boundary Element Method (BEM) to calculate the surface charges,
 # the surface charges gives rise to a electrostatic field.
-field = S.solve_bem(excitation)
+field = S.solve_direct(excitation)
 
 # But using an integration over the surface charges to calculate the electron
 # trajectories is inherently slow. Instead, use an interpolation technique
