@@ -9,6 +9,11 @@ import traceon.excitation as E
 import traceon.solver as S
 import traceon.plotting as P
 
+try:
+    import traceon_pro.solver
+except ImportError:
+    traceon_pro = None
+
 def print_info(MSFs, Nlines, duration, correct, computed, accuracy):
     print('\n%-25s %-25s %-25s %-25s %-25s %-25s' % ('Mesh size factor', 'Number of elements', 'Computation time (ms)',
         'Correct value', 'Computed value', 'Relative error'))
@@ -38,7 +43,7 @@ class Validation:
         parser.add_argument('--plot-charge-density', action='store_true', help='When plotting geometry, base the colors on the computed charge density')
         parser.add_argument('--plot-charges', action='store_true', help='When plotting geometry, base the colors on the charge on each element')
         parser.add_argument('--use-fmm', action='store_true', help='Use fast multipole method to solve 3D geometry')
-        parser.add_argument('--fmm-precision', type=int, choices=[-2, -1,0,1,2,3], default=0, help='Use fast multipole method to solve 3D geometry')
+        parser.add_argument('--fmm-precision', type=int, default=12, help='Number of element (l_max) to use in multipole expansion')
         
         return parser.parse_args()
     
@@ -163,7 +168,12 @@ class Validation:
 
     def compute_field(self, geometry, use_fmm):
         exc = self.get_excitation(geometry)
-        return exc, S.solve_bem(exc, use_fmm=use_fmm, fmm_precision=self.args.fmm_precision)
+
+        if use_fmm:
+            assert traceon_pro is not None, "traceon_pro should be installed to use fast multipole method"
+            return exc, traceon_pro.solver.solve_fmm(exc, l_max=self.args.fmm_precision)
+        else:
+            return exc, S.solve_bem(exc)
      
     def compute_value_of_interest(self, geometry, field):
         pass
