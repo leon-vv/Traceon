@@ -90,14 +90,12 @@ class TestRadial(unittest.TestCase):
         assert np.allclose(B.field_radial(np.array([r0, z0]), charges, jac, pos)/epsilon_0, [Er, Ez], atol=0.0, rtol=1e-10)
      
     def test_rectangular_current_loop(self):
-        with G.Geometry(G.Symmetry.RADIAL) as geom:
-            points = [[1.0, 1.0], [2.0, 1.0], [2.0, 2.0], [1.0, 2.0]]
-            poly = geom.add_polygon(points)
-            geom.add_physical(poly, 'coil')
-            geom.set_mesh_size_factor(50)
-            mesh = geom.generate_triangle_mesh(False)
-        
-        exc = E.Excitation(mesh)
+        coil = G.Surface.rectangle_xz(1.0, 2.0, 1.0, 2.0)
+        coil.name = 'coil'
+
+        mesh = coil.mesh(mesh_size=0.1)
+         
+        exc = E.Excitation(mesh, E.Symmetry.RADIAL)
         exc.add_current(coil=5)
         
         field = S.solve_bem(exc)
@@ -234,11 +232,11 @@ class TestRadial(unittest.TestCase):
         assert np.isclose(np.sum(field.current_point_charges.charges[:, np.newaxis]*field.current_point_charges.jacobians), 1.0) # Total current is 1.0
         
         target = np.array([2.5, 0., 4.0])
-        correct_r = dblquad(lambda x, y: magnetic_field_of_loop(1.0, x, np.array([target[0], 0.,target[2]-y]))[0], 2, 3, 2, 3)[0]
-        correct_z = dblquad(lambda x, y: magnetic_field_of_loop(1.0, x, np.array([target[0], 0., target[2]-y]))[2], 2, 3, 2, 3)[0]
-        
         computed = mu_0*field.current_field_at_point(np.array([target[0], target[2]]))
-        correct = np.array([correct_r, correct_z])
         
-        assert np.allclose(computed, correct, atol=1e-11) 
+        correct_r = dblquad(lambda x, y: mu_0*B.current_field_radial_ring(target[0], target[2], x, y)[0], 2, 3, 2, 3, epsrel=1e-4)[0]
+        correct_z = dblquad(lambda x, y: mu_0*B.current_field_radial_ring(target[0], target[2], x, y)[1], 2, 3, 2, 3, epsrel=1e-4)[0]
+        correct = np.array([correct_r, correct_z])
+
+        assert np.allclose(computed, correct, atol=0.0, rtol=1e-9) 
 
