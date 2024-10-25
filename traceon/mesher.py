@@ -475,31 +475,6 @@ class Mesh(Saveable, GeometricObject):
         return points, elements
 
 
-    def _triangles_to_higher_order(points, elements):
-        N_elements = len(elements)
-        N_points = len(points)
-         
-        v0, v1, v2 = elements.T
-        p3 = (points[v0] + points[v1])/2
-        p4 = (points[v1] + points[v2])/2
-        p5 = (points[v2] + points[v0])/2
-         
-        assert all(p.shape == (N_elements, points.shape[1]) for p in [p3,p4,p5])
-          
-        points = np.concatenate( (points, p3, p4, p5), axis=0)
-          
-        elements = np.array([
-            elements[:, 0], elements[:, 1], elements[:, 2],
-            np.arange(N_points, N_points + N_elements, dtype=np.uint64),
-            np.arange(N_points + N_elements, N_points + 2*N_elements, dtype=np.uint64),
-            np.arange(N_points + 2*N_elements, N_points + 3*N_elements, dtype=np.uint64)]).T
-         
-        assert np.allclose(p3, points[elements[:, 3]])
-        assert np.allclose(p4, points[elements[:, 4]])
-        assert np.allclose(p5, points[elements[:, 5]])
-        
-        return points, elements
-
     def _to_higher_order_mesh(self):
         # The matrix solver currently only works with higher order meshes.
         # We can however convert a simple mesh easily to a higher order mesh, and solve that.
