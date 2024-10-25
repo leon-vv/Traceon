@@ -27,7 +27,7 @@ __pdoc__['Path.__rshift__'] = True
 def _points_close(p1, p2, tolerance=1e-8):
     return np.allclose(p1, p2, atol=tolerance)
 
-def discretize_path(path_length, breakpoints, mesh_size, N_factor=1):
+def discretize_path(path_length, breakpoints, mesh_size, mesh_size_factor=None, N_factor=1):
     # Return the arguments to use to breakup the path
     # in a 'nice' way
     
@@ -40,7 +40,11 @@ def discretize_path(path_length, breakpoints, mesh_size, N_factor=1):
         if u0 == u1:
             continue
          
-        N = max( ceil((u1-u0)/mesh_size), 3)
+        if mesh_size is not None:
+            N = max( ceil((u1-u0)/mesh_size), 3)
+        else:
+            N = 3*max(mesh_size_factor, 1)
+        
         # When using higher order, we splice extra points
         # between two points in the descretization. This
         # ensures that the number of elements stays the same
@@ -648,13 +652,7 @@ class Path(GeometricObject):
         Returns
         ----------------------------
         Path"""
-        if mesh_size is None:
-            if mesh_size_factor is not None:
-                mesh_size = self.path_length/(25*mesh_size_factor)
-            else:
-                mesh_size = self.path_length/10
-
-        u = discretize_path(self.path_length, self.breakpoints, mesh_size, N_factor=3 if higher_order else 1)
+        u = discretize_path(self.path_length, self.breakpoints, mesh_size, mesh_size_factor, N_factor=3 if higher_order else 1)
         
         N = len(u) 
         points = np.zeros( (N, 3) )
@@ -847,14 +845,11 @@ class Surface(GeometricObject):
           
         if mesh_size is None:
             path_length = min(self.path_length1, self.path_length2)
-            
+             
+            mesh_size = path_length / 4
+
             if mesh_size_factor is not None:
-                # Take sqrt, since the number points on the surface scale quadratically
-                # with the points on the edges. We want to keep the total number of elements
-                # roughly equal in 2D and 3D.
-                mesh_size = 4*sqrt(path_length/mesh_size_factor)
-            else:
-                mesh_size = path_length/10
+                mesh_size /= sqrt(mesh_size_factor)
          
         return _mesh(self, mesh_size, name=self.name)
 

@@ -748,7 +748,7 @@ def _copy_over_edge(e1, e2):
     mask = e1 != -1
     e2[mask] = e1[mask]
 
-def _mesh(surface, mesh_size, start_depth=3, name=None):
+def _mesh(surface, mesh_size, start_depth=2, name=None):
     # Create a point stack for each subsection
     points, point_stacks, quads = _mesh_subsections_to_quads(surface, mesh_size, start_depth)
      
