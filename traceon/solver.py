@@ -339,7 +339,8 @@ class MagnetostaticSolver(Solver):
                 center = self.get_center_of_element(i)
                 field_at_center = self.current_field.current_field_at_point(center)
                 #flux_to_charge_factor = (value - 1)/np.pi
-                F[i] = -backend.flux_density_to_charge_factor(value) * np.dot(field_at_center, self.normals[i])
+                field_dotted = field_at_center[0] * self.normals[i, 0] + field_at_center[2]*self.normals[i, 1]
+                F[i] = -backend.flux_density_to_charge_factor(value) * field_dotted
          
         assert np.all(np.isfinite(F))
         logging.log_info(f'Computing right hand side of linear system took {(time.time()-st)*1000:.0f} ms')
