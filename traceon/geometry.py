@@ -829,6 +829,66 @@ class Surface(GeometricObject):
         
         return Surface(f, path_length_p1_and_p3, path_length_p2_and_p4, b1, b2)
      
+    def rectangle_xz(xmin, xmax, zmin, zmax):
+        """Create a rectangle in the XZ plane. The path starts at (xmin, 0, zmin), and is 
+        counter clockwise around the y-axis.
+        
+        Parameters
+        ------------------------
+        xmin: float
+            Minimum x-coordinate of the corner points.
+        xmax: float
+            Maximum x-coordinate of the corner points.
+        zmin: float
+            Minimum z-coordinate of the corner points.
+        zmax: float
+            Maximum z-coordinate of the corner points.
+        
+        Returns
+        -----------------------
+        Path"""
+        return Path.line([xmin, 0., zmin], [xmin, 0, zmax]).extrude([xmax-xmin, 0., 0.])
+     
+    def rectangle_yz(ymin, ymax, zmin, zmax):
+        """Create a rectangle in the YZ plane. The path starts at (0, ymin, zmin), and is 
+        counter clockwise around the x-axis.
+        
+        Parameters
+        ------------------------
+        ymin: float
+            Minimum y-coordinate of the corner points.
+        ymax: float
+            Maximum y-coordinate of the corner points.
+        zmin: float
+            Minimum z-coordinate of the corner points.
+        zmax: float
+            Maximum z-coordinate of the corner points.
+        
+        Returns
+        -----------------------
+        Path"""
+        return Path.line([0., ymin, zmin], [0., ymin, zmax]).extrude([0., ymax-ymin, 0.])
+     
+    def rectangle_xy(xmin, xmax, ymin, ymax):
+        """Create a rectangle in the XY plane. The path starts at (xmin, ymin, 0), and is 
+        counter clockwise around the z-axis.
+        
+        Parameters
+        ------------------------
+        xmin: float
+            Minimum x-coordinate of the corner points.
+        xmax: float
+            Maximum x-coordinate of the corner points.
+        ymin: float
+            Minimum y-coordinate of the corner points.
+        ymax: float
+            Maximum y-coordinate of the corner points.
+        
+        Returns
+        -----------------------
+        Path"""
+        return Path.line([xmin, ymin, 0.], [xmin, ymax, 0.]).extrude([xmax-xmin, 0., 0.])
+
     def aperture(height, radius, extent, z=0.):
         return Path.aperture(height, radius, extent, z=z).revolve_z()
      
