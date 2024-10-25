@@ -10,10 +10,13 @@ import traceon.plotting as P
 class MeshTests(unittest.TestCase):
 
     def test_loading_mesh(self):
-        m = M.Mesh.read_file('world.stl')
-        p = path.join(path.dirname(__file__), 'world_out.stl')
-        m2 = M.Mesh.read_file(p)
-        
+        input_file = path.join(path.dirname(__file__), 'world.stl')
+        output_file = path.join(path.dirname(__file__), 'world_out.stl')
+
+        m = M.Mesh.read_file(input_file)
+        m.write_file(output_file)
+        m2 = M.Mesh.read_file(output_file)
+         
         assert np.allclose(m.points, m2.points)
         assert np.allclose(m.triangles, m2.triangles)
 
@@ -168,7 +171,8 @@ class SurfaceTests(unittest.TestCase):
         inner = Path.line(points[0], points[1])\
             .line_to(points[2]).line_to(points[3]).revolve_z()
         
-        mesh = inner.mesh(mesh_size=10/2, name='test')
+        inner.name = 'test'
+        mesh = inner.mesh(mesh_size=10/2)
           
         for i, t in enumerate(mesh.triangles):
             p1, p2, p3 = mesh.points[t]

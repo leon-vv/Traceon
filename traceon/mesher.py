@@ -7,6 +7,7 @@ import meshio
 
 from .util import Saveable
 from .backend import triangle_areas
+from .logging import log_debug
 
 
 __pdoc__ = {}
@@ -321,6 +322,10 @@ class Mesh(Saveable, GeometricObject):
             The name of the file to write the mesh to."""
         meshio_obj = self.to_meshio()
         meshio_obj.write(filename)
+    
+    def write(self, filename):
+        self.write_file(filename)
+        
      
     def to_meshio(self):
         """Convert the Mesh to a meshio object.
