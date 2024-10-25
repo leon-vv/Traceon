@@ -180,20 +180,20 @@ class TestRadial(unittest.TestCase):
             assert np.allclose(field, field_interp, atol=1e-3, rtol=5e-3)
      
     def test_mag_pot_derivatives(self):
-        with G.Geometry(G.Symmetry.RADIAL) as geom:
-            points = [[0, 5], [5, 5], [5, -5], [0, -5]]
-            lines = [geom.add_line(geom.add_point(p1), geom.add_point(p2)) for p1, p2 in zip(points, points[1:])]
-            geom.add_physical(lines, 'boundary')
-            
-            r1 = geom.add_rectangle(1, 2, 2, 3, 0)
-            r2 = geom.add_rectangle(1, 2, -3, -2, 0)
-            
-            geom.add_physical(r1.curves, 'r1')
-            geom.add_physical(r2.curves, 'r2')
-            geom.set_mesh_size_factor(10)
-            mesh = geom.generate_line_mesh(False)
+        boundary = G.Path.line([0., 0., 5.], [5., 0., 5.])\
+            .line_to([5., 0., -5.])\
+            .line_to([0., 0., -5.])
         
-        e = E.Excitation(mesh)
+        r1 = G.Path.rectangle_xz(1, 2, 2, 3)
+        r2 = G.Path.rectangle_xz(1, 2, -3, -2)
+
+        boundary.name = 'boundary'
+        r1.name = 'r1'
+        r2.name = 'r2'
+        
+        mesh = (boundary + r1 + r2).mesh(mesh_size=0.1)
+         
+        e = E.Excitation(mesh, E.Symmetry.RADIAL)
         e.add_magnetostatic_potential(r1 = 10)
         e.add_magnetostatic_potential(r2 = -10)
          
