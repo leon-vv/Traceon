@@ -537,7 +537,7 @@ def current_field(p0, currents, jac_buffer, pos_buffer):
     assert jac_buffer.shape == (N, N_TRIANGLE_QUAD)
     assert pos_buffer.shape == (N, N_TRIANGLE_QUAD, 3)
      
-    assert np.all(pos_buffer[:, :, 2] == 0.)
+    assert np.all(pos_buffer[:, :, 1] == 0.)
     
     result = np.zeros( (3,) )
     backend_lib.current_field(p0, result, currents, jac_buffer, pos_buffer, N)

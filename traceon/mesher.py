@@ -155,7 +155,7 @@ class Mesh(Saveable, GeometricObject):
         else:
             self.points = np.empty((0,3), dtype=np.float64)
          
-        if len(lines):
+        if len(lines) or (isinstance(lines, np.ndarray) and len(lines.shape)==2):
             self.lines = np.array(lines, dtype=np.uint64)
         else:
             self.lines = np.empty((0,2), dtype=np.uint64)
@@ -183,7 +183,7 @@ class Mesh(Saveable, GeometricObject):
         Returns
         ----------------------------
         bool"""
-        return (len(self.lines) and self.lines.shape[1] == 4) or (len(self.triangles) and self.triangles.shape[1] == 6)
+        return isinstance(self.lines, np.ndarray) and len(self.lines.shape) == 2 and self.lines.shape[1] == 4
     
     def map_points(self, fun):
         """See `GeometricObject`
@@ -481,11 +481,13 @@ class Mesh(Saveable, GeometricObject):
         
         points, lines, triangles = self.points, self.lines, self.triangles
 
-        if len(lines) and lines.shape[1] == 2:
+        if not len(lines):
+            lines = np.empty( (0, 4), dtype=np.float64)
+        elif len(lines) and lines.shape[1] == 2:
             points, lines = Mesh._lines_to_higher_order(points, lines)
-        if len(triangles) and triangles.shape[1] == 3:
-            points, triangles = Mesh._triangles_to_higher_order(points, triangles) 
-         
+        
+        assert lines.shape == (len(lines), 4)
+
         return Mesh(points=points,
             lines=lines, physical_to_lines=self.physical_to_lines,
             triangles=triangles, physical_to_triangles=self.physical_to_triangles)

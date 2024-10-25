@@ -221,13 +221,12 @@ class TestRadial(unittest.TestCase):
     def test_rectangular_coil(self):
         # Field produced by a 1mm x 1mm coil, with inner radius 2mm, 1ampere total current
         # What is the field produced at (2.5mm, 4mm)
-        with G.Geometry(G.Symmetry.RADIAL) as geom:
-            rect = geom.add_rectangle(2, 3, 2, 3, 0)
-            geom.add_physical(rect.surface, 'coil')
-            geom.set_mesh_size_factor(5)
-            mesh = geom.generate_triangle_mesh(False)
+        coil = G.Surface.rectangle_xz(2, 3, 2, 3)
+        coil.name = 'coil'
         
-        exc = E.Excitation(mesh)
+        mesh = coil.mesh(mesh_size=0.1)
+        
+        exc = E.Excitation(mesh, E.Symmetry.RADIAL)
         exc.add_current(coil=1)
         field = S.solve_bem(exc)
 
