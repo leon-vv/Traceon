@@ -13,7 +13,7 @@ or any file format supported by meshio."""
 from math import pi, sqrt, sin, cos, atan2, ceil
 
 import numpy as np
-from scipy.integrate import cumulative_simpson, quad
+from scipy.integrate import quad
 from scipy.interpolate import CubicSpline
 
 from .mesher import GeometricObject, _mesh, Mesh
@@ -92,29 +92,14 @@ class Path(GeometricObject):
         # path length = integrate |f'(x)|
         fun = lambda u: np.array(to_point(u))
         
-        def derivative(u, tol=1e-4):
-            assert 0 <= u <= 1
-             
-            if u - tol < 0.: # Use simply finite difference formula to approx. the derivative
-                f1, f2, f3 = fun(u), fun(u+tol), fun(u+2*tol)
-                assert isinstance(f1, np.ndarray), "Function should return a (3,) np.ndarray"
-                return (-3/2*f1 + 2*f2 - 1/2*f3)/tol
-            elif u + tol > 1:
-                f1, f2, f3 = fun(u-2*tol), fun(u-tol), fun(u)
-                assert isinstance(f1, np.ndarray), "Function should return a (3,) np.ndarray"
-                return (1/2*f1 -2*f2 + 3/2*f3)/tol
-            else:
-                f1, f2 = fun(u-tol), fun(u+tol)
-                assert isinstance(f1, np.ndarray), "Function should return a (3,) np.ndarray"
-                return (-1/2*f1 + 1/2*f2)/tol
-            
         u = np.linspace(0, 1, N)
-        samples = [np.linalg.norm(derivative(u_)) for u_ in u]
-        cum_sum = cumulative_simpson(samples, dx=u[1]-u[0], initial=0.)
-        path_length = cum_sum[-1]
-        interpolation = CubicSpline(cum_sum, u) # Path length to u
-
-        return Path(lambda pl: fun(interpolation(pl)), path_length, breakpoints=[b*path_length for b in breakpoints])
+        samples = CubicSpline(u, [fun(u_) for u_ in u])
+        derivatives = samples.derivative()(u)
+        norm_derivatives = np.linalg.norm(derivatives, axis=1)
+        path_lengths = CubicSpline(u, norm_derivatives).antiderivative()(u)
+        interpolation = CubicSpline(path_lengths, u) # Path length to [0,1]
+        
+        return Path(lambda pl: fun(interpolation(pl)), path_lengths[-1], breakpoints=[b*path_length for b in breakpoints])
     
     def spline_through_points(points, N=100):
         """Construct a path by fitting a cubic spline through the given points.
