@@ -39,8 +39,6 @@ class SphericalCapacitor(Validation):
         Comparison of FDM, FEM and BEM for electrostatic charged particle optics.
         1999.
         """
-        ms = 10/MSF
-        
         def add_shell(radius, name):
             arc = G.Path.arc([0., 0., 0.], [0, 0, -radius], [radius, 0, 0.]).arc_to([0., 0., 0.], [0., 0., radius])
             arc.name = name

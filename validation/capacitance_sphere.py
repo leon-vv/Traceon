@@ -27,8 +27,7 @@ class CapacitanceSphere(Validation):
         self.plot_colors = dict(inner='blue', outer='darkblue', dielectric='green')
     
     def create_mesh(self, MSF, symmetry, higher_order):
-        ms = 10/MSF
-        
+         
         def add_shell(radius, name, reverse=False):
             arc = G.Path.arc([0., 0., 0.], [0, 0, -radius], [radius, 0, 0.]).arc_to([0., 0., 0.], [0., 0., radius])
             arc.name = name
