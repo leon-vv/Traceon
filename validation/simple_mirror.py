@@ -20,11 +20,11 @@ class SimpleMirror(Validation):
         self.plot_colors = dict(mirror='brown', lens='blue', boundary='green')
 
     def default_MSF(self, symmetry):
-        if symmetry.is_3d():
-            return [200, 400, 600, 1000, 1500]
+        if not symmetry.is_3d():
+            return [8, 16, 32, 64]
         else:
-            return [10, 50, 150, 250, 600]
-
+            return [4, 8, 16, 32]
+    
     def create_mesh(self, MSF, symmetry, higher_order):
         boundary = G.Path.line([0, 0, -1], [2, 0, -1]).line_to([2, 0, 1]).line_to([0.3, 0., 1])
         mirror = G.Path.line([0., 0., 0.], [1., 0., 0.])

@@ -26,12 +26,6 @@ class SphericalCapacitor(Validation):
         
         self.plot_colors = dict(inner='blue', outer='darkblue')
     
-    def default_MSF(self, symmetry):
-        if symmetry.is_3d():
-            return [20, 100, 300, 500]
-        else:
-            return [10, 100, 200]
-    
     def create_mesh(self, MSF, symmetry, higher_order):
         """Create the spherical deflection analyzer from the following paper
         

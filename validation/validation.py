@@ -43,11 +43,8 @@ class Validation:
         return parser.parse_args()
     
     def default_MSF(self, symmetry):
-        if symmetry.is_3d():
-            return [20, 50, 100, 200, 400]
-        else:
-            return [10, 25, 50, 100, 150]
-
+        return [2,4,8,16,32]
+    
     def supports_fmm(self):
         return True
 

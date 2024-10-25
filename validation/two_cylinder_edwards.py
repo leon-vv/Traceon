@@ -28,12 +28,6 @@ class TwoCylinderEdwards(Validation):
             ''')
         self.plot_colors = dict(v1='blue', v2='green', gap='orange')
     
-    def default_MSF(self, symmetry):
-        if symmetry.is_3d():
-            return [400, 600, 1000, 1500]
-        else:
-            return [25, 100, 200, 400]
-    
     def create_mesh(self, MSF, symmetry, higher_order):
         cylinder_length = (boundary_length - gap_size)/2
         
@@ -49,7 +43,7 @@ class TwoCylinderEdwards(Validation):
             bottom = bottom.revolve_z()
             gap = gap.revolve_z()
             top = top.revolve_z()
-            return (bottom + gap + top).mesh(mesh_size_factor=MSF)
+            return gap.mesh(mesh_size_factor=2) + (bottom + top).mesh(mesh_size_factor=MSF)
         else:
             return (bottom + gap + top).mesh(mesh_size_factor=MSF, higher_order=higher_order)
     
