@@ -8,21 +8,38 @@ import platform
 
 from numpy.ctypeslib import ndpointer
 import numpy as np
+from scipy import LowLevelCallable
+from scipy.integrate import quad
+
+from .. import logging
 
 DEBUG = False
+
+if DEBUG:
+    logging.set_log_level(logging.LogLevel.DEBUG)
 
 ## Attempt 1: load local
 if platform.system() in ['Linux', 'Darwin']:
     local_path = path.join(path.dirname(__file__), 'traceon_backend.so')
+    global_file = 'traceon/backend/traceon_backend.abi3.so'
 else:
     local_path = path.join(path.dirname(__file__), 'traceon_backend.dll')
+    global_file = 'traceon/backend/traceon_backend.pyd'
 
 if path.isfile(local_path):
     backend_lib = C.CDLL(local_path)
 else:
-    ## Attempt 2: load from pip installed path
-    global_path = importlib.util.find_spec('traceon.backend.traceon_backend')
+    ## Attempt 2: use getsitepackages
+    import site
+    paths = site.getsitepackages() + [site.getusersitepackages()]
     
+    global_path = None
+
+    for p in paths:
+        if path.isfile(path.join(p, global_file)):
+            global_path = path.join(p, global_file)
+            break
+     
     if global_path is None:
         help_txt = '''
         Cannot find Traceon backend (C compiled dynamic library).
@@ -30,11 +47,10 @@ else:
         If you're running this package locally (i.e. git clone) you have to build this dynamic library yourself.
         On Linux you can use:
             gcc ./traceon/backend/traceon-backend.c -o ./traceon/backend/traceon-backend.so -lm -shared -fPIC -O3 -ffast-math -std=c99 -march=native'''
-
+        
         raise RuntimeError(help_txt)
-
-    global_path = global_path.origin
-    backend_lib = C.cdll.LoadLibrary(global_path)
+    
+    backend_lib = C.CDLL(global_path)
 
 
 TRACING_BLOCK_SIZE = C.c_size_t.in_dll(backend_lib, 'TRACING_BLOCK_SIZE').value
@@ -60,8 +76,7 @@ dbl_p = C.POINTER(dbl)
 vp = C.c_void_p
 sz = C.c_size_t
 
-integration_cb_2d = C.CFUNCTYPE(dbl, dbl, dbl, dbl, dbl, vp)
-integration_cb_3d = C.CFUNCTYPE(dbl, dbl, dbl, dbl, dbl, dbl, dbl, vp)
+integration_cb_1d = C.CFUNCTYPE(dbl, dbl, vp)
 field_fun = C.CFUNCTYPE(None, C.POINTER(dbl), C.POINTER(dbl), vp);
 
 vertices = arr(ndim=3)
@@ -120,21 +135,27 @@ times_block = arr(shape=(TRACING_BLOCK_SIZE,))
 tracing_block = arr(shape=(TRACING_BLOCK_SIZE, 6))
 
 backend_functions = {
+    # triangle_contribution.c
+    'potential_triangle': (dbl, v3, v3, v3, v3),
+    'self_potential_triangle_v0': (dbl, v3, v3, v3),
+    'self_potential_triangle': (dbl, v3, v3, v3, v3),
+    'flux_triangle': (dbl, v3, v3, v3, v3, v3),
+    'kronrod_adaptive': (dbl, integration_cb_1d, dbl, dbl, vp, dbl, dbl),
+     
     'ellipkm1' : (dbl, dbl),
     'ellipk' : (dbl, dbl),
     'ellipem1' : (dbl, dbl),
     'ellipe': (dbl, dbl),
     'normal_2d': (None, v2, v2, v2),
     'higher_order_normal_radial': (None, dbl, v2, v2, v2, v2, v2),
-    'normal_3d': (None, v3, v3, v3, v3),
-    'higher_order_normal_3d': (None, dbl, dbl, arr(shape=(6,3)), v3),
+    'normal_3d': (None, dbl, dbl, arr(shape=(3,3)), v3),
     'position_and_jacobian_3d': (None, dbl, dbl, arr(ndim=2), v3, dbl_p),
     'position_and_jacobian_radial': (None, dbl, v2, v2, v2, v2, v2, dbl_p),
     'trace_particle': (sz, times_block, tracing_block, field_fun, bounds, dbl, vp),
     'potential_radial_ring': (dbl, dbl, dbl, dbl, dbl, vp), 
     'dr1_potential_radial_ring': (dbl, dbl, dbl, dbl, dbl, vp), 
     'dz1_potential_radial_ring': (dbl, dbl, dbl, dbl, dbl, vp), 
-    'axial_derivatives_radial_ring': (None, arr(ndim=2), charges_2d, jac_buffer_2d, pos_buffer_2d, sz, z_values, sz),
+    'axial_derivatives_radial': (None, arr(ndim=2), charges_2d, jac_buffer_2d, pos_buffer_2d, sz, z_values, sz),
     'potential_radial': (dbl, v2, charges_2d, jac_buffer_2d, pos_buffer_2d, sz),
     'potential_radial_derivs': (dbl, v2, z_values, arr(ndim=3), sz),
     'flux_density_to_charge_factor': (dbl, dbl),
@@ -159,10 +180,11 @@ backend_functions = {
     'current_potential_axial': (dbl, dbl, currents_2d, jac_buffer_3d, pos_buffer_3d, sz),
     'current_field_radial_ring': (None, dbl, dbl, dbl, dbl, v2),
     'current_field': (None, v3, v3, currents_2d, jac_buffer_3d, pos_buffer_3d, sz),
-    'current_axial_derivatives_radial_ring': (None, arr(ndim=2), currents_2d, jac_buffer_3d, pos_buffer_3d, sz, z_values, sz),
+    'current_axial_derivatives_radial': (None, arr(ndim=2), currents_2d, jac_buffer_3d, pos_buffer_3d, sz, z_values, sz),
     'fill_jacobian_buffer_radial': (None, jac_buffer_2d, pos_buffer_2d, vertices, sz),
+    'self_potential_radial': (dbl, dbl, vp),
+    'self_field_dot_normal_radial': (dbl, dbl, vp),
     'fill_matrix_radial': (None, arr(ndim=2), lines, arr(dtype=C.c_uint8, ndim=1), arr(ndim=1), jac_buffer_2d, pos_buffer_2d, sz, sz, C.c_int, C.c_int),
-    'fill_jacobian_buffer_3d_higher_order': (None, jac_buffer_3d, pos_buffer_3d, vertices, sz),
     'fill_jacobian_buffer_3d': (None, jac_buffer_3d, pos_buffer_3d, vertices, sz),
     'fill_matrix_3d': (None, arr(ndim=2), vertices, arr(dtype=C.c_uint8, ndim=1), arr(ndim=1), jac_buffer_3d, pos_buffer_3d, sz, sz, C.c_int, C.c_int),
     'plane_intersection': (bool, v3, v3, arr(ndim=2), sz, arr(shape=(6,))),
@@ -177,22 +199,36 @@ def ensure_contiguous_aligned(arr):
     assert not DEBUG or (new_arr is arr), "Made copy while ensuring contiguous array"
     return new_arr
 
+# These are passed directly to scipy.LowLevelCallable, so we shouldn't wrap them in a function
+# that checks the numpy arrays
+numpy_wrapper_exceptions = ['self_potential_radial', 'self_field_dot_normal_radial']
+
 for (fun, (res, *args)) in backend_functions.items():
     libfun = getattr(backend_lib, fun)
-
-    def backend_check_numpy_requirements_wrapper(*args, _cfun_reference=libfun, _cfun_name=fun):
-        new_args = [ (ensure_contiguous_aligned(a) if isinstance(a, np.ndarray) else a) for a in args ]
-        return _cfun_reference(*new_args)
-      
-    setattr(backend_lib, fun, backend_check_numpy_requirements_wrapper)
+    
+    if fun not in numpy_wrapper_exceptions:
+        def backend_check_numpy_requirements_wrapper(*args, _cfun_reference=libfun, _cfun_name=fun):
+            new_args = [ (ensure_contiguous_aligned(a) if isinstance(a, np.ndarray) else a) for a in args ]
+            return _cfun_reference(*new_args)
+        
+        setattr(backend_lib, fun, backend_check_numpy_requirements_wrapper)
      
     libfun.restype = res
     libfun.argtypes = args
 
-ellipkm1 = np.frompyfunc(backend_lib.ellipkm1, 1, 1)
-ellipk = np.frompyfunc(backend_lib.ellipk, 1, 1)
-ellipem1 = np.frompyfunc(backend_lib.ellipem1, 1, 1)
-ellipe = np.frompyfunc(backend_lib.ellipe, 1, 1)
+self_potential_triangle_v0 = backend_lib.self_potential_triangle_v0
+self_potential_triangle = backend_lib.self_potential_triangle
+potential_triangle = backend_lib.potential_triangle
+flux_triangle = backend_lib.flux_triangle
+
+ellipkm1 = np.vectorize(backend_lib.ellipkm1)
+ellipk = np.vectorize(backend_lib.ellipk)
+ellipem1 = np.vectorize(backend_lib.ellipem1)
+ellipe = np.vectorize(backend_lib.ellipe)
+
+def kronrod_adaptive(fun, a, b, epsabs=1.49e-08, epsrel=1.49e-08):
+    callback = integration_cb_1d(lambda x, _: fun(x))
+    return backend_lib.kronrod_adaptive(callback, a, b, vp(None), epsabs, epsrel)
 
 def higher_order_normal_radial(alpha, vertices):
     normal = np.zeros(2)
@@ -205,22 +241,15 @@ def normal_2d(p1, p2):
     backend_lib.normal_2d(p1, p2, normal)
     return normal
 
-def higher_order_normal_3d(alpha, beta, vertices):
-    assert vertices.shape == (6,3)
-    normal = np.zeros(3)
-    backend_lib.higher_order_normal_3d(alpha, beta, vertices, normal)
-    assert np.isclose(np.linalg.norm(normal), 1.0)
-    return normal
- 
 # Remove the last argument, which is usually a void pointer to optional data
 # passed to the function. In Python we don't need this functionality
 # as we can simply use closures.
 def remove_arg(fun):
     return lambda *args: fun(*args[:-1])
 
-def normal_3d(p1, p2, p3):
+def normal_3d(alpha, beta, tri):
     normal = np.zeros( (3,) )
-    backend_lib.normal_3d(p1, p2, p3, normal)
+    backend_lib.normal_3d(alpha, beta, tri, normal)
     return normal
    
 def _vec_2d_to_3d(vec):
@@ -291,7 +320,7 @@ def wrap_field_fun(ff):
     return field_fun(wrapper)
 
 def position_and_jacobian_3d(alpha, beta, triangle):
-    assert triangle.shape == (6, 3)
+    assert triangle.shape == (3, 3)
      
     pos = np.zeros(3)
     jac = C.c_double(0.0)
@@ -307,7 +336,7 @@ def position_and_jacobian_radial(alpha, v1, v2, v3, v4):
     assert v3.shape == (2,) or v3.shape == (3,)
     assert v4.shape == (2,) or v4.shape == (3,)
     
-    assert all([v.shape == (2,) or v[2] == 0. for v in [v1,v2,v3,v4]])
+    assert all([v.shape == (2,) or v[1] == 0. for v in [v1,v2,v3,v4]])
     
     pos = np.zeros(2)
     jac = C.c_double(0.0)
@@ -382,14 +411,14 @@ potential_radial_ring = lambda *args: backend_lib.potential_radial_ring(*args, N
 dr1_potential_radial_ring = lambda *args: backend_lib.dr1_potential_radial_ring(*args, None)
 dz1_potential_radial_ring = lambda *args: backend_lib.dz1_potential_radial_ring(*args, None)
 
-def axial_derivatives_radial_ring(z, charges, jac_buffer, pos_buffer):
+def axial_derivatives_radial(z, charges, jac_buffer, pos_buffer):
     derivs = np.zeros( (z.size, DERIV_2D_MAX) )
     
     assert jac_buffer.shape == (len(charges), N_QUAD_2D)
     assert pos_buffer.shape == (len(charges), N_QUAD_2D, 2)
     assert charges.shape == (len(charges),)
      
-    backend_lib.axial_derivatives_radial_ring(derivs,charges, jac_buffer, pos_buffer, len(charges), z, len(z))
+    backend_lib.axial_derivatives_radial(derivs,charges, jac_buffer, pos_buffer, len(charges), z, len(z))
     return derivs
 
 def potential_radial(point, charges, jac_buffer, pos_buffer):
@@ -514,7 +543,7 @@ def current_field(p0, currents, jac_buffer, pos_buffer):
     backend_lib.current_field(p0, result, currents, jac_buffer, pos_buffer, N)
     return result
 
-def current_axial_derivatives_radial_ring(z, currents, jac_buffer, pos_buffer):
+def current_axial_derivatives_radial(z, currents, jac_buffer, pos_buffer):
     N_z = len(z)
     N_vertices = len(currents)
 
@@ -524,7 +553,7 @@ def current_axial_derivatives_radial_ring(z, currents, jac_buffer, pos_buffer):
     assert pos_buffer.shape == (N_vertices, N_TRIANGLE_QUAD, 3)
     
     derivs = np.zeros( (z.size, DERIV_2D_MAX) )
-    backend_lib.current_axial_derivatives_radial_ring(derivs, currents, jac_buffer, pos_buffer, N_vertices, z, N_z)
+    backend_lib.current_axial_derivatives_radial(derivs, currents, jac_buffer, pos_buffer, N_vertices, z, N_z)
     return derivs
 
 
@@ -540,8 +569,33 @@ def fill_jacobian_buffer_radial(vertices):
     
     return jac_buffer, pos_buffer
 
+def self_potential_radial(vertices):
+    assert vertices.shape == (4,3) and vertices.dtype == np.double
+    user_data = vertices.ctypes.data_as(C.c_void_p)
+    low_level = LowLevelCallable(backend_lib.self_potential_radial, user_data=user_data)
+    return quad(low_level, -1, 1, points=(0,), epsabs=1e-9, epsrel=1e-9, limit=250)[0]
+
+class SelfFieldDotNormalRadialArgs(C.Structure):
+    _fields_ = [("line_points", C.POINTER(C.c_double)), ("K", C.c_double)]
+
+def self_field_dot_normal_radial(vertices, K):
+    assert vertices.shape == (4,3) and vertices.dtype == np.double
+    user_data = vertices.ctypes.data_as(C.c_void_p)
+
+    args = SelfFieldDotNormalRadialArgs()
+    args.K = float(K)
+    args.line_points = vertices.ctypes.data_as(dbl_p)
+
+    user_data = C.cast(C.pointer(args), vp)
+    
+    low_level = LowLevelCallable(backend_lib.self_field_dot_normal_radial, user_data=user_data)
+    return quad(low_level, -1, 1, points=(0,), epsabs=1e-9, epsrel=1e-9, limit=250)[0]
+
+
+
 def fill_matrix_radial(matrix, lines, excitation_types, excitation_values, jac_buffer, pos_buffer, start_index, end_index):
     N = len(lines)
+    assert np.all(lines[:, :, 1] == 0.0)
     assert matrix.shape[0] == N and matrix.shape[1] == N and matrix.shape[0] == matrix.shape[1]
     assert lines.shape == (N, 4, 3)
     assert excitation_types.shape == (N,)
@@ -551,17 +605,6 @@ def fill_matrix_radial(matrix, lines, excitation_types, excitation_values, jac_b
     assert 0 <= start_index < N and 0 <= end_index < N and start_index < end_index
      
     backend_lib.fill_matrix_radial(matrix, lines, excitation_types, excitation_values, jac_buffer, pos_buffer, N, matrix.shape[0], start_index, end_index)
-
-def fill_jacobian_buffer_3d_higher_order(vertices):
-    N = len(vertices)
-    assert vertices.shape == (N, 6, 3)
-    
-    jac_buffer = np.zeros( (N, N_TRIANGLE_QUAD) )
-    pos_buffer = np.zeros( (N, N_TRIANGLE_QUAD, 3) )
-    
-    backend_lib.fill_jacobian_buffer_3d_higher_order(jac_buffer, pos_buffer, vertices, N)
-
-    return jac_buffer, pos_buffer
 
 def fill_jacobian_buffer_3d(vertices):
     N = len(vertices)
@@ -578,7 +621,7 @@ def fill_jacobian_buffer_3d(vertices):
 def fill_matrix_3d(matrix, vertices, excitation_types, excitation_values, jac_buffer, pos_buffer, start_index, end_index):
     N = len(vertices)
     assert matrix.shape[0] == N and matrix.shape[1] == N and matrix.shape[0] == matrix.shape[1]
-    assert vertices.shape == (N, 6, 3)
+    assert vertices.shape == (N, 3, 3)
     assert excitation_types.shape == (N,)
     assert excitation_values.shape == (N,)
     assert jac_buffer.shape == (N, N_TRIANGLE_QUAD)

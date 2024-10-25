@@ -1,0 +1,165 @@
+---
+name: Build and Test Python Package
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  build_ubuntu:
+    runs-on: ubuntu-20.04
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: "3.8"
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          pip install --upgrade pip setuptools wheel auditwheel patchelf
+      - name: Build the wheel
+        run: python setup.py bdist_wheel
+      - name: Build the source distribution
+        run: python setup.py sdist
+      - name: Repair wheel with auditwheel
+        run: |
+            auditwheel show dist/*.whl
+            auditwheel repair dist/*.whl --plat manylinux_2_31_x86_64 -w wheelhouse/
+      - name: Upload wheel artifact
+        uses: actions/upload-artifact@v3
+        with:
+          name: ubuntu-wheel
+          path: wheelhouse/*.whl
+      - name: Upload source distribution
+        uses: actions/upload-artifact@v3
+        with:
+          name: source-distribution
+          path: dist/*.tar.gz
+
+
+  build_windows:
+    runs-on: windows-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: "3.8"
+      - name: Install dependencies
+        shell: powershell
+        run: |
+          pip install --upgrade pip setuptools wheel
+      - name: Build the wheel
+        run: python setup.py bdist_wheel
+      - name: Upload wheel artifact
+        uses: actions/upload-artifact@v3
+        with:
+          name: windows-wheel
+          path: dist/*.whl
+
+  test_ubuntu:
+    needs: build_ubuntu
+    runs-on: ubuntu-20.04
+    steps:
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: "3.8"
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y gmsh
+      - name: Checkout code
+        uses: actions/checkout@v3
+      - name: Download wheel artifact
+        uses: actions/download-artifact@v3
+        with:
+          name: ubuntu-wheel
+          path: ./
+      - name: Install the wheel
+        run: |
+          pip install traceon-*.whl
+          pip show traceon
+      - name: Run tests
+        run: python -m unittest tests/*.py
+
+  test_windows:
+    needs: build_windows
+    runs-on: windows-latest
+    steps:
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: "3.8"
+      - name: Checkout code
+        uses: actions/checkout@v3
+      - name: Download wheel artifact
+        uses: actions/download-artifact@v3
+        with:
+          name: windows-wheel
+          path: ./
+      - name: Install the wheel
+        run: |
+          pip install (get-item traceon-*.whl)
+          pip show traceon
+      - name: Run tests
+        run: python -m unittest (get-item tests/*.py)
+    
+  upload_ubuntu:
+    needs: build_ubuntu
+    runs-on: ubuntu-20.04
+    if: github.event_name == 'workflow_dispatch'
+    
+    steps:
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: "3.8"
+      - name: Download wheel artifact
+        uses: actions/download-artifact@v3
+        with:
+          name: ubuntu-wheel
+          path: ./
+      - name: Install Twine
+        run: |
+          pip install --upgrade pip
+          pip install twine
+      - name: Upload to PyPI
+        env:
+          TWINE_USERNAME: ${{ secrets.PYPI_USERNAME }}
+          TWINE_PASSWORD: ${{ secrets.PYPI_PASSWORD }}
+        run: python -m twine upload --repository pypi traceon-*.whl
+    
+  upload_windows:
+    needs: build_windows
+    runs-on: windows-latest
+    if: github.event_name == 'workflow_dispatch'
+    
+    steps:
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: "3.8"
+      - name: Download wheel artifact
+        uses: actions/download-artifact@v3
+        with:
+          name: windows-wheel
+          path: ./
+      - name: Install Twine
+        run: |
+          pip install --upgrade pip
+          pip install twine
+      - name: Upload to PyPI
+        env:
+          TWINE_USERNAME: ${{ secrets.PYPI_USERNAME }}
+          TWINE_PASSWORD: ${{ secrets.PYPI_PASSWORD }}
+        run: python -m twine upload --repository pypi (get-item traceon-*.whl)
+
+
+
+

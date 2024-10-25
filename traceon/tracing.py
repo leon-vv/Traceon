@@ -20,6 +20,7 @@ from scipy.constants import m_e, e
 
 from . import solver as S
 from . import backend
+from . import logging
 
 def velocity_vec(eV, direction):
     """Compute an initial velocity vector in the correct units and direction.
@@ -40,7 +41,7 @@ def velocity_vec(eV, direction):
     assert eV > 0.0
     
     if eV > 40000:
-        print(f'WARNING: velocity vector with large energy ({eV} eV) requested. Note that relativistic tracing is not yet implemented.')
+        logging.log_warning(f'Velocity vector with large energy ({eV} eV) requested. Note that relativistic tracing is not yet implemented.')
     
     return eV * np.array(direction)/np.linalg.norm(direction)
 

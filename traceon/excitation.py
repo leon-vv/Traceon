@@ -309,4 +309,24 @@ class Excitation:
         """
 
         return self._get_active_elements('magnetostatic')
-     
+    
+    def get_number_of_electrostatic_active_elements(self):
+        """Get elements in the mesh that are active, in the sense that
+        an excitation to them has been applied. This is the length of the points
+        array returned by the `Excitation.get_electrostatic_active_elements`.
+
+        Returns
+        --------
+        int, giving the number of elements. """
+        return self._get_number_of_active_elements('electrostatic')
+    
+    def get_number_of_electrostatic_matrix_elements(self):
+        """Gets the number of elements along one axis of the matrix. If this function returns N, the
+        matrix will have size NxN. The matrix consists of 64bit float values. Therefore the size of the matrix
+        in bytes is 8·NxN.
+
+        Returns
+        ---------
+        integer number
+        """
+        return self._get_number_of_active_elements('electrostatic')

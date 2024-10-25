@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+	<meta name="viewport" content="width=1000, initial-scale=0.1">
+    <title>Traceon</title>
+	<link href="https://fonts.googleapis.com/css?family=Roboto&display=swap" rel="stylesheet">
+    <style>
+		html, body {
+			min-width:1000px;
+			min-height:100vh;
+			margin:0px;
+			padding: 0px;
+			background-image: linear-gradient(to top right, #CCC, #FFF)
+		}
+		#github-ribbon {
+			position:fixed;
+			top:0px;
+			right:0px;
+		}
+		#header {
+			display: flex;
+			justify-content: center;
+			flex-direction: column;
+			text-align: center; 
+			width:850px;
+			margin:0px auto;
+			padding-top:35px;
+			padding-bottom:80px;
+			
+			background-image:url('traces.png');
+			background-size:210% 200%;
+			background-position:50% 18%;
+			background-repeat:no-repeat;
+		}
+		#header #buttons {
+			display:block;
+			margin-top:55px;	
+		}
+		#header .button {
+			color:blue;
+			font-family:sans-serif;
+			font-size:25px;
+			padding:20px 25px;
+		}
+		#header h1 {
+			font-family:'Roboto';
+			display:block;
+			text-align:center;
+			font-size:80px;
+			padding-top:20px;
+			padding-bottom:0px;
+		}
+		#header span {
+			font-family:sans-serif;
+			font-size:30px;
+			line-height:1.4em;
+		}
+		.item {
+			border-radius:3px;
+			position:relative;
+			margin:0px auto;
+			margin-bottom:80px;
+			width: 1060px;
+			height:350px;
+			background-color: #92B4ECBB;
+		}
+		.item .image {
+			box-shadow: 0px 0px 40px -15px #444;
+			width:350px;
+			height:350px;
+			border-radius:3px;
+			background-color: #FFF;	
+			position:absolute;
+			right:-15px;
+			top:-15px;
+			transform: rotate(2deg);
+		}
+		.item:nth-child(even) .image {
+			left:-15px;
+			transform: rotate(-2deg);
+		}
+		.item h2 {
+			font-family:Roboto;
+			font-size:30px;
+			padding:50px;
+			padding-bottom:30px;
+			margin:0px;
+		}
+		.item span {
+			font-family:Roboto;
+			display:inline-block;
+			font-size:22px;
+			line-height:1.45em;
+			font-weight:300;
+			padding-left:50px;
+			width:570px;
+		}
+		.item:nth-child(even) h2, .item:nth-child(even) span {
+			padding-left:400px;
+			padding-right:40px;
+		}
+		#container {
+			border-radius:3px;
+			position:relative;
+			margin:0px auto;
+			margin-bottom:80px;
+			margin-top:0px;
+			width: 1060px;
+			background-color: #92B4ECBB;
+		}
+		#container img {
+			display:block;
+			width:800px;
+			margin:0px auto;
+			padding-bottom:50px;
+		}
+		#container h2 {
+			font-family:Roboto;
+			font-size:30px;
+			padding:50px;
+			margin:0px;
+			padding-bottom:30px;
+			text-align:center;
+		}
+		
+		#container div {
+			font-family:Roboto;
+			font-size:20px;
+			padding:20px 140px;
+			padding-bottom:70px;
+			margin:0px auto;
+		}
+		#container #pip {
+			display:block;
+			text-align:center;
+			padding-top:20px;
+			padding-bottom:20px;
+			font-weight:bold;
+			font-size:22px;
+		}
+		
+		iframe {
+			display:block;
+			margin:0px auto;
+			height:1200px;
+			padding-top:80px;
+		}
+    </style>
+</head>
+<body>
+<a id='github-ribbon' href="https://github.com/leon-vv/traceon"><img decoding="async" width="149" height="149" src="https://github.blog/wp-content/uploads/2008/12/forkme_right_darkblue_121621.png" class="attachment-full size-full" alt="Fork me on GitHub" loading="lazy"></a>
+<div id="header">
+	<h1>Traceon</h1>
+	<span>Electron optics simulations for the 21st century</span>
+
+	<div id='buttons'>
+		<a class='button' href='index.html'>Applications</a>
+		<a class='button' href='technology.html'>Technology</a>
+		<a class='button' href="download.html">Download</a>
+		<a class='button' href="contact.html">Contact us</a>
+	</div>
+</div>
+<div id="container">
+
+<h2>For the community and for professionals</h2>
+
+<div>
+Get to know Traceon by installing the community edition using pip:
+<span id='pip'>pip install traceon</span>
+
+Next, get Traceon Professional to unlock scalable simulations for your organization.
+</div>
+
+<img src="feature overview.png" />
+
+</div>
+
+
+<!-- Start of HubSpot Embed Code -->
+<script type="text/javascript" id="hs-script-loader" async defer src="https://js.hs-scripts.com/47780895.js"></script>
+<!-- End of HubSpot Embed Code -->
+</body>
+</html>

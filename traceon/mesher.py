@@ -207,7 +207,7 @@ class Mesh(Saveable, GeometricObject):
             self.physical_to_triangles[k] = map_index[v[~degenerate[v]]]
          
         if np.any(degenerate):
-            print(f'Removed {sum(degenerate)} degenerate triangles')
+            log_debug(f'Removed {sum(degenerate)} degenerate triangles')
     
     def _merge_dicts(dict1, dict2):
         dict_ = {}

@@ -55,7 +55,7 @@ def plot_mesh(mesh, show_normals=False, show_legend=True, **colors):
 
 def _plot_triangle_mesh(mesh, plotter, points_to_physical, show_normals=False, **phys_colors):
     triangles = mesh.triangles[:, :3]
-    normals = np.array([backend.normal_3d(*mesh.points[t]) for t in triangles])
+    normals = np.array([backend.normal_3d(1/3, 1/3, mesh.points[t]) for t in triangles])
     
     colors = np.full(len(triangles), '#CCCCCC')
     dict_ = points_to_physical

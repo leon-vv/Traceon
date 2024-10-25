@@ -53,10 +53,10 @@ import copy
 import numpy as np
 from scipy.interpolate import CubicSpline, BPoly, PPoly
 from scipy.special import legendre
-from scipy.integrate import quad
 
 from . import geometry as G
 from . import excitation as E
+from . import logging
 from . import backend
 from . import util
 from . import fast_multipole_method
@@ -93,12 +93,12 @@ class Solver:
 
         two_d = self.is_2d()
         higher_order = self.is_higher_order()
+
+        assert not higher_order or two_d, "Higher order not supported in 3D"
         
         if two_d and higher_order:
             jac, pos = backend.fill_jacobian_buffer_radial(vertices)
-        elif not two_d and higher_order:
-            jac, pos = backend.fill_jacobian_buffer_3d_higher_order(vertices)
-        elif not two_d and not higher_order:
+        elif not two_d:
             jac, pos = backend.fill_jacobian_buffer_3d(vertices)
         else:
             raise ValueError('Input excitation is 2D but not higher order, this solver input is currently not supported. Consider upgrading mesh to higher order.')
@@ -143,12 +143,13 @@ class Solver:
         pass
          
     def get_matrix(self):
-        assert self.is_higher_order(), "Can only produce matrix for higher order meshes. Consider upgrading your mesh."
-        
+        assert (self.is_3d() and not self.is_higher_order()) or \
+            (self.is_2d() and self.is_higher_order()), "2D mesh needs to be higher order (consider upgrading mesh), 3D mesh needs to be simple (higher order not supported)."
+         
         N_matrix = self.get_number_of_matrix_elements()
         matrix = np.zeros( (N_matrix, N_matrix) )
-        print(f'Using matrix solver, number of elements: {N_matrix}, size of matrix: {N_matrix} ({matrix.nbytes/1e6:.0f} MB), symmetry: {self.excitation.symmetry}, higher order: {self.excitation.mesh.is_higher_order()}')
-        
+        logging.log_info(f'Using matrix solver, number of elements: {N_matrix}, size of matrix: {N_matrix} ({matrix.nbytes/1e6:.0f} MB), symmetry: {self.excitation.symmetry}, higher order: {self.excitation.mesh.is_higher_order()}')
+         
         fill_fun = backend.fill_matrix_3d if self.is_3d() else backend.fill_matrix_radial
         
         def fill_matrix_rows(rows):
@@ -160,7 +161,20 @@ class Solver:
         
         st = time.time()
         util.split_collect(fill_matrix_rows, np.arange(N_matrix))    
-        print(f'Time for building matrix: {(time.time()-st)*1000:.0f} ms')
+        logging.log_info(f'Time for building matrix: {(time.time()-st)*1000:.0f} ms')
+
+        if not self.is_3d():
+            # Technical detail: radial cannot compute their own self potential/field
+            # need to fill it in here
+            for i in range(N_matrix):
+                type_ = self.excitation_types[i]
+                val = self.excitation_values[i]
+                
+                if type_ == E.ExcitationType.DIELECTRIC or type_ == E.ExcitationType.MAGNETIZABLE:
+                    # -1 follows from matrix equation
+                    matrix[i, i] = backend.self_field_dot_normal_radial(self.vertices[i], self.excitation_values[i]) - 1
+                else:
+                    matrix[i, i] = backend.self_potential_radial(self.vertices[i])
         
         assert np.all(np.isfinite(matrix))
          
@@ -183,7 +197,7 @@ class Solver:
          
         st = time.time()
         charges = np.linalg.solve(matrix, F.T).T
-        print(f'Time for solving matrix: {(time.time()-st)*1000:.0f} ms')
+        logging.log_info(f'Time for solving matrix: {(time.time()-st)*1000:.0f} ms')
         assert np.all(np.isfinite(charges)) and charges.shape == F.shape
         
         result = [self.charges_to_field(EffectivePointCharges(c, self.jac_buffer, self.pos_buffer)) for c in charges]
@@ -196,8 +210,8 @@ class Solver:
         assert isinstance(precision, int) and -2 <= precision <= 5, "Precision should be an intenger -2 <= precision <= 5"
          
         triangles = self.vertices
-        print(f'Using FMM solver, number of elements: {len(triangles)}, symmetry: {self.excitation.symmetry}, precision: {precision}')
-        
+        logging.log_info(f'Using FMM solver, number of elements: {len(triangles)}, symmetry: {self.excitation.mesh.symmetry}, precision: {precision}')
+         
         N = len(triangles)
         assert triangles.shape == (N, 3, 3)
          
@@ -208,7 +222,7 @@ class Solver:
         dielectric_indices = self.get_flux_indices()
         dielectric_values = self.excitation_values[dielectric_indices]
         charges, count = fast_multipole_method.solve_iteratively(self.vertices, dielectric_indices, dielectric_values, F, precision=precision)
-        print(f'Time for solving FMM: {(time.time()-st)*1000:.0f} ms (iterations: {count})')
+        logging.log_info(f'Time for solving FMM: {(time.time()-st)*1000:.0f} ms (iterations: {count})')
         
         return self.charges_to_field(EffectivePointCharges(charges, self.jac_buffer, self.pos_buffer))
 
@@ -265,10 +279,8 @@ class MagnetostaticSolver(Solver):
             elif self.is_2d() and self.is_higher_order():
                 normals[i] = backend.higher_order_normal_radial(0.0, v[:, :2])
             elif self.is_3d() and not self.is_higher_order():
-                normals[i] = backend.normal_3d(*v)
-            elif self.is_3d() and self.is_higher_order():
-                normals[i] = backend.higher_order_normal_3d(1/3, 1/3, v)
-
+                normals[i] = backend.normal_3d(1/3, 1/3, v)
+        
         self.normals = normals
     
     def get_active_elements(self):
@@ -288,7 +300,7 @@ class MagnetostaticSolver(Solver):
         if not len(mesh.triangles) or not self.excitation.has_current():
             return EffectivePointCharges.empty_3d()
          
-        jac, pos = backend.fill_jacobian_buffer_3d_higher_order(mesh.points[mesh.triangles])
+        jac, pos = backend.fill_jacobian_buffer_3d(mesh.points[mesh.triangles])
         
         for n, v in self.excitation.excitation_types.items():
             if not v[0] == E.ExcitationType.CURRENT or not n in mesh.physical_to_triangles:
@@ -331,7 +343,7 @@ class MagnetostaticSolver(Solver):
                 F[i] = -backend.flux_density_to_charge_factor(value) * np.dot(field_at_center, self.normals[i])
          
         assert np.all(np.isfinite(F))
-        print(f'Computing right hand side of linear system took {(time.time()-st)*1000:.0f} ms')
+        logging.log_info(f'Computing right hand side of linear system took {(time.time()-st)*1000:.0f} ms')
         return F
      
     def charges_to_field(self, charges):
@@ -400,7 +412,7 @@ class EffectivePointCharges:
         
      
 def _excitation_to_higher_order(excitation):
-    print('Upgrading mesh to higher to be compatible with matrix solver')
+    logging.log_info('Upgrading mesh to higher to be compatible with matrix solver')
     # Upgrade mesh, such that matrix solver will support it
     excitation = copy.copy(excitation)
     mesh = copy.copy(excitation.mesh)
@@ -426,14 +438,10 @@ def solve_bem(excitation, superposition=False, use_fmm=False, fmm_precision=0):
         matrix does not have to be inverted multiple times). However, voltage functions are invalid in the superposition process (position dependent voltages).
     
     use_fmm : bool
-        Use the fast multipole method to calculate the charge distribution. This method is currently only implemented for 3D geometries without
-        higher order elements. This function only works if [pyfmmlib](https://github.com/inducer/pyfmmlib) is installed
-        (version 2023.1 or later). The fast multipole method is usually slower for small 3D problems, but scales much better to problems with >10^5
-        number of triangles.
-
+        Use the fast multipole method to calculate the charge distribution. 
+    
     fmm_precision : int
-        Precision flag passed to the fast multipole library (see iprec argument in the [official documentation](https://github.com/zgimbutas/fmmlib3d/blob/master/doc/fmm3dpart_manual3.pdf)).
-        Usually values -1, 0, 1, 2 will work, choose higher numbers if more precision is desired.
+        Precision flag passed to the fast multipole library, should be one of -1, 0, 1, 2, 3, 4. Choose higher numbers if more precision is desired.
     
     Returns
     -------
@@ -449,7 +457,7 @@ def solve_bem(excitation, superposition=False, use_fmm=False, fmm_precision=0):
         else:
             return ElectrostaticSolver(excitation).solve_fmm(fmm_precision)
     else:
-        if not excitation.mesh.is_higher_order():
+        if excitation.mesh.is_2d() and not excitation.mesh.is_higher_order():
             excitation = _excitation_to_higher_order(excitation)
          
         if superposition:
@@ -805,7 +813,7 @@ class FieldRadialBEM(FieldBEM):
         charges = self.electrostatic_point_charges.charges
         jacobians = self.electrostatic_point_charges.jacobians
         positions = self.electrostatic_point_charges.positions
-        return backend.axial_derivatives_radial_ring(z, charges, jacobians, positions)
+        return backend.axial_derivatives_radial(z, charges, jacobians, positions)
     
     def get_magnetostatic_axial_potential_derivatives(self, z):
         """
@@ -825,7 +833,7 @@ class FieldRadialBEM(FieldBEM):
         jacobians = self.magnetostatic_point_charges.jacobians
         positions = self.magnetostatic_point_charges.positions
          
-        derivs_magnetic = backend.axial_derivatives_radial_ring(z, charges, jacobians, positions)
+        derivs_magnetic = backend.axial_derivatives_radial(z, charges, jacobians, positions)
         derivs_current = self.get_current_axial_potential_derivatives(z)
         return derivs_magnetic + derivs_current
      
@@ -847,7 +855,7 @@ class FieldRadialBEM(FieldBEM):
         currents = self.current_point_charges.charges
         jacobians = self.current_point_charges.jacobians
         positions = self.current_point_charges.positions
-        return backend.current_axial_derivatives_radial_ring(z, currents, jacobians, positions)
+        return backend.current_axial_derivatives_radial(z, currents, jacobians, positions)
       
     def axial_derivative_interpolation(self, zmin, zmax, N=None):
         """
@@ -884,7 +892,7 @@ class FieldRadialBEM(FieldBEM):
         mag_derivs = np.concatenate(util.split_collect(self.get_magnetostatic_axial_potential_derivatives, z), axis=0)
         mag_coeffs = _quintic_spline_coefficients(z, mag_derivs.T)
         
-        print(f'Computing derivative interpolation took {(time.time()-st)*1000:.2f} ms ({len(z)} items)')
+        logging.log_info(f'Computing derivative interpolation took {(time.time()-st)*1000:.2f} ms ({len(z)} items)')
         
         return FieldRadialAxial(z, elec_coeffs, mag_coeffs)
     
@@ -1021,11 +1029,11 @@ class Field3D_BEM(FieldBEM):
         N = N if N is not None else int(FACTOR_AXIAL_DERIV_SAMPLING_3D*N_charges)
         z = np.linspace(zmin, zmax, N)
         
-        print(f'Number of points on z-axis: {len(z)}')
+        logging.log_info(f'Number of points on z-axis: {len(z)}')
         st = time.time()
         elec_coeff = self._effective_point_charges_to_coeff(self.electrostatic_point_charges, z)
         mag_coeff = self._effective_point_charges_to_coeff(self.magnetostatic_point_charges, z)
-        print(f'Time for calculating radial series expansion coefficients: {(time.time()-st)*1000:.0f} ms ({len(z)} items)')
+        logging.log_info(f'Time for calculating radial series expansion coefficients: {(time.time()-st)*1000:.0f} ms ({len(z)} items)')
         
         return Field3DAxial(z, elec_coeff, mag_coeff)
     

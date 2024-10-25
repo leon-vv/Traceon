@@ -19,6 +19,8 @@ class RectangularCoil(Validation):
         self.plot_colors = dict(coil='red', boundary='purple')
 
     def create_mesh(self, MSF, symmetry, higher_order):
+        assert symmetry == G.Symmetry.RADIAL, "3D meshes not yet supported in magnetostatics"
+         
         with G.Geometry(G.Symmetry.RADIAL) as geom:
             points = [[0, 5], [5,5], [5,0], [0, 0]]
             lines = [geom.add_line(geom.add_point(p1), geom.add_point(p2)) for p1, p2 in zip(points, points[1:])]
@@ -34,7 +36,7 @@ class RectangularCoil(Validation):
             rect = geom.add_rectangle(2, 3, 2, 3, 0)
             geom.add_physical(rect.surface, 'coil')
             geom.set_mesh_size_factor(MSF)
-            mesh2 = geom.generate_triangle_mesh(higher_order)
+            mesh2 = geom.generate_triangle_mesh()
 
         return mesh1 + mesh2
 

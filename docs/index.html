@@ -3,39 +3,45 @@
 <head>
     <meta charset="UTF-8">
 	<meta name="viewport" content="width=1000, initial-scale=0.1">
-    <title>Traceon - Electron Microscope Calculations</title>
+    <title>Traceon</title>
 	<link href="https://fonts.googleapis.com/css?family=Roboto&display=swap" rel="stylesheet">
     <style>
 		html, body {
 			min-width:1000px;
+			min-height:100vh;
 			margin:0px;
 			padding: 0px;
 			background-image: linear-gradient(to top right, #CCC, #FFF)
+		}
+		#github-ribbon {
+			position:fixed;
+			top:0px;
+			right:0px;
 		}
 		#header {
 			display: flex;
 			justify-content: center;
 			flex-direction: column;
 			text-align: center; 
-			width:800px;
+			width:850px;
 			margin:0px auto;
 			padding-top:35px;
 			padding-bottom:80px;
 			
 			background-image:url('traces.png');
-			background-size:220% 180%;
-			background-position:50% 20%;
+			background-size:210% 200%;
+			background-position:50% 18%;
 			background-repeat:no-repeat;
 		}
 		#header #buttons {
 			display:block;
-			margin-top:45px;	
+			margin-top:55px;	
 		}
 		#header .button {
 			color:blue;
 			font-family:sans-serif;
 			font-size:25px;
-			padding:20px;
+			padding:20px 25px;
 		}
 		#header h1 {
 			font-family:'Roboto';
@@ -55,12 +61,12 @@
 			position:relative;
 			margin:0px auto;
 			margin-bottom:80px;
-			width: 920px;
+			width: 1060px;
 			height:350px;
 			background-color: #92B4ECBB;
 		}
 		.item .image {
-			box-shadow: 0px 0px 30px -5px #333;
+			box-shadow: 0px 0px 40px -15px #444;
 			width:350px;
 			height:350px;
 			border-radius:3px;
@@ -82,74 +88,102 @@
 			margin:0px;
 		}
 		.item span {
+			font-family:Roboto;
 			display:inline-block;
-			font-size:23px;
-			line-height:1.2em;
-			font-family:sans-serif;
+			font-size:22px;
+			line-height:1.45em;
+			font-weight:300;
 			padding-left:50px;
-			width:480px;
+			width:570px;
 		}
 		.item:nth-child(even) h2, .item:nth-child(even) span {
 			padding-left:400px;
 			padding-right:40px;
 		}
-
+		#container {
+			border-radius:3px;
+			position:relative;
+			margin:0px auto;
+			margin-bottom:80px;
+			margin-top:0px;
+			width: 1060px;
+			background-color: #92B4ECBB;
+		}
+		#container img {
+			display:block;
+			width:800px;
+			margin:0px auto;
+			padding-bottom:50px;
+		}
+		#container h2 {
+			font-family:Roboto;
+			font-size:30px;
+			padding:50px;
+			margin:0px;
+			padding-bottom:30px;
+			text-align:center;
+		}
+		
+		#container div {
+			font-family:Roboto;
+			font-size:20px;
+			padding:20px 140px;
+			padding-bottom:70px;
+			margin:0px auto;
+		}
+		#container #pip {
+			display:block;
+			text-align:center;
+			padding-top:20px;
+			padding-bottom:20px;
+			font-weight:bold;
+			font-size:22px;
+		}
+		
+		iframe {
+			display:block;
+			margin:0px auto;
+			height:1200px;
+			padding-top:80px;
+		}
     </style>
 </head>
 <body>
+<a id='github-ribbon' href="https://github.com/leon-vv/traceon"><img decoding="async" width="149" height="149" src="https://github.blog/wp-content/uploads/2008/12/forkme_right_darkblue_121621.png" class="attachment-full size-full" alt="Fork me on GitHub" loading="lazy"></a>
 <div id="header">
 	<h1>Traceon</h1>
-	<span>Open source software for electromagnetic field calculations.</span>
+	<span>Electron optics simulations for the 21st century</span>
 
 	<div id='buttons'>
-	<a class='button' href='https://www.github.com/leon-vv/traceon'>Install now</a>
-	<a class='button' href='docs/latest/index.html'>API documentation</a>
-	<a class='button' href="mailto:leonva&#110;velz&#101;n&#64;&#112;&#109;&#46;&#109;&#101;">Contact</a>
+		<a class='button' href='index.html'>Applications</a>
+		<a class='button' href='technology.html'>Technology</a>
+		<a class='button' href="download.html">Download</a>
+		<a class='button' href="contact.html">Contact us</a>
 	</div>
 </div>
-
-
 <div class='item'>
-<img src='boundary.png' class='image' />
-<h2>Boundary element method</h2>
-<span>Unlike traditionel finite element methods Traceon only needs the boundary mesh to compute the fields. This greatly reduces
-the problem size and improves accuracy.</span>
-</div>
-<div class='item'>
-<img src='formulas.png' class='image' />
-<h2>Accurate and fast particle tracing</h2>
-<span>Traceon uses advanced mathematical formulas to make accurate approximations of the fields around the optical axis.</span>
+<img src='digital-twin.png' class='image' />
+<h2>Digital twin technology</h2>
+<span>Accurately capture the inner workings of your machine in a computer model. Make sure your design decisions have been validated in software before manufacture.</span>
 </div>
 
 <div class='item'>
-<img src="formulas-magnetic.png" class='image' />
-<h2>Magnetostatics</h2>
-<span>Thanks to the method of reduced potential, Traceon also allows magnetostatic fields to be computed.</span>
+<img src='magnetic-lens.png' class='image' />
+<h2>Optimize your electromagnetic components</h2>
+<span>Study your lenses and eletromagnetic components with high accuracy. Calculate aberrations and gain insights in your system.</span>
 </div>
 
 <div class='item'>
-<div class='image'><img src='Python-logo.png' width='250' height='250' style='margin:50px 50px;' /></div>
-<h2>Convenient Python interface</h2>
-<span>Traceon is distributed as a package for the programming language you know and love: Python</span>
-</div>
-
-<div class='item'>
-<img src='edwards.png' class='image' />
-<h2>Verified against the literature</h2>
-<span>Many benchmark problems from the literature are reproduced in Traceon, showing its excellent accuracy</span>
-</div>
-
-<div class='item'>
-<a href='https://www.github.com/leon-vv/traceon'><img src='github-traceon.png' class='image' /></a>
-<h2>Free and open source</h2>
-<span>You can get started with Traceon today!</span>
+<img src='tolerances.png' class='image' />
+<h2>Study the most critical tolerances</h2>
+<span>Gain insights in which parameters impact your machine the most. Traceon allows you to ensure cost effectiveness when designing the most complicated machines.</span>
 </div>
 
 
 
 
-
-
-
+<!-- Start of HubSpot Embed Code -->
+<script type="text/javascript" id="hs-script-loader" async defer src="https://js.hs-scripts.com/47780895.js"></script>
+<!-- End of HubSpot Embed Code -->
 </body>
 </html>
