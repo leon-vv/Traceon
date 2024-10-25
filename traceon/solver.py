@@ -131,13 +131,12 @@ class Solver:
         two_d = self.is_2d()
         higher_order = self.is_higher_order()
          
-        if not self.is_higher_order():
+        if self.is_3d() or not self.is_higher_order():
             return np.mean(self.vertices[index], axis=0)
-        elif two_d:
-            v = self.vertices
-            return backend.position_and_jacobian_radial(0, v[index, 0], v[index, 2], v[index, 3], v[index, 1])[1]
         else:
-            return backend.position_and_jacobian_3d(0.5, 0.5, self.vertices[index])[1]
+            v0, v1, v2, v3 = self.vertices[index]
+            jac, pos = backend.position_and_jacobian_radial(0, v0, v2, v3, v1)
+            return np.array([pos[0], 0.0, pos[1]])
      
     def get_right_hand_side(self):
         pass
