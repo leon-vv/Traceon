@@ -2,7 +2,6 @@ import time
 import argparse
 
 import numpy as np
-from pygmsh import *
 import matplotlib.pyplot as plt
 
 import traceon.geometry as G
@@ -27,44 +26,23 @@ class CapacitanceSphere(Validation):
         self.plot_colors = dict(inner='blue', outer='darkblue', dielectric='green')
     
     def create_mesh(self, MSF, symmetry, higher_order):
+         
+        def add_shell(radius, name, reverse=False):
+            arc = G.Path.arc([0., 0., 0.], [0, 0, -radius], [radius, 0, 0.]).arc_to([0., 0., 0.], [0., 0., radius])
+            arc.name = name
+
+            if symmetry.is_3d():
+                arc = arc.revolve_z()
+                mesh = arc.mesh(mesh_size_factor=MSF)
+            else:
+                mesh = arc.mesh(mesh_size_factor=MSF, higher_order=higher_order)
+            
+            return mesh.flip_normals() if reverse else mesh
         
-        with G.Geometry(symmetry) as geom:
-            center = geom.add_point([0.0, 0.0])
-            
-            def add_shell(r, reorient=False, factor=1.0):
-                
-                if symmetry == G.Symmetry.RADIAL:
-                    points = [[0,-r], [r, 0], [0,r]]
-                else:
-                    points = [[0,0,-r], [r,0, 0], [0,0,r]]
-                
-                p = [geom.add_point(p) for p in points]
-
-                if not reorient:
-                    arcs = [geom.add_circle_arc(p[0], center, p[1]), geom.add_circle_arc(p[1], center, p[2])]
-                else:
-                    arcs = [geom.add_circle_arc(p[2], center, p[1]), geom.add_circle_arc(p[1], center, p[0])]
-
-                if symmetry == G.Symmetry.RADIAL:
-                    return arcs
-                else:
-                    return G.revolve_around_optical_axis(geom, arcs, factor=factor)
-            
-            l1 = add_shell(r1)
-            d1 = add_shell(r3, reorient=symmetry == G.Symmetry.RADIAL)
-            d2 = add_shell(r4, reorient=symmetry != G.Symmetry.RADIAL)
-            l2 = add_shell(r2, reorient=True)
-            
-            geom.add_physical(l1, 'inner')
-            geom.add_physical(l2, 'outer')
-            geom.add_physical([*d1, *d2], 'dielectric')
-            
-            geom.set_mesh_size_factor(MSF)
-            
-            return geom.generate_line_mesh(higher_order) if symmetry.is_2d() else geom.generate_triangle_mesh()
-
-    def get_excitation(self, geom):
-        exc = E.Excitation(geom)
+        return add_shell(r1, 'inner') + add_shell(r2, 'outer') + add_shell(r3, 'dielectric', True) + add_shell(r4, 'dielectric')
+    
+    def get_excitation(self, geom, symmetry):
+        exc = E.Excitation(geom, symmetry)
         exc.add_voltage(inner=1)
         exc.add_voltage(outer=0)
         exc.add_dielectric(dielectric=K)
@@ -74,7 +52,7 @@ class CapacitanceSphere(Validation):
         return 4*np.pi/( (1/r1 - 1/r3) + (1/r3 - 1/r4)/K + (1/r4 - 1/r2))
     
     def compute_value_of_interest(self, geometry, field):
-        exc = self.get_excitation(geometry)
+        exc = self.get_excitation(geometry, field.symmetry)
          
         x = np.linspace(0.55, 0.95)
         f = [field.field_at_point(np.array([x_, 0.0, 0.0]))[0] for x_ in x]

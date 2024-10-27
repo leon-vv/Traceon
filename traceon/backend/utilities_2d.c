@@ -31,10 +31,10 @@ normal_2d(double *p1, double *p2, double *normal) {
 EXPORT void
 higher_order_normal_radial(double alpha, double *v1, double *v2, double *v3, double *v4, double *normal) {
 
-	double v1x = v1[0], v1y = v1[1];
-	double v2x = v2[0], v2y = v2[1];
-	double v3x = v3[0], v3y = v3[1];
-	double v4x = v4[0], v4y = v4[1];
+	double v1x = v1[0], v1y = v1[2];
+	double v2x = v2[0], v2y = v2[2];
+	double v3x = v3[0], v3y = v3[2];
+	double v4x = v4[0], v4y = v4[2];
 		
 	double a2 = pow(alpha, 2);
 	double a3 = pow(alpha, 3);
@@ -49,10 +49,10 @@ higher_order_normal_radial(double alpha, double *v1, double *v2, double *v3, dou
 
 INLINE void position_and_jacobian_radial(double alpha, double *v1, double *v2, double *v3, double *v4, double *pos_out, double *jac) {
 
-	double v1x = v1[0], v1y = v1[1];
-	double v2x = v2[0], v2y = v2[1];
-	double v3x = v3[0], v3y = v3[1];
-	double v4x = v4[0], v4y = v4[1];
+	double v1x = v1[0], v1y = v1[2];
+	double v2x = v2[0], v2y = v2[2];
+	double v3x = v3[0], v3y = v3[2];
+	double v4x = v4[0], v4y = v4[2];
 		
 	double a2 = pow(alpha, 2);
 	double a3 = pow(alpha, 3);

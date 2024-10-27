@@ -42,7 +42,7 @@ setup(
     },
     long_description = open('README.md').read(),
     long_description_content_type='text/markdown',
-    install_requires=['matplotlib', 'vedo', 'numpy', 'gmsh>=4.9', 'pygmsh>=7.1.13', 'scipy'],
+    install_requires=['matplotlib', 'vedo', 'numpy', 'scipy', 'meshio'],
     project_urls = {
         'Documentation': "https://leon.science/traceon",
         'Code': "https://github.com/leon-vv/traceon",

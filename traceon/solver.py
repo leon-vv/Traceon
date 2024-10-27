@@ -130,13 +130,12 @@ class Solver:
         two_d = self.is_2d()
         higher_order = self.is_higher_order()
          
-        if not self.is_higher_order():
+        if self.is_3d() or not self.is_higher_order():
             return np.mean(self.vertices[index], axis=0)
-        elif two_d:
-            v = self.vertices
-            return backend.position_and_jacobian_radial(0, v[index, 0], v[index, 2], v[index, 3], v[index, 1])[1]
         else:
-            return backend.position_and_jacobian_3d(0.5, 0.5, self.vertices[index])[1]
+            v0, v1, v2, v3 = self.vertices[index]
+            jac, pos = backend.position_and_jacobian_radial(0, v0, v2, v3, v1)
+            return np.array([pos[0], 0.0, pos[1]])
      
     def get_right_hand_side(self):
         pass
@@ -147,8 +146,8 @@ class Solver:
          
         N_matrix = self.get_number_of_matrix_elements()
         matrix = np.zeros( (N_matrix, N_matrix) )
-        logging.log_info(f'Using matrix solver, number of elements: {N_matrix}, size of matrix: {N_matrix} ({matrix.nbytes/1e6:.0f} MB), symmetry: {self.excitation.mesh.symmetry}, higher order: {self.excitation.mesh.is_higher_order()}')
-        
+        logging.log_info(f'Using matrix solver, number of elements: {N_matrix}, size of matrix: {N_matrix} ({matrix.nbytes/1e6:.0f} MB), symmetry: {self.excitation.symmetry}, higher order: {self.excitation.mesh.is_higher_order()}')
+         
         fill_fun = backend.fill_matrix_3d if self.is_3d() else backend.fill_matrix_radial
         
         def fill_matrix_rows(rows):
@@ -204,6 +203,26 @@ class Solver:
         assert len(result) == len(F)
         return result
         
+    def solve_fmm(self, precision=0):
+        assert self.is_3d() and not self.is_higher_order(), "Fast multipole method is only supported for simple 3D geometries (non higher order triangles)."
+        assert isinstance(precision, int) and -2 <= precision <= 5, "Precision should be an intenger -2 <= precision <= 5"
+         
+        triangles = self.vertices
+        logging.log_info(f'Using FMM solver, number of elements: {len(triangles)}, symmetry: {self.excitation.mesh.symmetry}, precision: {precision}')
+         
+        N = len(triangles)
+        assert triangles.shape == (N, 3, 3)
+         
+        F = self.get_right_hand_side()
+        assert F.shape == (N,)
+         
+        st = time.time()
+        dielectric_indices = self.get_flux_indices()
+        dielectric_values = self.excitation_values[dielectric_indices]
+        charges, count = fast_multipole_method.solve_iteratively(self.vertices, dielectric_indices, dielectric_values, F, precision=precision)
+        logging.log_info(f'Time for solving FMM: {(time.time()-st)*1000:.0f} ms (iterations: {count})')
+        
+        return self.charges_to_field(EffectivePointCharges(charges, self.jac_buffer, self.pos_buffer))
 
 class ElectrostaticSolver(Solver):
     
@@ -319,7 +338,8 @@ class MagnetostaticSolver(Solver):
                 center = self.get_center_of_element(i)
                 field_at_center = self.current_field.current_field_at_point(center)
                 #flux_to_charge_factor = (value - 1)/np.pi
-                F[i] = -backend.flux_density_to_charge_factor(value) * np.dot(field_at_center, self.normals[i])
+                field_dotted = field_at_center[0] * self.normals[i, 0] + field_at_center[2]*self.normals[i, 1]
+                F[i] = -backend.flux_density_to_charge_factor(value) * field_dotted
          
         assert np.all(np.isfinite(F))
         logging.log_info(f'Computing right hand side of linear system took {(time.time()-st)*1000:.0f} ms')
@@ -631,6 +651,7 @@ class FieldRadialBEM(FieldBEM):
         if current_point_charges is None:
             current_point_charges = EffectivePointCharges.empty_3d()
          
+        self.symmetry = E.Symmetry.RADIAL
         super().__init__(electrostatic_point_charges, magnetostatic_point_charges, current_point_charges)
          
     def current_field_at_point(self, point):
@@ -819,6 +840,8 @@ class Field3D_BEM(FieldBEM):
             magnetostatic_point_charges = EffectivePointCharges.empty_3d()
          
         super().__init__(electrostatic_point_charges, magnetostatic_point_charges, EffectivePointCharges.empty_3d())
+        
+        self.symmetry = E.Symmetry.THREE_D
 
         for eff in [electrostatic_point_charges, magnetostatic_point_charges]:
             N = len(eff.charges)
@@ -1001,9 +1024,9 @@ class FieldRadialAxial(FieldAxial):
     """ """
     def __init__(self, z, electrostatic_coeffs=None, magnetostatic_coeffs=None):
         super().__init__(z, electrostatic_coeffs, magnetostatic_coeffs)
-        
         assert self.electrostatic_coeffs.shape == (len(z)-1, backend.DERIV_2D_MAX, 6)
         assert self.magnetostatic_coeffs.shape == (len(z)-1, backend.DERIV_2D_MAX, 6)
+        self.symmetry = E.Symmetry.RADIAL
     
     def electrostatic_field_at_point(self, point):
         """
@@ -1073,8 +1096,84 @@ class FieldRadialAxial(FieldAxial):
     
     def get_tracer(self, bounds):
         return T.TracerRadialAxial(self, bounds)
-    
 
+class Field3DAxial(FieldAxial):
+    """Field computed using a radial series expansion around the optical axis (z-axis). See comments at the start of this page.
+     """
+    
+    def __init__(self, z, electrostatic_coeffs=None, magnetostatic_coeffs=None):
+        super().__init__(z, electrostatic_coeffs, magnetostatic_coeffs)
+        
+        assert electrostatic_coeffs.shape == (len(z)-1, 2, backend.NU_MAX, backend.M_MAX, 4)
+        assert magnetostatic_coeffs.shape == (len(z)-1, 2, backend.NU_MAX, backend.M_MAX, 4)
+        
+        self.symmetry = E.Symmetry.THREE_D
+     
+    def electrostatic_field_at_point(self, point):
+        """
+        Compute the electric field, \( \\vec{E} = -\\nabla \phi \)
+        
+        Parameters
+        ----------
+        point: (3,) array of float64
+            Position at which to compute the field.
+             
+        Returns
+        -------
+        Numpy array containing the field strengths (in units of V/mm) in the x, y and z directions.
+        """
+        assert point.shape == (3,)
+        return backend.field_3d_derivs(point, self.z, self.electrostatic_coeffs)
+     
+    def electrostatic_potential_at_point(self, point):
+        """
+        Compute the electrostatic potential.
+
+        Parameters
+        ----------
+        point: (3,) array of float64
+            Position at which to compute the potential.
+        
+        Returns
+        -------
+        Potential as a float value (in units of V).
+        """
+        point = np.array(point).astype(np.float64)
+        assert point.shape == (3,)
+        return backend.potential_3d_derivs(point, self.z, self.electrostatic_coeffs)
+    
+    def magnetostatic_field_at_point(self, point):
+        """
+        Compute the magnetic field \\( \\vec{H} \\)
+        
+        Parameters
+        ----------
+        point: (3,) array of float64
+            Position at which to compute the field.
+             
+        Returns
+        -------
+        (3,) np.ndarray of float64 containing the field strength (in units of A/m) in the x, y and z directions.
+        """
+        point = np.array(point).astype(np.float64)
+        assert point.shape == (3,)
+        return backend.field_3d_derivs(point, self.z, self.magnetostatic_coeffs)
+     
+    def magnetostatic_potential_at_point(self, point):
+        """
+        Compute the magnetostatic scalar potential (satisfying \\(\\vec{H} = -\\nabla \\phi \\)) close to the axis.
+        
+        Parameters
+        ----------
+        point: (3,) array of float64
+            Position at which to compute the field.
+        
+        Returns
+        -------
+        Potential as a float value (in units of A).
+        """
+        assert point.shape == (3,)
+        return backend.potential_3d_derivs(point, self.z, self.magnetostatic_coeffs)
     
    
 

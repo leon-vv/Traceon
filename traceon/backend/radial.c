@@ -63,8 +63,8 @@ current_field(double point[3], double result[3], double *currents,
 		for(int k = 0; k < N_TRIANGLE_QUAD; k++) {
 			double *pos = &position_buffer[i][k][0];
 			double field[2];
-			current_field_radial_ring(r, point[2], pos[0], pos[1], field);
-			assert(pos[2] == 0.);
+			current_field_radial_ring(r, point[2], pos[0], pos[2], field);
+			assert(pos[1] == 0.);
 				
 			Br += currents[i] * jacobian_buffer[i][k] * field[0];
 			Bz += currents[i] * jacobian_buffer[i][k] * field[1];

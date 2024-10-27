@@ -188,7 +188,8 @@ backend_functions = {
     'fill_jacobian_buffer_3d': (None, jac_buffer_3d, pos_buffer_3d, vertices, sz),
     'fill_matrix_3d': (None, arr(ndim=2), vertices, arr(dtype=C.c_uint8, ndim=1), arr(ndim=1), jac_buffer_3d, pos_buffer_3d, sz, sz, C.c_int, C.c_int),
     'plane_intersection': (bool, v3, v3, arr(ndim=2), sz, arr(shape=(6,))),
-    'line_intersection': (bool, v2, v2, arr(ndim=2), sz, arr(shape=(4,)))
+    'line_intersection': (bool, v2, v2, arr(ndim=2), sz, arr(shape=(4,))),
+    'triangle_areas': (None, vertices, arr(ndim=1), sz)
 }
 
 
@@ -335,6 +336,8 @@ def position_and_jacobian_radial(alpha, v1, v2, v3, v4):
     assert v3.shape == (2,) or v3.shape == (3,)
     assert v4.shape == (2,) or v4.shape == (3,)
     
+    assert all([v.shape == (2,) or v[1] == 0. for v in [v1,v2,v3,v4]])
+    
     pos = np.zeros(2)
     jac = C.c_double(0.0)
      
@@ -419,7 +422,11 @@ def axial_derivatives_radial(z, charges, jac_buffer, pos_buffer):
     return derivs
 
 def potential_radial(point, charges, jac_buffer, pos_buffer):
-    assert point.shape == (2,)
+    assert point.shape == (2,) or point.shape == (3,)
+
+    if point.shape == (3,):
+        point = _vec_3d_to_2d(point) 
+    
     assert jac_buffer.shape == (len(charges), N_QUAD_2D)
     assert pos_buffer.shape == (len(charges), N_QUAD_2D, 2)
     return backend_lib.potential_radial(point.astype(np.float64), charges, jac_buffer, pos_buffer, len(charges))
@@ -530,7 +537,7 @@ def current_field(p0, currents, jac_buffer, pos_buffer):
     assert jac_buffer.shape == (N, N_TRIANGLE_QUAD)
     assert pos_buffer.shape == (N, N_TRIANGLE_QUAD, 3)
      
-    assert np.all(pos_buffer[:, :, 2] == 0.)
+    assert np.all(pos_buffer[:, :, 1] == 0.)
     
     result = np.zeros( (3,) )
     backend_lib.current_field(p0, result, currents, jac_buffer, pos_buffer, N)
@@ -551,6 +558,9 @@ def current_axial_derivatives_radial(z, currents, jac_buffer, pos_buffer):
 
 
 def fill_jacobian_buffer_radial(vertices):
+    assert vertices.shape == (len(vertices), 4, 3)
+    assert np.all(vertices[:, :, 1] == 0.)
+        
     N = len(vertices)
     jac_buffer = np.zeros( (N, N_QUAD_2D) )
     pos_buffer = np.zeros( (N, N_QUAD_2D, 2) )
@@ -585,6 +595,7 @@ def self_field_dot_normal_radial(vertices, K):
 
 def fill_matrix_radial(matrix, lines, excitation_types, excitation_values, jac_buffer, pos_buffer, start_index, end_index):
     N = len(lines)
+    assert np.all(lines[:, :, 1] == 0.0)
     assert matrix.shape[0] == N and matrix.shape[1] == N and matrix.shape[0] == matrix.shape[1]
     assert lines.shape == (N, 4, 3)
     assert excitation_types.shape == (N,)
@@ -640,6 +651,14 @@ def line_intersection(positions, p0, tangent):
     return result if found else None
 
 
+def triangle_areas(triangles):
+    assert triangles.shape == (len(triangles), 3, 3)
+    out = np.zeros(len(triangles))
+    backend_lib.triangle_areas(triangles, out, len(triangles))
+    return out
+
+    
+    
 
 
 
