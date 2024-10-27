@@ -47,11 +47,14 @@ def plot_mesh(mesh, show_normals=False, show_legend=True, **colors):
     if show_legend:
         lb = vedo.LegendBox(legend_entries)
         plotter += lb
-    
-    if mesh.points.shape[1] == 3 and np.any(mesh.points[:, 1] != 0.):
-        plotter.show(viewup='z', axes={'xtitle': 'x (mm)', 'ytitle': 'y (mm)', 'ztitle': 'z (mm)'})
+
+    if mesh.is_2d():
+        plotter.add_global_axes(dict(number_of_divisions=[12, 0, 12], zxgrid=True, xaxis_rotation=90))
     else:
-        plotter.show(axes={'xtitle': 'r (mm)', 'ytitle': 'z (mm)'})
+        plotter.add_global_axes(dict(number_of_divisions=[10, 10, 10]))
+    
+    plotter.look_at(plane='xz')
+    plotter.show()
 
 def _plot_triangle_mesh(mesh, plotter, points_to_physical, show_normals=False, **phys_colors):
     triangles = mesh.triangles[:, :3]
@@ -103,7 +106,7 @@ def _plot_line_mesh(mesh, plotter, points_to_physical, show_normals=False, **phy
     normals = []
     dict_ = points_to_physical
     lines = mesh.lines[:, :2]
-    points = mesh.points[:, [0, 2]] if mesh.is_2d() else mesh.points
+    points = mesh.points 
      
     for i, (A, B) in enumerate(lines):
             color = '#CCCCC'
@@ -117,7 +120,9 @@ def _plot_line_mesh(mesh, plotter, points_to_physical, show_normals=False, **phy
             start.append(p1)
             end.append(p2)
             colors_.append(color)
-            normals.append(backend.normal_2d(p1[:2], p2[:2]))
+
+            normal = backend.normal_2d(np.array([p1[0], p1[2]]), np.array([p2[0], p2[2]])) 
+            normals.append(np.array([normal[0], 0.0, normal[1]]))
      
     start, end = np.array(start), np.array(end)
     colors_ = np.array(colors_)
@@ -135,16 +140,15 @@ def _plot_line_mesh(mesh, plotter, points_to_physical, show_normals=False, **phy
         vedo_lines.append(l)
      
     if show_normals:
-        arrows_to_plot = np.zeros( (len(normals), 4) )
+        arrows_to_plot = np.zeros( (len(normals), 6) )
         
         for i, (v1, v2) in enumerate(zip(start, end)):
-            v1, v2 = v1[:2], v2[:2]
             middle = (v1 + v2)/2
             length = np.linalg.norm(v2-v1)
             normal = 3*length*normals[i]
             arrows_to_plot[i] = [*middle, *(middle+normal)]
         
-        arrows = vedo.shapes.Arrows(arrows_to_plot[:, :2], arrows_to_plot[:, 2:], c='black')
+        arrows = vedo.shapes.Arrows(arrows_to_plot[:, :3], arrows_to_plot[:, 3:], c='black')
         plotter.add(arrows)
 
     return vedo_lines
