@@ -262,6 +262,7 @@ class Path(GeometricObject):
         ---------------------
         Path"""
         point = np.array(point)
+        assert point.shape == (3,), "Please supply a three dimensional point to .line_to(...)"
         l = Path.line(self.endpoint(), point)
         return self >> l
      
