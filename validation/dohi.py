@@ -7,9 +7,14 @@ import traceon.geometry as G
 import traceon.excitation as E
 import traceon.tracing as T
 import traceon.solver as S
+from traceon.interpolation import FieldRadialAxial
 
 from validation import Validation
 
+try:
+    from traceon_pro.interpolation import Field3DAxial
+except ImportError:
+    Field3DAxial = None
 
 class DohiMirror(Validation):
 
@@ -48,8 +53,8 @@ class DohiMirror(Validation):
         ground = G.Path.aperture(0.15, r, extent, z=t+st+t+st+t/2)
         ground.name = 'ground'
     
-        boundary = G.Path.line([0., 0., -0.3], [rmax, 0., -0.3]) \
-            .line_to([rmax, 0., 1.75]).line_to([0., 0., 1.75])
+        boundary = G.Path.line([0., 0., 1.75], [rmax, 0., 1.75]) \
+            .line_to([rmax, 0., -0.3]).line_to([0., 0., -0.3])
         boundary.name = 'boundary'
         
         geom = mirror+mirror_line+lens+ground+boundary
@@ -71,16 +76,17 @@ class DohiMirror(Validation):
     def compute_accuracy(self, computed, correct):
         return abs(computed)
     
-    def compute_value_of_interest(self, geom, field):
-        axial_field = field.axial_derivative_interpolation(0.05, 1.7, 500)
-
-        _3d = geom.is_3d()
-         
+    def compute_value_of_interest(self, mesh, field):
+        _3d = mesh.is_3d()
+        assert not _3d or Field3DAxial is not None, "Please install traceon_pro for fast 3D tracing support"
+        
+        axial_field = FieldRadialAxial(field, 0.05, 1.7, 500) if not _3d else Field3DAxial(field, 0.05, 1.7, 500)
+        
         bounds = ((-0.1, 0.1), (-0.1, 0.1), (0.05, 1.7))
         field.set_bounds(bounds)
         
         bounds = ((-0.1, 0.1), (-0.03, 0.03), (0.05, 19.0))
-        tracer_derivs = T.Tracer(axial_field, bounds)
+        tracer_derivs = axial_field.get_tracer(bounds)
         
         angle = 0.5e-3
         z0 = 15
@@ -103,7 +109,7 @@ if __name__ == '__main__':
     geom = dohi.create_mesh(200, G.Symmetry.RADIAL)
     exc = dohi.get_excitation(geom)
     exc.add_voltage(lens=720)
-    fields = S.solve_bem(exc, superposition=True)
+    fields = S.solve_direct(exc, superposition=True)
 
     def opt(lens_voltage):
         field = -1250*fields['mirror'] + lens_voltage*fields['lens']

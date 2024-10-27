@@ -77,7 +77,7 @@ excitation.add_voltage(ground=0.0, deflector_positive=5, deflector_negative=-5)
 
 # Use the Boundary Element Method (BEM) to calculate the surface charges,
 # the surface charges gives rise to a electrostatic field.
-field = S.solve_bem(excitation)
+field = S.solve_direct(excitation)
 
 # But using an integration over the surface charges to calculate the electron
 # trajectories is inherently slow. Instead, use an interpolation technique
@@ -88,7 +88,7 @@ field_axial = field.axial_derivative_interpolation(-2, 2, 200)
 # An instance of the tracer class allows us to easily find the trajectories of 
 # electrons. Here we specify that the interpolated field should be used, and that
 # the tracing should stop if the x,y value goes outside ±RADIUS/2 or the z value outside ±7 mm.
-tracer = T.Tracer(field_axial, ((-RADIUS/2, RADIUS/2), (-RADIUS/2, RADIUS/2), (-7, 7)))
+tracer = field_axial.get_tracer( [(-RADIUS/2, RADIUS/2), (-RADIUS/2, RADIUS/2), (-7, 7)] )
 
 r_start = np.linspace(-RADIUS/8, RADIUS/8, 5)
 

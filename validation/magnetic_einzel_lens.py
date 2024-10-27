@@ -8,8 +8,15 @@ import traceon.solver as S
 import traceon.excitation as E
 import traceon.plotting as P
 import traceon.tracing as T
+from traceon.interpolation import FieldRadialAxial
 
 from validation import Validation
+
+try:
+    from traceon_pro.interpolation import Field3DAxial
+except ImportError:
+    Field3DAxial = None
+
 
 THICKNESS = 0.5
 SPACING = 0.5
@@ -61,11 +68,13 @@ class MagneticEinzelLens(Validation):
       
     def compute_value_of_interest(self, geom, field):
         _3d = geom.is_3d()
+        assert not _3d or Field3DAxial is not None, "Please install traceon_pro for fast 3D tracing support"
+
         field.set_bounds( ((-RADIUS, RADIUS), (-RADIUS, RADIUS), (-1.5,1.5)) )
-        field_axial = field.axial_derivative_interpolation(-1.5, 1.5, 1000)
+        field_axial = FieldRadialAxial(field, -1.5, 1.5, 1000) if not _3d else Field3DAxial(field, -1.5, 1.5, 1000)
          
         bounds = ((-RADIUS, RADIUS), (-RADIUS, RADIUS), (-5, 3.5))
-        tracer = T.Tracer(field_axial, bounds)
+        tracer = field_axial.get_tracer(bounds)
         
         p0 = np.array([RADIUS/5, 3]) if not _3d else np.array([RADIUS/5, 0.0, 3])
         v0 = T.velocity_vec_xz_plane(1000, 0, three_dimensional=_3d)

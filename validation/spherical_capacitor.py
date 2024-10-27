@@ -57,7 +57,7 @@ class SphericalCapacitor(Validation):
     def compute_value_of_interest(self, mesh, field):
         position = np.array([0.0, 0.0, 10.0]) 
         vel = np.array([np.cos(angle), 0.0, -np.sin(angle)])
-        tracer = T.Tracer(field, ((-0.1, 12.5), (-0.1, 0.1), (-12.5, 12.5)))
+        tracer = field.get_tracer( [(-0.1, 12.5), (-0.1, 0.1), (-12.5, 12.5)] )
         print('Starting electron trace...')
         times, pos = tracer(position, vel)
         r_final = T.axis_intersection(pos)

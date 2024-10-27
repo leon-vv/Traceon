@@ -8,8 +8,14 @@ import traceon.geometry as G
 import traceon.excitation as E
 import traceon.tracing as T
 import traceon.solver as S
+from traceon.interpolation import FieldRadialAxial
 
 from validation import Validation
+
+try:
+    from traceon_pro.interpolation import Field3DAxial
+except ImportError:
+    Field3DAxial = None
 
 
 class SimpleMirror(Validation):
@@ -49,10 +55,12 @@ class SimpleMirror(Validation):
 
     def compute_value_of_interest(self, geometry, field):
         _3d = geometry.is_3d()
+        assert not _3d or Field3DAxial is not None, "Please install traceon_pro for fast 3D tracing support"
+        
         bounds = ((-0.22, 0.22), (-0.22, 0.22), (0.02, 11))
          
-        axial_field = field.axial_derivative_interpolation(0.02, 4)
-        tracer = T.Tracer(axial_field, bounds)
+        axial_field = FieldRadialAxial(field, 0.02, 4) if not _3d else Field3DAxial(field, 0.02, 4)
+        tracer = axial_field.get_tracer(bounds)
          
         pos = np.array([0.0, 10.0]) if not _3d else np.array([0.0, 0.0, 10.0])
         vel = T.velocity_vec_xz_plane(100, 1e-3, three_dimensional=_3d)

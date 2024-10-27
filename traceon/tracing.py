@@ -18,7 +18,6 @@ import scipy
 from scipy.integrate import *
 from scipy.constants import m_e, e
 
-from . import solver as S
 from . import backend
 from . import logging
 
@@ -93,6 +92,14 @@ def _z_to_bounds(z1, z2):
     else:
         return (min(z1, z2)-1, max(z1, z2)+1)
 
+def _convert_velocity_to_SI(velocity):
+    # Convert a velocity vector expressed in eV (see functions above)
+    # to one expressed in m/s.
+    speed_eV = np.linalg.norm(velocity)
+    speed = sqrt(2*speed_eV*e/m_e)
+    direction = velocity / speed_eV
+    return speed * direction
+
 class Tracer:
     """General electron tracer class. Can trace electrons given any field class from `traceon.solver`.
 
@@ -102,27 +109,21 @@ class Tracer:
         The field used to compute the force felt by the electron.
     bounds: (3, 2) np.ndarray of float64
         Once the electron reaches one of the boundaries the tracing stops. The bounds are of the form ( (xmin, xmax), (ymin, ymax), (zmin, zmax) ).
-    atol: float
-        Absolute tolerance determining the accuracy of the trace.
     """
     
-    def __init__(self, field, bounds, atol=1e-10):
-          
+    def __init__(self, field, bounds):
         self.field = field
-        assert isinstance(field, S.FieldRadialBEM) or isinstance(field, S.FieldRadialAxial) or \
-               isinstance(field, S.Field3D_BEM)    or isinstance(field, S.Field3DAxial)
          
         bounds = np.array(bounds).astype(np.float64)
         assert bounds.shape == (3,2)
         self.bounds = bounds
-        self.atol = atol
     
     def __str__(self):
         field_name = self.field.__class__.__name__
         bounds_str = ' '.join([f'({bmin:.2f}, {bmax:.2f})' for bmin, bmax in self.bounds])
         return f'<Traceon Tracer of {field_name},\n\t' \
             + 'Bounds: ' + bounds_str + ' mm >'
-        
+    
     def __call__(self, position, velocity):
         """Trace an electron.
 
@@ -133,6 +134,8 @@ class Tracer:
         velocity: (2,) or (3,) np.ndarray of float64
             Initial velocity (expressed in a vector whose magnitude has units of eV). Use one of the utility functions documented
             above to create the initial velocity vector.
+        atol: float
+            Absolute tolerance determining the accuracy of the trace.
         
         Returns
         -------
@@ -142,29 +145,44 @@ class Tracer:
         The first three elements in the `positions[i]` array contain the x,y,z positions.
         The last three elements in `positions[i]` contain the vx,vy,vz velocities.
         """
-         
-        f = self.field
-         
-        # Convert the velocity in eV to m/s
-        speed_eV = np.linalg.norm(velocity)
-        speed = sqrt(2*speed_eV*e/m_e)
-        direction = velocity / speed_eV
-        velocity = speed * direction
+        raise RuntimeError('Please use the field.get_tracer(...) method to get the appropriate Tracer instance')
+
+class TracerRadialBEM(Tracer):
+    def __call__(self, position, velocity, atol=1e-10):
         
-        if isinstance(self.field, S.FieldRadialBEM):
-            return backend.trace_particle_radial(position, velocity, self.bounds, self.atol, 
-                f.electrostatic_point_charges, f.magnetostatic_point_charges, f.current_point_charges, field_bounds=f.field_bounds)
-        elif isinstance(self.field, S.FieldRadialAxial):
-            elec, mag = self.field.electrostatic_coeffs, self.field.magnetostatic_coeffs
-            return backend.trace_particle_radial_derivs(position, velocity, self.bounds, self.atol, self.field.z, elec, mag)
-        elif isinstance(self.field, S.Field3D_BEM):
-            bounds = self.field.field_bounds
-            elec, mag = self.field.electrostatic_point_charges, self.field.magnetostatic_point_charges
-            return backend.trace_particle_3d(position, velocity, self.bounds, self.atol, elec, mag)
-        elif isinstance(self.field, S.Field3DAxial):
-            return backend.trace_particle_3d_derivs(position, velocity, self.bounds, self.atol,
-                    self.field.z, self.field.electrostatic_coeffs, self.field.magnetostatic_coeffs)
- 
+        velocity = _convert_velocity_to_SI(velocity)
+        
+        return backend.trace_particle_radial(
+                position,
+                velocity, 
+                self.bounds,
+                atol, 
+                self.field.electrostatic_point_charges,
+                self.field.magnetostatic_point_charges,
+                self.field.current_point_charges,
+                field_bounds=self.field.field_bounds)
+
+class TracerRadialAxial(Tracer):
+    def __call__(self, position, velocity, atol=1e-10):
+
+        velocity = _convert_velocity_to_SI(velocity)
+        
+        elec, mag = self.field.electrostatic_coeffs, self.field.magnetostatic_coeffs
+        
+        return backend.trace_particle_radial_derivs(position, velocity, self.bounds, atol, self.field.z, elec, mag)
+
+class Tracer3D_BEM(Tracer):
+    def __call__(self, position, velocity, atol=1e-10):
+        velocity = _convert_velocity_to_SI(velocity)
+        bounds = self.field.field_bounds
+        elec, mag = self.field.electrostatic_point_charges, self.field.magnetostatic_point_charges
+        return backend.trace_particle_3d(position, velocity, self.bounds, atol, elec, mag)
+
+class Tracer3DAxial(Tracer):
+    def __call__(self, position, velocity, atol=1e-10):
+        velocity = _convert_velocity_to_SI(velocity)
+        return backend.trace_particle_3d_derivs(position, velocity, self.bounds, atol,
+            self.field.z, self.field.electrostatic_coeffs, self.field.magnetostatic_coeffs)
 
 def plane_intersection(positions, p0, normal):
     """Compute the intersection of a trajectory with a general plane in 3D. The plane is specified

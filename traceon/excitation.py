@@ -12,7 +12,7 @@ The possible excitations are as follows:
 
 Currently current excitations are not supported in 3D. But magnetostatic fields can still be computed using the magnetostatic scalar potential.
 
-Once the excitation is specified, it can be passed to `traceon.solver.solve_bem` to compute the resulting field.
+Once the excitation is specified, it can be passed to `traceon.solver.solve_direct` to compute the resulting field.
 """
 from enum import IntEnum
 
