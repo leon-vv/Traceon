@@ -580,8 +580,8 @@ class Path(GeometricObject):
         Returns
         -----------------------
         Path"""
-        return Path.line([xmin, 0., zmin], [xmin, 0, zmax]) \
-            .line_to([xmax, 0, zmax]).line_to([xmax, 0., zmin]).close()
+        return Path.line([xmin, 0., zmin], [xmax, 0, zmin]) \
+            .line_to([xmax, 0, zmax]).line_to([xmin, 0., zmax]).close()
      
     def rectangle_yz(ymin, ymax, zmin, zmax):
         """Create a rectangle in the YZ plane. The path starts at (0, ymin, zmin), and is 
@@ -602,8 +602,8 @@ class Path(GeometricObject):
         -----------------------
         Path"""
 
-        return Path.line([0., ymin, zmin], [0, ymax, zmin]) \
-            .line_to([0., ymax, zmax]).line_to([0., ymin, zmax]).close()
+        return Path.line([0., ymin, zmin], [0, ymin, zmax]) \
+            .line_to([0., ymax, zmax]).line_to([0., ymax, zmin]).close()
      
     def rectangle_xy(xmin, xmax, ymin, ymax):
         """Create a rectangle in the XY plane. The path starts at (xmin, ymin, 0), and is 
@@ -623,8 +623,8 @@ class Path(GeometricObject):
         Returns
         -----------------------
         Path"""
-        return Path.line([xmin, ymin, 0.], [xmax, ymin, 0.]) \
-            .line_to([xmax, ymax, 0.]).line_to([xmin, ymax, 0.]).close()
+        return Path.line([xmin, ymin, 0.], [xmin, ymax, 0.]) \
+            .line_to([xmax, ymax, 0.]).line_to([xmax, ymin, 0.]).close()
     
     def aperture(height, radius, extent, z=0.):
         """Create an 'aperture'. Note that in a radially symmetric geometry
