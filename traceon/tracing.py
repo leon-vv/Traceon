@@ -145,8 +145,7 @@ class Tracer:
         The first three elements in the `positions[i]` array contain the x,y,z positions.
         The last three elements in `positions[i]` contain the vx,vy,vz velocities.
         """
-        print('Please use .get_tracer() method on the field class to get the appropriate tracer class instance.')
-        pass 
+        raise RuntimeError('Please use the field.get_tracer(...) method to get the appropriate Tracer instance')
 
 class TracerRadialBEM(Tracer):
     def __call__(self, position, velocity, atol=1e-10):
