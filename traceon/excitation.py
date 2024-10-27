@@ -108,7 +108,7 @@ class Excitation:
         
         """
         for name, voltage in kwargs.items():
-            assert name in self.electrodes
+            assert name in self.electrodes, f'Cannot add {name} to excitation, since it\'s not present in the mesh'
             if isinstance(voltage, int) or isinstance(voltage, float):
                 self.excitation_types[name] = (ExcitationType.VOLTAGE_FIXED, voltage)
             elif callable(voltage):
@@ -158,7 +158,7 @@ class Excitation:
             calling the function as `add_magnetostatic_potential(lens=50)` assigns a 50A value to the geometry elements part of the 'lens' physical group.
         """
         for name, pot in kwargs.items():
-            assert name in self.electrodes
+            assert name in self.electrodes, f'Cannot add {name} to excitation, since it\'s not present in the mesh'
             self.excitation_types[name] = (ExcitationType.MAGNETOSTATIC_POT, pot)
 
     def add_magnetizable(self, **kwargs):
@@ -174,7 +174,7 @@ class Excitation:
         """
 
         for name, permeability in kwargs.items():
-            assert name in self.electrodes
+            assert name in self.electrodes, f'Cannot add {name} to excitation, since it\'s not present in the mesh'
             self.excitation_types[name] = (ExcitationType.MAGNETIZABLE, permeability)
      
     def add_dielectric(self, **kwargs):
@@ -189,7 +189,7 @@ class Excitation:
          
         """
         for name, permittivity in kwargs.items():
-            assert name in self.electrodes
+            assert name in self.electrodes, f'Cannot add {name} to excitation, since it\'s not present in the mesh'
             self.excitation_types[name] = (ExcitationType.DIELECTRIC, permittivity)
 
     def add_electrostatic_boundary(self, *args):
