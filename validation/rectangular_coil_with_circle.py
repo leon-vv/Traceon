@@ -19,32 +19,24 @@ class RectangularCoilWithCircle(Validation):
         self.plot_colors = dict(coil='red', boundary='purple')
 
     def create_mesh(self, MSF, symmetry, higher_order):
-        assert symmetry == G.Symmetry.RADIAL, "3D meshes not yet supported in magnetostatics"
+        boundary = G.Path.line([0., 0., 5.], [5., 0., 5.]).line_to([5., 0., 0]).line_to([0., 0., 0.]);
+        boundary.name = 'boundary'
+
+        circle = G.Path.circle_xz(2.5, 4, 0.5)
+        circle.name = 'circle'
+        mesh1 = (boundary + circle).mesh(mesh_size_factor=MSF, higher_order=higher_order)
         
-        with G.Geometry(G.Symmetry.RADIAL) as geom:
-            points = [[0, 5], [5,5], [5,0], [0, 0]]
-            lines = [geom.add_line(geom.add_point(p1), geom.add_point(p2)) for p1, p2 in zip(points, points[1:])]
-            geom.add_physical(lines, 'boundary')
-             
-            circle = geom.add_circle([2.5, 4], 0.5)
-            geom.add_physical(circle.curve_loop.curves, 'circle')
-            
-            geom.set_mesh_size_factor(MSF)
-            mesh1 = geom.generate_line_mesh(higher_order)
-
-        with G.Geometry(G.Symmetry.RADIAL) as geom:
-            rect = geom.add_rectangle(2, 3, 2, 3, 0)
-            geom.add_physical(rect.surface, 'coil')
-            geom.set_mesh_size_factor(MSF)
-            mesh2 = geom.generate_triangle_mesh()
-
+        coil = G.Surface.rectangle_xz(2., 3., 2., 3.)
+        coil.name = 'coil'
+        mesh2 = coil.mesh(mesh_size=0.1)
+        
         return mesh1 + mesh2
-
+    
     def supports_3d(self):
         return False
      
-    def get_excitation(self, mesh):
-        exc = E.Excitation(mesh)
+    def get_excitation(self, mesh, symmetry):
+        exc = E.Excitation(mesh, symmetry)
         exc.add_current(coil=1)
         exc.add_magnetostatic_boundary('boundary')
         exc.add_magnetizable(circle=10)
