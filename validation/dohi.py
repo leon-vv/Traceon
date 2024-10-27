@@ -7,13 +7,14 @@ import traceon.geometry as G
 import traceon.excitation as E
 import traceon.tracing as T
 import traceon.solver as S
+from traceon.interpolation import FieldRadialAxial
 
 from validation import Validation
 
 try:
-    from traceon_pro import *
+    from traceon_pro.interpolation import Field3DAxial
 except ImportError:
-    pass
+    Field3DAxial = None
 
 class DohiMirror(Validation):
 
@@ -75,11 +76,12 @@ class DohiMirror(Validation):
     def compute_accuracy(self, computed, correct):
         return abs(computed)
     
-    def compute_value_of_interest(self, geom, field):
-        axial_field = field.axial_derivative_interpolation(0.05, 1.7, 500)
-
-        _3d = geom.is_3d()
-         
+    def compute_value_of_interest(self, mesh, field):
+        _3d = mesh.is_3d()
+        assert not _3d or Field3DAxial is not None, "Please install traceon_pro for fast 3D tracing support"
+        
+        axial_field = FieldRadialAxial(field, 0.05, 1.7, 500) if not _3d else Field3DAxial(field, 0.05, 1.7, 500)
+        
         bounds = ((-0.1, 0.1), (-0.1, 0.1), (0.05, 1.7))
         field.set_bounds(bounds)
         
