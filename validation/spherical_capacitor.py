@@ -2,7 +2,6 @@ from math import cos
 
 import matplotlib.pyplot as plt
 import numpy as np
-from pygmsh import *
 
 import traceon.geometry as G
 import traceon.excitation as E

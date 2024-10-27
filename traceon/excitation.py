@@ -96,7 +96,7 @@ class Excitation:
      
     def add_voltage(self, **kwargs):
         """
-        Apply a fixed voltage to the geometries assigned the given name (or physical group in GMSH terminology).
+        Apply a fixed voltage to the geometries assigned the given name.
         
         Parameters
         ----------
@@ -118,7 +118,7 @@ class Excitation:
 
     def add_current(self, **kwargs):
         """
-        Apply a fixed total current to the geometries assigned the given name (or physical group in GMSH terminology). Note that a coil is assumed,
+        Apply a fixed total current to the geometries assigned the given name. Note that a coil is assumed,
         which implies that the current density is constant as a function of (r, z). In a solid piece of conducting material the current density would
         be higher at small r (as the 'loop' around the axis is shorter and therefore the resistance is lower).
         
@@ -149,7 +149,7 @@ class Excitation:
      
     def add_magnetostatic_potential(self, **kwargs):
         """
-        Apply a fixed magnetostatic potential to the geometries assigned the given name (or physical group in GMSH terminology).
+        Apply a fixed magnetostatic potential to the geometries assigned the given name.
         
         Parameters
         ----------
@@ -163,7 +163,7 @@ class Excitation:
 
     def add_magnetizable(self, **kwargs):
         """
-        Assign a relative magnetic permeability to the geometries assigned the given name (or physical group in GMSH terminology).
+        Assign a relative magnetic permeability to the geometries assigned the given name.
         
         Parameters
         ----------
@@ -179,7 +179,7 @@ class Excitation:
      
     def add_dielectric(self, **kwargs):
         """
-        Assign a dielectric constant to the geometries assigned the given name (or physical group in GMSH terminology).
+        Assign a dielectric constant to the geometries assigned the given name.
         
         Parameters
         ----------

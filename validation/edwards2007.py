@@ -1,7 +1,5 @@
 import matplotlib.pyplot as plt
 import numpy as np
-import gmsh
-from pygmsh import *
 import time
 
 import traceon.geometry as G

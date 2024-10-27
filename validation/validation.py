@@ -1,7 +1,6 @@
 import time
 import argparse
 
-from pygmsh import *
 import matplotlib.pyplot as plt
 
 import traceon.geometry as G
