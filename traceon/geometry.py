@@ -266,11 +266,61 @@ class Path(GeometricObject):
         l = Path.line(self.endpoint(), point)
         return self >> l
      
-    def circle(radius, angle=2*pi):
-        """Returns (part of) a circle in the XY plane around the z-axis. Starting on the positive x-axis.
-
+    def circle_xz(x0, z0, radius, angle=2*pi):
+        """Returns (part of) a circle in the XZ plane around the x-axis. Starting on the positive x-axis.
+        
         Parameters
         --------------------------------
+        x0: float
+            x-coordinate of the center of the circle
+        z0: float
+            z-coordiante of the center of the circle
+        radius: float
+            radius of the circle
+        angle: float
+            The circumference of the circle in radians. The default of 2*pi gives a full circle.
+
+        Returns
+        ---------------------------------
+        Path"""
+        def f(u):
+            theta = u / radius 
+            return np.array([radius*cos(theta), 0., radius*sin(theta)])
+        return Path(f, angle*radius).move(dx=x0, dz=z0)
+    
+    def circle_yz(y0, z0, radius, angle=2*pi):
+        """Returns (part of) a circle in the YZ plane around the x-axis. Starting on the positive y-axis.
+        
+        Parameters
+        --------------------------------
+        y0: float
+            x-coordinate of the center of the circle
+        z0: float
+            z-coordiante of the center of the circle
+        radius: float
+            radius of the circle
+        angle: float
+            The circumference of the circle in radians. The default of 2*pi gives a full circle.
+
+        Returns
+        ---------------------------------
+        Path"""
+        def f(u):
+            theta = u / radius 
+            return np.array([0., radius*cos(theta), radius*sin(theta)])
+        return Path(f, angle*radius).move(dy=y0, dz=z0)
+    
+    def circle_xy(x0, y0, radius, angle=2*pi):
+        """Returns (part of) a circle in the XY plane around the z-axis. Starting on the positive X-axis.
+        
+        Parameters
+        --------------------------------
+        y0: float
+            x-coordinate of the center of the circle
+        y0: float
+            y-coordiante of the center of the circle
+        radius: float
+            radius of the circle
         angle: float
             The circumference of the circle in radians. The default of 2*pi gives a full circle.
 
@@ -280,9 +330,8 @@ class Path(GeometricObject):
         def f(u):
             theta = u / radius 
             return np.array([radius*cos(theta), radius*sin(theta), 0.])
-        
-        return Path(f, angle*radius)
-    
+        return Path(f, angle*radius).move(dx=x0, dy=y0)
+     
     def arc_to(self, center, end, reverse=False):
         """Extend the current path using an arc.
 
