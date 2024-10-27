@@ -140,7 +140,8 @@ def _concat_arrays(arr1, arr2):
 class Mesh(Saveable, GeometricObject):
     """Mesh containing lines and triangles. Groups of lines or triangles can be named. These
     names are later used to apply the correct excitation. Line elements can be curved (or 'higher order'), 
-    in which case they are represented by four points per element."""
+    in which case they are represented by four points per element.  Note that `Mesh` is a subclass of
+    `traceon.mesher.GeometricObject`, and therefore can be easily moved and rotated."""
      
     def __init__(self,
             points=[],

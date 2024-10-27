@@ -60,7 +60,8 @@ def discretize_path(path_length, breakpoints, mesh_size, mesh_size_factor=None, 
 
 
 class Path(GeometricObject):
-    """A path is a mapping from a number in the range [0, path_length] to a three dimensional point."""
+    """A path is a mapping from a number in the range [0, path_length] to a three dimensional point. Note that `Path` is a
+    subclass of `traceon.mesher.GeometricObject`, and therefore can be easily moved and rotated."""
     
     def __init__(self, fun, path_length, breakpoints=[], name=None):
         # Assumption: fun takes in p, the path length
@@ -717,6 +718,8 @@ class Path(GeometricObject):
 
 
 class PathCollection(GeometricObject):
+    """A PathCollection is a collection of `Path`. It can be created using the + operator (for example path1+path2).
+    Note that `PathCollection` is a subclass of `traceon.mesher.GeometricObject`, and therefore can be easily moved and rotated."""
     
     def __init__(self, paths):
         assert all([isinstance(p, Path) for p in paths])
@@ -775,6 +778,9 @@ class PathCollection(GeometricObject):
 
 
 class Surface(GeometricObject):
+    """A Surface is a mapping from two numbers to a three dimensional point.
+    Note that `Surface` is a subclass of `traceon.mesher.GeometricObject`, and therefore can be easily moved and rotated."""
+
     def __init__(self, fun, path_length1, path_length2, breakpoints1=[], breakpoints2=[], name=None):
         self.fun = fun
         self.path_length1 = path_length1
@@ -1005,6 +1011,8 @@ class Surface(GeometricObject):
 
 
 class SurfaceCollection(GeometricObject):
+    """A SurfaceCollection is a collection of `Surface`. It can be created using the + operator (for example surface1+surface2).
+    Note that `SurfaceCollection` is a subclass of `traceon.mesher.GeometricObject`, and therefore can be easily moved and rotated."""
      
     def __init__(self, surfaces):
         assert all([isinstance(s, Surface) for s in surfaces])
