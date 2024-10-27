@@ -52,8 +52,8 @@ class DohiMirror(Validation):
         ground = G.Path.aperture(0.15, r, extent, z=t+st+t+st+t/2)
         ground.name = 'ground'
     
-        boundary = G.Path.line([0., 0., -0.3], [rmax, 0., -0.3]) \
-            .line_to([rmax, 0., 1.75]).line_to([0., 0., 1.75])
+        boundary = G.Path.line([0., 0., 1.75], [rmax, 0., 1.75]) \
+            .line_to([rmax, 0., -0.3]).line_to([0., 0., -0.3])
         boundary.name = 'boundary'
         
         geom = mirror+mirror_line+lens+ground+boundary
