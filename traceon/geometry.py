@@ -815,6 +815,60 @@ class Surface(GeometricObject):
         
         return Surface(f, path_length_p1_and_p3, path_length_p2_and_p4, b1, b2)
      
+    def disk_xz(x0, z0, radius):
+        """Create a disk in the XZ plane.         
+        
+        Parameters
+        ------------------------
+        x0: float
+            x-coordiante of the center of the disk
+        z0: float
+            z-coordinate of the center of the disk
+        radius: float
+            radius of the disk
+        Returns
+        -----------------------
+        Surface"""
+        assert radius > 0, "radius must be a positive number"
+        disk_at_origin = Path.line([0.0, 0.0, 0.0], [radius, 0.0, 0.0]).revolve_y()
+        return disk_at_origin.move(dx=x0, dz=z0)
+    
+    def disk_yz(y0, z0, radius):
+        """Create a disk in the YZ plane.         
+        
+        Parameters
+        ------------------------
+        y0: float
+            y-coordiante of the center of the disk
+        z0: float
+            z-coordinate of the center of the disk
+        radius: float
+            radius of the disk
+        Returns
+        -----------------------
+        Surface"""
+        assert radius > 0, "radius must be a positive number"
+        disk_at_origin = Path.line([0.0, 0.0, 0.0], [0.0, radius, 0.0]).revolve_x()
+        return disk_at_origin.move(dy=y0, dz=z0)
+
+    def disk_xy(x0, y0, radius):
+        """Create a disk in the XY plane.
+        
+        Parameters
+        ------------------------
+        x0: float
+            x-coordiante of the center of the disk
+        y0: float
+            y-coordinate of the center of the disk
+        radius: float
+            radius of the disk
+        Returns
+        -----------------------
+        Surface"""
+        assert radius > 0, "radius must be a positive number"
+        disk_at_origin = Path.line([0.0, 0.0, 0.0], [radius, 0.0, 0.0]).revolve_z()
+        return disk_at_origin.move(dx=x0, dy=y0)
+     
     def rectangle_xz(xmin, xmax, zmin, zmax):
         """Create a rectangle in the XZ plane. The path starts at (xmin, 0, zmin), and is 
         counter clockwise around the y-axis.
