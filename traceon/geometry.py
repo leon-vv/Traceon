@@ -706,7 +706,7 @@ class Path(GeometricObject):
             p3 = r[2::3]
             lines = np.array([p0, p1, p2, p3]).T
           
-        assert lines.dtype == np.int64
+        assert lines.dtype == np.int64 or lines.dtype == np.int32
          
         if self.name is not None:
             physical_to_lines = {self.name:np.arange(len(lines))}
