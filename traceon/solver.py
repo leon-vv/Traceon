@@ -61,7 +61,6 @@ from . import util
 from . import fast_multipole_method
 from . import tracing as T
 
-FACTOR_AXIAL_DERIV_SAMPLING_2D = 0.2
 
 class Solver:
     

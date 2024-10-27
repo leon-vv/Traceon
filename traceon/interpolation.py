@@ -9,6 +9,7 @@ from . import util
 from . import logging
 from . import backend
 
+FACTOR_AXIAL_DERIV_SAMPLING_2D = 0.2
 
 class FieldAxial(S.Field):
     """An electrostatic field resulting from a radial series expansion around the optical axis. You should
