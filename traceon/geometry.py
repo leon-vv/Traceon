@@ -832,7 +832,7 @@ class Surface(GeometricObject):
         
         Returns
         -----------------------
-        Path"""
+        Surface representing the rectangle"""
         return Path.line([xmin, 0., zmin], [xmin, 0, zmax]).extrude([xmax-xmin, 0., 0.])
      
     def rectangle_yz(ymin, ymax, zmin, zmax):
@@ -852,7 +852,7 @@ class Surface(GeometricObject):
         
         Returns
         -----------------------
-        Path"""
+        Surface representing the rectangle"""
         return Path.line([0., ymin, zmin], [0., ymin, zmax]).extrude([0., ymax-ymin, 0.])
      
     def rectangle_xy(xmin, xmax, ymin, ymax):
@@ -872,7 +872,7 @@ class Surface(GeometricObject):
         
         Returns
         -----------------------
-        Path"""
+        Surface representing the rectangle"""
         return Path.line([xmin, ymin, 0.], [xmin, ymax, 0.]).extrude([xmax-xmin, 0., 0.])
 
     def aperture(height, radius, extent, z=0.):
