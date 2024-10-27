@@ -1,7 +1,6 @@
 import time
 import argparse
 
-from pygmsh import *
 import matplotlib.pyplot as plt
 
 import traceon.geometry as G
@@ -43,11 +42,8 @@ class Validation:
         return parser.parse_args()
     
     def default_MSF(self, symmetry):
-        if symmetry.is_3d():
-            return [20, 50, 100, 200, 400]
-        else:
-            return [10, 25, 50, 100, 150]
-
+        return [2,4,8,16,32]
+    
     def supports_fmm(self):
         return True
 
@@ -56,10 +52,9 @@ class Validation:
     
     def plot_geometry(self, MSF, symmetry, higher_order=False, plot_charges=False, plot_charge_density=False, plot_normals=False):
         geom = self.create_mesh(MSF, symmetry, higher_order)
-        assert geom.symmetry == symmetry 
          
         if plot_charges or plot_charge_density:
-            exc, field = self.compute_field(geom, self.args.use_fmm)
+            exc, field = self.compute_field(geom, symmetry, use_fmm=use_fmm)
             P.plot_charge_density(exc, field, density=plot_charge_density)
         else:
             P.plot_mesh(geom, show_normals=plot_normals, **self.plot_colors) 
@@ -75,13 +70,13 @@ class Validation:
             print('-'*81, f' MSF={n}')
             st = time.time()
             geom = self.create_mesh(n, symmetry, higher_order)
-            exc, field = self.compute_field(geom, self.args.use_fmm)
-            
+            exc, field = self.compute_field(geom, symmetry, use_fmm=use_fmm)
+             
             corr = self.correct_value_of_interest()  
             comp = self.compute_value_of_interest(geom, field)
             err = self.compute_accuracy(comp, corr)
              
-            num_lines.append(exc.get_number_of_electrostatic_matrix_elements())
+            num_lines.append(len(exc.get_electrostatic_active_elements()[0]))
             times.append( (time.time() - st)*1000)
             correct.append(corr)
             computed.append(comp)
@@ -115,25 +110,24 @@ class Validation:
     def print_accuracy(self, MSF, symmetry, higher_order=True, use_fmm=False):
         st = time.time()
         geom = self.create_mesh(MSF, symmetry, higher_order)
-        exc, field = self.compute_field(geom, use_fmm)
-        
+        exc, field = self.compute_field(geom, symmetry, use_fmm=use_fmm)
         correct = self.correct_value_of_interest()  
         computed = self.compute_value_of_interest(geom, field)
         err = self.compute_accuracy(computed, correct)
          
         duration = (time.time() - st)*1000
-        print_info([MSF], [exc.get_number_of_electrostatic_matrix_elements()], [duration], [correct], [computed], [err])
+        print_info([MSF], [len(exc.get_electrostatic_active_elements()[0])], [duration], [correct], [computed], [err])
         return duration, err
      
     def args_to_symmetry(args):
         if args.symmetry == 'radial':
             assert not args.use_fmm, "Fast Multipole Method not supported for radial geometries"
-            return G.Symmetry.RADIAL
+            return E.Symmetry.RADIAL
         elif args.symmetry == '3d':
             assert not (args.use_fmm and args.higher_order), "Fast Multipole Method not supported for higher order elements"
-            return G.Symmetry.THREE_D
+            return E.Symmetry.THREE_D
           
-        return G.Symmetry.RADIAL
+        return E.Symmetry.RADIAL
     
     def run_validation(self):
         args = self.parse_args()
@@ -160,9 +154,9 @@ class Validation:
     
     def get_excitation(self, geometry):
         pass
-
-    def compute_field(self, geometry, use_fmm):
-        exc = self.get_excitation(geometry)
+    
+    def compute_field(self, geometry, symmetry, use_fmm=False):
+        exc = self.get_excitation(geometry, symmetry)
         return exc, S.solve_bem(exc, use_fmm=use_fmm, fmm_precision=self.args.fmm_precision)
      
     def compute_value_of_interest(self, geometry, field):

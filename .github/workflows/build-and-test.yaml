@@ -20,7 +20,7 @@ jobs:
       - name: Install dependencies
         run: |
           sudo apt-get update
-          pip install --upgrade pip setuptools wheel auditwheel patchelf
+          pip install --upgrade setuptools wheel auditwheel patchelf
       - name: Build the wheel
         run: python setup.py bdist_wheel
       - name: Build the source distribution
@@ -53,7 +53,7 @@ jobs:
       - name: Install dependencies
         shell: powershell
         run: |
-          pip install --upgrade pip setuptools wheel
+          pip install --upgrade setuptools wheel
       - name: Build the wheel
         run: python setup.py bdist_wheel
       - name: Upload wheel artifact
@@ -127,7 +127,6 @@ jobs:
           path: ./
       - name: Install Twine
         run: |
-          pip install --upgrade pip
           pip install twine
       - name: Upload to PyPI
         env:
@@ -152,7 +151,6 @@ jobs:
           path: ./
       - name: Install Twine
         run: |
-          pip install --upgrade pip
           pip install twine
       - name: Upload to PyPI
         env:

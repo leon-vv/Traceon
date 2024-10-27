@@ -27,33 +27,40 @@ class DohiMirror(Validation):
 
 
     def create_mesh(self, MSF, symmetry, higher_order):
-            
+             
         rmax = 1.0
         margin = 0.3
-         
-        with G.MEMSStack(z0=-margin, margin=margin, zmin=0.1, zmax=1.7, size_from_distance=True, rmax=rmax, symmetry=symmetry) as geom:
-            
-            # Close mirror at the bottom, like in the paper
-            if symmetry.is_3d():
-                mirror_line = geom.add_line(geom.add_point([0.0, 0.0, 0.0]), geom.add_point([0.075, 0.0, 0.0]))
-                revolved = G.revolve_around_optical_axis(geom, [mirror_line], 1.0)
-                geom.add_physical(revolved, 'mirror')
-            else:
-                mirror_line = geom.add_line(geom.add_point([0.0, 0.0]), geom.add_point([0.075, 0.0]))
-                geom.add_physical(mirror_line, 'mirror')
-            
-            geom.add_electrode(0.075, 0.150, 'mirror')
-            geom.add_spacer(0.5)
-            geom.add_electrode(0.075, 0.150, 'lens')
-            geom.add_spacer(0.5)
-            geom.add_electrode(0.075, 0.150, 'ground')
-            
-            geom.set_mesh_size_factor(MSF)
-            
-            return geom.generate_line_mesh(higher_order) if symmetry.is_2d() else geom.generate_triangle_mesh()
+        extent = rmax-0.1
 
-    def get_excitation(self, mesh):
-        exc = E.Excitation(mesh)
+        t = 0.15 # thickness
+        r = 0.075 # radius
+        st = 0.5  # spacer thickness
+
+        mirror = G.Path.aperture(0.15, r, extent, z=t/2)
+        mirror.name = 'mirror'
+        
+        mirror_line = G.Path.line([0., 0., 0.], [r, 0., 0.])
+        mirror_line.name = 'mirror'
+
+        lens = G.Path.aperture(0.15, r, extent, z=t + st + t/2)
+        lens.name = 'lens'
+        
+        ground = G.Path.aperture(0.15, r, extent, z=t+st+t+st+t/2)
+        ground.name = 'ground'
+    
+        boundary = G.Path.line([0., 0., -0.3], [rmax, 0., -0.3]) \
+            .line_to([rmax, 0., 1.75]).line_to([0., 0., 1.75])
+        boundary.name = 'boundary'
+        
+        geom = mirror+mirror_line+lens+ground+boundary
+         
+        if symmetry.is_3d():
+            geom = geom.revolve_z()
+        
+        return geom.mesh(mesh_size_factor=MSF)
+     
+    def get_excitation(self, mesh, symmetry):
+        exc = E.Excitation(mesh, symmetry)
         exc.add_voltage(ground=0.0, mirror=-1250, lens=710.0126605741955)
         exc.add_electrostatic_boundary('boundary')
         return exc

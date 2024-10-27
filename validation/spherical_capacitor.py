@@ -2,7 +2,6 @@ from math import cos
 
 import matplotlib.pyplot as plt
 import numpy as np
-from pygmsh import *
 
 import traceon.geometry as G
 import traceon.excitation as E
@@ -26,12 +25,6 @@ class SphericalCapacitor(Validation):
         
         self.plot_colors = dict(inner='blue', outer='darkblue')
     
-    def default_MSF(self, symmetry):
-        if symmetry.is_3d():
-            return [20, 100, 300, 500]
-        else:
-            return [10, 100, 200]
-    
     def create_mesh(self, MSF, symmetry, higher_order):
         """Create the spherical deflection analyzer from the following paper
         
@@ -39,40 +32,20 @@ class SphericalCapacitor(Validation):
         Comparison of FDM, FEM and BEM for electrostatic charged particle optics.
         1999.
         """
-        with G.Geometry(symmetry) as geom:
-            
-            points = [
-                [0, -r2],
-                [0, -r1],
-                [r1, 0],
-                [0, r1],
-                [0, r2],
-                [r2, 0]
-            ]
-            
-            points = [geom.add_point([p[0], 0, p[1]] if geom.is_3d() else p) for p in points]
-            center = geom.add_point([0, 0, 0])
-            
-            l2 = geom.add_circle_arc(points[1], center, points[2])
-            l3 = geom.add_circle_arc(points[2], center, points[3])
-            
-            l5 = geom.add_circle_arc(points[4], center, points[5])
-            l6 = geom.add_circle_arc(points[5], center, points[0])
-            
-            if not geom.is_3d():
-                geom.add_physical([l2, l3], 'inner')
-                geom.add_physical([l5, l6], 'outer')
-            else:
-                s1 = G.revolve_around_optical_axis(geom, [l2, l3])
-                s2 = G.revolve_around_optical_axis(geom, [l5, l6])
-                geom.add_physical(s1, 'inner')
-                geom.add_physical(s2, 'outer')
-            
-            geom.set_mesh_size_factor(MSF)
-            return geom.generate_line_mesh(higher_order) if geom.is_2d() else geom.generate_triangle_mesh()
+        def add_shell(radius, name):
+            arc = G.Path.arc([0., 0., 0.], [0, 0, -radius], [radius, 0, 0.]).arc_to([0., 0., 0.], [0., 0., radius])
+            arc.name = name
 
-    def get_excitation(self, mesh):
-        exc = E.Excitation(mesh)
+            if symmetry.is_3d():
+                arc = arc.revolve_z()
+                return arc.mesh(mesh_size_factor=MSF)
+            else:
+                return arc.mesh(mesh_size_factor=MSF, higher_order=higher_order)
+         
+        return add_shell(r1, 'inner') + add_shell(r2, 'outer')
+ 
+    def get_excitation(self, mesh, symmetry):
+        exc = E.Excitation(mesh, symmetry)
         exc.add_voltage(inner=5/3, outer=3/5)
         return exc
      
@@ -82,17 +55,11 @@ class SphericalCapacitor(Validation):
         return correct
     
     def compute_value_of_interest(self, mesh, field):
-        if not mesh.is_3d():
-            position = np.array([0.0, 10.0]) 
-            vel = np.array([np.cos(angle), -np.sin(angle)])
-        else:
-            position = np.array([0.0, 0.0, 10.0]) 
-            vel = np.array([np.cos(angle), 0.0, -np.sin(angle)])
-        
+        position = np.array([0.0, 0.0, 10.0]) 
+        vel = np.array([np.cos(angle), 0.0, -np.sin(angle)])
         tracer = T.Tracer(field, ((-0.1, 12.5), (-0.1, 0.1), (-12.5, 12.5)))
         print('Starting electron trace...')
         times, pos = tracer(position, vel)
-        
         r_final = T.axis_intersection(pos)
         
         return r_final 

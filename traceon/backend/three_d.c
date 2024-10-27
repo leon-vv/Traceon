@@ -290,5 +290,26 @@ field_3d_derivs(double point[3], double field[3], double *restrict zs, double *r
 	}
 }
 
+EXPORT void triangle_areas(vertices_3d triangles, double *out, size_t N) {
+	
+	for(int i = 0; i < N; i++) {
+		double v1[3] = {
+			triangles[i][1][0] - triangles[i][0][0],
+			triangles[i][1][1] - triangles[i][0][1],
+			triangles[i][1][2] - triangles[i][0][2]
+		};
+		
+		double v2[3] = {
+			triangles[i][2][0] - triangles[i][0][0],
+			triangles[i][2][1] - triangles[i][0][1],
+			triangles[i][2][2] - triangles[i][0][2]
+		};
+		
+		double cross[3];
+		cross_product_3d(v1, v2, cross);
+		out[i] = 0.5*norm_3d(cross[0], cross[1], cross[2]);
+	}
+}
+
 
 

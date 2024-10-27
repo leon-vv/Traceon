@@ -21,17 +21,33 @@ class EinzelLens(Validation):
         self.plot_colors = dict(lens='blue', ground='green', boundary='purple')
 
     def create_mesh(self, MSF, symmetry, higher_order):
-        with G.MEMSStack(z0=z0, zmin=-1.5, zmax=1.5, symmetry=symmetry, size_from_distance=True) as geom:
-            geom.add_electrode(RADIUS, THICKNESS, 'ground')
-            geom.add_spacer(THICKNESS)
-            geom.add_electrode(RADIUS, THICKNESS, 'lens')
-            geom.add_spacer(THICKNESS)
-            geom.add_electrode(RADIUS, THICKNESS, 'ground')
-            geom.set_mesh_size_factor(MSF)
-            return geom.generate_line_mesh(higher_order) if geom.is_2d() else geom.generate_triangle_mesh()
+        
+        boundary = G.Path.line([0., 0., 1.75],  [2.0, 0., 1.75])\
+            .line_to([2.0, 0., -1.75]).line_to([0., 0., -1.75])
 
-    def get_excitation(self, mesh):
-        excitation = E.Excitation(mesh)
+
+        margin_right = 0.1
+        extent = 2.0 - margin_right
+        
+        bottom = G.Path.aperture(THICKNESS, RADIUS, extent, -THICKNESS - SPACING)
+        middle = G.Path.aperture(THICKNESS, RADIUS, extent)
+        top = G.Path.aperture(THICKNESS, RADIUS, extent, THICKNESS + SPACING)
+         
+        if symmetry.is_3d():
+            boundary = boundary.revolve_z()
+            bottom = bottom.revolve_z()
+            middle = middle.revolve_z()
+            top = top.revolve_z()
+
+        boundary.name = 'boundary'
+        bottom.name = 'ground'
+        middle.name = 'lens'
+        top.name = 'ground'
+        
+        return (boundary + bottom + middle + top).mesh(mesh_size_factor=MSF)
+    
+    def get_excitation(self, mesh, symmetry):
+        excitation = E.Excitation(mesh, symmetry)
         excitation.add_voltage(ground=0.0, lens=1000)
         excitation.add_electrostatic_boundary('boundary')
         return excitation
@@ -40,21 +56,14 @@ class EinzelLens(Validation):
         return 3.915970140918643
       
     def compute_value_of_interest(self, geom, field):
-        _3d = geom.is_3d()
-        
         field.set_bounds( ((-RADIUS, RADIUS), (-RADIUS, RADIUS), (-1.5,1.5)) )
         field_axial = field.axial_derivative_interpolation(-1.5, 1.5, 600)
-        
-        z = np.linspace(-1.5, 1.5, 150)
-        pot = [field.potential_at_point(np.array([0.0, z_] if not _3d else [0.0, 0.0, z_])) for z_ in z]
-        #plt.plot(z, pot)
-        #plt.show()
-        
+         
         bounds = ((-RADIUS, RADIUS), (-RADIUS, RADIUS), (-5, 3.5))
         tracer = T.Tracer(field_axial, bounds)
-        
-        p0 = np.array([RADIUS/3, 3]) if not _3d else np.array([RADIUS/3, 0.0, 3])
-        v0 = T.velocity_vec_xz_plane(1000, 0, three_dimensional=_3d)
+         
+        p0 = np.array([RADIUS/3, 0.0, 3])
+        v0 = T.velocity_vec_xz_plane(1000, 0, three_dimensional=True)
         
         _, pos = tracer(p0, v0)
         

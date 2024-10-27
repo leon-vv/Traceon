@@ -3,7 +3,6 @@ import time, math
 import numpy as np
 import matplotlib.pyplot as plt
 from scipy.interpolate import CubicSpline
-from pygmsh import *
 
 import traceon.geometry as G
 import traceon.excitation as E
@@ -17,54 +16,32 @@ class SimpleMirror(Validation):
 
     def __init__(self):
         super().__init__('Calculated a trajectory through a simple flat mirror.')
-        self.plot_colors = dict(mirror='brown', lens='blue', ground='green')
+        self.plot_colors = dict(mirror='brown', lens='blue', boundary='green')
 
     def default_MSF(self, symmetry):
-        if symmetry.is_3d():
-            return [200, 400, 600, 1000, 1500]
+        if not symmetry.is_3d():
+            return [8, 16, 32, 64]
         else:
-            return [10, 50, 150, 250, 600]
-
+            return [4, 8, 16, 32]
+    
     def create_mesh(self, MSF, symmetry, higher_order):
-        _3d = symmetry.is_3d()
+        boundary = G.Path.line([0, 0, -1], [2, 0, -1]).line_to([2, 0, 1]).line_to([0.3, 0., 1])
+        mirror = G.Path.line([0., 0., 0.], [1., 0., 0.])
+
+        boundary.name = 'boundary'
+        mirror.name = 'mirror'
         
-        with G.Geometry(symmetry, size_from_distance=True, zmin=0.1, zmax=2) as geom:
-            
-            points = [ [0, -1], [2, -1], [2, 1], [0.3, 1] ]
-            if _3d: 
-                points = [ [p[0], 0.0, p[1]] for p in points ]
-            
-            points = [geom.add_point(p) for p in points]
-            
-            ground_lines = [geom.add_line(p1, p2) for p1, p2 in zip(points, points[1:])]
-                
-            if _3d:
-                revolved = G.revolve_around_optical_axis(geom, ground_lines)
-                geom.add_physical(revolved, 'ground')
-            else:
-                geom.add_physical(ground_lines, 'ground')
-            
-            points = [ [0.0, 0.0], [1, 0] ]
-            if _3d:
-                points = [ [p[0], 0.0, p[1]] for p in points ]
-            
-            points = [geom.add_point(p) for p in points]
-            
-            mirror_line = geom.add_line(points[0], points[1])
-            
-            geom.set_mesh_size_factor(MSF)
-            
-            if _3d:
-                revolved = G.revolve_around_optical_axis(geom, mirror_line)
-                geom.add_physical(revolved, 'mirror')
-                return geom.generate_triangle_mesh()
-            else:
-                geom.add_physical(mirror_line, 'mirror')
-                return geom.generate_line_mesh(higher_order)
+        _3d = symmetry.is_3d()
+         
+        if symmetry.is_3d():
+            boundary = boundary.revolve_z()
+            mirror = mirror.revolve_z()
+        
+        return (boundary + mirror).mesh(mesh_size_factor=MSF)
      
-    def get_excitation(self, mesh):
-        excitation = E.Excitation(mesh)
-        excitation.add_voltage(mirror=-110, ground=0.0)
+    def get_excitation(self, mesh, symmetry):
+        excitation = E.Excitation(mesh, symmetry)
+        excitation.add_voltage(mirror=-110, boundary=0.0)
         return excitation
     
     def correct_value_of_interest(self): 

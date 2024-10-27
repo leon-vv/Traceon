@@ -23,17 +23,32 @@ class MagneticEinzelLens(Validation):
         self.plot_colors = dict(lens='blue', ground='green', boundary='purple')
 
     def create_mesh(self, MSF, symmetry, higher_order):
-        with G.MEMSStack(z0=z0, zmin=-1.5, zmax=1.5, symmetry=symmetry, size_from_distance=True) as geom:
-            geom.add_electrode(RADIUS, THICKNESS, 'ground')
-            geom.add_spacer(THICKNESS)
-            geom.add_electrode(RADIUS, THICKNESS, 'lens')
-            geom.add_spacer(THICKNESS)
-            geom.add_electrode(RADIUS, THICKNESS, 'ground')
-            geom.set_mesh_size_factor(MSF)
-            return geom.generate_line_mesh(higher_order) if geom.is_2d() else geom.generate_triangle_mesh()
+        boundary = G.Path.line([0., 0., 1.75],  [2.0, 0., 1.75])\
+            .line_to([2.0, 0., -1.75]).line_to([0., 0., -1.75])
+        
+        margin_right = 0.1
+        extent = 2.0 - margin_right
+        
+        bottom = G.Path.aperture(THICKNESS, RADIUS, extent, -THICKNESS - SPACING)
+        middle = G.Path.aperture(THICKNESS, RADIUS, extent)
+        top = G.Path.aperture(THICKNESS, RADIUS, extent, THICKNESS + SPACING)
+         
+        if symmetry.is_3d():
+            boundary = boundary.revolve_z()
+            bottom = bottom.revolve_z()
+            middle = middle.revolve_z()
+            top = top.revolve_z()
 
-    def get_excitation(self, mesh):
-        excitation = E.Excitation(mesh)
+        boundary.name = 'boundary'
+        bottom.name = 'ground'
+        middle.name = 'lens'
+        top.name = 'ground'
+        
+        return (boundary + bottom + middle + top).mesh(mesh_size_factor=MSF)
+
+
+    def get_excitation(self, mesh, symmetry):
+        excitation = E.Excitation(mesh, symmetry)
         excitation.add_magnetostatic_potential(ground=0.0, lens=50.)
         excitation.add_magnetostatic_boundary('boundary')
         return excitation

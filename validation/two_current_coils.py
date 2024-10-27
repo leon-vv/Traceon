@@ -18,31 +18,21 @@ class TwoCurrentCoils(Validation):
         self.plot_colors = dict(coil1='blue', coil2='red', block='orange')
     
     def create_mesh(self, MSF, symmetry, higher_order):
-        assert symmetry == G.Symmetry.RADIAL, "3D meshes not yet supported in magnetostatics"
-        
-        with G.Geometry(G.Symmetry.RADIAL) as geom:
-            
-            circle1 = geom.add_circle([10e-3, 5e-3], 1.0e-3)
-            circle2 = geom.add_circle([10e-3, -5e-3], 1.0e-3)
-             
-            geom.add_physical(circle1.plane_surface, 'coil1')
-            geom.add_physical(circle2.plane_surface, 'coil2')
-            
-            geom.set_mesh_size_factor(20*MSF)
-            mesh1 = geom.generate_triangle_mesh()
+        boundary = G.Path.line([0., 0., 50e-3], [100e-3, 0., 50e-3]).line_to([100e-3, 0., -50e-3]).line_to([0., 0., -50e-3])
+        boundary.name = 'boundary'
 
-        with G.Geometry(G.Symmetry.RADIAL) as geom:
-            rectangle = geom.add_rectangle(5e-3, 15e-3, -1e-3, 1e-3, 0)
-            geom.add_physical(rectangle.curves, 'block')
-            
-            points = [[0, 50e-3], [100e-3, 50e-3], [100e-3, -50e-3], [0, -50e-3]]
-            lines = [geom.add_line(geom.add_point(p1), geom.add_point(p2)) for p1, p2 in zip(points, points[1:])]
-            geom.add_physical(lines, 'boundary')
-             
-            geom.set_mesh_size_factor(MSF)
-            mesh2 = geom.generate_line_mesh(higher_order)
+        coil1 = G.Surface.disk_xz(10e-3, 5e-3, 1e-3) 
+        coil2 = G.Surface.disk_xz(10e-3, -5e-3, 1e-3) 
+
+        coil1.name = 'coil1'
+        coil2.name = 'coil2'
+
+        coil_mesh = (coil1+coil2).mesh(mesh_size=0.25e-3)
         
-        return mesh1 + mesh2
+        block  = G.Path.rectangle_xz(5e-3, 15e-3, -1e-3, 1e-3)
+        block.name = 'block'
+
+        return coil_mesh + (boundary + block).mesh(mesh_size_factor=MSF)
     
     def supports_fmm(self):
         return False
@@ -50,8 +40,8 @@ class TwoCurrentCoils(Validation):
     def supports_3d(self):
         return False
     
-    def get_excitation(self, geometry):
-        exc = E.Excitation(geometry)
+    def get_excitation(self, mesh, symmetry):
+        exc = E.Excitation(mesh, symmetry)
         exc.add_current(coil1= 10, coil2=-10)
         exc.add_magnetizable(block=25)
         exc.add_magnetostatic_boundary('boundary')

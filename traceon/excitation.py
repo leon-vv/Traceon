@@ -14,14 +14,30 @@ Currently current excitations are not supported in 3D. But magnetostatic fields 
 
 Once the excitation is specified, it can be passed to `traceon.solver.solve_bem` to compute the resulting field.
 """
-
-
 from enum import IntEnum
 
 import numpy as np
 
-from .geometry import Symmetry
 from .backend import N_QUAD_2D
+
+class Symmetry(IntEnum):
+    """Symmetry to be used for solver. Used when deciding which formulas to use in the Boundary Element Method. The currently
+    supported symmetries are radial symmetry (also called cylindrical symmetry) and general 3D geometries.
+    """
+    RADIAL = 0
+    THREE_D = 2
+    
+    def __str__(self):
+        if self == Symmetry.RADIAL:
+            return 'radial'
+        elif self == Symmetry.THREE_D:
+            return '3d' 
+    
+    def is_2d(self):
+        return self == Symmetry.RADIAL
+        
+    def is_3d(self):
+        return self == Symmetry.THREE_D
 
 class ExcitationType(IntEnum):
     """Possible excitation that can be applied to elements of the geometry. See the methods of `Excitation` for documentation."""
@@ -63,10 +79,15 @@ class ExcitationType(IntEnum):
 class Excitation:
     """ """
      
-    def __init__(self, mesh):
+    def __init__(self, mesh, symmetry):
         self.mesh = mesh
         self.electrodes = mesh.get_electrodes()
         self.excitation_types = {}
+        self.symmetry = symmetry
+         
+        if symmetry == Symmetry.RADIAL:
+            assert self.mesh.points.shape[1] == 2 or np.all(self.mesh.points[:, 1] == 0.), \
+                "When symmetry is RADIAL, the geometry should lie in the XZ plane"
     
     def __str__(self):
         return f'<Traceon Excitation,\n\t' \
@@ -75,7 +96,7 @@ class Excitation:
      
     def add_voltage(self, **kwargs):
         """
-        Apply a fixed voltage to the geometries assigned the given name (or physical group in GMSH terminology).
+        Apply a fixed voltage to the geometries assigned the given name.
         
         Parameters
         ----------
@@ -87,7 +108,7 @@ class Excitation:
         
         """
         for name, voltage in kwargs.items():
-            assert name in self.electrodes
+            assert name in self.electrodes, f'Cannot add {name} to excitation, since it\'s not present in the mesh'
             if isinstance(voltage, int) or isinstance(voltage, float):
                 self.excitation_types[name] = (ExcitationType.VOLTAGE_FIXED, voltage)
             elif callable(voltage):
@@ -97,7 +118,7 @@ class Excitation:
 
     def add_current(self, **kwargs):
         """
-        Apply a fixed total current to the geometries assigned the given name (or physical group in GMSH terminology). Note that a coil is assumed,
+        Apply a fixed total current to the geometries assigned the given name. Note that a coil is assumed,
         which implies that the current density is constant as a function of (r, z). In a solid piece of conducting material the current density would
         be higher at small r (as the 'loop' around the axis is shorter and therefore the resistance is lower).
         
@@ -108,7 +129,7 @@ class Excitation:
             calling the function as `add_current(coild=10)` assigns a 10A value to the geometry elements part of the 'coil' physical group.
         """
 
-        assert self.mesh.symmetry == Symmetry.RADIAL, "Currently magnetostatics are only supported for radially symmetric meshes"
+        assert self.symmetry == Symmetry.RADIAL, "Currently magnetostatics are only supported for radially symmetric meshes"
          
         for name, current in kwargs.items():
             assert name in self.mesh.physical_to_triangles.keys(), "Current can only be applied to a triangle electrode"
@@ -128,7 +149,7 @@ class Excitation:
      
     def add_magnetostatic_potential(self, **kwargs):
         """
-        Apply a fixed magnetostatic potential to the geometries assigned the given name (or physical group in GMSH terminology).
+        Apply a fixed magnetostatic potential to the geometries assigned the given name.
         
         Parameters
         ----------
@@ -137,12 +158,12 @@ class Excitation:
             calling the function as `add_magnetostatic_potential(lens=50)` assigns a 50A value to the geometry elements part of the 'lens' physical group.
         """
         for name, pot in kwargs.items():
-            assert name in self.electrodes
+            assert name in self.electrodes, f'Cannot add {name} to excitation, since it\'s not present in the mesh'
             self.excitation_types[name] = (ExcitationType.MAGNETOSTATIC_POT, pot)
 
     def add_magnetizable(self, **kwargs):
         """
-        Assign a relative magnetic permeability to the geometries assigned the given name (or physical group in GMSH terminology).
+        Assign a relative magnetic permeability to the geometries assigned the given name.
         
         Parameters
         ----------
@@ -153,12 +174,12 @@ class Excitation:
         """
 
         for name, permeability in kwargs.items():
-            assert name in self.electrodes
+            assert name in self.electrodes, f'Cannot add {name} to excitation, since it\'s not present in the mesh'
             self.excitation_types[name] = (ExcitationType.MAGNETIZABLE, permeability)
      
     def add_dielectric(self, **kwargs):
         """
-        Assign a dielectric constant to the geometries assigned the given name (or physical group in GMSH terminology).
+        Assign a dielectric constant to the geometries assigned the given name.
         
         Parameters
         ----------
@@ -168,7 +189,7 @@ class Excitation:
          
         """
         for name, permittivity in kwargs.items():
-            assert name in self.electrodes
+            assert name in self.electrodes, f'Cannot add {name} to excitation, since it\'s not present in the mesh'
             self.excitation_types[name] = (ExcitationType.DIELECTRIC, permittivity)
 
     def add_electrostatic_boundary(self, *args):
@@ -234,7 +255,7 @@ class Excitation:
     def _get_active_elements(self, type_):
         assert type_ in ['electrostatic', 'magnetostatic']
         
-        if self.mesh.symmetry == Symmetry.RADIAL:
+        if self.symmetry == Symmetry.RADIAL:
             elements = self.mesh.lines
             physicals = self.mesh.physical_to_lines
         else:
@@ -257,29 +278,11 @@ class Excitation:
                     if n in self.excitation_types and type_check(self.excitation_types[n][0])}
          
         return self.mesh.points[ elements[~inactive] ], names
-    
-    def _get_number_of_active_elements(self, type_):
-        assert type_ in ['electrostatic', 'magnetostatic']
-         
-        if self.mesh.symmetry == Symmetry.RADIAL:
-            elements = self.mesh.lines
-            physicals = self.mesh.physical_to_lines
-        else:
-            elements = self.mesh.triangles
-            physicals = self.mesh.physical_to_triangles
-        
-        def type_check(excitation_type):
-            if type_ == 'electrostatic':
-                return excitation_type.is_electrostatic()
-            else:
-                return excitation_type in [ExcitationType.MAGNETOSTATIC_POT, ExcitationType.MAGNETIZABLE]
-         
-        return sum(len(physicals[n]) for n, v in self.excitation_types.items() if type_check(v[0]))
-    
+     
     def get_electrostatic_active_elements(self):
-        """Get elements in the mesh that are active, in the sense that
-        an excitation to them has been applied. 
-    
+        """Get elements in the mesh that have an electrostatic excitation
+        applied to them. 
+         
         Returns
         --------
         A tuple of two elements: (points, names). points is a Numpy array of shape (N, 4, 3) in the case of 2D and (N, 3, 3) in the case of 3D. \
@@ -292,7 +295,8 @@ class Excitation:
         return self._get_active_elements('electrostatic')
     
     def get_magnetostatic_active_elements(self):
-        """Get elements in the mesh that are active, in the sense that an excitation to them has been applied. 
+        """Get elements in the mesh that have an magnetostatic excitation
+        applied to them. This does not include current excitation, as these are not part of the matrix.
     
         Returns
         --------
@@ -305,7 +309,7 @@ class Excitation:
         """
 
         return self._get_active_elements('magnetostatic')
-     
+    
     def get_number_of_electrostatic_active_elements(self):
         """Get elements in the mesh that are active, in the sense that
         an excitation to them has been applied. This is the length of the points
@@ -326,7 +330,3 @@ class Excitation:
         integer number
         """
         return self._get_number_of_active_elements('electrostatic')
-
-        
-
-

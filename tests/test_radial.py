@@ -27,9 +27,9 @@ class TestRadial(unittest.TestCase):
     def test_charge_radial_vertical(self):
         vertices = np.array([
             [1.0, 0.0, 0.0],
-            [1.0, 1.0, 0.0],
-            [1.0, 1/3, 0.0],
-            [1.0, 2/3, 0.0]])
+            [1.0, 0.0, 1.0],
+            [1.0, 0.0, 1/3],
+            [1.0, 0.0, 2/3]])
         
         correct = 2*pi
         approx = B.charge_radial(vertices, 1.0);
@@ -51,9 +51,9 @@ class TestRadial(unittest.TestCase):
     def test_charge_radial_skewed(self):
         vertices = np.array([
             [0.0, 0.0, 0.0],
-            [1.0, 1.0, 0.0],
-            [1/3, 1/3, 0.0],
-            [2/3, 2/3, 0.0]])
+            [1.0, 0.0, 1.0],
+            [1/3, 0.0, 1/3],
+            [2/3, 0.0, 2/3]])
         
         correct = pi*sqrt(2)
         approx = B.charge_radial(vertices, 1.0);
@@ -62,10 +62,10 @@ class TestRadial(unittest.TestCase):
 
     def test_field_radial(self):
         vertices = np.array([
-            [1.0, 1.0, 0.0],
-            [2.0, 2.0, 0.0],
-            [1.0 + 1/3, 1.0 + 1/3, 0.0],
-            [1.0 + 2/3, 1.0 + 2/3, 0.0]])
+            [1.0, 0.0, 1.0],
+            [2.0, 0.0, 2.0],
+            [1.0 + 1/3, 0.0, 1.0 + 1/3],
+            [1.0 + 2/3, 0.0, 1.0 + 2/3]])
         
         r0, z0 = 2.0, -2.5
         
@@ -90,14 +90,12 @@ class TestRadial(unittest.TestCase):
         assert np.allclose(B.field_radial(np.array([r0, z0]), charges, jac, pos)/epsilon_0, [Er, Ez], atol=0.0, rtol=1e-10)
      
     def test_rectangular_current_loop(self):
-        with G.Geometry(G.Symmetry.RADIAL) as geom:
-            points = [[1.0, 1.0], [2.0, 1.0], [2.0, 2.0], [1.0, 2.0]]
-            poly = geom.add_polygon(points)
-            geom.add_physical(poly, 'coil')
-            geom.set_mesh_size_factor(50)
-            mesh = geom.generate_triangle_mesh(False)
-        
-        exc = E.Excitation(mesh)
+        coil = G.Surface.rectangle_xz(1.0, 2.0, 1.0, 2.0)
+        coil.name = 'coil'
+
+        mesh = coil.mesh(mesh_size=0.1)
+         
+        exc = E.Excitation(mesh, E.Symmetry.RADIAL)
         exc.add_current(coil=5)
         
         field = S.solve_bem(exc)
@@ -180,20 +178,20 @@ class TestRadial(unittest.TestCase):
             assert np.allclose(field, field_interp, atol=1e-3, rtol=5e-3)
      
     def test_mag_pot_derivatives(self):
-        with G.Geometry(G.Symmetry.RADIAL) as geom:
-            points = [[0, 5], [5, 5], [5, -5], [0, -5]]
-            lines = [geom.add_line(geom.add_point(p1), geom.add_point(p2)) for p1, p2 in zip(points, points[1:])]
-            geom.add_physical(lines, 'boundary')
-            
-            r1 = geom.add_rectangle(1, 2, 2, 3, 0)
-            r2 = geom.add_rectangle(1, 2, -3, -2, 0)
-            
-            geom.add_physical(r1.curves, 'r1')
-            geom.add_physical(r2.curves, 'r2')
-            geom.set_mesh_size_factor(10)
-            mesh = geom.generate_line_mesh(False)
+        boundary = G.Path.line([0., 0., 5.], [5., 0., 5.])\
+            .line_to([5., 0., -5.])\
+            .line_to([0., 0., -5.])
         
-        e = E.Excitation(mesh)
+        r1 = G.Path.rectangle_xz(1, 2, 2, 3)
+        r2 = G.Path.rectangle_xz(1, 2, -3, -2)
+
+        boundary.name = 'boundary'
+        r1.name = 'r1'
+        r2.name = 'r2'
+        
+        mesh = (boundary + r1 + r2).mesh(mesh_size=0.1)
+         
+        e = E.Excitation(mesh, E.Symmetry.RADIAL)
         e.add_magnetostatic_potential(r1 = 10)
         e.add_magnetostatic_potential(r2 = -10)
          
@@ -221,13 +219,12 @@ class TestRadial(unittest.TestCase):
     def test_rectangular_coil(self):
         # Field produced by a 1mm x 1mm coil, with inner radius 2mm, 1ampere total current
         # What is the field produced at (2.5mm, 4mm)
-        with G.Geometry(G.Symmetry.RADIAL) as geom:
-            rect = geom.add_rectangle(2, 3, 2, 3, 0)
-            geom.add_physical(rect.surface, 'coil')
-            geom.set_mesh_size_factor(5)
-            mesh = geom.generate_triangle_mesh(False)
+        coil = G.Surface.rectangle_xz(2, 3, 2, 3)
+        coil.name = 'coil'
         
-        exc = E.Excitation(mesh)
+        mesh = coil.mesh(mesh_size=0.1)
+        
+        exc = E.Excitation(mesh, E.Symmetry.RADIAL)
         exc.add_current(coil=1)
         field = S.solve_bem(exc)
 
@@ -235,11 +232,11 @@ class TestRadial(unittest.TestCase):
         assert np.isclose(np.sum(field.current_point_charges.charges[:, np.newaxis]*field.current_point_charges.jacobians), 1.0) # Total current is 1.0
         
         target = np.array([2.5, 0., 4.0])
-        correct_r = dblquad(lambda x, y: magnetic_field_of_loop(1.0, x, np.array([target[0], 0.,target[2]-y]))[0], 2, 3, 2, 3)[0]
-        correct_z = dblquad(lambda x, y: magnetic_field_of_loop(1.0, x, np.array([target[0], 0., target[2]-y]))[2], 2, 3, 2, 3)[0]
-        
         computed = mu_0*field.current_field_at_point(np.array([target[0], target[2]]))
-        correct = np.array([correct_r, correct_z])
         
-        assert np.allclose(computed, correct, atol=1e-11) 
+        correct_r = dblquad(lambda x, y: mu_0*B.current_field_radial_ring(target[0], target[2], x, y)[0], 2, 3, 2, 3, epsrel=1e-4)[0]
+        correct_z = dblquad(lambda x, y: mu_0*B.current_field_radial_ring(target[0], target[2], x, y)[1], 2, 3, 2, 3, epsrel=1e-4)[0]
+        correct = np.array([correct_r, correct_z])
+
+        assert np.allclose(computed, correct, atol=0.0, rtol=1e-9) 
 
