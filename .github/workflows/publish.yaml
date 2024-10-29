@@ -7,6 +7,8 @@ jobs:
   publish_wheels:
     runs-on: ubuntu-latest
     steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
       - name: Set up Python
         uses: actions/setup-python@v4
         with:
@@ -17,12 +19,42 @@ jobs:
         with:
           workflow: build-and-test.yaml
           branch: main
-          name: .*-wheel
+          name: (.*-wheel)|source-distribution
           name_is_regexp: true
           search_artifacts: true
-      - name: List
+      - name: List artifacts
         run: |
           ls **/*.whl
-        
-
+          ls source-distribution/*.tar.gz
+      - name: Extract version information
+        run: |
+          VERSION=$(python3 ./setup.py --version)
+          TAG=v$VERSION
+          echo "Version found: $VERSION"
+          echo "Using tag: $TAG"
+          echo "VERSION=$VERSION" >> $GITHUB_ENV
+          echo "TAG=v$VERSION" >> $GITHUB_ENV
+          if [[ "$VERSION" == *rc* ]]; then
+            echo "PRERELEASE=true" >> $GITHUB_ENV
+            echo "This is a prerelease."
+          else
+            echo "PRERELEASE=false" >> $GITHUB_ENV
+            echo "This is a full release."
+          fi
+      - name: Create Git tag
+        run: |
+          git tag $TAG
+          git push origin $TAG
+      - name: Create release
+        uses: softprops/action-gh-release@v2
+        with:
+          name: ${{ env.TAG }}
+          prerelease: ${{ env.PRERELEASE }}
+          draft: false
+          tag_name: ${{ env.TAG }}
+          files: |
+            ubuntu-wheel/*.whl
+            macos-wheel/*.whl
+            windows-wheel/*.whl
+            source-distribution/*.tar.gz
 
