@@ -28,7 +28,7 @@ backend_extension = Extension(
 
 setup(
     name='traceon',
-    version='0.6.2',
+    version='0.7.0rc1',
     description='Solver and tracer for electrostatic problems',
     url='https://github.com/leon-vv/Traceon',
     author='Léon van Velzen',
