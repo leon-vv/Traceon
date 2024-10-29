@@ -1,0 +1,28 @@
+---
+name: Publish to Pypi
+on:
+  workflow_dispatch:
+
+jobs:
+  publish_wheels:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: "3.8"
+      - name: Download artifact
+        id: download-artifact
+        uses: dawidd6/action-download-artifact@v2
+        with:
+          workflow: build-and-test.yaml
+          branch: main
+          name: .*-wheel
+          name_is_regexp: true
+          search_artifacts: true
+      - name: List
+        run: |
+          ls **/*.whl
+        
+
+
