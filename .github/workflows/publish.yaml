@@ -57,4 +57,12 @@ jobs:
             macos-wheel/*.whl
             windows-wheel/*.whl
             source-distribution/*.tar.gz
+      - name: Install Twine
+        run: |
+          pip install twine
+      - name: Upload to PyPI
+        env:
+          TWINE_USERNAME: ${{ secrets.PYPI_USERNAME }}
+          TWINE_PASSWORD: ${{ secrets.PYPI_PASSWORD }}
+        run: python -m twine upload --repository pypi *-wheel/traceon-*.whl source-distribution/*.tar.gz
 
