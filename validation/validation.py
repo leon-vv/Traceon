@@ -39,7 +39,6 @@ class Validation:
         parser.add_argument('--plot-accuracy', action='store_true', help='Plot the accuracy as a function of time and number of elements')
         parser.add_argument('--plot-geometry', action='store_true', help='Plot the geometry')
         parser.add_argument('--plot-normals', action='store_true', help='When plotting geometry, show normals')
-        parser.add_argument('--plot-charge-density', action='store_true', help='When plotting geometry, base the colors on the computed charge density')
         parser.add_argument('--plot-charges', action='store_true', help='When plotting geometry, base the colors on the charge on each element')
         parser.add_argument('--use-fmm', action='store_true', help='Use fast multipole method to solve 3D geometry')
         parser.add_argument('--fmm-precision', type=int, default=12, help='Number of element (l_max) to use in multipole expansion')
@@ -55,14 +54,9 @@ class Validation:
     def supports_3d(self):
         return True
     
-    def plot_geometry(self, MSF, symmetry, higher_order=False, plot_charges=False, plot_charge_density=False, plot_normals=False):
+    def plot_geometry(self, MSF, symmetry, higher_order=False, plot_charges=False, plot_normals=False):
         geom = self.create_mesh(MSF, symmetry, higher_order)
-         
-        if plot_charges or plot_charge_density:
-            exc, field = self.compute_field(geom, symmetry, use_fmm=use_fmm)
-            P.plot_charge_density(exc, field, density=plot_charge_density)
-        else:
-            P.plot_mesh(geom, show_normals=plot_normals, **self.plot_colors) 
+        P.plot_mesh(geom, show_normals=plot_normals, **self.plot_colors) 
     
     def plot_accuracy(self, MSFs, symmetry, higher_order):
         num_lines = []
@@ -139,14 +133,13 @@ class Validation:
         
         assert args.symmetry != '3d' or not args.higher_order, "Higher order meshes not supported in 3D"
         
-        plot = args.plot_geometry or args.plot_normals or args.plot_charge_density or args.plot_charges
+        plot = args.plot_geometry or args.plot_normals or args.plot_charges
         symmetry = Validation.args_to_symmetry(args)
         MSF = args.MSF if args.MSF != None else self.default_MSF(symmetry)[1]
          
         if plot:
             self.plot_geometry(MSF, symmetry, higher_order=args.higher_order,
                                             plot_charges=args.plot_charges,
-                                            plot_charge_density=args.plot_charge_density,
                                             plot_normals=args.plot_normals) 
         elif args.plot_accuracy:
             self.plot_accuracy(self.default_MSF(symmetry), symmetry)
