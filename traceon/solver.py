@@ -360,12 +360,13 @@ class EffectivePointCharges:
         N_QUAD = self.jacobians.shape[1]
         assert self.charges.shape == (N,) and self.jacobians.shape == (N, N_QUAD)
         assert self.positions.shape == (N, N_QUAD, 3) or self.positions.shape == (N, N_QUAD, 2)
-
-
+    
+    @staticmethod 
     def empty_2d():
         N_QUAD_2D = backend.N_QUAD_2D
         return EffectivePointCharges(np.empty((0,)), np.empty((0, N_QUAD_2D)), np.empty((0,N_QUAD_2D,2)))
 
+    @staticmethod 
     def empty_3d():
         N_TRIANGLE_QUAD = backend.N_TRIANGLE_QUAD
         return EffectivePointCharges(np.empty((0,)), np.empty((0, N_TRIANGLE_QUAD)), np.empty((0, N_TRIANGLE_QUAD, 3)))
