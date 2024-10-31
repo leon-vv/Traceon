@@ -15,7 +15,6 @@ from enum import Enum
 import matplotlib.pyplot as plt
 import numpy as np
 import scipy
-from scipy.integrate import *
 from scipy.constants import m_e, e
 
 from . import backend

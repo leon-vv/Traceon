@@ -9,26 +9,26 @@ this consider the `axial_derivative_interpolation` methods documented below.
 
 ## Radial series expansion in cylindrical symmetry
 
-Let \( \phi_0(z) \) be the potential along the optical axis. We can express the potential around the optical axis as:
+Let \\( \\phi_0(z) \\) be the potential along the optical axis. We can express the potential around the optical axis as:
 
 $$
-\phi = \phi_0(z_0) - \\frac{r^2}{4} \\frac{\\partial \phi_0^2}{\\partial z^2} + \\frac{r^4}{64} \\frac{\\partial^4 \phi_0}{\\partial z^4} - \\frac{r^6}{2304} \\frac{\\partial \phi_0^6}{\\partial z^6} + \\cdots
+\\phi = \\phi_0(z_0) - \\frac{r^2}{4} \\frac{\\partial \\phi_0^2}{\\partial z^2} + \\frac{r^4}{64} \\frac{\\partial^4 \\phi_0}{\\partial z^4} - \\frac{r^6}{2304} \\frac{\\partial \\phi_0^6}{\\partial z^6} + \\cdots
 $$
 
-Therefore, if we can efficiently compute the axial potential derivatives \( \\frac{\\partial \phi_0^n}{\\partial z^n} \) we can compute the potential and therefore the fields around the optical axis.
-For the derivatives of \( \phi_0(z) \) closed form formulas exist in the case of radially symmetric geometries, see for example formula 13.16a in [1]. Traceon uses a recursive version of these formulas to
+Therefore, if we can efficiently compute the axial potential derivatives \\( \\frac{\\partial \\phi_0^n}{\\partial z^n} \\) we can compute the potential and therefore the fields around the optical axis.
+For the derivatives of \\( \\phi_0(z) \\) closed form formulas exist in the case of radially symmetric geometries, see for example formula 13.16a in [1]. Traceon uses a recursive version of these formulas to
 very efficiently compute the axial derivatives of the potential.
 
 ## Radial series expansion in 3D
 
-In a general three dimensional geometry the potential will be dependent not only on the distance from the optical axis but also on the angle \( \\theta \) around the optical axis
+In a general three dimensional geometry the potential will be dependent not only on the distance from the optical axis but also on the angle \\( \\theta \\) around the optical axis
 at which the potential is sampled. It turns out (equation (35, 24) in [2]) the potential can be written as follows:
 
 $$
-\phi = \sum_{\\nu=0}^\infty \sum_{m=0}^\infty r^{2\\nu + m} \\left( A^\\nu_m \cos(m\\theta) + B^\\nu_m \sin(m\\theta) \\right)
+\\phi = \\sum_{\\nu=0}^\\infty \\sum_{m=0}^\\infty r^{2\\nu + m} \\left( A^\\nu_m \\cos(m\\theta) + B^\\nu_m \\sin(m\\theta) \\right)
 $$
 
-The \(A^\\nu_m\) and \(B^\\nu_m\) coefficients can be expressed in _directional derivatives_ perpendicular to the optical axis, analogous to the radial symmetric case. The 
+The \\(A^\\nu_m\\) and \\(B^\\nu_m\\) coefficients can be expressed in _directional derivatives_ perpendicular to the optical axis, analogous to the radial symmetric case. The 
 mathematics of calculating these coefficients quickly and accurately gets quite involved, but all details have been abstracted away from the user.
 
 ### References
@@ -49,6 +49,8 @@ import time
 from threading import Thread
 import os.path as path
 import copy
+from abc import ABC, abstractmethod
+from typing import Dict, Tuple
 
 import numpy as np
 from scipy.special import legendre
@@ -58,11 +60,10 @@ from . import excitation as E
 from . import logging
 from . import backend
 from . import util
-from . import fast_multipole_method
 from . import tracing as T
 
 
-class Solver:
+class Solver(ABC):
     
     def __init__(self, excitation):
         self.excitation = excitation
@@ -104,9 +105,10 @@ class Solver:
         self.jac_buffer = jac
         self.pos_buffer = pos
      
-    def get_active_elements(self):
-        pass
-
+    @abstractmethod
+    def get_active_elements(self) -> Tuple[np.ndarray, Dict[str, np.ndarray]]:
+        ...
+    
     def get_number_of_matrix_elements(self):
         return len(self.vertices)
         
@@ -118,12 +120,13 @@ class Solver:
     
     def is_2d(self):
         return self.excitation.mesh.is_2d()
-     
+
+    @abstractmethod
     def get_flux_indices(self):
         """Get the indices of the vertices that are of type DIELECTRIC or MAGNETIZABLE.
         For these indices we don't compute the potential but the flux through the element (the inner 
         product of the field with the normal of the vertex. The method is implemented in the derived classes."""
-        pass
+        ...
          
     def get_center_of_element(self, index):
         two_d = self.is_2d()
@@ -136,8 +139,9 @@ class Solver:
             jac, pos = backend.position_and_jacobian_radial(0, v0, v2, v3, v1)
             return np.array([pos[0], 0.0, pos[1]])
      
+    @abstractmethod
     def get_right_hand_side(self):
-        pass
+        ...
          
     def get_matrix(self):
         assert (self.is_3d() and not self.is_higher_order()) or \
@@ -177,8 +181,9 @@ class Solver:
          
         return matrix
     
+    @abstractmethod
     def charges_to_field(self, charges):
-        pass
+        ...
          
     def solve_matrix(self, right_hand_side=None):
         F = np.array([self.get_right_hand_side()]) if right_hand_side is None else right_hand_side
@@ -202,27 +207,6 @@ class Solver:
         assert len(result) == len(F)
         return result
         
-    def solve_fmm(self, precision=0):
-        assert self.is_3d() and not self.is_higher_order(), "Fast multipole method is only supported for simple 3D geometries (non higher order triangles)."
-        assert isinstance(precision, int) and -2 <= precision <= 5, "Precision should be an intenger -2 <= precision <= 5"
-         
-        triangles = self.vertices
-        logging.log_info(f'Using FMM solver, number of elements: {len(triangles)}, symmetry: {self.excitation.mesh.symmetry}, precision: {precision}')
-         
-        N = len(triangles)
-        assert triangles.shape == (N, 3, 3)
-         
-        F = self.get_right_hand_side()
-        assert F.shape == (N,)
-         
-        st = time.time()
-        dielectric_indices = self.get_flux_indices()
-        dielectric_values = self.excitation_values[dielectric_indices]
-        charges, count = fast_multipole_method.solve_iteratively(self.vertices, dielectric_indices, dielectric_values, F, precision=precision)
-        logging.log_info(f'Time for solving FMM: {(time.time()-st)*1000:.0f} ms (iterations: {count})')
-        
-        return self.charges_to_field(EffectivePointCharges(charges, self.jac_buffer, self.pos_buffer))
-
 class ElectrostaticSolver(Solver):
     
     def __init__(self, *args, **kwargs):
@@ -288,7 +272,7 @@ class MagnetostaticSolver(Solver):
         return np.arange(N)[self.excitation_types == int(E.ExcitationType.MAGNETIZABLE)]
      
     def get_current_charges(self):
-        currents = []
+        currents: list[np.ndarray] = []
         jacobians = []
         positions = []
         
@@ -360,12 +344,13 @@ class EffectivePointCharges:
         N_QUAD = self.jacobians.shape[1]
         assert self.charges.shape == (N,) and self.jacobians.shape == (N, N_QUAD)
         assert self.positions.shape == (N, N_QUAD, 3) or self.positions.shape == (N, N_QUAD, 2)
-
-
+    
+    @staticmethod 
     def empty_2d():
         N_QUAD_2D = backend.N_QUAD_2D
         return EffectivePointCharges(np.empty((0,)), np.empty((0, N_QUAD_2D)), np.empty((0,N_QUAD_2D,2)))
 
+    @staticmethod 
     def empty_3d():
         N_TRIANGLE_QUAD = backend.N_TRIANGLE_QUAD
         return EffectivePointCharges(np.empty((0,)), np.empty((0, N_TRIANGLE_QUAD)), np.empty((0, N_TRIANGLE_QUAD, 3)))
@@ -392,7 +377,7 @@ class EffectivePointCharges:
         if isinstance(other, int) or isinstance(other, float):
             return EffectivePointCharges(other*self.charges, self.jacobians, self.positions)
         
-        return NotImpemented
+        return NotImplemented
     
     def __neg__(self):
         return -1*self
@@ -472,7 +457,7 @@ def solve_direct(excitation):
     if mag and elec:
         elec_field = ElectrostaticSolver(excitation).solve_matrix()[0]
         mag_field = MagnetostaticSolver(excitation).solve_matrix()[0]
-        return elec_field + mag_field
+        return elec_field + mag_field # type: ignore
     elif elec and not mag:
         return ElectrostaticSolver(excitation).solve_matrix()[0]
     elif mag and not elec:
@@ -480,7 +465,7 @@ def solve_direct(excitation):
 
 
 
-class Field:
+class Field(ABC):
     def field_at_point(self, point):
         """Convenience function for getting the field in the case that the field is purely electrostatic
         or magneotstatic. Automatically picks one of `electrostatic_field_at_point` or `magnetostatic_field_at_point`.
@@ -526,10 +511,36 @@ class Field:
          
         raise RuntimeError("Cannot use potential_at_point when both electric and magnetic fields are present, " \
             "use electrostatic_potential_at_point or magnetostatic_potential_at_point")
-     
+
+    @abstractmethod
+    def is_electrostatic(self):
+        ...
+    
+    @abstractmethod
+    def is_magnetostatic(self):
+        ...
+    
+    @abstractmethod
+    def magnetostatic_potential_at_point(self, point):
+        ...
+    
+    @abstractmethod
+    def electrostatic_potential_at_point(self, point):
+        ...
+    
+    @abstractmethod
+    def magnetostatic_field_at_point(self, point):
+        ...
+    
+    @abstractmethod
+    def electrostatic_field_at_point(self, point):
+        ...
+
+
+
     
     
-class FieldBEM(Field):
+class FieldBEM(Field, ABC):
     """An electrostatic field (resulting from surface charges) as computed from the Boundary Element Method. You should
     not initialize this class yourself, but it is used as a base class for the fields returned by the `solve_direct` function. 
     This base class overloads the +,*,- operators so it is very easy to take a superposition of different fields."""
@@ -610,7 +621,11 @@ class FieldBEM(Field):
         ---------------
         The sum of the area of all elements with the given indices.
         """
-        return sum(self.area_on_element(i) for i in indices) 
+        return sum(self.area_of_element(i) for i in indices) 
+
+    @abstractmethod
+    def area_of_element(self, i: int) -> float:
+        ...
     
     def charge_on_element(self, i):
         return self.area_of_element(i) * self.electrostatic_point_charges.charges[i]
@@ -668,7 +683,7 @@ class FieldRadialBEM(FieldBEM):
      
     def electrostatic_field_at_point(self, point):
         """
-        Compute the electric field, \( \\vec{E} = -\\nabla \phi \)
+        Compute the electric field, \\( \\vec{E} = -\\nabla \\phi \\)
         
         Parameters
         ----------
@@ -850,7 +865,7 @@ class Field3D_BEM(FieldBEM):
      
     def electrostatic_field_at_point(self, point):
         """
-        Compute the electric field, \( \\vec{E} = -\\nabla \phi \)
+        Compute the electric field, \\( \\vec{E} = -\\nabla \\phi \\)
         
         Parameters
         ----------
@@ -925,33 +940,7 @@ class Field3D_BEM(FieldBEM):
         jacobians = self.magnetostatic_point_charges.jacobians
         positions = self.magnetostatic_point_charges.positions
         return backend.potential_3d(point, charges, jacobians, positions)
-    
-    
-    def axial_derivative_interpolation(self, zmin, zmax, N=None):
-        """
-        Use a radial series expansion around the optical axis to allow for very fast field
-        evaluations. Constructing the radial series expansion in 3D is much more complicated
-        than the radial symmetric case, but all details have been abstracted away from the user.
-        
-        Parameters
-        ----------
-        zmin : float
-            Location on the optical axis where to start sampling the radial expansion coefficients.
-            
-        zmax : float
-            Location on the optical axis where to stop sampling the radial expansion coefficients. Any field
-            evaluation outside [zmin, zmax] will return a zero field strength.
-        N: int, optional
-            Number of samples to take on the optical axis, if N=None the amount of samples
-            is determined by taking into account the number of elements in the mesh.
-         
-        Returns
-        -------
-        `Field3DAxial` object allowing fast field evaluations.
-
-        """
-        raise NotImplementedError("Axial interpolation in 3D is only supported in Traceon Pro. Please use 'from traceon_pro import *' at the top of the file.")
-    
+     
     def area_of_element(self, i):
         jacobians = self.electrostatic_point_charges.jacobians
         return np.sum(jacobians[i])
@@ -998,7 +987,7 @@ class FieldAxial(Field):
             assert self.magnetostatic_coeffs.shape == other.magnetostatic_coeffs.shape, "Cannot add FieldAxial if shape of axial coefficients is unequal."
             return self.__class__(self.z, self.electrostatic_coeffs+other.electrostatic_coeffs, self.magnetostatic_coeffs + other.magnetostatic_coeffs)
          
-        return NotImpemented
+        return NotImplemented
     
     def __sub__(self, other):
         return self.__add__(-other)
@@ -1010,7 +999,7 @@ class FieldAxial(Field):
         if isinstance(other, int) or isinstance(other, float):
             return self.__class__(self.z, other*self.electrostatic_coeffs, other*self.magnetostatic_coeffs)
          
-        return NotImpemented
+        return NotImplemented
     
     def __neg__(self):
         return -1*self
@@ -1029,7 +1018,7 @@ class FieldRadialAxial(FieldAxial):
     
     def electrostatic_field_at_point(self, point):
         """
-        Compute the electric field, \( \\vec{E} = -\\nabla \phi \)
+        Compute the electric field, \\( \\vec{E} = -\\nabla \\phi \\)
         
         Parameters
         ----------
@@ -1096,83 +1085,4 @@ class FieldRadialAxial(FieldAxial):
     def get_tracer(self, bounds):
         return T.TracerRadialAxial(self, bounds)
 
-class Field3DAxial(FieldAxial):
-    """Field computed using a radial series expansion around the optical axis (z-axis). See comments at the start of this page.
-     """
-    
-    def __init__(self, z, electrostatic_coeffs=None, magnetostatic_coeffs=None):
-        super().__init__(z, electrostatic_coeffs, magnetostatic_coeffs)
-        
-        assert electrostatic_coeffs.shape == (len(z)-1, 2, backend.NU_MAX, backend.M_MAX, 4)
-        assert magnetostatic_coeffs.shape == (len(z)-1, 2, backend.NU_MAX, backend.M_MAX, 4)
-        
-        self.symmetry = E.Symmetry.THREE_D
-     
-    def electrostatic_field_at_point(self, point):
-        """
-        Compute the electric field, \( \\vec{E} = -\\nabla \phi \)
-        
-        Parameters
-        ----------
-        point: (3,) array of float64
-            Position at which to compute the field.
-             
-        Returns
-        -------
-        Numpy array containing the field strengths (in units of V/mm) in the x, y and z directions.
-        """
-        assert point.shape == (3,)
-        return backend.field_3d_derivs(point, self.z, self.electrostatic_coeffs)
-     
-    def electrostatic_potential_at_point(self, point):
-        """
-        Compute the electrostatic potential.
-
-        Parameters
-        ----------
-        point: (3,) array of float64
-            Position at which to compute the potential.
-        
-        Returns
-        -------
-        Potential as a float value (in units of V).
-        """
-        point = np.array(point).astype(np.float64)
-        assert point.shape == (3,)
-        return backend.potential_3d_derivs(point, self.z, self.electrostatic_coeffs)
-    
-    def magnetostatic_field_at_point(self, point):
-        """
-        Compute the magnetic field \\( \\vec{H} \\)
-        
-        Parameters
-        ----------
-        point: (3,) array of float64
-            Position at which to compute the field.
-             
-        Returns
-        -------
-        (3,) np.ndarray of float64 containing the field strength (in units of A/m) in the x, y and z directions.
-        """
-        point = np.array(point).astype(np.float64)
-        assert point.shape == (3,)
-        return backend.field_3d_derivs(point, self.z, self.magnetostatic_coeffs)
-     
-    def magnetostatic_potential_at_point(self, point):
-        """
-        Compute the magnetostatic scalar potential (satisfying \\(\\vec{H} = -\\nabla \\phi \\)) close to the axis.
-        
-        Parameters
-        ----------
-        point: (3,) array of float64
-            Position at which to compute the field.
-        
-        Returns
-        -------
-        Potential as a float value (in units of A).
-        """
-        assert point.shape == (3,)
-        return backend.potential_3d_derivs(point, self.z, self.magnetostatic_coeffs)
-    
-   
 

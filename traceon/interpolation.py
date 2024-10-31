@@ -1,4 +1,5 @@
 import time
+from abc import ABC, abstractmethod
 
 import numpy as np
 from scipy.interpolate import CubicSpline, BPoly, PPoly
@@ -11,7 +12,7 @@ from . import backend
 
 FACTOR_AXIAL_DERIV_SAMPLING_2D = 0.2
 
-class FieldAxial(S.Field):
+class FieldAxial(S.Field, ABC):
     """An electrostatic field resulting from a radial series expansion around the optical axis. You should
     not initialize this class yourself, but it is used as a base class for the fields returned by the `axial_derivative_interpolation` methods. 
     This base class overloads the +,*,- operators so it is very easy to take a superposition of different fields."""
@@ -49,7 +50,7 @@ class FieldAxial(S.Field):
             assert self.magnetostatic_coeffs.shape == other.magnetostatic_coeffs.shape, "Cannot add FieldAxial if shape of axial coefficients is unequal."
             return self.__class__(self.z, self.electrostatic_coeffs+other.electrostatic_coeffs, self.magnetostatic_coeffs + other.magnetostatic_coeffs)
          
-        return NotImpemented
+        return NotImplemented
     
     def __sub__(self, other):
         return self.__add__(-other)
@@ -61,7 +62,7 @@ class FieldAxial(S.Field):
         if isinstance(other, int) or isinstance(other, float):
             return self.__class__(self.z, other*self.electrostatic_coeffs, other*self.magnetostatic_coeffs)
          
-        return NotImpemented
+        return NotImplemented
     
     def __neg__(self):
         return -1*self
@@ -109,8 +110,9 @@ class FieldRadialAxial(FieldAxial):
         
         assert self.electrostatic_coeffs.shape == (len(z)-1, backend.DERIV_2D_MAX, 6)
         assert self.magnetostatic_coeffs.shape == (len(z)-1, backend.DERIV_2D_MAX, 6)
-
-    def _get_interpolation_coefficients(field, zmin, zmax, N=None):
+    
+    @staticmethod
+    def _get_interpolation_coefficients(field: S.FieldRadialBEM, zmin, zmax, N=None):
         assert zmax > zmin, "zmax should be bigger than zmin"
 
         N_charges = max(len(field.electrostatic_point_charges.charges), len(field.magnetostatic_point_charges.charges))
@@ -130,7 +132,7 @@ class FieldRadialAxial(FieldAxial):
      
     def electrostatic_field_at_point(self, point):
         """
-        Compute the electric field, \( \\vec{E} = -\\nabla \phi \)
+        Compute the electric field, \\( \\vec{E} = -\\nabla \\phi \\)
         
         Parameters
         ----------
