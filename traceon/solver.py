@@ -9,26 +9,26 @@ this consider the `axial_derivative_interpolation` methods documented below.
 
 ## Radial series expansion in cylindrical symmetry
 
-Let \( \phi_0(z) \) be the potential along the optical axis. We can express the potential around the optical axis as:
+Let \\( \\phi_0(z) \\) be the potential along the optical axis. We can express the potential around the optical axis as:
 
 $$
-\phi = \phi_0(z_0) - \\frac{r^2}{4} \\frac{\\partial \phi_0^2}{\\partial z^2} + \\frac{r^4}{64} \\frac{\\partial^4 \phi_0}{\\partial z^4} - \\frac{r^6}{2304} \\frac{\\partial \phi_0^6}{\\partial z^6} + \\cdots
+\\phi = \\phi_0(z_0) - \\frac{r^2}{4} \\frac{\\partial \\phi_0^2}{\\partial z^2} + \\frac{r^4}{64} \\frac{\\partial^4 \\phi_0}{\\partial z^4} - \\frac{r^6}{2304} \\frac{\\partial \\phi_0^6}{\\partial z^6} + \\cdots
 $$
 
-Therefore, if we can efficiently compute the axial potential derivatives \( \\frac{\\partial \phi_0^n}{\\partial z^n} \) we can compute the potential and therefore the fields around the optical axis.
-For the derivatives of \( \phi_0(z) \) closed form formulas exist in the case of radially symmetric geometries, see for example formula 13.16a in [1]. Traceon uses a recursive version of these formulas to
+Therefore, if we can efficiently compute the axial potential derivatives \\( \\frac{\\partial \\phi_0^n}{\\partial z^n} \\) we can compute the potential and therefore the fields around the optical axis.
+For the derivatives of \\( \\phi_0(z) \\) closed form formulas exist in the case of radially symmetric geometries, see for example formula 13.16a in [1]. Traceon uses a recursive version of these formulas to
 very efficiently compute the axial derivatives of the potential.
 
 ## Radial series expansion in 3D
 
-In a general three dimensional geometry the potential will be dependent not only on the distance from the optical axis but also on the angle \( \\theta \) around the optical axis
+In a general three dimensional geometry the potential will be dependent not only on the distance from the optical axis but also on the angle \\( \\theta \\) around the optical axis
 at which the potential is sampled. It turns out (equation (35, 24) in [2]) the potential can be written as follows:
 
 $$
-\phi = \sum_{\\nu=0}^\infty \sum_{m=0}^\infty r^{2\\nu + m} \\left( A^\\nu_m \cos(m\\theta) + B^\\nu_m \sin(m\\theta) \\right)
+\\phi = \\sum_{\\nu=0}^\\infty \\sum_{m=0}^\\infty r^{2\\nu + m} \\left( A^\\nu_m \\cos(m\\theta) + B^\\nu_m \\sin(m\\theta) \\right)
 $$
 
-The \(A^\\nu_m\) and \(B^\\nu_m\) coefficients can be expressed in _directional derivatives_ perpendicular to the optical axis, analogous to the radial symmetric case. The 
+The \\(A^\\nu_m\\) and \\(B^\\nu_m\\) coefficients can be expressed in _directional derivatives_ perpendicular to the optical axis, analogous to the radial symmetric case. The 
 mathematics of calculating these coefficients quickly and accurately gets quite involved, but all details have been abstracted away from the user.
 
 ### References
@@ -682,7 +682,7 @@ class FieldRadialBEM(FieldBEM):
      
     def electrostatic_field_at_point(self, point):
         """
-        Compute the electric field, \( \\vec{E} = -\\nabla \phi \)
+        Compute the electric field, \\( \\vec{E} = -\\nabla \\phi \\)
         
         Parameters
         ----------
@@ -864,7 +864,7 @@ class Field3D_BEM(FieldBEM):
      
     def electrostatic_field_at_point(self, point):
         """
-        Compute the electric field, \( \\vec{E} = -\\nabla \phi \)
+        Compute the electric field, \\( \\vec{E} = -\\nabla \\phi \\)
         
         Parameters
         ----------
@@ -1043,7 +1043,7 @@ class FieldRadialAxial(FieldAxial):
     
     def electrostatic_field_at_point(self, point):
         """
-        Compute the electric field, \( \\vec{E} = -\\nabla \phi \)
+        Compute the electric field, \\( \\vec{E} = -\\nabla \\phi \\)
         
         Parameters
         ----------

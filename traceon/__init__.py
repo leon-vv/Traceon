@@ -32,7 +32,7 @@ executed as follows:
 
 # Units
 
-SI units are used throughout the codebase. Except for charge, which is stored as \( \\frac{ \\sigma}{ \\epsilon_0} \).
+SI units are used throughout the codebase. Except for charge, which is stored as \\( \\frac{ \\sigma}{ \\epsilon_0} \\).
 """
 
 import warnings

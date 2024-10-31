@@ -132,7 +132,7 @@ class FieldRadialAxial(FieldAxial):
      
     def electrostatic_field_at_point(self, point):
         """
-        Compute the electric field, \( \\vec{E} = -\\nabla \phi \)
+        Compute the electric field, \\( \\vec{E} = -\\nabla \\phi \\)
         
         Parameters
         ----------
