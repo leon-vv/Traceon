@@ -1,4 +1,5 @@
 import time
+from abc import ABC, abstractmethod
 
 import numpy as np
 from scipy.interpolate import CubicSpline, BPoly, PPoly
@@ -11,7 +12,7 @@ from . import backend
 
 FACTOR_AXIAL_DERIV_SAMPLING_2D = 0.2
 
-class FieldAxial(S.Field):
+class FieldAxial(S.Field, ABC):
     """An electrostatic field resulting from a radial series expansion around the optical axis. You should
     not initialize this class yourself, but it is used as a base class for the fields returned by the `axial_derivative_interpolation` methods. 
     This base class overloads the +,*,- operators so it is very easy to take a superposition of different fields."""

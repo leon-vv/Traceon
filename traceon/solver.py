@@ -49,6 +49,7 @@ import time
 from threading import Thread
 import os.path as path
 import copy
+from abc import ABC, abstractmethod
 
 import numpy as np
 from scipy.special import legendre
@@ -61,7 +62,7 @@ from . import util
 from . import tracing as T
 
 
-class Solver:
+class Solver(ABC):
     
     def __init__(self, excitation):
         self.excitation = excitation
@@ -103,9 +104,10 @@ class Solver:
         self.jac_buffer = jac
         self.pos_buffer = pos
      
+    @abstractmethod
     def get_active_elements(self):
-        pass
-
+        ...
+    
     def get_number_of_matrix_elements(self):
         return len(self.vertices)
         
@@ -117,12 +119,13 @@ class Solver:
     
     def is_2d(self):
         return self.excitation.mesh.is_2d()
-     
+
+    @abstractmethod
     def get_flux_indices(self):
         """Get the indices of the vertices that are of type DIELECTRIC or MAGNETIZABLE.
         For these indices we don't compute the potential but the flux through the element (the inner 
         product of the field with the normal of the vertex. The method is implemented in the derived classes."""
-        pass
+        ...
          
     def get_center_of_element(self, index):
         two_d = self.is_2d()
@@ -135,8 +138,9 @@ class Solver:
             jac, pos = backend.position_and_jacobian_radial(0, v0, v2, v3, v1)
             return np.array([pos[0], 0.0, pos[1]])
      
+    @abstractmethod
     def get_right_hand_side(self):
-        pass
+        ...
          
     def get_matrix(self):
         assert (self.is_3d() and not self.is_higher_order()) or \
@@ -176,8 +180,9 @@ class Solver:
          
         return matrix
     
+    @abstractmethod
     def charges_to_field(self, charges):
-        pass
+        ...
          
     def solve_matrix(self, right_hand_side=None):
         F = np.array([self.get_right_hand_side()]) if right_hand_side is None else right_hand_side
@@ -266,7 +271,7 @@ class MagnetostaticSolver(Solver):
         return np.arange(N)[self.excitation_types == int(E.ExcitationType.MAGNETIZABLE)]
      
     def get_current_charges(self):
-        currents = []
+        currents: list[np.ndarray] = []
         jacobians = []
         positions = []
         
@@ -459,7 +464,7 @@ def solve_direct(excitation):
 
 
 
-class Field:
+class Field(ABC):
     def field_at_point(self, point):
         """Convenience function for getting the field in the case that the field is purely electrostatic
         or magneotstatic. Automatically picks one of `electrostatic_field_at_point` or `magnetostatic_field_at_point`.
@@ -505,10 +510,36 @@ class Field:
          
         raise RuntimeError("Cannot use potential_at_point when both electric and magnetic fields are present, " \
             "use electrostatic_potential_at_point or magnetostatic_potential_at_point")
-     
+
+    @abstractmethod
+    def is_electrostatic(self):
+        ...
+    
+    @abstractmethod
+    def is_magnetostatic(self):
+        ...
+    
+    @abstractmethod
+    def magnetostatic_potential_at_point(self, point):
+        ...
+    
+    @abstractmethod
+    def electrostatic_potential_at_point(self, point):
+        ...
+    
+    @abstractmethod
+    def magnetostatic_field_at_point(self, point):
+        ...
+    
+    @abstractmethod
+    def electrostatic_field_at_point(self, point):
+        ...
+
+
+
     
     
-class FieldBEM(Field):
+class FieldBEM(Field, ABC):
     """An electrostatic field (resulting from surface charges) as computed from the Boundary Element Method. You should
     not initialize this class yourself, but it is used as a base class for the fields returned by the `solve_direct` function. 
     This base class overloads the +,*,- operators so it is very easy to take a superposition of different fields."""
@@ -590,6 +621,10 @@ class FieldBEM(Field):
         The sum of the area of all elements with the given indices.
         """
         return sum(self.area_of_element(i) for i in indices) 
+
+    @abstractmethod
+    def area_of_element(self, i: int) -> float:
+        ...
     
     def charge_on_element(self, i):
         return self.area_of_element(i) * self.electrostatic_point_charges.charges[i]
