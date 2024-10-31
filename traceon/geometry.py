@@ -779,9 +779,9 @@ class PathCollection(GeometricObject):
     def revolve_z(self, angle=2*pi):
         return self._map_to_surfaces(Path.revolve_z, angle=angle)
     def extrude(self, vector):
-        return self._map_to_surface(Path.extrude, vector)
+        return self._map_to_surfaces(Path.extrude, vector)
     def extrude_by_path(self, p2):
-        return self._map_to_surface(Path.extrude_by_path, p2)
+        return self._map_to_surfaces(Path.extrude_by_path, p2)
      
 
 
