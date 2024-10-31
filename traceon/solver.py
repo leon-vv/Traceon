@@ -939,33 +939,7 @@ class Field3D_BEM(FieldBEM):
         jacobians = self.magnetostatic_point_charges.jacobians
         positions = self.magnetostatic_point_charges.positions
         return backend.potential_3d(point, charges, jacobians, positions)
-    
-    
-    def axial_derivative_interpolation(self, zmin, zmax, N=None):
-        """
-        Use a radial series expansion around the optical axis to allow for very fast field
-        evaluations. Constructing the radial series expansion in 3D is much more complicated
-        than the radial symmetric case, but all details have been abstracted away from the user.
-        
-        Parameters
-        ----------
-        zmin : float
-            Location on the optical axis where to start sampling the radial expansion coefficients.
-            
-        zmax : float
-            Location on the optical axis where to stop sampling the radial expansion coefficients. Any field
-            evaluation outside [zmin, zmax] will return a zero field strength.
-        N: int, optional
-            Number of samples to take on the optical axis, if N=None the amount of samples
-            is determined by taking into account the number of elements in the mesh.
-         
-        Returns
-        -------
-        `Field3DAxial` object allowing fast field evaluations.
-
-        """
-        raise NotImplementedError("Axial interpolation in 3D is only supported in Traceon Pro. Please use 'from traceon_pro import *' at the top of the file.")
-    
+     
     def area_of_element(self, i):
         jacobians = self.electrostatic_point_charges.jacobians
         return np.sum(jacobians[i])
@@ -1110,83 +1084,4 @@ class FieldRadialAxial(FieldAxial):
     def get_tracer(self, bounds):
         return T.TracerRadialAxial(self, bounds)
 
-class Field3DAxial(FieldAxial):
-    """Field computed using a radial series expansion around the optical axis (z-axis). See comments at the start of this page.
-     """
-    
-    def __init__(self, z, electrostatic_coeffs=None, magnetostatic_coeffs=None):
-        super().__init__(z, electrostatic_coeffs, magnetostatic_coeffs)
-        
-        assert electrostatic_coeffs.shape == (len(z)-1, 2, backend.NU_MAX, backend.M_MAX, 4)
-        assert magnetostatic_coeffs.shape == (len(z)-1, 2, backend.NU_MAX, backend.M_MAX, 4)
-        
-        self.symmetry = E.Symmetry.THREE_D
-     
-    def electrostatic_field_at_point(self, point):
-        """
-        Compute the electric field, \( \\vec{E} = -\\nabla \phi \)
-        
-        Parameters
-        ----------
-        point: (3,) array of float64
-            Position at which to compute the field.
-             
-        Returns
-        -------
-        Numpy array containing the field strengths (in units of V/mm) in the x, y and z directions.
-        """
-        assert point.shape == (3,)
-        return backend.field_3d_derivs(point, self.z, self.electrostatic_coeffs)
-     
-    def electrostatic_potential_at_point(self, point):
-        """
-        Compute the electrostatic potential.
-
-        Parameters
-        ----------
-        point: (3,) array of float64
-            Position at which to compute the potential.
-        
-        Returns
-        -------
-        Potential as a float value (in units of V).
-        """
-        point = np.array(point).astype(np.float64)
-        assert point.shape == (3,)
-        return backend.potential_3d_derivs(point, self.z, self.electrostatic_coeffs)
-    
-    def magnetostatic_field_at_point(self, point):
-        """
-        Compute the magnetic field \\( \\vec{H} \\)
-        
-        Parameters
-        ----------
-        point: (3,) array of float64
-            Position at which to compute the field.
-             
-        Returns
-        -------
-        (3,) np.ndarray of float64 containing the field strength (in units of A/m) in the x, y and z directions.
-        """
-        point = np.array(point).astype(np.float64)
-        assert point.shape == (3,)
-        return backend.field_3d_derivs(point, self.z, self.magnetostatic_coeffs)
-     
-    def magnetostatic_potential_at_point(self, point):
-        """
-        Compute the magnetostatic scalar potential (satisfying \\(\\vec{H} = -\\nabla \\phi \\)) close to the axis.
-        
-        Parameters
-        ----------
-        point: (3,) array of float64
-            Position at which to compute the field.
-        
-        Returns
-        -------
-        Potential as a float value (in units of A).
-        """
-        assert point.shape == (3,)
-        return backend.potential_3d_derivs(point, self.z, self.magnetostatic_coeffs)
-    
-   
 
