@@ -50,6 +50,7 @@ from threading import Thread
 import os.path as path
 import copy
 from abc import ABC, abstractmethod
+from typing import Dict, Tuple
 
 import numpy as np
 from scipy.special import legendre
@@ -105,7 +106,7 @@ class Solver(ABC):
         self.pos_buffer = pos
      
     @abstractmethod
-    def get_active_elements(self) -> tuple[np.ndarray, dict[str, np.ndarray]]:
+    def get_active_elements(self) -> Tuple[np.ndarray, Dict[str, np.ndarray]]:
         ...
     
     def get_number_of_matrix_elements(self):
