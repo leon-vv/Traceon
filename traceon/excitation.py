@@ -245,7 +245,7 @@ class Excitation:
                 else:
                     new_types_dict[n] = (t, v)
             
-            exc = Excitation(self.mesh)
+            exc = Excitation(self.mesh, self.symmetry)
             exc.excitation_types = new_types_dict
             excitations.append(exc)
 
