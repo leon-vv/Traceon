@@ -1,0 +1,5 @@
+{
+  "include": ["traceon"],
+  "exclude": ["traceon/data"],
+  "typeCheckingMode": "basic"
+}
