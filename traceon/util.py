@@ -18,6 +18,7 @@ class Saveable:
         with open(filename, 'wb') as f:
             pickle.dump(self, f)
     
+    @staticmethod
     def read(filename):
         """Read a geometry from disk (previously saved with the write method)
         

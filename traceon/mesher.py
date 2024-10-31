@@ -211,6 +211,7 @@ class Mesh(Saveable, GeometricObject):
         if np.any(degenerate):
             log_debug(f'Removed {sum(degenerate)} degenerate triangles')
     
+    @staticmethod
     def _merge_dicts(dict1, dict2):
         dict_ = {}
         
@@ -346,7 +347,8 @@ class Mesh(Saveable, GeometricObject):
         
         return meshio.Mesh(self.points, to_write)
      
-    def from_meshio(mesh):
+    @staticmethod
+    def from_meshio(mesh: meshio.Mesh):
         """Create a Traceon mesh from a meshio.Mesh object.
 
         Parameters
@@ -455,6 +457,7 @@ class Mesh(Saveable, GeometricObject):
         """
         return list(self.physical_to_lines.keys()) + list(self.physical_to_triangles.keys())
      
+    @staticmethod
     def _lines_to_higher_order(points, elements):
         N_elements = len(elements)
         N_points = len(points)

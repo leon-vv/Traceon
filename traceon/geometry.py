@@ -72,6 +72,7 @@ class Path(GeometricObject):
         self.breakpoints = breakpoints
         self.name = name
     
+    @staticmethod
     def from_irregular_function(to_point, N=100, breakpoints=[]):
         """Construct a path from a function that is of the form u -> point, where 0 <= u <= 1.
         The length of the path is determined by integration.
@@ -102,6 +103,7 @@ class Path(GeometricObject):
         
         return Path(lambda pl: fun(interpolation(pl)), path_lengths[-1], breakpoints=[b*path_length for b in breakpoints])
     
+    @staticmethod
     def spline_through_points(points, N=100):
         """Construct a path by fitting a cubic spline through the given points.
 
@@ -509,6 +511,7 @@ class Path(GeometricObject):
         Path"""
         return self.line_to(self.starting_point())
     
+    @staticmethod
     def ellipse(major, minor):
         """Create a path along the outline of an ellipse. The ellipse lies
         in the XY plane, and the path starts on the positive x-axis.
@@ -530,6 +533,7 @@ class Path(GeometricObject):
             return np.array([major*cos(2*pi*u), minor*sin(2*pi*u), 0.])
         return Path.from_irregular_function(f)
     
+    @staticmethod
     def line(from_, to):
         """Create a straight line between two points.
 
@@ -563,6 +567,7 @@ class Path(GeometricObject):
         return (Path(self.fun, length, [b for b in self.breakpoints if b <= length], name=self.name),
                 Path(lambda l: self.fun(l + length), self.path_length - length, [b - length for b in self.breakpoints if b >= length], name=self.name))
     
+    @staticmethod
     def rectangle_xz(xmin, xmax, zmin, zmax):
         """Create a rectangle in the XZ plane. The path starts at (xmin, 0, zmin), and is 
         counter clockwise around the y-axis.
@@ -584,6 +589,7 @@ class Path(GeometricObject):
         return Path.line([xmin, 0., zmin], [xmax, 0, zmin]) \
             .line_to([xmax, 0, zmax]).line_to([xmin, 0., zmax]).close()
      
+    @staticmethod
     def rectangle_yz(ymin, ymax, zmin, zmax):
         """Create a rectangle in the YZ plane. The path starts at (0, ymin, zmin), and is 
         counter clockwise around the x-axis.
@@ -606,6 +612,7 @@ class Path(GeometricObject):
         return Path.line([0., ymin, zmin], [0, ymin, zmax]) \
             .line_to([0., ymax, zmax]).line_to([0., ymax, zmin]).close()
      
+    @staticmethod
     def rectangle_xy(xmin, xmax, ymin, ymax):
         """Create a rectangle in the XY plane. The path starts at (xmin, ymin, 0), and is 
         counter clockwise around the z-axis.
@@ -627,6 +634,7 @@ class Path(GeometricObject):
         return Path.line([xmin, ymin, 0.], [xmin, ymax, 0.]) \
             .line_to([xmax, ymax, 0.]).line_to([xmax, ymin, 0.]).close()
     
+    @staticmethod
     def aperture(height, radius, extent, z=0.):
         """Create an 'aperture'. Note that in a radially symmetric geometry
         an aperture is basically a rectangle with the right side 'open'. Revolving
@@ -810,6 +818,7 @@ class Surface(GeometricObject):
             self.path_length1, self.path_length2,
             self.breakpoints1, self.breakpoints2)
      
+    @staticmethod
     def spanned_by_paths(path1, path2):
         length1 = max(path1.path_length, path2.path_length)
         
@@ -827,6 +836,7 @@ class Surface(GeometricObject):
          
         return Surface(f, length1, length2, breakpoints)
 
+    @staticmethod
     def sphere(radius):
         
         length1 = 2*pi*radius
@@ -843,6 +853,7 @@ class Surface(GeometricObject):
         
         return Surface(f, length1, length2)
 
+    @staticmethod
     def from_boundary_paths(p1, p2, p3, p4):
         path_length_p1_and_p3 = (p1.path_length + p3.path_length)/2
         path_length_p2_and_p4 = (p2.path_length + p4.path_length)/2
@@ -870,6 +881,7 @@ class Surface(GeometricObject):
         
         return Surface(f, path_length_p1_and_p3, path_length_p2_and_p4, b1, b2)
      
+    @staticmethod
     def disk_xz(x0, z0, radius):
         """Create a disk in the XZ plane.         
         
@@ -888,6 +900,7 @@ class Surface(GeometricObject):
         disk_at_origin = Path.line([0.0, 0.0, 0.0], [radius, 0.0, 0.0]).revolve_y()
         return disk_at_origin.move(dx=x0, dz=z0)
     
+    @staticmethod
     def disk_yz(y0, z0, radius):
         """Create a disk in the YZ plane.         
         
@@ -906,6 +919,7 @@ class Surface(GeometricObject):
         disk_at_origin = Path.line([0.0, 0.0, 0.0], [0.0, radius, 0.0]).revolve_x()
         return disk_at_origin.move(dy=y0, dz=z0)
 
+    @staticmethod
     def disk_xy(x0, y0, radius):
         """Create a disk in the XY plane.
         
@@ -924,6 +938,7 @@ class Surface(GeometricObject):
         disk_at_origin = Path.line([0.0, 0.0, 0.0], [radius, 0.0, 0.0]).revolve_z()
         return disk_at_origin.move(dx=x0, dy=y0)
      
+    @staticmethod
     def rectangle_xz(xmin, xmax, zmin, zmax):
         """Create a rectangle in the XZ plane. The path starts at (xmin, 0, zmin), and is 
         counter clockwise around the y-axis.
@@ -944,6 +959,7 @@ class Surface(GeometricObject):
         Surface representing the rectangle"""
         return Path.line([xmin, 0., zmin], [xmin, 0, zmax]).extrude([xmax-xmin, 0., 0.])
      
+    @staticmethod
     def rectangle_yz(ymin, ymax, zmin, zmax):
         """Create a rectangle in the YZ plane. The path starts at (0, ymin, zmin), and is 
         counter clockwise around the x-axis.
@@ -964,6 +980,7 @@ class Surface(GeometricObject):
         Surface representing the rectangle"""
         return Path.line([0., ymin, zmin], [0., ymin, zmax]).extrude([0., ymax-ymin, 0.])
      
+    @staticmethod
     def rectangle_xy(xmin, xmax, ymin, ymax):
         """Create a rectangle in the XY plane. The path starts at (xmin, ymin, 0), and is 
         counter clockwise around the z-axis.
@@ -984,6 +1001,7 @@ class Surface(GeometricObject):
         Surface representing the rectangle"""
         return Path.line([xmin, ymin, 0.], [xmin, ymax, 0.]).extrude([xmax-xmin, 0., 0.])
 
+    @staticmethod
     def aperture(height, radius, extent, z=0.):
         return Path.aperture(height, radius, extent, z=z).revolve_z()
      

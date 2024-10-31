@@ -109,8 +109,9 @@ class FieldRadialAxial(FieldAxial):
         
         assert self.electrostatic_coeffs.shape == (len(z)-1, backend.DERIV_2D_MAX, 6)
         assert self.magnetostatic_coeffs.shape == (len(z)-1, backend.DERIV_2D_MAX, 6)
-
-    def _get_interpolation_coefficients(field, zmin, zmax, N=None):
+    
+    @staticmethod
+    def _get_interpolation_coefficients(field: S.FieldRadialBEM, zmin, zmax, N=None):
         assert zmax > zmin, "zmax should be bigger than zmin"
 
         N_charges = max(len(field.electrostatic_point_charges.charges), len(field.magnetostatic_point_charges.charges))
