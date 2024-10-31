@@ -637,8 +637,11 @@ def plane_intersection(positions, p0, normal):
     
     result = np.zeros(6)
     found = backend_lib.plane_intersection(p0, normal, positions, len(positions), result)
-    
-    return result if found else None
+     
+    if not found:
+        raise ValueError("Plane intersection not found. Does the trajectory actually cross the plane?")
+     
+    return result
 
 def line_intersection(positions, p0, tangent):
     assert p0.shape == (2,)
@@ -648,7 +651,10 @@ def line_intersection(positions, p0, tangent):
     result = np.zeros(4)
     found = backend_lib.line_intersection(p0, tangent, positions, len(positions), result)
      
-    return result if found else None
+    if not found:
+        raise ValueError("Line intersection not found. Does the trajectory actually cross the line?")
+     
+    return result
 
 
 def triangle_areas(triangles):
