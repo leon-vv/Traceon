@@ -100,8 +100,10 @@ class Path(GeometricObject):
         norm_derivatives = np.linalg.norm(derivatives, axis=1)
         path_lengths = CubicSpline(u, norm_derivatives).antiderivative()(u)
         interpolation = CubicSpline(path_lengths, u) # Path length to [0,1]
+
+        path_length = path_lengths[-1]
         
-        return Path(lambda pl: fun(interpolation(pl)), path_lengths[-1], breakpoints=[b*path_length for b in breakpoints])
+        return Path(lambda pl: fun(interpolation(pl)), path_length, breakpoints=[b*path_length for b in breakpoints])
     
     @staticmethod
     def spline_through_points(points, N=100):
