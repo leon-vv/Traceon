@@ -105,7 +105,7 @@ class Solver(ABC):
         self.pos_buffer = pos
      
     @abstractmethod
-    def get_active_elements(self):
+    def get_active_elements(self) -> tuple[np.ndarray, dict[str, np.ndarray]]:
         ...
     
     def get_number_of_matrix_elements(self):
@@ -456,7 +456,7 @@ def solve_direct(excitation):
     if mag and elec:
         elec_field = ElectrostaticSolver(excitation).solve_matrix()[0]
         mag_field = MagnetostaticSolver(excitation).solve_matrix()[0]
-        return elec_field + mag_field
+        return elec_field + mag_field # type: ignore
     elif elec and not mag:
         return ElectrostaticSolver(excitation).solve_matrix()[0]
     elif mag and not elec:

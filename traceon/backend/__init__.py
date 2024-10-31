@@ -7,6 +7,7 @@ import os.path as path
 import platform
 
 from numpy.ctypeslib import ndpointer
+from numpy.typing import DTypeLike
 import numpy as np
 from scipy import LowLevelCallable
 from scipy.integrate import quad
@@ -64,8 +65,8 @@ NU_MAX = C.c_int.in_dll(backend_lib, 'NU_MAX_SYM').value
 M_MAX = C.c_int.in_dll(backend_lib, 'M_MAX_SYM').value
 
 # Pass numpy array to C
-def arr(ndim=None, shape=None, dtype=np.float64):
-    return ndpointer(ndim=ndim, shape=shape, dtype=dtype, flags=('C_CONTIGUOUS', 'ALIGNED'));
+def arr(ndim=None, shape=None, dtype:DTypeLike=np.float64):
+    return ndpointer(ndim=ndim, shape=shape, dtype=dtype, flags=('C_CONTIGUOUS', 'ALIGNED')) # type: ignore
 
 # Pass one dimensional Numpy array to C
 v2 = arr(shape=(2,))
@@ -184,9 +185,9 @@ backend_functions = {
     'fill_jacobian_buffer_radial': (None, jac_buffer_2d, pos_buffer_2d, vertices, sz),
     'self_potential_radial': (dbl, dbl, vp),
     'self_field_dot_normal_radial': (dbl, dbl, vp),
-    'fill_matrix_radial': (None, arr(ndim=2), lines, arr(dtype=C.c_uint8, ndim=1), arr(ndim=1), jac_buffer_2d, pos_buffer_2d, sz, sz, C.c_int, C.c_int),
+    'fill_matrix_radial': (None, arr(ndim=2), lines, arr(dtype=np.uint8, ndim=1), arr(ndim=1), jac_buffer_2d, pos_buffer_2d, sz, sz, C.c_int, C.c_int),
     'fill_jacobian_buffer_3d': (None, jac_buffer_3d, pos_buffer_3d, vertices, sz),
-    'fill_matrix_3d': (None, arr(ndim=2), vertices, arr(dtype=C.c_uint8, ndim=1), arr(ndim=1), jac_buffer_3d, pos_buffer_3d, sz, sz, C.c_int, C.c_int),
+    'fill_matrix_3d': (None, arr(ndim=2), vertices, arr(dtype=np.uint8, ndim=1), arr(ndim=1), jac_buffer_3d, pos_buffer_3d, sz, sz, C.c_int, C.c_int),
     'plane_intersection': (bool, v3, v3, arr(ndim=2), sz, arr(shape=(6,))),
     'line_intersection': (bool, v2, v2, arr(ndim=2), sz, arr(shape=(4,))),
     'triangle_areas': (None, vertices, arr(ndim=1), sz)
@@ -587,9 +588,9 @@ def self_field_dot_normal_radial(vertices, K):
     args.line_points = vertices.ctypes.data_as(dbl_p)
 
     user_data = C.cast(C.pointer(args), vp)
-    
+        
     low_level = LowLevelCallable(backend_lib.self_field_dot_normal_radial, user_data=user_data)
-    return quad(low_level, -1, 1, points=(0,), epsabs=1e-9, epsrel=1e-9, limit=250)[0]
+    return quad(low_level, -1, 1, points=(0,), epsabs=1e-9, epsrel=1e-9, limit=250)[0] # type: ignore
 
 
 

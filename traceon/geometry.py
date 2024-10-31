@@ -28,6 +28,8 @@ def _points_close(p1, p2, tolerance=1e-8):
     return np.allclose(p1, p2, atol=tolerance)
 
 def discretize_path(path_length, breakpoints, mesh_size, mesh_size_factor=None, N_factor=1):
+    assert mesh_size is not None or mesh_size_factor is not None
+    
     # Return the arguments to use to breakup the path
     # in a 'nice' way
     
@@ -42,7 +44,7 @@ def discretize_path(path_length, breakpoints, mesh_size, mesh_size_factor=None, 
          
         if mesh_size is not None:
             N = max( ceil((u1-u0)/mesh_size), 3)
-        else:
+        elif mesh_size_factor is not None:
             N = 3*max(mesh_size_factor, 1)
         
         # When using higher order, we splice extra points

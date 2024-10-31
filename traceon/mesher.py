@@ -1,7 +1,9 @@
-from math import *
+from math import sqrt
 import numpy as np
 import time
+from typing import Callable, Any
 from itertools import chain
+from abc import ABC, abstractmethod
 
 import meshio
 
@@ -16,11 +18,12 @@ __pdoc__['PointStack'] = False
 __pdoc__['__add__'] = True
 
 
-class GeometricObject:
+class GeometricObject(ABC):
     """The Mesh class (and the classes defined in `traceon.geometry`) are subclasses
     of GeometricObject. This means that they all can be moved, rotated, mirrored."""
     
-    def map_points(self, fun):
+    @abstractmethod
+    def map_points(self, fun: Callable[[np.ndarray], np.ndarray]) -> Any:
         """Create a new geometric object, by mapping each point by a function.
         
         Parameters
@@ -34,7 +37,7 @@ class GeometricObject:
         GeometricObject
 
         This function returns the same type as the object on which this method was called."""
-        pass
+        ...
     
     def move(self, dx=0., dy=0., dz=0.):
         """Move along x, y or z axis.
@@ -689,7 +692,7 @@ def _subdivide_quads(pstack, mesh_size, to_subdivide=[], quads=[]):
         horizontal = max(sqrt((p1x-p2x)**2 + (p1y-p2y)**2 + (p1z-p2z)**2), sqrt((p3x-p4x)**2 + (p3y-p4y)**2 + (p3z-p4z)**2))
         vertical = max(sqrt((p1x-p3x)**2 + (p1y-p3y)**2 + (p1z-p3z)**2) , sqrt((p2x-p4x)**2 + (p2y-p4y)**2 + (p2z-p4z)**2))
     
-        ms = mesh_size_fun((p1x+p2x+p3x+p4x)/4, (p1y+p2y+p3y+p4y)/4, (p1z+p2z+p3z+p4z)/4)
+        ms: float = mesh_size_fun((p1x+p2x+p3x+p4x)/4, (p1y+p2y+p3y+p4y)/4, (p1z+p2z+p3z+p4z)/4) # type: ignore
             
         h = horizontal > ms or (horizontal > 2.5*vertical and horizontal > 1/8*ms)
         v = vertical > ms or (vertical > 2.5*horizontal and vertical > 1/8*ms)

@@ -52,7 +52,7 @@ def get_number_of_threads():
     # for at least modern Intel and AMD CPU's.
     return cpu_count // 2
 
-def split_collect(f, array):
+def split_collect(f, array: np.ndarray) -> list[np.ndarray]:
     
     if DEBUG:
         logging.log_debug(f'Running function \'{f.__name__}\' on a single thread since DEBUG=True')
@@ -60,7 +60,7 @@ def split_collect(f, array):
     
     args = np.array_split(array, get_number_of_threads())
      
-    results = [None]*len(args)
+    results = [np.zeros(0)]*len(args)
     
     def set_result(index):
         results[index] = f(args[index])
