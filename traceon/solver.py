@@ -589,7 +589,7 @@ class FieldBEM(Field):
         ---------------
         The sum of the area of all elements with the given indices.
         """
-        return sum(self.area_on_element(i) for i in indices) 
+        return sum(self.area_of_element(i) for i in indices) 
     
     def charge_on_element(self, i):
         return self.area_of_element(i) * self.electrostatic_point_charges.charges[i]
