@@ -100,12 +100,12 @@ def _plot_triangle_mesh(mesh, plotter, points_to_physical, show_normals=False, *
 
 
 def _plot_line_mesh(mesh, plotter, points_to_physical, show_normals=False, **phys_colors):
-    start = []
-    end = []
-    colors_ = []
+    lines = mesh.lines[:, :2]
+    start = np.zeros( (len(lines), 3) )
+    end = np.zeros( (len(lines), 3) )
+    colors_ = np.zeros(len(lines), dtype=object) 
     normals = []
     dict_ = points_to_physical
-    lines = mesh.lines[:, :2]
     points = mesh.points 
      
     for i, (A, B) in enumerate(lines):
@@ -117,15 +117,13 @@ def _plot_line_mesh(mesh, plotter, points_to_physical, show_normals=False, **phy
                     color = phys_colors[phys1]
             
             p1, p2 = points[A], points[B]
-            start.append(p1)
-            end.append(p2)
-            colors_.append(color)
+            start[i] = p1
+            end[i] = p2
+            colors_[i] = color
 
             normal = backend.normal_2d(np.array([p1[0], p1[2]]), np.array([p2[0], p2[2]])) 
             normals.append(np.array([normal[0], 0.0, normal[1]]))
      
-    start, end = np.array(start), np.array(end)
-    colors_ = np.array(colors_)
     vedo_lines = []
      
     for c in set(colors_):

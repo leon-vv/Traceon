@@ -64,8 +64,8 @@ NU_MAX = C.c_int.in_dll(backend_lib, 'NU_MAX_SYM').value
 M_MAX = C.c_int.in_dll(backend_lib, 'M_MAX_SYM').value
 
 # Pass numpy array to C
-def arr(*args, dtype=np.float64, **kwargs):
-    return ndpointer(*args, dtype=dtype, flags=('C_CONTIGUOUS', 'ALIGNED'), **kwargs);
+def arr(ndim=None, shape=None, dtype=np.float64):
+    return ndpointer(ndim=ndim, shape=shape, dtype=dtype, flags=('C_CONTIGUOUS', 'ALIGNED'));
 
 # Pass one dimensional Numpy array to C
 v2 = arr(shape=(2,))
@@ -276,8 +276,8 @@ def trace_particle_wrapper(position, velocity, fill_positions_fun):
     assert position.shape == (3,) and velocity.shape == (3,)
      
     N = TRACING_BLOCK_SIZE
-    pos_blocks = []
-    times_blocks = []
+    pos_blocks: list[np.ndarray] = []
+    times_blocks: list[np.ndarray] = []
      
     times = np.zeros(TRACING_BLOCK_SIZE)
     positions = np.zeros( (TRACING_BLOCK_SIZE, 6) )

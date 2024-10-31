@@ -369,17 +369,17 @@ class Path(GeometricObject):
         Returns
         ----------------------------
         Path"""
-        start, center, end = np.array(start), np.array(center), np.array(end)
+        start_arr, center_arr, end_arr = np.array(start), np.array(center), np.array(end)
          
-        x_unit = start - center
+        x_unit = start_arr - center_arr
         x_unit /= np.linalg.norm(x_unit)
 
-        vector = end - center
+        vector = end_arr - center_arr
          
         y_unit = vector - np.dot(vector, x_unit) * x_unit
         y_unit /= np.linalg.norm(y_unit)
 
-        radius = np.linalg.norm(start - center) 
+        radius = np.linalg.norm(start_arr - center_arr) 
         theta_max = atan2(np.dot(vector, y_unit), np.dot(vector, x_unit))
 
         if reverse:

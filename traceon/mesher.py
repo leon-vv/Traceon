@@ -213,7 +213,7 @@ class Mesh(Saveable, GeometricObject):
     
     @staticmethod
     def _merge_dicts(dict1, dict2):
-        dict_ = {}
+        dict_: dict[str, np.ndarray] = {}
         
         for (k, v) in chain(dict1.items(), dict2.items()):
             if k in dict_:
@@ -710,10 +710,10 @@ def _subdivide_quads(pstack, mesh_size, to_subdivide=[], quads=[]):
 def _mesh_subsections_to_quads(surface, mesh_size, start_depth):
     all_pstacks = []
     all_quads = []
-    points = []
+    points: list[np.ndarray] = []
     
     for s in surface.sections():
-        quads = []
+        quads: list[tuple[int, int, int, int, int]] = []
         pstack = PointStack(s, points=points)
         
         for i in range(pstack.get_number_of_indices(start_depth) - 1):
