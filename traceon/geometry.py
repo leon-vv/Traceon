@@ -732,6 +732,9 @@ class Path(GeometricObject):
         
         return Mesh(points=points, lines=lines, physical_to_lines=physical_to_lines)
 
+    def __str__(self):
+        return f"<Path name:{self.name}, length:{self.path_length:.1e}, number of breakpoints:{len(self.breakpoints)}>"
+
 
 class PathCollection(GeometricObject):
     """A PathCollection is a collection of `Path`. It can be created using the + operator (for example path1+path2).
@@ -790,7 +793,9 @@ class PathCollection(GeometricObject):
         return self._map_to_surfaces(Path.extrude, vector)
     def extrude_by_path(self, p2):
         return self._map_to_surfaces(Path.extrude_by_path, p2)
-     
+    
+    def __str__(self):
+        return f"<PathCollection with {len(self.paths)} surfaces, name: {self.name}>"
 
 
 class Surface(GeometricObject):
@@ -1099,6 +1104,9 @@ class SurfaceCollection(GeometricObject):
             self.surfaces.append(other)
         else:
             self.surfaces.extend(other.surfaces)
+
+    def __str__(self):
+        return f"<SurfaceCollection with {len(self.surfaces)} surfaces, name: {self.name}>"
     
 
 
