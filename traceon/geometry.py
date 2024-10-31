@@ -862,6 +862,30 @@ class Surface(GeometricObject):
         return Surface(f, length1, length2)
 
     @staticmethod
+    def box(p0, p1):
+        x0, y0, z0 = p0
+        x1, y1, z1 = p1
+
+        xmin, ymin, zmin = min(x0, x1), min(y0, y1), min(z0, z1)
+        xmax, ymax, zmax = max(x0, x1), max(y0, y1), max(z0, z1)
+        
+        path1 = Path.line([xmin, ymin, zmax], [xmax, ymin, zmax])
+        path2 = Path.line([xmin, ymin, zmin], [xmax, ymin, zmin])
+        path3 = Path.line([xmin, ymax, zmax], [xmax, ymax, zmax])
+        path4 = Path.line([xmin, ymax, zmin], [xmax, ymax, zmin])
+        
+        side_path = Path.line([xmin, ymin, zmin], [xmax, ymin, zmin])\
+            .line_to([xmax, ymin, zmax])\
+            .line_to([xmin, ymin, zmax])\
+            .close()
+
+        side_surface = side_path.extrude([0.0, ymax-ymin, 0.0])
+        top = Surface.spanned_by_paths(path1, path2)
+        bottom = Surface.spanned_by_paths(path4, path3)
+         
+        return (top + bottom + side_surface)
+
+    @staticmethod
     def from_boundary_paths(p1, p2, p3, p4):
         path_length_p1_and_p3 = (p1.path_length + p3.path_length)/2
         path_length_p2_and_p4 = (p2.path_length + p4.path_length)/2
