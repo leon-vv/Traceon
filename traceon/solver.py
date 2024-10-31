@@ -58,7 +58,6 @@ from . import excitation as E
 from . import logging
 from . import backend
 from . import util
-from . import fast_multipole_method
 from . import tracing as T
 
 
@@ -202,27 +201,6 @@ class Solver:
         assert len(result) == len(F)
         return result
         
-    def solve_fmm(self, precision=0):
-        assert self.is_3d() and not self.is_higher_order(), "Fast multipole method is only supported for simple 3D geometries (non higher order triangles)."
-        assert isinstance(precision, int) and -2 <= precision <= 5, "Precision should be an intenger -2 <= precision <= 5"
-         
-        triangles = self.vertices
-        logging.log_info(f'Using FMM solver, number of elements: {len(triangles)}, symmetry: {self.excitation.mesh.symmetry}, precision: {precision}')
-         
-        N = len(triangles)
-        assert triangles.shape == (N, 3, 3)
-         
-        F = self.get_right_hand_side()
-        assert F.shape == (N,)
-         
-        st = time.time()
-        dielectric_indices = self.get_flux_indices()
-        dielectric_values = self.excitation_values[dielectric_indices]
-        charges, count = fast_multipole_method.solve_iteratively(self.vertices, dielectric_indices, dielectric_values, F, precision=precision)
-        logging.log_info(f'Time for solving FMM: {(time.time()-st)*1000:.0f} ms (iterations: {count})')
-        
-        return self.charges_to_field(EffectivePointCharges(charges, self.jac_buffer, self.pos_buffer))
-
 class ElectrostaticSolver(Solver):
     
     def __init__(self, *args, **kwargs):

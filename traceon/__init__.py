@@ -41,7 +41,6 @@ __pdoc__ = {}
 __pdoc__['util'] = False
 __pdoc__['backend'] = False
 __pdoc__['data'] = False
-__pdoc__['fast_multipole_method'] = False
 __pdoc__['traceon.tracing.Tracer.__call__'] = True
 
 warnings.filterwarnings('ignore', '.*The value of the smallest subnormal for.* type is zero.')
