@@ -371,7 +371,7 @@ class EffectivePointCharges:
         if isinstance(other, int) or isinstance(other, float):
             return EffectivePointCharges(other*self.charges, self.jacobians, self.positions)
         
-        return NotImpemented
+        return NotImplemented
     
     def __neg__(self):
         return -1*self
@@ -977,7 +977,7 @@ class FieldAxial(Field):
             assert self.magnetostatic_coeffs.shape == other.magnetostatic_coeffs.shape, "Cannot add FieldAxial if shape of axial coefficients is unequal."
             return self.__class__(self.z, self.electrostatic_coeffs+other.electrostatic_coeffs, self.magnetostatic_coeffs + other.magnetostatic_coeffs)
          
-        return NotImpemented
+        return NotImplemented
     
     def __sub__(self, other):
         return self.__add__(-other)
@@ -989,7 +989,7 @@ class FieldAxial(Field):
         if isinstance(other, int) or isinstance(other, float):
             return self.__class__(self.z, other*self.electrostatic_coeffs, other*self.magnetostatic_coeffs)
          
-        return NotImpemented
+        return NotImplemented
     
     def __neg__(self):
         return -1*self
