@@ -292,6 +292,7 @@ class Mesh(Saveable, GeometricObject):
         elif name in self.physical_to_triangles:
             return Mesh(points=points, triangles=elements, physical_to_triangles=physical_to_elements)
      
+    @staticmethod
     def read_file(filename,  name=None):
         """Create a mesh from a given file. All formats supported by meshio are accepted.
 

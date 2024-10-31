@@ -271,6 +271,7 @@ class Path(GeometricObject):
         l = Path.line(self.endpoint(), point)
         return self >> l
      
+    @staticmethod
     def circle_xz(x0, z0, radius, angle=2*pi):
         """Returns (part of) a circle in the XZ plane around the x-axis. Starting on the positive x-axis.
         
@@ -293,6 +294,7 @@ class Path(GeometricObject):
             return np.array([radius*cos(theta), 0., radius*sin(theta)])
         return Path(f, angle*radius).move(dx=x0, dz=z0)
     
+    @staticmethod
     def circle_yz(y0, z0, radius, angle=2*pi):
         """Returns (part of) a circle in the YZ plane around the x-axis. Starting on the positive y-axis.
         
@@ -315,6 +317,7 @@ class Path(GeometricObject):
             return np.array([0., radius*cos(theta), radius*sin(theta)])
         return Path(f, angle*radius).move(dy=y0, dz=z0)
     
+    @staticmethod
     def circle_xy(x0, y0, radius, angle=2*pi):
         """Returns (part of) a circle in the XY plane around the z-axis. Starting on the positive X-axis.
         
@@ -354,6 +357,7 @@ class Path(GeometricObject):
         start = self.endpoint()
         return self >> Path.arc(center, start, end, reverse=reverse)
     
+    @staticmethod
     def arc(center, start, end, reverse=False):
         """Return an arc by specifying the center, start and end point.
 
