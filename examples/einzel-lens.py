@@ -6,6 +6,7 @@ import traceon.solver as S
 import traceon.excitation as E
 import traceon.plotting as P
 import traceon.tracing as T
+from traceon.interpolation import FieldRadialAxial
 
 # Dimensions of the einzel lens.
 THICKNESS = 0.5
@@ -16,26 +17,28 @@ RADIUS = 0.15
 # lens is at z = 0mm.
 z0 = -THICKNESS - SPACING - THICKNESS/2
 
-with G.MEMSStack(z0=z0, zmin=-1, zmax=2, size_from_distance=True) as geom:
-    
-    # Einzel lens consists of three electrodes: 
-    # a lens electrode sandwiched between two ground electrodes.
-    geom.add_electrode(RADIUS, THICKNESS, 'ground')
-    geom.add_spacer(THICKNESS)
-    geom.add_electrode(RADIUS, THICKNESS, 'lens')
-    geom.add_spacer(THICKNESS)
-    geom.add_electrode(RADIUS, THICKNESS, 'ground')
-    
-    geom.set_mesh_size_factor(80)
-    
-    # Actually generate the mesh, which takes the boundaries in the
-    # geometry and produces many line elements.
-    mesh = geom.generate_line_mesh(False)
+boundary = G.Path.line([0., 0., 1.75],  [2.0, 0., 1.75])\
+    .line_to([2.0, 0., -1.75]).line_to([0., 0., -1.75])
 
+
+margin_right = 0.1
+extent = 2.0 - margin_right
+
+bottom = G.Path.aperture(THICKNESS, RADIUS, extent, -THICKNESS - SPACING)
+middle = G.Path.aperture(THICKNESS, RADIUS, extent)
+top = G.Path.aperture(THICKNESS, RADIUS, extent, THICKNESS + SPACING)
+    
+boundary.name = 'boundary'
+bottom.name = 'ground'
+middle.name = 'lens'
+top.name = 'ground'
+
+mesh = (boundary + bottom + middle + top).mesh(mesh_size_factor=45)
+ 
 # Show the generated mesh, with the given electrode colors.
 P.plot_mesh(mesh, ground='green', lens='blue', show_normals=True)
 
-excitation = E.Excitation(mesh)
+excitation = E.Excitation(mesh, E.Symmetry.RADIAL)
 
 # Excite the geometry, put ground at 0V and the lens electrode at 1000V.
 excitation.add_voltage(ground=0.0, lens=1000)
@@ -49,12 +52,12 @@ field = S.solve_direct(excitation)
 # trajectories is inherently slow. Instead, use an interpolation technique
 # in which we use the derivatives of the potential along the potential axis.
 # The complicated mathematics are all abstracted away from the user.
-field_axial = field.axial_derivative_interpolation(-1, 2, 150)
+field_axial = FieldRadialAxial(field, -1.5, 1.5, 150)
 
 # Plot the potential along the optical axis to show that the interpolated
 # potential is very close to the potential found by an integration over the
 # surface charge.
-z = np.linspace(-1, 2, 150)
+z = np.linspace(-1.5, 1.5, 150)
 pot = [field.potential_at_point(np.array([0.0, z_])) for z_ in z]
 pot_axial = [field_axial.potential_at_point(np.array([0.0, z_])) for z_ in z]
 
