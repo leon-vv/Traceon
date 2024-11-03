@@ -21,55 +21,44 @@ z0 = -THICKNESS - SPACING - THICKNESS/2
 # This is a 'disk' or round electrode with a hole in the middle.
 # The top and bottom electrodes are round grounded electrodes
 # which shield the microscope from the deflector fields.
-def round_electrode(geom, z0, name):
+def round_electrode(z0, name):
     
-    points = [ [RADIUS, 0.0, z0], [RADIUS, 0.0, z0+THICKNESS],
-               [RADIUS+ELECTRODE_WIDTH, 0.0, z0+THICKNESS], [RADIUS+ELECTRODE_WIDTH, 0.0, z0] ]
+    path = G.Path.line([RADIUS, 0.0, z0], [RADIUS, 0.0, z0+THICKNESS])\
+        .line_to([RADIUS+ELECTRODE_WIDTH, 0.0, z0+THICKNESS])\
+        .line_to([RADIUS+ELECTRODE_WIDTH, 0.0, z0])\
+        .close()
 
-    points = [geom.add_point(p) for p in points]
+    surf = path.revolve_z()
+    surf.name = name
     
-    l1 = geom.add_line(points[0], points[1])
-    l2 = geom.add_line(points[1], points[2])
-    l3 = geom.add_line(points[2], points[3])
-    l4 = geom.add_line(points[3], points[0])
-
-    revolved = G.revolve_around_optical_axis(geom, [l1, l2, l3, l4])
-    geom.add_physical(revolved, 'ground')
+    return surf
 
 # Create a simple electrode consisting of a extruded rectangle.
 # A deflector consists of two rectangle electrodes 'facing' each other.
-def rectangle_electrode(geom, x, z, name):
-    
-    points = [ [x, -LENGTH_DEFLECTORS/2, z], [x, -LENGTH_DEFLECTORS/2, z+THICKNESS],
-               [x+THICKNESS, -LENGTH_DEFLECTORS/2, z+THICKNESS], [x+THICKNESS, -LENGTH_DEFLECTORS/2, z] ]
-    
-    poly = geom.add_polygon(points)
+def rectangle_electrode(x, z, name):
 
-    top, extruded, lateral = geom.extrude(poly, [0.0, LENGTH_DEFLECTORS, 0.0])
-    geom.add_physical(lateral, name)
-    geom.add_physical(top, name)
-    geom.add_physical(poly, name)
+    p0 = [x, -LENGTH_DEFLECTORS/2, z]
+    p1 = [x+THICKNESS, +LENGTH_DEFLECTORS/2, z+THICKNESS]
+    
+    box = G.Surface.box(p0, p1)
+    box.name = name
+    
+    return box
 
+electrode_top = round_electrode(z0, 'ground')
+defl_pos = rectangle_electrode(RADIUS, z0+THICKNESS+SPACING, 'deflector_positive')    
+defl_neg = rectangle_electrode(-RADIUS-THICKNESS, z0+THICKNESS+SPACING, 'deflector_negative')
+electrode_bottom = round_electrode(z0+THICKNESS+SPACING+THICKNESS+SPACING, 'ground')
 
-# Create the actual geometry using the utility functions above.
-with G.Geometry(G.Symmetry.THREE_D, size_from_distance=True) as geom:
-    round_electrode(geom, z0, 'ground')
-     
-    rectangle_electrode(geom, RADIUS, z0+THICKNESS+SPACING, 'deflector_positive')    
-    rectangle_electrode(geom, -RADIUS-THICKNESS, z0+THICKNESS+SPACING, 'deflector_negative')
-    
-    round_electrode(geom, z0+THICKNESS+SPACING+THICKNESS+SPACING, 'ground')
-    
-    # The higher the mesh factor, the more triangles are used. This improves
-    # accuracy at the expense of computation time.
-    geom.set_mesh_size_factor(250)
-    
-    mesh = geom.generate_triangle_mesh()
+electrode_mesh = (electrode_top + electrode_bottom).mesh(mesh_size_factor=24)
+defl_mesh = (defl_pos + defl_neg).mesh(mesh_size_factor=3)
+
+mesh = electrode_mesh + defl_mesh
 
 # Show the generated triangle mesh.
-P.plot_mesh(mesh, ground='green', deflector_positive='red', deflector_negative='blue')
+P.plot_mesh(mesh, ground='green', deflector_positive='red', deflector_negative='blue', show_normals=True)
 
-excitation = E.Excitation(mesh)
+excitation = E.Excitation(mesh, E.Symmetry.THREE_D)
 
 # Apply the correct voltages. Here we set one deflector electrode to 5V and
 # the other electrode to -5V.
@@ -79,16 +68,10 @@ excitation.add_voltage(ground=0.0, deflector_positive=5, deflector_negative=-5)
 # the surface charges gives rise to a electrostatic field.
 field = S.solve_direct(excitation)
 
-# But using an integration over the surface charges to calculate the electron
-# trajectories is inherently slow. Instead, use an interpolation technique
-# in which we use the multipole coefficients of the potential along the potential axis.
-# The complicated mathematics are all abstracted away from the user.
-field_axial = field.axial_derivative_interpolation(-2, 2, 200)
-
 # An instance of the tracer class allows us to easily find the trajectories of 
-# electrons. Here we specify that the interpolated field should be used, and that
-# the tracing should stop if the x,y value goes outside ±RADIUS/2 or the z value outside ±7 mm.
-tracer = field_axial.get_tracer( [(-RADIUS/2, RADIUS/2), (-RADIUS/2, RADIUS/2), (-7, 7)] )
+# electrons.  Here we specify that the tracing should stop if the x,y values
+# go outside ±RADIUS/2 or the z value outside ±7 mm.
+tracer = field.get_tracer( [(-RADIUS/2, RADIUS/2), (-RADIUS/2, RADIUS/2), (-7, 7)] )
 
 r_start = np.linspace(-RADIUS/8, RADIUS/8, 5)
 

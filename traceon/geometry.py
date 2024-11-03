@@ -683,7 +683,7 @@ class Path(GeometricObject):
         elif isinstance(other, PathCollection):
             return PathCollection([self] + [other.paths])
      
-    def mesh(self, mesh_size=None, mesh_size_factor=None, higher_order=False):
+    def mesh(self, mesh_size=None, mesh_size_factor=None, higher_order=False, name=None):
         """Mesh the path, so it can be used in the BEM solver.
 
         Parameters
@@ -724,13 +724,18 @@ class Path(GeometricObject):
             lines = np.array([p0, p1, p2, p3]).T
           
         assert lines.dtype == np.int64 or lines.dtype == np.int32
+        
+        name = self.name if name is None else name
          
-        if self.name is not None:
-            physical_to_lines = {self.name:np.arange(len(lines))}
+        if name is not None:
+            physical_to_lines = {name:np.arange(len(lines))}
         else:
             physical_to_lines = {}
         
         return Mesh(points=points, lines=lines, physical_to_lines=physical_to_lines)
+
+    def __str__(self):
+        return f"<Path name:{self.name}, length:{self.path_length:.1e}, number of breakpoints:{len(self.breakpoints)}>"
 
 
 class PathCollection(GeometricObject):
@@ -740,18 +745,29 @@ class PathCollection(GeometricObject):
     def __init__(self, paths):
         assert all([isinstance(p, Path) for p in paths])
         self.paths = paths
-        self.name = None
+        self._name = None
     
+    @property
+    def name(self):
+        return self._name
+
+    @name.setter
+    def name(self, name):
+        self._name = name
+         
+        for path in self.paths:
+            path.name = name
+     
     def map_points(self, fun):
         return PathCollection([p.map_points(fun) for p in self.paths])
      
-    def mesh(self, mesh_size=None, mesh_size_factor=None, higher_order=False):
+    def mesh(self, mesh_size=None, mesh_size_factor=None, higher_order=False, name=None):
         mesh = Mesh()
         
+        name = self.name if name is None else name
+        
         for p in self.paths:
-            if self.name is not None:
-                p.name = self.name
-            mesh = mesh + p.mesh(mesh_size=mesh_size, mesh_size_factor=mesh_size_factor, higher_order=higher_order)
+            mesh = mesh + p.mesh(mesh_size=mesh_size, mesh_size_factor=mesh_size_factor, higher_order=higher_order, name=name)
 
         return mesh
 
@@ -790,7 +806,9 @@ class PathCollection(GeometricObject):
         return self._map_to_surfaces(Path.extrude, vector)
     def extrude_by_path(self, p2):
         return self._map_to_surfaces(Path.extrude_by_path, p2)
-     
+    
+    def __str__(self):
+        return f"<PathCollection with {len(self.paths)} surfaces, name: {self.name}>"
 
 
 class Surface(GeometricObject):
@@ -860,6 +878,30 @@ class Surface(GeometricObject):
                 radius*cos(theta)]) 
         
         return Surface(f, length1, length2)
+
+    @staticmethod
+    def box(p0, p1):
+        x0, y0, z0 = p0
+        x1, y1, z1 = p1
+
+        xmin, ymin, zmin = min(x0, x1), min(y0, y1), min(z0, z1)
+        xmax, ymax, zmax = max(x0, x1), max(y0, y1), max(z0, z1)
+        
+        path1 = Path.line([xmin, ymin, zmax], [xmax, ymin, zmax])
+        path2 = Path.line([xmin, ymin, zmin], [xmax, ymin, zmin])
+        path3 = Path.line([xmin, ymax, zmax], [xmax, ymax, zmax])
+        path4 = Path.line([xmin, ymax, zmin], [xmax, ymax, zmin])
+        
+        side_path = Path.line([xmin, ymin, zmin], [xmax, ymin, zmin])\
+            .line_to([xmax, ymin, zmax])\
+            .line_to([xmin, ymin, zmax])\
+            .close()
+
+        side_surface = side_path.extrude([0.0, ymax-ymin, 0.0])
+        top = Surface.spanned_by_paths(path1, path2)
+        bottom = Surface.spanned_by_paths(path4, path3)
+         
+        return (top + bottom + side_surface)
 
     @staticmethod
     def from_boundary_paths(p1, p2, p3, p4):
@@ -1022,7 +1064,7 @@ class Surface(GeometricObject):
         else:
             return SurfaceCollection([self] + other.surfaces)
      
-    def mesh(self, mesh_size=None, mesh_size_factor=None):
+    def mesh(self, mesh_size=None, mesh_size_factor=None, name=None):
           
         if mesh_size is None:
             path_length = min(self.path_length1, self.path_length2)
@@ -1031,9 +1073,14 @@ class Surface(GeometricObject):
 
             if mesh_size_factor is not None:
                 mesh_size /= sqrt(mesh_size_factor)
-         
-        return _mesh(self, mesh_size, name=self.name)
 
+        name = self.name if name is None else name
+        print('meshing surface with name ', name)
+         
+        return _mesh(self, mesh_size, name=name)
+    
+    def __str__(self):
+        return f"<Surface with name: {self.name}>"
 
 
 class SurfaceCollection(GeometricObject):
@@ -1043,7 +1090,18 @@ class SurfaceCollection(GeometricObject):
     def __init__(self, surfaces):
         assert all([isinstance(s, Surface) for s in surfaces])
         self.surfaces = surfaces
-        self.name = None
+        self._name = None
+
+    @property
+    def name(self):
+        return self._name
+
+    @name.setter
+    def name(self, name):
+        self._name = name
+         
+        for surf in self.surfaces:
+            surf.name = name
      
     def map_points(self, fun):
         return SurfaceCollection([s.map_points(fun) for s in self.surfaces])
@@ -1051,11 +1109,10 @@ class SurfaceCollection(GeometricObject):
     def mesh(self, mesh_size=None, mesh_size_factor=None, name=None):
         mesh = Mesh()
         
+        name = self.name if name is None else name
+        
         for s in self.surfaces:
-            if self.name is not None:
-                s.name = self.name
-            
-            mesh = mesh + s.mesh(mesh_size=mesh_size, mesh_size_factor=mesh_size_factor)
+            mesh = mesh + s.mesh(mesh_size=mesh_size, mesh_size_factor=mesh_size_factor, name=name)
          
         return mesh
      
@@ -1075,6 +1132,9 @@ class SurfaceCollection(GeometricObject):
             self.surfaces.append(other)
         else:
             self.surfaces.extend(other.surfaces)
+
+    def __str__(self):
+        return f"<SurfaceCollection with {len(self.surfaces)} surfaces, name: {self.name}>"
     
 
 
