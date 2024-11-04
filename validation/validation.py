@@ -117,8 +117,9 @@ class Validation:
         duration = (time.time() - st)*1000
         print_info([MSF], [len(exc.get_electrostatic_active_elements()[0])], [duration], [correct], [computed], [err])
         return duration, err
-     
-    def args_to_symmetry(self, args):
+    
+    @staticmethod
+    def args_to_symmetry(args):
         if args.symmetry == 'radial':
             assert not args.use_fmm, "Fast Multipole Method not supported for radial geometries"
             return E.Symmetry.RADIAL
