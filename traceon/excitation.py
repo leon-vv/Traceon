@@ -210,7 +210,8 @@ class Excitation:
         """
         Specify geometry elements as magnetostatic boundary elements. At the boundary we require H·n = 0 at every point on the boundary. This
         is equivalent to stating that the directional derivative of the magnetostatic potential through the boundary is zero. Placing boundaries between
-        the spaces of electrodes usually helps convergence tremendously. 
+        the spaces of electrodes usually helps convergence tremendously. Note that a boundary is equivalent to a magnetic material with a magnetic 
+        permeability of zero. This is how a boundary is actually implemented internally.
         
         Parameters
         ----------

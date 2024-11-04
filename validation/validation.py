@@ -58,7 +58,7 @@ class Validation:
         geom = self.create_mesh(MSF, symmetry, higher_order)
         P.plot_mesh(geom, show_normals=plot_normals, **self.plot_colors) 
     
-    def plot_accuracy(self, MSFs, symmetry, higher_order):
+    def plot_accuracy(self, MSFs, symmetry, higher_order=False, use_fmm=False):
         num_lines = []
         times = []
         correct = []
@@ -69,7 +69,7 @@ class Validation:
             print('-'*81, f' MSF={n}')
             st = time.time()
             geom = self.create_mesh(n, symmetry, higher_order)
-            exc, field = self.compute_field(geom, symmetry, use_fmm=use_fmm)
+            exc, field = self.compute_field(geom, symmetry, use_fmm)
              
             corr = self.correct_value_of_interest()  
             comp = self.compute_value_of_interest(geom, field)
@@ -117,7 +117,8 @@ class Validation:
         duration = (time.time() - st)*1000
         print_info([MSF], [len(exc.get_electrostatic_active_elements()[0])], [duration], [correct], [computed], [err])
         return duration, err
-     
+    
+    @staticmethod
     def args_to_symmetry(args):
         if args.symmetry == 'radial':
             assert not args.use_fmm, "Fast Multipole Method not supported for radial geometries"
@@ -134,7 +135,7 @@ class Validation:
         assert args.symmetry != '3d' or not args.higher_order, "Higher order meshes not supported in 3D"
         
         plot = args.plot_geometry or args.plot_normals or args.plot_charges
-        symmetry = Validation.args_to_symmetry(args)
+        symmetry = self.args_to_symmetry(args)
         MSF = args.MSF if args.MSF != None else self.default_MSF(symmetry)[1]
          
         if plot:
@@ -150,7 +151,7 @@ class Validation:
     def create_mesh(self, MSF, symmetry, higher_order):
         pass
     
-    def get_excitation(self, geometry):
+    def get_excitation(self, geometry, symmetry):
         pass
     
     def compute_field(self, geometry, symmetry, use_fmm):
