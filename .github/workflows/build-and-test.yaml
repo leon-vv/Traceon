@@ -73,7 +73,7 @@ jobs:
           path: dist/*.whl
 
   build_and_test_macos:
-    runs-on: macos-12
+    runs-on: macos-13
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
