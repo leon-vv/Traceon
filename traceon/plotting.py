@@ -56,6 +56,45 @@ def plot_mesh(mesh, show_normals=False, show_legend=True, **colors):
     plotter.look_at(plane='xz')
     plotter.show()
 
+def plot_equipotential_lines(field, surface, trajectories, N0=200, N1=200):
+    x = np.linspace(0, surface.path_length1, N0)
+    y = np.linspace(0, surface.path_length2, N1)
+
+    grid = vedo.Grid(s=(x, y))
+    points = np.array([surface(x_, y_) for x_, y_, _ in grid.vertices])
+
+    grid.vertices = points
+
+    grid.pointdata['z'] = np.array([field.potential_at_point(p[[0, 2]]) for p in points])
+    print(grid.pointdata['z'])
+
+    grid.lw(0)
+    grid.cmap('coolwarm')
+    isolines = grid.isolines(n=40).color("#444444").lw(1)
+
+    is_2d = np.all(points[:, 1] == 0.0)
+    print(is_2d)
+    
+    plotter = vedo.Plotter()
+    
+    #if is_2d:
+    #    plotter.add_global_axes(dict(number_of_divisions=[12, 0, 12], zxgrid=True, xaxis_rotation=90))
+    #else:
+    #    plotter.add_global_axes(dict(number_of_divisions=[10, 10, 10]))
+
+    for t in trajectories:
+        lines = vedo.shapes.Lines(start_pts=t[:-1, :3], end_pts=t[1:, :3], c='#00AA00')
+        plotter += lines
+
+
+    
+    plotter += grid
+    plotter += isolines
+    
+    plotter.look_at(plane='xz')
+    plotter.show()
+
+
 def _plot_triangle_mesh(mesh, plotter, points_to_physical, show_normals=False, **phys_colors):
     triangles = mesh.triangles[:, :3]
     normals = np.array([backend.normal_3d(1/3, 1/3, mesh.points[t]) for t in triangles])
