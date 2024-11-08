@@ -78,9 +78,6 @@ mesh = mirror_mesh+meshes
 # Show the generated triangle mesh.
 P.plot_mesh(mesh, ground='green', deflector_positive='red', deflector_negative='blue', show_normals=True)
 
-
-
-
 excitation = E.Excitation(mesh, E.Symmetry.THREE_D)
 
 # Apply the correct voltages. Set the ground electrode to zero.
@@ -90,9 +87,10 @@ excitation.add_voltage(ground_electrode=0., tuning_electrode=TUNING_VOLTAGE, mir
 # the surface charges gives rise to a electrostatic field.
 field = S.solve_direct(excitation)
 
+
 # An instance of the tracer class allows us to easily find the trajectories of 
 # electrons.  Here we specify that the tracing should stop if the x,y values
 # go outside ±RADIUS/2 or the z value outside ±7 mm.
-tracer = T.field.get_tracer( [(-RADIUS/2, RADIUS/2), (-RADIUS/2, RADIUS/2), (-7, 7)] )
+tracer = field.get_tracer( [(-RADIUS/2, RADIUS/2), (-RADIUS/2, RADIUS/2), (-7, 7)] )
 
 r_start = np.linspace(-RADIUS/8, RADIUS/8, 5)
