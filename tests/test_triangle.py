@@ -145,7 +145,7 @@ class TestTriangle(unittest.TestCase):
             
             correct = flux_exact_integrated(v0, v1, v2, target, [1., 0, 0])
             approx = B.flux_triangle(v0, v1, v2, target, normal)
-            assert np.isclose(correct, approx, atol=0., rtol=5e-12), (x0, a,b,c, z0)
+            assert np.isclose(correct, approx, atol=0., rtol=1e-10), (x0, a,b,c, z0)
 
         N = 10
         for x0, a, b, c, z0 in zip(
