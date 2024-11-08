@@ -41,12 +41,12 @@ plt.legend()
 plt.show()
 
 
-#TODO: change tracing parameters
-tracer = field_axial.get_tracer( [(-2, 2), (-2,2),  (-10, 10)] )
+
+tracer = field_axial.get_tracer( [(-1, 1), (-1,1),  (-10, 10)] )
 
 r_start = np.linspace(-1/5, 1/5, 7)
 
-velocity = T.velocity_vec(10, [0, -1])
+velocity = T.velocity_vec(100, [0, -1])
 
 plt.figure()
 plt.title('Electron traces')
