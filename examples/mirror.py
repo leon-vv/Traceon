@@ -44,7 +44,7 @@ def round_electrode(z0, name):
     return surf
 
 # Create an mirror.
-# This is a 'disk' or round electrode with a hole in the middle.
+# This is a 'disk' with a hole in the middle that only extends halfway.
 def round_mirror(z0, name):
     path = G.Path.line([0.0, 0.0, -THICKNESS+z0], [0.0, 0.0, z0])\
         .line_to([RADIUS, 0.0, z0])\
@@ -58,14 +58,14 @@ def round_mirror(z0, name):
     return surf
 
 #initialize electrodes
-ground_electrode = round_electrode(z0+SPACING, 'ground_electrode')
-tuning_electrode = round_electrode(z0, 'tuning_electrode')
-mirror = round_mirror(-SPACING+z0, 'mirror')
+ground_elec = round_electrode(z0+SPACING, 'ground_electrode')
+tuning_elec = round_electrode(z0, 'tuning_electrode')
+mirror_elec = round_mirror(-SPACING+z0, 'mirror_electrode')
 
 #displace electrodes
-ground_electrode = ground_electrode.move(*ground_elec_displacement)
-tuning_electrode = tuning_electrode.move(*tuning_elec_displacement)
-mirror = mirror.move(*mirror_displacement)
+ground_electrode = ground_elec.move(*ground_elec_displacement)
+tuning_electrode = tuning_elec.move(*tuning_elec_displacement)
+mirror = mirror_elec.move(*mirror_displacement)
 
 
 #create meshes
@@ -76,7 +76,7 @@ meshes = (ground_electrode + tuning_electrode).mesh(mesh_size_factor=50)
 mesh = mirror_mesh+meshes
 
 # Show the generated triangle mesh.
-P.plot_mesh(mesh, ground='green', deflector_positive='red', deflector_negative='blue', show_normals=True)
+P.plot_mesh(mesh, ground_electrode='green', mirror_electrode='red', tuning_electrode='blue', show_normals=True)
 
 excitation = E.Excitation(mesh, E.Symmetry.THREE_D)
 
@@ -94,3 +94,22 @@ field = S.solve_direct(excitation)
 tracer = field.get_tracer( [(-RADIUS/2, RADIUS/2), (-RADIUS/2, RADIUS/2), (-7, 7)] )
 
 r_start = np.linspace(-RADIUS/8, RADIUS/8, 5)
+
+# Initial velocity vector points downwards, with a 
+# initial speed corresponding to 1000eV.
+velocity = T.velocity_vec(1000, [0, 0, -1])
+
+plt.figure()
+plt.title('Electron traces')
+
+for i, r0 in enumerate(r_start):
+    print(f'Tracing electron {i+1}/{len(r_start)}...')
+    _, positions = tracer(np.array([r0, 0.0, 5]), velocity)
+    # Plot the z position of the electrons vs the r position.
+    # C0 produces the default matplotlib color (a shade of blue).
+    plt.plot(positions[:, 0], positions[:, 2], color='C0')
+
+plt.xlabel('x (mm)')
+plt.ylabel('z (mm)')
+plt.show()
+
