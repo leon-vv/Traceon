@@ -6,6 +6,15 @@ from scipy.integrate import quad
 import traceon.backend as B
 
 class TestUtilities2D(unittest.TestCase):
+    def test_normal_2d(self):
+        p1 = np.array([1.0, -1.0])
+        p2 = np.array([2.0, 3.0])
+
+        normal = B.normal_2d(p1, p2)
+        
+        assert np.isclose(np.dot(normal, p2-p1), 0.0)
+        assert np.isclose(np.linalg.norm(normal), 1.0)
+
     def test_position_and_jacobian_radial(self):
         line = np.array([
             [0.0, 0.0, 0.0],
