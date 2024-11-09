@@ -8,6 +8,21 @@ import traceon.backend as B
 
 class TestUtilities3D(unittest.TestCase):
     
+    def test_normal_3d(self):
+        tri = np.array([
+            [0.0, 0.0, 0.0],
+            [2.0, 0.0, 0.0],
+            [0.0, 3.0, 0.0]])
+        
+        normal = B.normal_3d(tri)
+        
+        vec1 = tri[1] - tri[0]
+        vec2 = tri[2] - tri[0]
+         
+        assert np.isclose(np.linalg.norm(normal), 1.0)
+        assert np.isclose(np.dot(normal, vec1), 0.0)
+        assert np.isclose(np.dot(normal, vec2), 0.0)
+
     def test_position_and_jacobian(self):
         tri = np.array([
             [1.0, 1.0, 1.0],

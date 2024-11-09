@@ -149,7 +149,7 @@ backend_functions = {
     'ellipe': (dbl, dbl),
     'normal_2d': (None, v2, v2, v2),
     'higher_order_normal_radial': (None, dbl, v2, v2, v2, v2, v2),
-    'normal_3d': (None, dbl, dbl, arr(shape=(3,3)), v3),
+    'normal_3d': (None, arr(shape=(3,3)), v3),
     'position_and_jacobian_3d': (None, dbl, dbl, arr(ndim=2), v3, dbl_p),
     'position_and_jacobian_radial': (None, dbl, v2, v2, v2, v2, v2, dbl_p),
     'trace_particle': (sz, times_block, tracing_block, field_fun, bounds, dbl, vp),
@@ -248,9 +248,9 @@ def normal_2d(p1, p2):
 def remove_arg(fun):
     return lambda *args: fun(*args[:-1])
 
-def normal_3d(alpha, beta, tri):
+def normal_3d(tri: np.ndarray) -> np.ndarray:
     normal = np.zeros( (3,) )
-    backend_lib.normal_3d(alpha, beta, tri, normal)
+    backend_lib.normal_3d(tri, normal)
     return normal
    
 def _vec_2d_to_3d(vec):
