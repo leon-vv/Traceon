@@ -59,15 +59,7 @@ class Edwards2007(Validation):
         return 6.69099430708
     
     def compute_value_of_interest(self, geometry, field):
-        st = time.time()
-        
-        if geometry.is_3d():
-            pot = field.potential_at_point(np.array([12, 0.0, 4]))
-        else:
-            pot = field.potential_at_point(np.array([12, 4]))
-         
-        print(f'Time for computing potential {(time.time()-st)*1000:.2f} ms')
-        return pot
+        return field.potential_at_point([12, 0.0, 4])
 
 if __name__ == '__main__':
     Edwards2007().run_validation()
