@@ -252,7 +252,9 @@ def normal_3d(tri: np.ndarray) -> np.ndarray:
     backend_lib.normal_3d(tri, normal)
     return normal
    
-def trace_particle_wrapper(position, velocity, fill_positions_fun):
+def trace_particle_wrapper(position_, velocity_, fill_positions_fun):
+    position = np.array(position_)
+    velocity = np.array(velocity_)
     assert position.shape == (3,) and velocity.shape == (3,)
      
     N = TRACING_BLOCK_SIZE
@@ -362,8 +364,6 @@ def trace_particle_radial_derivs(position, velocity, bounds, atol, z, elec_coeff
     return times, positions
 
 def trace_particle_3d(position, velocity, bounds, atol, eff_elec, eff_mag, field_bounds=None):
-    assert position.shape == (3,)
-    assert velocity.shape == (3,)
     assert field_bounds is None or field_bounds.shape == (3,2)
      
     bounds = np.array(bounds)
@@ -377,8 +377,6 @@ def trace_particle_3d(position, velocity, bounds, atol, eff_elec, eff_mag, field
         lambda T, P: backend_lib.trace_particle_3d(T, P, bounds, atol, eff_elec, eff_mag, field_bounds))
 
 def trace_particle_3d_derivs(position, velocity, bounds, atol, z, electrostatic_coeffs, magnetostatic_coeffs):
-    assert position.shape == (3,)
-    assert velocity.shape == (3,)
     assert electrostatic_coeffs.shape == (len(z)-1, 2, NU_MAX, M_MAX, 4)
     assert magnetostatic_coeffs.shape == (len(z)-1, 2, NU_MAX, M_MAX, 4)
     
