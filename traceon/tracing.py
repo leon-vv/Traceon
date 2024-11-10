@@ -203,31 +203,8 @@ def plane_intersection(positions, p0, normal):
     np.ndarray of shape (6,) containing the position and velocity of the electron at the intersection point.
     """
 
+    assert positions.shape == (len(positions), 6), "The positions array should have shape (N, 6)"
     return backend.plane_intersection(positions, p0, normal)
-
-def line_intersection(positions, p0, tangent):
-    """Compute the intersection of a trajectory with a line in 2D. The line is specified
-    by a point (p0) on the line and a vector tangential (tangent) to the line. The intersection
-    point is calculated using a linear interpolation.
-    
-    Parameters
-    ----------
-    positions: (N, 4) np.ndarray of float64
-        Positions of an electron as returned by `Tracer`.
-    
-    p0: (2,) np.ndarray of float64
-        A point that lies on the line.
-    
-    tangent: (2,) np.ndarray of float64
-        A vector that is tangential to the line. A point p lies on the line if there exists a number k
-        such that `p0 + k*tangent = p`.
-    
-    Returns
-    --------
-    np.ndarray of shape (4,) containing the position and velocity of the electron at the intersection point.
-    """
-
-    return backend.line_intersection(positions, p0, tangent)
 
 def xy_plane_intersection(positions, z):
     """Compute the intersection of a trajectory with an xy-plane.
@@ -243,12 +220,7 @@ def xy_plane_intersection(positions, z):
     --------
     np.ndarray of shape (4,) or (6,) containing the position and velocity of the electron at the intersection point.
     """
-    assert positions.shape == (len(positions), 4) or positions.shape == (len(positions), 6)
-    
-    if positions.shape[1] == 4:
-        return line_intersection(positions, np.array([0., z]), np.array([1.0, 0.0]))
-    else:
-        return plane_intersection(positions, np.array([0.,0.,z]), np.array([0., 0., 1.0]))
+    return plane_intersection(positions, np.array([0.,0.,z]), np.array([0., 0., 1.0]))
 
 def xz_plane_intersection(positions, y):
     """Compute the intersection of a trajectory with an xz-plane. Note that this function
@@ -281,35 +253,20 @@ def yz_plane_intersection(positions, x):
     --------
     np.ndarray of shape (4,) or (6,) containing the position and velocity of the electron at the intersection point.
     """
-    assert positions.shape == (len(positions), 4) or positions.shape == (len(positions), 6)
-     
-    if positions.shape[1] == 4:
-        return line_intersection(positions, np.array([x, 0.]), np.array([0.0, 1.0]))
-    else:
-        return plane_intersection(positions, np.array([x,0.,0.]), np.array([1.0, 0., 0.]))
-
+    return plane_intersection(positions, np.array([x,0.,0.]), np.array([1.0, 0., 0.]))
 
 def axis_intersection(positions):
-    """Calculate the intersection with the optical axis using a linear interpolation. Notice that
-    this only makes sense in 2D as in 3D the particle will never pass exactly through the optical axis.
-    However, this function is implemented as `yz_plane_intersection(positions, 0.0)` and will therefore
-    give meaningful results in 3D if you expect the particle trajectory to be in the xz plane. This function
-    only returns the z-coordinate. Use `yz_plane_intersection` directly if you want to retrieve the velocity 
-    components.
+    """Compute the z-value of the intersection of the trajectory with the x=0 plane.
+    Note that this function will not work properly if the trajectory crosses the x=0 plane zero or multiple times.
     
     Parameters
     ----------
-    positions: (N, 4) or (N, 6) np.ndarray of float64
-        positions of an electron as returned by `Tracer`.
+    positions: (N, 6) np.ndarray of float64
+        Positions (and velocities) of an electron as returned by `Tracer`.
     
     Returns
-    ----------
-    float z-coordinate of intersection point
+    --------
+    float, z-value of the intersection with the x=0 plane
     """
-    assert positions.shape == (len(positions), 4) or positions.shape == (len(positions), 6)
-    
-    z_index = 1 if positions.shape[1] == 4 else 2
-    return yz_plane_intersection(positions, 0.)[z_index]
-
-
+    return yz_plane_intersection(positions, 0.0)[2]
 

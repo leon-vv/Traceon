@@ -189,7 +189,6 @@ backend_functions = {
     'fill_jacobian_buffer_3d': (None, jac_buffer_3d, pos_buffer_3d, vertices, sz),
     'fill_matrix_3d': (None, arr(ndim=2), vertices, arr(dtype=np.uint8, ndim=1), arr(ndim=1), jac_buffer_3d, pos_buffer_3d, sz, sz, C.c_int, C.c_int),
     'plane_intersection': (bool, v3, v3, arr(ndim=2), sz, arr(shape=(6,))),
-    'line_intersection': (bool, v2, v2, arr(ndim=2), sz, arr(shape=(4,))),
     'triangle_areas': (None, vertices, arr(ndim=1), sz)
 }
 
@@ -620,20 +619,6 @@ def plane_intersection(positions, p0, normal):
         raise ValueError("Plane intersection not found. Does the trajectory actually cross the plane?")
      
     return result
-
-def line_intersection(positions, p0, tangent):
-    assert p0.shape == (2,)
-    assert tangent.shape == (2,)
-    assert positions.shape == (len(positions), 4)
-    
-    result = np.zeros(4)
-    found = backend_lib.line_intersection(p0, tangent, positions, len(positions), result)
-     
-    if not found:
-        raise ValueError("Line intersection not found. Does the trajectory actually cross the line?")
-     
-    return result
-
 
 def triangle_areas(triangles):
     assert triangles.shape == (len(triangles), 3, 3)
