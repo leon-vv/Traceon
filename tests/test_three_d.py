@@ -16,6 +16,30 @@ import traceon.logging as logging
 
 logging.set_log_level(logging.LogLevel.SILENT)
 
+class TestSharedSurface(unittest.TestCase):
+    def test_surface_with_shared_elements(self):
+
+        #Define surface
+        THICKNESS = 1
+        path = G.Path.line([0.0, 0.0, 0.0], [0.0, 0.0,THICKNESS])\
+            .line_to([1., 0.0, THICKNESS])\
+            .line_to([1., 0.0, 0.0])\
+            .close()
+
+        surf = path.revolve_z()
+        surf.name = 'revolvedrectangle'
+
+        #create mesh
+        mesh = (surf).mesh(mesh_size_factor=80)
+
+        #add excitation
+        excitation = E.Excitation(mesh, E.Symmetry.THREE_D)
+        excitation.add_voltage(revolvedrectangle = -5.)
+
+        #try solving
+        field = S.solve_direct(excitation)
+
+
 class TestFlatEinzelLens(unittest.TestCase):
 
     def setUp(self):
@@ -81,7 +105,3 @@ class TestFlatEinzelLens(unittest.TestCase):
         # therefore we can an accuracy of only 10% here. If the mesh size is decreased the correspondence 
         # is much better.
         assert np.allclose(intersection, intersection_radial, rtol=10e-2)
-
-
-
-
