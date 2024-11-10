@@ -10,6 +10,7 @@ from scipy.interpolate import CubicSpline
 import traceon.geometry as G
 import traceon.solver as S
 import traceon.excitation as E
+import traceon.tracing as T
 import traceon.backend as B
 import traceon.logging as logging
 from traceon.interpolation import FieldRadialAxial
@@ -241,4 +242,84 @@ class TestRadial(unittest.TestCase):
         correct = np.array([correct_r, correct_z])
 
         assert np.allclose(computed, correct, atol=0.0, rtol=1e-9) 
+
+
+class TestFlatEinzelLens(unittest.TestCase):
+
+    def setUp(self):
+        boundary = G.Path.line([0.1, 0.0, 1.0], [1.0, 0.0, 1.0])\
+            .line_to([1.0, 0.0, -1.0]).line_to([0.1, 0.0, -1.0])
+        
+        ground_top = G.Path.line([0.25, 0.0, 0.5], [0.75, 0.0, 0.5])
+        lens = G.Path.line([0.25, 0.0, 0.0], [0.75, 0.0, 0.0])
+        ground_bottom = G.Path.line([0.25, 0.0, -0.5], [0.75, 0.0, -0.5])
+
+        boundary.name = 'boundary'
+        ground_top.name = 'ground'
+        lens.name = 'lens'
+        ground_bottom.name = 'ground'
+
+        mesh = (boundary + ground_top + lens + ground_bottom).mesh(mesh_size_factor=40)
+
+        exc = E.Excitation(mesh, E.Symmetry.RADIAL)
+
+        exc.add_voltage(ground=0, lens=1000)
+        exc.add_electrostatic_boundary('boundary')
+         
+        self.z = np.linspace(-0.85, 0.85, 250)
+        self.field = S.solve_direct(exc)
+        self.field_axial = FieldRadialAxial(self.field, self.z[0], self.z[-1], N=500)
+    
+    def test_derivatives(self):
+        derivatives = self.field.get_electrostatic_axial_potential_derivatives(self.z)
+        derivatives_spline = [CubicSpline(self.z, derivatives[:, i])(self.z, nu=1) for i in range(derivatives.shape[1])]
+        
+        for i in range(6):
+            assert np.allclose(derivatives[:, i+1], derivatives_spline[i], atol=1e-12, rtol=1e-2)
+
+    def test_potential_close_to_axis(self):
+        r = 0.1
+        pot = np.array([self.field.potential_at_point(np.array([r, z_])) for z_ in self.z])
+        pot_axial = np.array([self.field_axial.potential_at_point(np.array([r, z_])) for z_ in self.z])
+        assert np.allclose(pot_axial[2:-2], pot[2:-2], atol=0.0, rtol=1e-5)
+    
+    def test_field_close_to_axis(self):
+        r = 0.05
+        f = np.array([self.field.field_at_point(np.array([r, z_])) for z_ in self.z[1:-1]])
+        f_axial = np.array([self.field_axial.field_at_point(np.array([r, z_])) for z_ in self.z[1:-1]])
+        assert np.allclose(f, f_axial, atol=1e-10, rtol=1e-5)
+    
+    def test_trace_close_to_axis(self):
+        r = 0.05
+        z = 0.85
+
+        tracer = self.field.get_tracer( [(-0.1, 0.1), (-0.1, 0.1), (-0.85, 0.85)] )
+        tracer_axial = self.field_axial.get_tracer( [(-0.1, 0.1), (-0.1, 0.1), (-0.85, 0.85)] )
+        
+        p0 = np.array([r, 0.0, z])
+        v0 = T.velocity_vec(100, [0, 0, -1])
+
+        _, pos = tracer(p0, v0)
+        _, pos_axial = tracer_axial(p0, v0)
+
+        intersection = T.xy_plane_intersection(pos, -0.8)
+        intersection_axial = T.xy_plane_intersection(pos_axial, -0.8)
+         
+        assert np.allclose(intersection, intersection_axial, rtol=5e-5)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 

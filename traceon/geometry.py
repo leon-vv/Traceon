@@ -1075,8 +1075,6 @@ class Surface(GeometricObject):
                 mesh_size /= sqrt(mesh_size_factor)
 
         name = self.name if name is None else name
-        print('meshing surface with name ', name)
-         
         return _mesh(self, mesh_size, name=name)
     
     def __str__(self):

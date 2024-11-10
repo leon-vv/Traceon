@@ -260,7 +260,7 @@ class MagnetostaticSolver(Solver):
             elif self.is_2d() and self.is_higher_order():
                 normals[i] = backend.higher_order_normal_radial(0.0, v[:, :2])
             elif self.is_3d() and not self.is_higher_order():
-                normals[i] = backend.normal_3d(1/3, 1/3, v)
+                normals[i] = backend.normal_3d(v)
         
         self.normals = normals
     

@@ -328,7 +328,7 @@ EXPORT void fill_matrix_3d(double *restrict matrix,
 		else if (type_ == DIELECTRIC || type_ == MAGNETIZABLE) {  
 			
 			double normal[3];  
-			normal_3d(1/3., 1/3., &triangle_points[i][0], normal);
+			normal_3d(&triangle_points[i][0], normal);
 			double K = excitation_values[i];  
 			
 			// This factor is hard to derive. It takes into account that the field
