@@ -157,8 +157,8 @@ backend_functions = {
     'dr1_potential_radial_ring': (dbl, dbl, dbl, dbl, dbl, vp), 
     'dz1_potential_radial_ring': (dbl, dbl, dbl, dbl, dbl, vp), 
     'axial_derivatives_radial': (None, arr(ndim=2), charges_2d, jac_buffer_2d, pos_buffer_2d, sz, z_values, sz),
-    'potential_radial': (dbl, v2, charges_2d, jac_buffer_2d, pos_buffer_2d, sz),
-    'potential_radial_derivs': (dbl, v2, z_values, arr(ndim=3), sz),
+    'potential_radial': (dbl, v3, charges_2d, jac_buffer_2d, pos_buffer_2d, sz),
+    'potential_radial_derivs': (dbl, v3, z_values, arr(ndim=3), sz),
     'flux_density_to_charge_factor': (dbl, dbl),
     'charge_radial': (dbl, arr(ndim=2), dbl),
     'field_radial': (None, v3, v3, charges_2d, jac_buffer_2d, pos_buffer_2d, sz),
@@ -253,27 +253,7 @@ def normal_3d(tri: np.ndarray) -> np.ndarray:
     backend_lib.normal_3d(tri, normal)
     return normal
    
-def _vec_2d_to_3d(vec):
-    assert vec.shape == (2,) or vec.shape == (3,)
-     
-    if vec.shape == (2,):
-        return np.array([vec[0], 0., vec[1]])
-    
-    return vec
-
-def _vec_3d_to_2d(vec):
-    assert vec.shape == (2,) or vec.shape == (3,)
-     
-    if vec.shape == (3,):
-        return np.array([vec[0], vec[2]])
-    
-    return vec
-
-
 def trace_particle_wrapper(position, velocity, fill_positions_fun):
-    position = _vec_2d_to_3d(position)
-    velocity = _vec_2d_to_3d(velocity)
-     
     assert position.shape == (3,) and velocity.shape == (3,)
      
     N = TRACING_BLOCK_SIZE
@@ -423,11 +403,7 @@ def axial_derivatives_radial(z, charges, jac_buffer, pos_buffer):
     return derivs
 
 def potential_radial(point, charges, jac_buffer, pos_buffer):
-    assert point.shape == (2,) or point.shape == (3,)
-
-    if point.shape == (3,):
-        point = _vec_3d_to_2d(point) 
-    
+    assert point.shape == (3,)
     assert jac_buffer.shape == (len(charges), N_QUAD_2D)
     assert pos_buffer.shape == (len(charges), N_QUAD_2D, 2)
     return backend_lib.potential_radial(point.astype(np.float64), charges, jac_buffer, pos_buffer, len(charges))
@@ -441,13 +417,14 @@ def charge_radial(vertices, charge):
     return backend_lib.charge_radial(vertices, charge)
 
 def field_radial(point, charges, jac_buffer, pos_buffer):
-    point = _vec_2d_to_3d(point)
+    assert point.shape == (3,)
     assert jac_buffer.shape == (len(charges), N_QUAD_2D)
     assert pos_buffer.shape == (len(charges), N_QUAD_2D, 2)
     assert charges.shape == (len(charges),)
+        
     field = np.zeros( (3,) )
     backend_lib.field_radial(point.astype(np.float64), field, charges, jac_buffer, pos_buffer, len(charges))
-    return _vec_3d_to_2d(field)
+    return field
 
 def combine_elec_magnetic_field(vel, elec, mag, current):
     result = np.zeros( (3,) )
@@ -455,11 +432,11 @@ def combine_elec_magnetic_field(vel, elec, mag, current):
     return result
 
 def field_radial_derivs(point, z, coeffs):
-    point = _vec_2d_to_3d(point)
+    assert point.shape == (3,)
     assert coeffs.shape == (len(z)-1, DERIV_2D_MAX, 6)
     field = np.zeros( (3,) )
     backend_lib.field_radial_derivs(point.astype(np.float64), field, z, coeffs, len(z))
-    return _vec_3d_to_2d(field)
+    return field
 
 dx1_potential_3d_point = remove_arg(backend_lib.dx1_potential_3d_point)
 dy1_potential_3d_point = remove_arg(backend_lib.dy1_potential_3d_point)
