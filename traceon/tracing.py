@@ -27,7 +27,7 @@ def velocity_vec(eV, direction_):
     ----------
     eV: float
         initial energy in units of eV
-    direction: (2,) or (3,) numpy array
+    direction: (3,) numpy array
         vector giving the correct direction of the initial velocity vector. Does not
         have to be a unit vector as it is always normalized.
 
@@ -129,9 +129,9 @@ class Tracer:
 
         Parameters
         ----------
-        position: (2,) or (3,) np.ndarray of float64
+        position: (3,) np.ndarray of float64
             Initial position of electron.
-        velocity: (2,) or (3,) np.ndarray of float64
+        velocity: (3,) np.ndarray of float64
             Initial velocity (expressed in a vector whose magnitude has units of eV). Use one of the utility functions documented
             above to create the initial velocity vector.
         atol: float
@@ -214,31 +214,30 @@ def xy_plane_intersection(positions, z):
 
     Parameters
     ----------
-    positions: (N, 4) or (N, 6) np.ndarray of float64
-        Positions of an electron as returned by `Tracer`.
+    positions: (N, 6) np.ndarray of float64
+        Positions (and velocities) of an electron as returned by `Tracer`.
     z: float
         z-coordinate of the plane with which to compute the intersection
     
     Returns
     --------
-    np.ndarray of shape (4,) or (6,) containing the position and velocity of the electron at the intersection point.
+    (6,) array of float64, containing the position and velocity of the electron at the intersection point.
     """
     return plane_intersection(positions, np.array([0.,0.,z]), np.array([0., 0., 1.0]))
 
 def xz_plane_intersection(positions, y):
-    """Compute the intersection of a trajectory with an xz-plane. Note that this function
-    does not make sense in 2D (where we consider (r,z) as (x,z) and therefore the y-axis is missing).
+    """Compute the intersection of a trajectory with an xz-plane.
 
     Parameters
     ----------
     positions: (N, 6) np.ndarray of float64
-        Positions of an electron as returned by `Tracer`.
-    y: float
-        y-coordinate of the plane with which to compute the intersection
+        Positions (and velocities) of an electron as returned by `Tracer`.
+    z: float
+        z-coordinate of the plane with which to compute the intersection
     
     Returns
     --------
-    np.ndarray of shape (6,) containing the position and velocity of the electron at the intersection point.
+    (6,) array of float64, containing the position and velocity of the electron at the intersection point.
     """
     return plane_intersection(positions, np.array([0.,y,0.]), np.array([0., 1.0, 0.]))
 
@@ -247,14 +246,14 @@ def yz_plane_intersection(positions, x):
 
     Parameters
     ----------
-    positions: (N, 4) or (N, 6) np.ndarray of float64
-        Positions of an electron as returned by `Tracer`.
-    x: float
-        x-coordinate of the plane with which to compute the intersection
+    positions: (N, 6) np.ndarray of float64
+        Positions (and velocities) of an electron as returned by `Tracer`.
+    z: float
+        z-coordinate of the plane with which to compute the intersection
     
     Returns
     --------
-    np.ndarray of shape (4,) or (6,) containing the position and velocity of the electron at the intersection point.
+    (6,) array of float64, containing the position and velocity of the electron at the intersection point.
     """
     return plane_intersection(positions, np.array([x,0.,0.]), np.array([1.0, 0., 0.]))
 

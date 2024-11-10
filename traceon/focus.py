@@ -14,15 +14,13 @@ def focus_position(positions):
     
     Parameters
     ------------
-    positions: iterable of (N,4) or (N,6) np.ndarray float64
+    positions: iterable of (N,6) np.ndarray float64
         Trajectories of electrons, as returned by `traceon.tracing.Tracer.__call__`
     
     
     Returns
     --------------
-    A tuple of size two or three, depending on whether the input positions are 2D or 3D trajectories. The \
-    returned position is the (r, z) or (x, y, z) position of the focus.
-
+    (3,) np.ndarray of float64, representing the position of the focus
     """
     assert all(p.shape == (len(p), 6) for p in positions)
      

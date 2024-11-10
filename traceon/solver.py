@@ -473,11 +473,11 @@ class Field(ABC):
 
         Parameters
         ---------------------
-        point: (2,) or (3,) np.ndarray of float64
+        point: (3,) np.ndarray of float64
 
         Returns
         --------------------
-        (2,) or (3,) np.ndarray of float64. The electrostatic field \\(\\vec{E}\\) or the magnetostatic field \\(\\vec{H}\\).
+        (3,) np.ndarray of float64. The electrostatic field \\(\\vec{E}\\) or the magnetostatic field \\(\\vec{H}\\).
         """
         elec, mag = self.is_electrostatic(), self.is_magnetostatic()
         
@@ -496,7 +496,7 @@ class Field(ABC):
          
         Parameters
         ---------------------
-        point: (2,) or (3,) np.ndarray of float64
+        point: (3,) np.ndarray of float64
 
         Returns
         --------------------
@@ -683,12 +683,12 @@ class FieldRadialBEM(FieldBEM):
         
         Parameters
         ----------
-        point: (2,) array of float64
+        point: (3,) array of float64
             Position at which to compute the field.
         
         Returns
         -------
-        Numpy array containing the field strengths (in units of V/mm) in the r and z directions.   
+        (3,) array of float64, containing the field strengths (units of V/m)
         """
         point = np.array(point_)
         assert point.shape == (3,), "Please supply a three dimensional point"
@@ -704,7 +704,7 @@ class FieldRadialBEM(FieldBEM):
         
         Parameters
         ----------
-        point: (2,) array of float64
+        point: (3,) array of float64
             Position at which to compute the field.
         
         Returns
@@ -724,12 +724,12 @@ class FieldRadialBEM(FieldBEM):
         
         Parameters
         ----------
-        point: (2,) array of float64
+        point: (3,) array of float64
             Position at which to compute the field.
              
         Returns
         -------
-        (2,) np.ndarray of float64 containing the field strength (in units of A/m) in the x, y and z directions.
+        (3,) np.ndarray of float64 containing the field strength (in units of A/m) in the x, y and z directions.
         """
         point = np.array(point_)
         assert point.shape == (3,), "Please supply a three dimensional point"
@@ -749,7 +749,7 @@ class FieldRadialBEM(FieldBEM):
         
         Parameters
         ----------
-        point: (2,) array of float64
+        point: (3,) array of float64
             Position at which to compute the field.
         
         Returns
@@ -872,7 +872,7 @@ class Field3D_BEM(FieldBEM):
              
         Returns
         -------
-        Numpy array containing the field strengths (in units of V/mm) in the x, y and z directions.
+        (3,) array of float64 representing the electric field 
         """
         point = np.array(point_)
         assert point.shape == (3,), "Please supply a three dimensional point"
@@ -1022,12 +1022,12 @@ class FieldRadialAxial(FieldAxial):
         
         Parameters
         ----------
-        point: (2,) array of float64
+        point: (3,) array of float64
             Position at which to compute the field.
              
         Returns
         -------
-        Numpy array containing the field strengths (in units of V/mm) in the r and z directions.
+        (3,) array of float64, containing the field strengths (units of V/m)
         """
         point = np.array(point_)
         assert point.shape == (3,), "Please supply a three dimensional point"
@@ -1039,12 +1039,12 @@ class FieldRadialAxial(FieldAxial):
         
         Parameters
         ----------
-        point: (2,) array of float64
+        point: (3,) array of float64
             Position at which to compute the field.
              
         Returns
         -------
-        (2,) np.ndarray of float64 containing the field strength (in units of A/m) in the x, y and z directions.
+        (3,) array of float64, containing the field strengths (units of A/m)
         """
         point = np.array(point_)
         assert point.shape == (3,), "Please supply a three dimensional point"
@@ -1056,7 +1056,7 @@ class FieldRadialAxial(FieldAxial):
 
         Parameters
         ----------
-        point: (2,) array of float64
+        point: (3,) array of float64
             Position at which to compute the potential.
         
         Returns
@@ -1073,7 +1073,7 @@ class FieldRadialAxial(FieldAxial):
         
         Parameters
         ----------
-        point: (2,) array of float64
+        point: (3,) array of float64
             Position at which to compute the field.
         
         Returns
