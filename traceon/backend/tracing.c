@@ -328,7 +328,7 @@ EXPORT void fill_matrix_3d(double *restrict matrix,
 		else if (type_ == DIELECTRIC || type_ == MAGNETIZABLE) {  
 			
 			double normal[3];  
-			normal_3d(1/3., 1/3., &triangle_points[i][0], normal);
+			normal_3d(&triangle_points[i][0], normal);
 			double K = excitation_values[i];  
 			
 			// This factor is hard to derive. It takes into account that the field
@@ -409,51 +409,3 @@ plane_intersection(double p0[3], double normal[3], positions_3d positions, size_
 	
 	return false;
 }
-
-EXPORT bool
-line_intersection(double p0[2], double tangent[2], positions_2d positions, size_t N_p, double result[4]) {
-	
-	assert(N_p > 1);
-		
-	double xp = p0[0], yp = p0[1];
-	// Normal components, perpendicular to tangent
-	double xn = tangent[1], yn = -tangent[0];
-
-	// Initial sign
-	int i = N_p-1;
-	
-	double x = positions[i][0], y = positions[i][1];
-	double prev_kappa = (yn*yp-y*yn+xn*xp-x*xn)/norm_2d(xn, yn);
-		
-	i -= 1;
-			
-	for(; i >= 0; i--) {
-		double x = positions[i][0], y = positions[i][1];
-		double kappa = (yn*yp-y*yn+xn*xp-x*xn)/norm_2d(xn, yn);
-			
-		int sign_kappa = kappa > 0 ? 1 : -1;
-		int sign_prev = prev_kappa > 0 ? 1 : -1;
-		
-		if(sign_kappa != sign_prev) {
-			double diff = kappa - prev_kappa;
-			
-			double factor = -prev_kappa / diff;
-			double prev_factor = kappa / diff;
-			
-			for(int k = 0; k < 4; k++)
-				result[k] = prev_factor*positions[i+1][k] + factor*positions[i][k];
-
-			return true;
-		}
-		
-		prev_kappa = kappa;
-	}
-	
-	return false;
-}
-
-
-
-
-
-

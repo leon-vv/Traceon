@@ -20,14 +20,14 @@ from scipy.constants import m_e, e
 from . import backend
 from . import logging
 
-def velocity_vec(eV, direction):
+def velocity_vec(eV, direction_):
     """Compute an initial velocity vector in the correct units and direction.
     
     Parameters
     ----------
     eV: float
         initial energy in units of eV
-    direction: (2,) or (3,) numpy array
+    direction: (3,) numpy array
         vector giving the correct direction of the initial velocity vector. Does not
         have to be a unit vector as it is always normalized.
 
@@ -36,7 +36,10 @@ def velocity_vec(eV, direction):
     Initial velocity vector with magnitude corresponding to the supplied energy (in eV).
     The shape of the resulting vector is the same as the shape of `direction`.
     """
-    assert eV > 0.0
+    assert eV > 0.0, "Please provide a positive energy in eV"
+
+    direction = np.array(direction_)
+    assert direction.shape == (3,), "Please provide a three dimensional direction vector"
     
     if eV > 40000:
         logging.log_warning(f'Velocity vector with large energy ({eV} eV) requested. Note that relativistic tracing is not yet implemented.')
@@ -61,7 +64,7 @@ def velocity_vec_spherical(eV, theta, phi):
     """
     return velocity_vec(eV, [sin(theta)*cos(phi), sin(theta)*sin(phi), cos(theta)])
 
-def velocity_vec_xz_plane(eV, angle, downward=True, three_dimensional=False):
+def velocity_vec_xz_plane(eV, angle, downward=True):
     """Compute initial velocity vector in the xz plane with the given energy and angle with z-axis.
     
     Parameters
@@ -72,15 +75,13 @@ def velocity_vec_xz_plane(eV, angle, downward=True, three_dimensional=False):
         angle with z-axis
     downward: bool
         whether the velocity vector should point upward or downwards
-    three_dimensional: bool
-        whether the resulting velocity vector has shape (2,) or shape (3,)
      
     Returns
     ------
-    Initial velocity vector with magnitude corresponding to the supplied energy (in eV).
+    Initial velocity vector of shape (3,) with magnitude corresponding to the supplied energy (in eV).
     """
     sign = -1 if downward else 1
-    direction = [sin(angle), sign*cos(angle)] if not three_dimensional else [sin(angle), 0.0, sign*cos(angle)]
+    direction = [sin(angle), 0.0, sign*cos(angle)]
     return velocity_vec(eV, direction)
     
 def _z_to_bounds(z1, z2):
@@ -128,9 +129,9 @@ class Tracer:
 
         Parameters
         ----------
-        position: (2,) or (3,) np.ndarray of float64
+        position: (3,) np.ndarray of float64
             Initial position of electron.
-        velocity: (2,) or (3,) np.ndarray of float64
+        velocity: (3,) np.ndarray of float64
             Initial velocity (expressed in a vector whose magnitude has units of eV). Use one of the utility functions documented
             above to create the initial velocity vector.
         atol: float
@@ -205,67 +206,38 @@ def plane_intersection(positions, p0, normal):
     np.ndarray of shape (6,) containing the position and velocity of the electron at the intersection point.
     """
 
+    assert positions.shape == (len(positions), 6), "The positions array should have shape (N, 6)"
     return backend.plane_intersection(positions, p0, normal)
-
-def line_intersection(positions, p0, tangent):
-    """Compute the intersection of a trajectory with a line in 2D. The line is specified
-    by a point (p0) on the line and a vector tangential (tangent) to the line. The intersection
-    point is calculated using a linear interpolation.
-    
-    Parameters
-    ----------
-    positions: (N, 4) np.ndarray of float64
-        Positions of an electron as returned by `Tracer`.
-    
-    p0: (2,) np.ndarray of float64
-        A point that lies on the line.
-    
-    tangent: (2,) np.ndarray of float64
-        A vector that is tangential to the line. A point p lies on the line if there exists a number k
-        such that `p0 + k*tangent = p`.
-    
-    Returns
-    --------
-    np.ndarray of shape (4,) containing the position and velocity of the electron at the intersection point.
-    """
-
-    return backend.line_intersection(positions, p0, tangent)
 
 def xy_plane_intersection(positions, z):
     """Compute the intersection of a trajectory with an xy-plane.
 
     Parameters
     ----------
-    positions: (N, 4) or (N, 6) np.ndarray of float64
-        Positions of an electron as returned by `Tracer`.
+    positions: (N, 6) np.ndarray of float64
+        Positions (and velocities) of an electron as returned by `Tracer`.
     z: float
         z-coordinate of the plane with which to compute the intersection
     
     Returns
     --------
-    np.ndarray of shape (4,) or (6,) containing the position and velocity of the electron at the intersection point.
+    (6,) array of float64, containing the position and velocity of the electron at the intersection point.
     """
-    assert positions.shape == (len(positions), 4) or positions.shape == (len(positions), 6)
-    
-    if positions.shape[1] == 4:
-        return line_intersection(positions, np.array([0., z]), np.array([1.0, 0.0]))
-    else:
-        return plane_intersection(positions, np.array([0.,0.,z]), np.array([0., 0., 1.0]))
+    return plane_intersection(positions, np.array([0.,0.,z]), np.array([0., 0., 1.0]))
 
 def xz_plane_intersection(positions, y):
-    """Compute the intersection of a trajectory with an xz-plane. Note that this function
-    does not make sense in 2D (where we consider (r,z) as (x,z) and therefore the y-axis is missing).
+    """Compute the intersection of a trajectory with an xz-plane.
 
     Parameters
     ----------
     positions: (N, 6) np.ndarray of float64
-        Positions of an electron as returned by `Tracer`.
-    y: float
-        y-coordinate of the plane with which to compute the intersection
+        Positions (and velocities) of an electron as returned by `Tracer`.
+    z: float
+        z-coordinate of the plane with which to compute the intersection
     
     Returns
     --------
-    np.ndarray of shape (6,) containing the position and velocity of the electron at the intersection point.
+    (6,) array of float64, containing the position and velocity of the electron at the intersection point.
     """
     return plane_intersection(positions, np.array([0.,y,0.]), np.array([0., 1.0, 0.]))
 
@@ -274,44 +246,29 @@ def yz_plane_intersection(positions, x):
 
     Parameters
     ----------
-    positions: (N, 4) or (N, 6) np.ndarray of float64
-        Positions of an electron as returned by `Tracer`.
-    x: float
-        x-coordinate of the plane with which to compute the intersection
+    positions: (N, 6) np.ndarray of float64
+        Positions (and velocities) of an electron as returned by `Tracer`.
+    z: float
+        z-coordinate of the plane with which to compute the intersection
     
     Returns
     --------
-    np.ndarray of shape (4,) or (6,) containing the position and velocity of the electron at the intersection point.
+    (6,) array of float64, containing the position and velocity of the electron at the intersection point.
     """
-    assert positions.shape == (len(positions), 4) or positions.shape == (len(positions), 6)
-     
-    if positions.shape[1] == 4:
-        return line_intersection(positions, np.array([x, 0.]), np.array([0.0, 1.0]))
-    else:
-        return plane_intersection(positions, np.array([x,0.,0.]), np.array([1.0, 0., 0.]))
-
+    return plane_intersection(positions, np.array([x,0.,0.]), np.array([1.0, 0., 0.]))
 
 def axis_intersection(positions):
-    """Calculate the intersection with the optical axis using a linear interpolation. Notice that
-    this only makes sense in 2D as in 3D the particle will never pass exactly through the optical axis.
-    However, this function is implemented as `yz_plane_intersection(positions, 0.0)` and will therefore
-    give meaningful results in 3D if you expect the particle trajectory to be in the xz plane. This function
-    only returns the z-coordinate. Use `yz_plane_intersection` directly if you want to retrieve the velocity 
-    components.
+    """Compute the z-value of the intersection of the trajectory with the x=0 plane.
+    Note that this function will not work properly if the trajectory crosses the x=0 plane zero or multiple times.
     
     Parameters
     ----------
-    positions: (N, 4) or (N, 6) np.ndarray of float64
-        positions of an electron as returned by `Tracer`.
+    positions: (N, 6) np.ndarray of float64
+        Positions (and velocities) of an electron as returned by `Tracer`.
     
     Returns
-    ----------
-    float z-coordinate of intersection point
+    --------
+    float, z-value of the intersection with the x=0 plane
     """
-    assert positions.shape == (len(positions), 4) or positions.shape == (len(positions), 6)
-    
-    z_index = 1 if positions.shape[1] == 4 else 2
-    return yz_plane_intersection(positions, 0.)[z_index]
-
-
+    return yz_plane_intersection(positions, 0.0)[2]
 
