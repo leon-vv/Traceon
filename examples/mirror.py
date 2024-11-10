@@ -15,12 +15,12 @@ SPACING = 0.5
 ELECTRODE_WIDTH = 5*DIAMETER
 
 #voltages
-TUNING_VOLTAGE = -1200
-MIRROR_VOLTAGE = -5529.8
+TUNING_VOLTAGE = -15
+MIRROR_VOLTAGE = -1200
 
 #displacements x y z plane
-ground_elec_displacement = (0.03,0.,0.)
-tuning_elec_displacement = (0.,0.04,0.)
+ground_elec_displacement = (0.,0.,0.)
+tuning_elec_displacement = (0.,0.,0.)
 mirror_displacement = (0.,0.,0.)
 
 
@@ -62,15 +62,19 @@ ground_elec = round_electrode(z0+SPACING, 'ground_electrode')
 tuning_elec = round_electrode(z0, 'tuning_electrode')
 mirror_elec = round_mirror(-SPACING+z0, 'mirror_electrode')
 
+print(tuning_elec.name)
+print(ground_elec.name)
+print(mirror_elec.name)
+
 #displace electrodes
-ground_electrode = ground_elec.move(*ground_elec_displacement)
-tuning_electrode = tuning_elec.move(*tuning_elec_displacement)
-mirror = mirror_elec.move(*mirror_displacement)
+# ground_elec = ground_elec.move(*ground_elec_displacement)
+# tuning_elec = tuning_elec.move(*tuning_elec_displacement)
+# mirror_elec = mirror_elec.move(*mirror_displacement)
 
 
 #create meshes
-mirror_mesh = (mirror).mesh(mesh_size_factor=80)
-meshes = (ground_electrode + tuning_electrode).mesh(mesh_size_factor=50)
+mirror_mesh = (mirror_elec).mesh(mesh_size_factor=80)
+meshes = (ground_elec + tuning_elec).mesh(mesh_size_factor=50)
 
 #add meshes
 mesh = mirror_mesh+meshes
@@ -81,7 +85,7 @@ P.plot_mesh(mesh, ground_electrode='green', mirror_electrode='red', tuning_elect
 excitation = E.Excitation(mesh, E.Symmetry.THREE_D)
 
 # Apply the correct voltages. Set the ground electrode to zero.
-excitation.add_voltage(ground_electrode=0., tuning_electrode=TUNING_VOLTAGE, mirror=MIRROR_VOLTAGE)
+excitation.add_voltage(ground_electrode=0., tuning_electrode=TUNING_VOLTAGE, mirror_electrode=MIRROR_VOLTAGE)
 
 # Use the Boundary Element Method (BEM) to calculate the surface charges,
 # the surface charges gives rise to a electrostatic field.
@@ -92,7 +96,6 @@ field = S.solve_direct(excitation)
 # electrons.  Here we specify that the tracing should stop if the x,y values
 # go outside ±RADIUS/2 or the z value outside ±7 mm.
 tracer = field.get_tracer( [(-RADIUS/2, RADIUS/2), (-RADIUS/2, RADIUS/2), (-7, 7)] )
-
 r_start = np.linspace(-RADIUS/8, RADIUS/8, 5)
 
 # Initial velocity vector points downwards, with a 
