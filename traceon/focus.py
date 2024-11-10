@@ -24,13 +24,6 @@ def focus_position(positions):
     returned position is the (r, z) or (x, y, z) position of the focus.
 
     """
-    two_d = positions[0].shape[1] == 4
-    
-    # Also for 2D, extend to 3D
-    if two_d:
-        positions = [np.column_stack(
-            (p[:, 0], np.zeros(len(p)), p[:, 1], p[:, 2], np.zeros(len(p)), p[:, 3])) for p in positions]
-      
     assert all(p.shape == (len(p), 6) for p in positions)
      
     angles_x = np.array([p[-1, 3]/p[-1, 5] for p in positions])
@@ -46,6 +39,6 @@ def focus_position(positions):
     (z, x, y) = np.linalg.lstsq(
         np.array([first_column, second_column, third_column]).T,
         right_hand_side, rcond=None)[0]
-
-    return (x, y, z) if not two_d else (x, z)
+    
+    return np.array([x, y, z])
     
