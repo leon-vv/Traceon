@@ -67,9 +67,9 @@ print(ground_elec.name)
 print(mirror_elec.name)
 
 #displace electrodes
-# ground_elec = ground_elec.move(*ground_elec_displacement)
-# tuning_elec = tuning_elec.move(*tuning_elec_displacement)
-# mirror_elec = mirror_elec.move(*mirror_displacement)
+ground_elec = ground_elec.move(*ground_elec_displacement)
+tuning_elec = tuning_elec.move(*tuning_elec_displacement)
+mirror_elec = mirror_elec.move(*mirror_displacement)
 
 
 #create meshes
