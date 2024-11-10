@@ -20,7 +20,7 @@ from scipy.constants import m_e, e
 from . import backend
 from . import logging
 
-def velocity_vec(eV, direction):
+def velocity_vec(eV, direction_):
     """Compute an initial velocity vector in the correct units and direction.
     
     Parameters
@@ -36,7 +36,10 @@ def velocity_vec(eV, direction):
     Initial velocity vector with magnitude corresponding to the supplied energy (in eV).
     The shape of the resulting vector is the same as the shape of `direction`.
     """
-    assert eV > 0.0
+    assert eV > 0.0, "Please provide a positive energy in eV"
+
+    direction = np.array(direction_)
+    assert direction.shape == (3,), "Please provide a three dimensional direction vector"
     
     if eV > 40000:
         logging.log_warning(f'Velocity vector with large energy ({eV} eV) requested. Note that relativistic tracing is not yet implemented.')
