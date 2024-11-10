@@ -61,7 +61,7 @@ def velocity_vec_spherical(eV, theta, phi):
     """
     return velocity_vec(eV, [sin(theta)*cos(phi), sin(theta)*sin(phi), cos(theta)])
 
-def velocity_vec_xz_plane(eV, angle, downward=True, three_dimensional=False):
+def velocity_vec_xz_plane(eV, angle, downward=True):
     """Compute initial velocity vector in the xz plane with the given energy and angle with z-axis.
     
     Parameters
@@ -72,15 +72,13 @@ def velocity_vec_xz_plane(eV, angle, downward=True, three_dimensional=False):
         angle with z-axis
     downward: bool
         whether the velocity vector should point upward or downwards
-    three_dimensional: bool
-        whether the resulting velocity vector has shape (2,) or shape (3,)
      
     Returns
     ------
-    Initial velocity vector with magnitude corresponding to the supplied energy (in eV).
+    Initial velocity vector of shape (3,) with magnitude corresponding to the supplied energy (in eV).
     """
     sign = -1 if downward else 1
-    direction = [sin(angle), sign*cos(angle)] if not three_dimensional else [sin(angle), 0.0, sign*cos(angle)]
+    direction = [sin(angle), 0.0, sign*cos(angle)]
     return velocity_vec(eV, direction)
     
 def _z_to_bounds(z1, z2):
