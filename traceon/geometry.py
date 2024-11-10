@@ -842,7 +842,7 @@ class Surface(GeometricObject):
     def map_points(self, fun):
         return Surface(lambda u, v: fun(self(u, v)),
             self.path_length1, self.path_length2,
-            self.breakpoints1, self.breakpoints2)
+            self.breakpoints1, self.breakpoints2, name=self.name)
      
     @staticmethod
     def spanned_by_paths(path1, path2):
@@ -1075,8 +1075,6 @@ class Surface(GeometricObject):
                 mesh_size /= sqrt(mesh_size_factor)
 
         name = self.name if name is None else name
-        print('meshing surface with name ', name)
-         
         return _mesh(self, mesh_size, name=name)
     
     def __str__(self):

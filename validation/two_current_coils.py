@@ -51,7 +51,7 @@ class TwoCurrentCoils(Validation):
         return -91.94907464785867
     
     def compute_value_of_interest(self, geometry, field):
-        return field.magnetostatic_field_at_point(np.array([10e-3, 0.]))[0]
+        return field.magnetostatic_field_at_point([10e-3, 0., 0.])[0]
 
 if __name__ == '__main__':
     TwoCurrentCoils().run_validation()
