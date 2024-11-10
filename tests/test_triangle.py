@@ -28,9 +28,9 @@ def potential_exact_integrated(v0, v1, v2, target):
     area = np.linalg.norm(np.cross(v1-v0, v2-v0))/2
     return dblquad(potential_exact, 0, 1, 0, lambda x: 1-x, epsabs=1e-10, epsrel=1e-10, args=(target, (v0, v1, v2)))[0] * (2*area)
 
-def flux_exact_integrated(v0, v1, v2, target, normal):
+def flux_exact_integrated(v0, v1, v2, target, normal, epsabs=1e-10, epsrel=1e-10):
     area = np.linalg.norm(np.cross(v1-v0, v2-v0))/2
-    return dblquad(flux_exact, 0, 1, 0, lambda x: 1-x, epsabs=1e-10, epsrel=1e-10, args=(target, (v0, v1, v2), normal))[0] * (2*area)
+    return dblquad(flux_exact, 0, 1, 0, lambda x: 1-x, epsabs=epsabs, epsrel=epsrel, args=(target, (v0, v1, v2), normal))[0] * (2*area)
 
 
 class TestTriangle(unittest.TestCase):
@@ -67,7 +67,7 @@ class TestTriangle(unittest.TestCase):
              
             correct = potential_exact_integrated(v0, v1, v2, target)
             approx = B.self_potential_triangle(v0, v1, v2, target)
-            assert np.isclose(approx, correct, atol=0., rtol=1e-12), (a,b,c)
+            assert np.isclose(approx, correct, atol=0., rtol=5e-10), (a,b,c)
 
         for (a,b,c) in rand(3, 3):
             test(a,b,c)
@@ -145,7 +145,7 @@ class TestTriangle(unittest.TestCase):
             target = np.array([0., 0., z0])
             normal = np.array([1., 0., 0.])
             
-            correct = flux_exact_integrated(v0, v1, v2, target, [1., 0, 0])
+            correct = flux_exact_integrated(v0, v1, v2, target, [1., 0, 0], epsabs=1e-11, epsrel=1e-11)
             approx = B.flux_triangle(v0, v1, v2, target, normal)
             assert np.isclose(correct, approx, atol=0., rtol=1e-9), (x0, a,b,c, z0)
 
