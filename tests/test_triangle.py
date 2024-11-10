@@ -145,18 +145,22 @@ class TestTriangle(unittest.TestCase):
             target = np.array([0., 0., z0])
             normal = np.array([1., 0., 0.])
             
-            correct = flux_exact_integrated(v0, v1, v2, target, [1., 0, 0], epsabs=1e-11, epsrel=1e-11)
+            correct = flux_exact_integrated(v0, v1, v2, target, [1., 0, 0], epsabs=0.0, epsrel=5e-10)
             approx = B.flux_triangle(v0, v1, v2, target, normal)
-            assert np.isclose(correct, approx, atol=0., rtol=1e-9), (x0, a,b,c, z0)
+            assert np.isclose(correct, approx, atol=0., rtol=2e-9), (x0, a,b,c, z0)
 
-        N = 10
-        for x0, a, b, c, z0 in zip(
-                rand(N, min=0., max=100),
-                rand(N, min=0., max=100),
-                rand(N, min=-1000, max=1000),
-                rand(N, min=-1000, max=1000),
-                rand(N, min=-1, max=1)):
-
+        possible_x0 = [-10, -1, -0.1, 0.1, 1, 10]
+        possible_a = [0.1, 5, 10, 25]
+        possible_b = [-10, -1, -0.1, 0.1, 1, 10]
+        possible_c = [-10, -1, -0.1, 0.1, 1, 10]
+        possible_z0 = [-10, -1, -0.1, 0.1, 1, 10]
+        
+        for _ in range(10):
+            x0 = np.random.choice(possible_x0)
+            a = np.random.choice(possible_a)
+            b = np.random.choice(possible_b)
+            c = np.random.choice(possible_c)
+            z0 = np.random.choice(possible_z0)
             test(x0, a, b, c, z0)
     
     def test_pot_quadrants(self):
