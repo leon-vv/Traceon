@@ -49,17 +49,17 @@ class TestFlatEinzelLens(unittest.TestCase):
         r = 0.1
         z = np.array([-0.3, 0.0, 0.3])
 
-        pot = np.array([self.field.potential_at_point(np.array([r, 0.0, z_])) for z_ in z])
-        pot_correct = np.array([self.field_radial.potential_at_point(np.array([r, z_])) for z_ in z])
+        pot = [self.field.potential_at_point([r, 0.0, z_]) for z_ in z]
+        pot_correct = [self.field_radial.potential_at_point([r, 0.0, z_]) for z_ in z]
         assert np.allclose(pot, pot_correct, rtol=1.2e-2)
     
     def test_field_close_to_axis(self):
         r = 0.05
         z = np.array([-0.3, 0.0, 0.3])
         
-        f = np.array([self.field.field_at_point(np.array([r, 0.0, z_])) for z_ in z])
-        f_correct = np.array([self.field_radial.field_at_point(np.array([r, 0.0, z_])) for z_ in z])
-        assert np.allclose(f[:, [0, 2]], f_correct, rtol=5e-2)
+        f = np.array([self.field.field_at_point([r, 0.0, z_]) for z_ in z])
+        f_correct = np.array([self.field_radial.field_at_point([r, 0.0, z_]) for z_ in z])
+        assert np.allclose(f, f_correct, rtol=5e-2)
     
     def test_trace_close_to_axis(self):
         r = 0.05

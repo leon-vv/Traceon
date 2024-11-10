@@ -89,7 +89,7 @@ class TestRadial(unittest.TestCase):
 
         jac, pos = B.fill_jacobian_buffer_radial(np.array([vertices]))
         charges = np.ones(len(jac))
-        assert np.allclose(B.field_radial(np.array([r0, z0]), charges, jac, pos)/epsilon_0, [Er, Ez], atol=0.0, rtol=1e-10)
+        assert np.allclose(B.field_radial(np.array([r0, 0.0, z0]), charges, jac, pos)/epsilon_0, [Er, 0.0, Ez], atol=0.0, rtol=1e-10)
      
     def test_rectangular_current_loop(self):
         coil = G.Surface.rectangle_xz(1.0, 2.0, 1.0, 2.0)
@@ -105,7 +105,7 @@ class TestRadial(unittest.TestCase):
         z = np.linspace(-0.5, 3.5, 300)
         r = 0.0
         
-        axial_field = np.array([field.current_field_at_point(np.array([r, z_]))[1] for z_ in z])
+        axial_field = np.array([field.current_field_at_point([r, 0.0, z_])[2] for z_ in z])
         
         file_ = path.join(path.dirname(__file__), 'axial magnetic field.txt')
         reference_data = np.loadtxt(file_, delimiter=',')
@@ -130,7 +130,7 @@ class TestRadial(unittest.TestCase):
          
         z = np.linspace(-6, 6, 250)
         pot = [traceon_field.current_potential_axial(z_) for z_ in z]
-        field = [traceon_field.current_field_at_point(np.array([0.0, z_]))[1] for z_ in z]
+        field = [traceon_field.current_field_at_point([0.0, 0.0, z_])[2] for z_ in z]
 
         numerical_derivative = CubicSpline(z, pot).derivative()(z)
         
@@ -169,15 +169,15 @@ class TestRadial(unittest.TestCase):
         z = interp.z[1:-1]
 
         pot = [traceon_field.current_potential_axial(z_) for z_ in z]
-        pot_interp = [interp.magnetostatic_potential_at_point(np.array([0., z_])) for z_ in z]
+        pot_interp = [interp.magnetostatic_potential_at_point([0., 0.0, z_]) for z_ in z]
 
         assert np.allclose(pot, pot_interp)
          
         r = np.linspace(-0.5, 0.5, 5)
         
         for r_ in r:
-            field = [traceon_field.magnetostatic_field_at_point(np.array([r_, z_]))[1] for z_ in z]
-            field_interp = [interp.magnetostatic_field_at_point(np.array([r_, z_]))[1] for z_ in z]
+            field = [traceon_field.magnetostatic_field_at_point([r_, 0.0, z_])[1] for z_ in z]
+            field_interp = [interp.magnetostatic_field_at_point([r_, 0.0, z_])[1] for z_ in z]
             assert np.allclose(field, field_interp, atol=1e-3, rtol=5e-3)
      
     def test_mag_pot_derivatives(self):
@@ -206,18 +206,14 @@ class TestRadial(unittest.TestCase):
         z = z[5:-5]
            
         r = 0.3
-        pot = np.array([field.potential_at_point(np.array([r, z_])) for z_ in z])
-        pot_interp = np.array([field_axial.potential_at_point(np.array([r, z_])) for z_ in z])
+        pot = [field.potential_at_point([r, 0.0, z_]) for z_ in z]
+        pot_interp = [field_axial.potential_at_point([r, 0.0, z_]) for z_ in z]
         
         assert np.allclose(pot, pot_interp, rtol=1e-6)
           
-        fr_direct = np.array([field.field_at_point(np.array([r, z_]))[0] for z_ in z])
-        fz_direct = np.array([field.field_at_point(np.array([r, z_]))[1] for z_ in z])
-        fr_interp = np.array([field_axial.field_at_point(np.array([r, z_]))[0] for z_ in z])
-        fz_interp = np.array([field_axial.field_at_point(np.array([r, z_]))[1] for z_ in z])
-
-        assert np.allclose(fr_direct, fr_interp, rtol=1e-3)
-        assert np.allclose(fz_direct, fz_interp, rtol=1e-3)
+        field_direct = [field.field_at_point([r, 0.0, z_]) for z_ in z]
+        field_interp = [field_axial.field_at_point([r, 0.0, z_]) for z_ in z]
+        assert np.allclose(field_direct, field_interp, rtol=1e-3)
     
     def test_rectangular_coil(self):
         # Field produced by a 1mm x 1mm coil, with inner radius 2mm, 1ampere total current
@@ -235,11 +231,11 @@ class TestRadial(unittest.TestCase):
         assert np.isclose(np.sum(field.current_point_charges.charges[:, np.newaxis]*field.current_point_charges.jacobians), 1.0) # Total current is 1.0
         
         target = np.array([2.5, 0., 4.0])
-        computed = mu_0*field.current_field_at_point(np.array([target[0], target[2]]))
+        computed = mu_0*field.current_field_at_point(target)
         
         correct_r = dblquad(lambda x, y: mu_0*B.current_field_radial_ring(target[0], target[2], x, y)[0], 2, 3, 2, 3, epsrel=1e-4)[0]
         correct_z = dblquad(lambda x, y: mu_0*B.current_field_radial_ring(target[0], target[2], x, y)[1], 2, 3, 2, 3, epsrel=1e-4)[0]
-        correct = np.array([correct_r, correct_z])
+        correct = np.array([correct_r, 0.0, correct_z])
 
         assert np.allclose(computed, correct, atol=0.0, rtol=1e-9) 
 
@@ -279,16 +275,22 @@ class TestFlatEinzelLens(unittest.TestCase):
 
     def test_potential_close_to_axis(self):
         r = 0.1
-        pot = np.array([self.field.potential_at_point(np.array([r, z_])) for z_ in self.z])
-        pot_axial = np.array([self.field_axial.potential_at_point(np.array([r, z_])) for z_ in self.z])
+        pot = [self.field.potential_at_point([r, 0.0, z_]) for z_ in self.z]
+        pot_axial = [self.field_axial.potential_at_point([r, 0.0, z_]) for z_ in self.z]
         assert np.allclose(pot_axial[2:-2], pot[2:-2], atol=0.0, rtol=1e-5)
     
-    def test_field_close_to_axis(self):
-        r = 0.05
-        f = np.array([self.field.field_at_point(np.array([r, z_])) for z_ in self.z[1:-1]])
-        f_axial = np.array([self.field_axial.field_at_point(np.array([r, z_])) for z_ in self.z[1:-1]])
+    def test_field_close_to_axis_xz(self):
+        r = 0.05 # In XZ plane
+        f = [self.field.field_at_point([r, 0.0, z_]) for z_ in self.z[1:-1]]
+        f_axial = [self.field_axial.field_at_point([r, 0.0, z_]) for z_ in self.z[1:-1]]
         assert np.allclose(f, f_axial, atol=1e-10, rtol=1e-5)
     
+    def test_field_close_to_axis_xy(self):
+        r = 0.05 # In YZ plane
+        f = [self.field.field_at_point([0.0, r, z_]) for z_ in self.z[1:-1]]
+        f_axial = [self.field_axial.field_at_point([0.0, r, z_]) for z_ in self.z[1:-1]]
+        assert np.allclose(f, f_axial, atol=1e-10, rtol=1e-5)
+
     def test_trace_close_to_axis(self):
         r = 0.05
         z = 0.85

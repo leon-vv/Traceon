@@ -91,8 +91,8 @@ class DohiMirror(Validation):
         angle = 0.5e-3
         z0 = 15
         
-        start_pos = np.array([0.0, 0.0, z0]) if _3d else np.array([0.0, z0])
-        start_vel = T.velocity_vec_xz_plane(1000, angle, three_dimensional=_3d)
+        start_pos = np.array([0.0, 0.0, z0])
+        start_vel = T.velocity_vec_xz_plane(1000, angle)
          
         print('Starting trace...')
         st = time.time()

@@ -130,7 +130,7 @@ class FieldRadialAxial(FieldAxial):
 
         return z, elec_coeffs, mag_coeffs
      
-    def electrostatic_field_at_point(self, point):
+    def electrostatic_field_at_point(self, point_):
         """
         Compute the electric field, \\( \\vec{E} = -\\nabla \\phi \\)
         
@@ -143,10 +143,11 @@ class FieldRadialAxial(FieldAxial):
         -------
         Numpy array containing the field strengths (in units of V/mm) in the r and z directions.
         """
-        assert point.shape == (2,)
+        point = np.array(point_)
+        assert point.shape == (3,), "Please supply a three dimensional point"
         return backend.field_radial_derivs(point, self.z, self.electrostatic_coeffs)
     
-    def magnetostatic_field_at_point(self, point):
+    def magnetostatic_field_at_point(self, point_):
         """
         Compute the magnetic field \\( \\vec{H} \\)
         
@@ -159,11 +160,11 @@ class FieldRadialAxial(FieldAxial):
         -------
         (2,) np.ndarray of float64 containing the field strength (in units of A/m) in the x, y and z directions.
         """
-        point = np.array(point).astype(np.float64)
-        assert point.shape == (2,)
+        point = np.array(point_)
+        assert point.shape == (3,), "Please supply a three dimensional point"
         return backend.field_radial_derivs(point, self.z, self.magnetostatic_coeffs)
      
-    def electrostatic_potential_at_point(self, point):
+    def electrostatic_potential_at_point(self, point_):
         """
         Compute the electrostatic potential (close to the axis).
 
@@ -176,11 +177,11 @@ class FieldRadialAxial(FieldAxial):
         -------
         Potential as a float value (in units of V).
         """
-        point = np.array(point).astype(np.float64)
-        assert point.shape == (2,)
+        point = np.array(point_)
+        assert point.shape == (3,), "Please supply a three dimensional point"
         return backend.potential_radial_derivs(point, self.z, self.electrostatic_coeffs)
     
-    def magnetostatic_potential_at_point(self, point):
+    def magnetostatic_potential_at_point(self, point_):
         """
         Compute the magnetostatic scalar potential (satisfying \\(\\vec{H} = -\\nabla \\phi \\)) close to the axis
         
@@ -193,7 +194,8 @@ class FieldRadialAxial(FieldAxial):
         -------
         Potential as a float value (in units of A).
         """
-        assert point.shape == (2,)
+        point = np.array(point_)
+        assert point.shape == (3,), "Please supply a three dimensional point"
         return backend.potential_radial_derivs(point, self.z, self.magnetostatic_coeffs)
     
     def get_tracer(self, bounds):
