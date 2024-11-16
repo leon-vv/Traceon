@@ -16,6 +16,35 @@ import traceon.logging as logging
 
 logging.set_log_level(logging.LogLevel.SILENT)
 
+class TestThreeD(unittest.TestCase):
+    def test_revolved_rectangle(self):
+        #Define surface
+        THICKNESS = 1
+        path = G.Path.line([0.0, 0.0, 0.0], [0.0, 0.0,THICKNESS])\
+            .line_to([1., 0.0, THICKNESS])\
+            .line_to([1., 0.0, 0.0])\
+            .close()
+
+        surf = path.revolve_z()
+        surf.name = 'revolvedrectangle'
+
+        #create mesh
+        mesh = surf.mesh(mesh_size_factor=12)
+        
+        #add excitation
+        excitation = E.Excitation(mesh, E.Symmetry.THREE_D)
+        excitation.add_voltage(revolvedrectangle = -5.)
+
+        #try solving
+        field = S.solve_direct(excitation)
+
+        z = np.array([0.25, 0.5, 0.75])
+        axial_potential = [field.potential_at_point([0.0, 0.0, z_]) for z_ in [0.25, 0.5, 0.75]]
+
+        assert np.allclose(axial_potential, -5, rtol=1e-4)
+
+
+
 class TestFlatEinzelLens(unittest.TestCase):
 
     def setUp(self):

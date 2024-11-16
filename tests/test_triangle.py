@@ -114,6 +114,36 @@ class TestTriangle(unittest.TestCase):
         for k in range_:
             target = np.array([k, k, 0.5])
             assert np.isclose(B.potential_triangle(v0, v1, v2, target), potential_exact_integrated(v0, v1, v2, target), atol=0.0, rtol=1e-9)
+    
+    def test_potential_triangle_edge_cases(self):
+        edge_cases = [
+            # Note that the target lies in the same plane
+            # and in such a way that it's between the y-axis limits of the triangle    
+            (-3, -0.5, 2.0, 1.0, 1.0, 0.0),
+            # Note that the target lies in the same plane
+            # and in such a way that it's between the y-axis limits of the triangle    
+            (-3, -0.5, 2.0, 1.0, 1.0, 0.001),
+            
+            # Target point just outside the left edge of the triangle 
+            (-1, -0.5, 4.0, 4.0, 1.5, 0.0),
+            # Target point just outside the right edge of the triangle 
+            (-2, -0.5, 2.5, 1.0, 1.0, 0.0),
+            # Target point 'under' the triangle at the right side
+            (-3, -0.5, 1, 4.25, 1.0, 0.0),
+            # Target point 'under' the triangle at the left side
+            (1.0, -0.5, 1.0, -2.5, 2.0, 0.0)]
+        
+        for (x0, y0, a, b, c, z) in edge_cases:
+            v0, v1, v2 = np.array([
+                [x0, y0, 0.],
+                [x0 + a, y0, 0.],
+                [x0 + b, y0 + c, 0.]])
+            
+            target = np.array([0., 0., z])
+            correct = potential_exact_integrated(v0, v1, v2, target)
+            approx = B.potential_triangle(v0, v1, v2, target)
+            assert np.isclose(correct, approx)
+
 
     def test_derivative_x_quadrants(self):
         def test(a, b, c, z0):
@@ -194,7 +224,37 @@ class TestTriangle(unittest.TestCase):
             correct = flux_exact_integrated(v0, v1, v2, target, normal)
             approx = B.flux_triangle(v0, v1, v2, target, normal)
             assert np.isclose(correct, approx)
-
+    
+    def test_flux_triangle_edge_cases(self):
+        edge_cases = [
+            # Note that the target lies in the same plane
+            # and in such a way that it's between the y-axis limits of the triangle    
+            (-3, -0.5, 2.0, 1.0, 1.0, 0.0),
+            # Note that the target lies in the same plane
+            # and in such a way that it's between the y-axis limits of the triangle    
+            (-3, -0.5, 2.0, 1.0, 1.0, 0.001),
+            
+            # Target point just outside the left edge of the triangle 
+            (-1, -0.5, 4.0, 4.0, 1.5, 0.0),
+            # Target point just outside the right edge of the triangle 
+            (-2, -0.5, 2.5, 1.0, 1.0, 0.0),
+            # Target point 'under' the triangle at the right side
+            (-3, -0.5, 1, 4.25, 1.0, 0.0),
+            # Target point 'under' the triangle at the left side
+            (1.0, -0.5, 1.0, -2.5, 2.0, 0.0)]
+        
+        normal = np.array([1., 1., 1.])
+    
+        for (x0, y0, a, b, c, z) in edge_cases:
+            v0, v1, v2 = np.array([
+                [x0, y0, 0.],
+                [x0 + a, y0, 0.],
+                [x0 + b, y0 + c, 0.]])
+            
+            target = np.array([0., 0., z])
+            correct = flux_exact_integrated(v0, v1, v2, target, normal)
+            approx = B.flux_triangle(v0, v1, v2, target, normal)
+            assert np.isclose(correct, approx)
     
     def test_pot_one_target_over_v0(self):
         target = np.array([0., 0., -5])
