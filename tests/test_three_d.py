@@ -43,6 +43,36 @@ class TestThreeD(unittest.TestCase):
 
         assert np.allclose(axial_potential, -5, rtol=1e-4)
 
+    def test_dohi_meshing(self):
+        rmax = 1.0
+        margin = 0.3
+        extent = rmax-0.1
+
+        t = 0.15 # thickness
+        r = 0.075 # radius
+        st = 0.5  # spacer thickness
+
+        mirror = G.Path.aperture(0.15, r, extent, z=t/2)
+        mirror.name = 'mirror'
+        
+        mirror_line = G.Path.line([0., 0., 0.], [r, 0., 0.])
+        mirror_line.name = 'mirror'
+
+        lens = G.Path.aperture(0.15, r, extent, z=t + st + t/2)
+        lens.name = 'lens'
+        
+        ground = G.Path.aperture(0.15, r, extent, z=t+st+t+st+t/2)
+        ground.name = 'ground'
+    
+        boundary = G.Path.line([0., 0., 1.75], [rmax, 0., 1.75]) \
+            .line_to([rmax, 0., -0.3]).line_to([0., 0., -0.3])
+        boundary.name = 'boundary'
+        
+        geom = mirror+mirror_line+lens+ground+boundary
+        geom = geom.revolve_z()
+        geom.mesh(mesh_size_factor=4)
+
+
 
 
 class TestFlatEinzelLens(unittest.TestCase):
