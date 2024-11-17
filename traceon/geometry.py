@@ -20,8 +20,15 @@ from .mesher import GeometricObject, _mesh, Mesh
 
 __pdoc__ = {}
 __pdoc__['discretize_path'] = False
-__pdoc__['Path.__call__'] = True
 __pdoc__['Path.__rshift__'] = True
+__pdoc__['Path.__add__'] = True
+__pdoc__['Path.__call__'] = True
+__pdoc__['PathCollection.__add__'] = True
+__pdoc__['PathCollection.__iadd__'] = True
+__pdoc__['Surface.__add__'] = True
+__pdoc__['SurfaceCollection.__add__'] = True
+__pdoc__['SurfaceCollection.__iadd__'] = True
+__pdoc__['Surface.__call__'] = True
 
 
 def _points_close(p1, p2, tolerance=1e-8):
@@ -149,7 +156,8 @@ class Path(GeometricObject):
             Function taking three dimensional points and returning three dimensional points.
 
         Returns
-        ---------------------------
+        ---------------------------      
+
         Path"""
         return Path(lambda u: fun(self(u)), self.path_length, self.breakpoints, name=self.name)
      
@@ -684,7 +692,8 @@ class Path(GeometricObject):
             return PathCollection([self] + [other.paths])
      
     def mesh(self, mesh_size=None, mesh_size_factor=None, higher_order=False, name=None):
-        """Mesh the path, so it can be used in the BEM solver.
+        """Mesh the path, so it can be used in the BEM solver. The result of meshing a path
+        are (possibly curved) line elements.
 
         Parameters
         --------------------------
@@ -700,10 +709,12 @@ class Path(GeometricObject):
             produces curved line elements (determined by 4 points on
             each curved element). The BEM solver supports higher order
             elements in radial symmetric geometries only.
-
+        name: str
+            Assign this name to the mesh, instead of the name value assinged to Surface.name
+        
         Returns
         ----------------------------
-        Path"""
+        `traceon.mesher.Mesh`"""
         u = discretize_path(self.path_length, self.breakpoints, mesh_size, mesh_size_factor, N_factor=3 if higher_order else 1)
         
         N = len(u) 
@@ -762,6 +773,7 @@ class PathCollection(GeometricObject):
         return PathCollection([p.map_points(fun) for p in self.paths])
      
     def mesh(self, mesh_size=None, mesh_size_factor=None, higher_order=False, name=None):
+        """See `Path.mesh`"""
         mesh = Mesh()
         
         name = self.name if name is None else name
@@ -780,6 +792,7 @@ class PathCollection(GeometricObject):
         return SurfaceCollection(surfaces)
     
     def __add__(self, other):
+        """Allows you to combine paths and path collection using the + operator (path1 + path2)."""
         if not isinstance(other, Path) and not isinstance(other, PathCollection):
             return NotImplemented
         
@@ -789,6 +802,7 @@ class PathCollection(GeometricObject):
             return PathCollection(self.paths+other.paths)
       
     def __iadd__(self, other):
+        """Allows you to add paths to the collection using the += operator."""
         assert isinstance(other, PathCollection) or isinstance(other, Path)
 
         if isinstance(other, Path):
@@ -824,9 +838,7 @@ class Surface(GeometricObject):
         self.breakpoints2 = breakpoints2
         self.name = name
 
-    def sections(self): 
-        # Iterate over the sections defined by
-        # the breakpoints
+    def _sections(self): 
         b1 = [0.] + self.breakpoints1 + [self.path_length1]
         b2 = [0.] + self.breakpoints2 + [self.path_length2]
 
@@ -837,6 +849,18 @@ class Surface(GeometricObject):
                 yield Surface(fun, u1-u0, v1-v0, [], [])
        
     def __call__(self, u, v):
+        """Evaluate the surface at point (u, v). Returns a three dimensional point.
+
+        Parameters
+        ------------------------------
+        u: float
+            First coordinate, should be 0 <= u <= self.path_length1
+        v: float
+            Second coordinate, should be 0 <= v <= self.path_length2
+
+        Returns
+        ----------------------------
+        (3,) np.ndarray of double"""
         return self.fun(u, v)
 
     def map_points(self, fun):
@@ -846,6 +870,20 @@ class Surface(GeometricObject):
      
     @staticmethod
     def spanned_by_paths(path1, path2):
+        """Create a surface by considering the area between two paths. Imagine two points
+        progressing along the path simultaneously and at each step drawing a straight line
+        between the points.
+
+        Parameters
+        --------------------------
+        path1: Path
+            The path characterizing one edge of the surface
+        path2: Path
+            The path characterizing the opposite edge of the surface
+
+        Returns
+        --------------------------
+        Surface"""
         length1 = max(path1.path_length, path2.path_length)
         
         length_start = np.linalg.norm(path1.starting_point() - path2.starting_point())
@@ -864,6 +902,17 @@ class Surface(GeometricObject):
 
     @staticmethod
     def sphere(radius):
+        """Create a sphere with the given radius, the center of the sphere is
+        at the origin, but can easily be moved by using the `mesher.GeometricObject.move` method.
+
+        Parameters
+        ------------------------------
+        radius: float
+            The radius of the sphere
+
+        Returns
+        -----------------------------
+        Surface representing the sphere"""
         
         length1 = 2*pi*radius
         length2 = pi*radius
@@ -881,6 +930,19 @@ class Surface(GeometricObject):
 
     @staticmethod
     def box(p0, p1):
+        """Create a box with the two given points at opposite corners.
+
+        Parameters
+        -------------------------------
+        p0: (3,) np.ndarray double
+            One corner of the box
+        p1: (3,) np.ndarray double
+            The opposite corner of the box
+
+        Returns
+        -------------------------------
+        Surface representing the box"""
+
         x0, y0, z0 = p0
         x1, y1, z1 = p1
 
@@ -905,6 +967,23 @@ class Surface(GeometricObject):
 
     @staticmethod
     def from_boundary_paths(p1, p2, p3, p4):
+        """Create a surface with the four given paths as the boundary.
+
+        Parameters
+        ----------------------------------
+        p1: Path
+            First edge of the surface
+        p2: Path
+            Second edge of the surface
+        p3: Path
+            Third edge of the surface
+        p4: Path
+            Fourth edge of the surface
+
+        Returns
+        ------------------------------------
+        Surface with the four giving paths as the boundary
+        """
         path_length_p1_and_p3 = (p1.path_length + p3.path_length)/2
         path_length_p2_and_p4 = (p2.path_length + p4.path_length)/2
 
@@ -1056,6 +1135,7 @@ class Surface(GeometricObject):
         return Path.aperture(height, radius, extent, z=z).revolve_z()
      
     def __add__(self, other):
+        """Allows you to combine surfaces into a `SurfaceCollection` using the + operator (surface1 + surface2)."""
         if not isinstance(other, Surface) and not isinstance(other, SurfaceCollection):
             return NotImplemented
 
@@ -1065,7 +1145,25 @@ class Surface(GeometricObject):
             return SurfaceCollection([self] + other.surfaces)
      
     def mesh(self, mesh_size=None, mesh_size_factor=None, name=None):
-          
+        """Mesh the surface, so it can be used in the BEM solver. The result of meshing
+        a surface are triangles.
+
+        Parameters
+        --------------------------
+        mesh_size: float
+            Determines amount of elements in the mesh. A smaller
+            mesh size leads to more elements.
+        mesh_size_factor: float
+            Alternative way to specify the mesh size, which scales
+            with the dimensions of the geometry, and therefore more
+            easily translates between different geometries.
+        name: str
+            Assign this name to the mesh, instead of the name value assinged to Surface.name
+        
+        Returns
+        ----------------------------
+        `traceon.mesher.Mesh`"""
+         
         if mesh_size is None:
             path_length = min(self.path_length1, self.path_length2)
              
@@ -1105,6 +1203,7 @@ class SurfaceCollection(GeometricObject):
         return SurfaceCollection([s.map_points(fun) for s in self.surfaces])
      
     def mesh(self, mesh_size=None, mesh_size_factor=None, name=None):
+        """See `Surface.mesh`"""
         mesh = Mesh()
         
         name = self.name if name is None else name
@@ -1115,6 +1214,7 @@ class SurfaceCollection(GeometricObject):
         return mesh
      
     def __add__(self, other):
+        """Allows you to combine surfaces into a `SurfaceCollection` using the + operator (surface1 + surface2)."""
         if not isinstance(other, Surface) and not isinstance(other, SurfaceCollection):
             return NotImplemented
               
@@ -1124,6 +1224,7 @@ class SurfaceCollection(GeometricObject):
             return SurfaceCollection(self.surfaces+other.surfaces)
      
     def __iadd__(self, other):
+        """Allows you to add surfaces to the collection using the += operator."""
         assert isinstance(other, SurfaceCollection) or isinstance(other, Surface)
         
         if isinstance(other, Surface):

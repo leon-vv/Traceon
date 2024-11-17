@@ -15,7 +15,7 @@ from .logging import log_debug
 __pdoc__ = {}
 __pdoc__['PointsWithQuads'] = False
 __pdoc__['PointStack'] = False
-__pdoc__['__add__'] = True
+__pdoc__['Mesh.__add__'] = True
 
 
 class GeometricObject(ABC):
@@ -714,7 +714,7 @@ def _mesh_subsections_to_quads(surface, mesh_size, start_depth):
     all_quads = []
     points: list[np.ndarray] = []
     
-    for s in surface.sections():
+    for s in surface._sections():
         quads: list[tuple[int, int, int, int, int]] = []
         pstack = PointStack(s, points=points)
         
