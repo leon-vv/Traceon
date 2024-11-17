@@ -98,7 +98,7 @@ _, pos_derivs = tracer(start_pos, start_vel)
 print(f'Trace took {(time.time()-st)*1000:.1f} ms')
 intersection = T.xy_plane_intersection(pos_derivs, z0)
 
-print("(x,y,z)-displacements: \n")
+print("\n (x,y,z)-displacements:")
 print(f"ground: {ground_elec_displacement}")
 print(f"lens: {tuning_elec_displacement}")
 print(f"mirror: {mirror_displacement} \n")
