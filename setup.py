@@ -34,7 +34,7 @@ setup(
     author='Léon van Velzen',
     author_email='leonvanvelzen@protonmail.com',
     keywords=['boundary element method', 'BEM', 'electrostatic', 'electromagnetic', 'electron microscope', 'electron', 'tracing', 'particle', 'tracer', 'electron optics'],
-    license='AGPLv3',
+    license='MPL 2.0',
     ext_modules=[backend_extension],
     packages=['traceon', 'traceon.backend'],
     package_data={
