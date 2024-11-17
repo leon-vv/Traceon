@@ -16,6 +16,65 @@ import traceon.logging as logging
 
 logging.set_log_level(logging.LogLevel.SILENT)
 
+class TestThreeD(unittest.TestCase):
+    def test_revolved_rectangle(self):
+        #Define surface
+        THICKNESS = 1
+        path = G.Path.line([0.0, 0.0, 0.0], [0.0, 0.0,THICKNESS])\
+            .line_to([1., 0.0, THICKNESS])\
+            .line_to([1., 0.0, 0.0])\
+            .close()
+
+        surf = path.revolve_z()
+        surf.name = 'revolvedrectangle'
+
+        #create mesh
+        mesh = surf.mesh(mesh_size_factor=12)
+        
+        #add excitation
+        excitation = E.Excitation(mesh, E.Symmetry.THREE_D)
+        excitation.add_voltage(revolvedrectangle = -5.)
+
+        #try solving
+        field = S.solve_direct(excitation)
+
+        z = np.array([0.25, 0.5, 0.75])
+        axial_potential = [field.potential_at_point([0.0, 0.0, z_]) for z_ in [0.25, 0.5, 0.75]]
+
+        assert np.allclose(axial_potential, -5, rtol=1e-4)
+
+    def test_dohi_meshing(self):
+        rmax = 1.0
+        margin = 0.3
+        extent = rmax-0.1
+
+        t = 0.15 # thickness
+        r = 0.075 # radius
+        st = 0.5  # spacer thickness
+
+        mirror = G.Path.aperture(0.15, r, extent, z=t/2)
+        mirror.name = 'mirror'
+        
+        mirror_line = G.Path.line([0., 0., 0.], [r, 0., 0.])
+        mirror_line.name = 'mirror'
+
+        lens = G.Path.aperture(0.15, r, extent, z=t + st + t/2)
+        lens.name = 'lens'
+        
+        ground = G.Path.aperture(0.15, r, extent, z=t+st+t+st+t/2)
+        ground.name = 'ground'
+    
+        boundary = G.Path.line([0., 0., 1.75], [rmax, 0., 1.75]) \
+            .line_to([rmax, 0., -0.3]).line_to([0., 0., -0.3])
+        boundary.name = 'boundary'
+        
+        geom = mirror+mirror_line+lens+ground+boundary
+        geom = geom.revolve_z()
+        geom.mesh(mesh_size_factor=4)
+
+
+
+
 class TestFlatEinzelLens(unittest.TestCase):
 
     def setUp(self):

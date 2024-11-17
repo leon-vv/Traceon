@@ -42,7 +42,7 @@ double _potential_integrand(double y, void *args_p) {
 		// The asinh(xmax/denom) - asinh(xmin/denom) is numerical 
 		// unstable when denom is small. Taking the taylor expansion
 		// of denom -> 0 we find
-		return log(xmax) - log(xmin);
+		return log(fabs(xmax)) - log(fabs(xmin));
 	}
     return asinh(xmax/denom) - asinh(xmin/denom);
 }
