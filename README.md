@@ -10,20 +10,16 @@ The core of Traceon is completely free to use and open source. There is a commer
 
 [Examples](https://github.com/leon-vv/Traceon/tree/main/examples)
 
+[API documentation v0.7.0](https://traceon.org/docs/v0.7.0/index.html)
+
 [API documentation v0.6.0](https://traceon.org/docs/v0.6.0/index.html)
-
-[API documentation v0.5.0](https://traceon.org/docs/v0.5.0/index.html)
-
-[API documentation v0.4.0](https://traceon.org/docs/v0.4.0/index.html)
-
-[API documentation v0.3.1](https://traceon.org/docs/v0.3.1/index.html)
 
 ## Citation
 
 Please cite the software as follows:
 
 ```
-L.B. van Velzen. Traceon software (version 0.6.0). 2023. https://doi.org/10.5281/zenodo.11528404
+L.B. van Velzen. Traceon software (version 0.7.0). 2024. https://doi.org/10.5281/zenodo.14176070
 ```
 
 ## Installation

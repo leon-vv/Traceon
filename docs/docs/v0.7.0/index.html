@@ -4,8 +4,8 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, minimum-scale=1">
 <meta name="generator" content="pdoc3 0.11.1">
-<title>traceon.focus API documentation</title>
-<meta name="description" content="Module containing a single function to find the focus of a beam of electron trajecories.">
+<title>traceon API documentation</title>
+<meta name="description" content="Welcome! …">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/10up-sanitize.css/13.0.0/sanitize.min.css" integrity="sha512-y1dtMcuvtTMJc1yPgEqF0ZjQbhnc/bFhyvIyVNb9Zk5mIGtqVaAB1Ttl28su8AvFMOY0EwRbAe+HCLqj6W7/KA==" crossorigin>
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/10up-sanitize.css/13.0.0/typography.min.css" integrity="sha512-Y1DYSb995BAfxobCkKepB1BqJJTPrOp3zPL74AWFugHHmmdcvO+C48WLrUOlhGMc0QG7AE3f7gmvvcrmX2fDoA==" crossorigin>
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/default.min.css" crossorigin>
@@ -24,51 +24,109 @@ hljs.highlightAll();
 <main>
 <article id="content">
 <header>
-<h1 class="title">Module <code>traceon.focus</code></h1>
+<h1 class="title">Package <code>traceon</code></h1>
 </header>
 <section id="section-intro">
-<p>Module containing a single function to find the focus of a beam of electron trajecories.</p>
+<p>Welcome!</p>
+<p>Traceon is a general software package used for numerical electron optics. Its main feature is the implementation of the Boundary Element Method (BEM) to quickly calculate the surface charge distribution.
+The program supports both radial symmetry and general three-dimensional geometries.
+Electron tracing can be done very quickly using accurate radial series interpolation in both geometries.
+The electron trajectories obtained can help determine the aberrations of the optical components under study.</p>
+<p>If you have any issues using the package, please open an issue on the <a href="https://github.com/leon-vv/Traceon">Traceon Github page</a>.</p>
+<p>The software is currently distributed under the <code>MPL 2.0</code> license. </p>
+<h1 id="usage">Usage</h1>
+<p>In general, one starts with the <code><a title="traceon.geometry" href="geometry.html">traceon.geometry</a></code> module to create a mesh. For the BEM only the boundary of
+electrodes needs to be meshed. So in 2D (radial symmetry) the mesh consists of line elements while in 3D the
+mesh consists of triangles.
+Next, one specifies a suitable excitation (voltages) using the <code><a title="traceon.excitation" href="excitation.html">traceon.excitation</a></code> module.
+The excited geometry can then be passed to the <code><a title="traceon.solver.solve_direct" href="solver.html#traceon.solver.solve_direct">solve_direct()</a></code> function, which computes the resulting field.
+The field can be passed to the <code><a title="traceon.tracing.Tracer" href="tracing.html#traceon.tracing.Tracer">Tracer</a></code> class to compute the trajectory of electrons moving through the field.</p>
+<h1 id="validations">Validations</h1>
+<p>To make sure the software is correct, various problems from the literature with known solutions are analyzed using the Traceon software and the
+results compared. In this manner it has been shown that the software produces very accurate results very quickly. The validations can be found in the
+<a href="https://github.com/leon-vv/Traceon/tree/main/validation">/validations</a> directory in the Github project. After installing Traceon, the validations can be
+executed as follows:</p>
+<pre><code class="language-bash">    git clone https://github.com/leon-vv/Traceon
+    cd traceon
+    python3 ./validation/edwards2007.py --help
+</code></pre>
+<h1 id="units">Units</h1>
+<p>SI units are used throughout the codebase. Except for charge, which is stored as <span><span class="MathJax_Preview"> \frac{ \sigma}{ \epsilon_0} </span><script type="math/tex"> \frac{ \sigma}{ \epsilon_0} </script></span>.</p>
 </section>
 <section>
-</section>
-<section>
-</section>
-<section>
-<h2 class="section-title" id="header-functions">Functions</h2>
+<h2 class="section-title" id="header-submodules">Sub-modules</h2>
 <dl>
-<dt id="traceon.focus.focus_position"><code class="name flex">
-<span>def <span class="ident">focus_position</span></span>(<span>positions)</span>
-</code></dt>
+<dt><code class="name"><a title="traceon.excitation" href="excitation.html">traceon.excitation</a></code></dt>
 <dd>
-<div class="desc"><p>Find the focus of the given trajectories (which are returned from <code><a title="traceon.tracing.Tracer.__call__" href="tracing.html#traceon.tracing.Tracer.__call__">Tracer.__call__()</a></code>).
-The focus is found using a least square method by considering the final positions and velocities of
-the given trajectories and linearly extending the trajectories backwards.</p>
-<h2 id="parameters">Parameters</h2>
-<dl>
-<dt><strong><code>positions</code></strong> :&ensp;<code>iterable</code> of <code>(N,6) np.ndarray float64</code></dt>
-<dd>Trajectories of electrons, as returned by <code><a title="traceon.tracing.Tracer.__call__" href="tracing.html#traceon.tracing.Tracer.__call__">Tracer.__call__()</a></code></dd>
-</dl>
-<h2 id="returns">Returns</h2>
-<p>(3,) np.ndarray of float64, representing the position of the focus</p></div>
+<div class="desc"><p>The excitation module allows to specify the excitation (or element types) of the different physical groups (electrodes)
+created with the …</p></div>
+</dd>
+<dt><code class="name"><a title="traceon.focus" href="focus.html">traceon.focus</a></code></dt>
+<dd>
+<div class="desc"><p>Module containing a single function to find the focus of a beam of electron trajecories.</p></div>
+</dd>
+<dt><code class="name"><a title="traceon.geometry" href="geometry.html">traceon.geometry</a></code></dt>
+<dd>
+<div class="desc"><p>The geometry module allows the creation of general meshes in 2D and 3D.
+The builtin mesher uses so called <em>parametric</em> meshes, meaning
+that for any …</p></div>
+</dd>
+<dt><code class="name"><a title="traceon.interpolation" href="interpolation.html">traceon.interpolation</a></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt><code class="name"><a title="traceon.logging" href="logging.html">traceon.logging</a></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt><code class="name"><a title="traceon.mesher" href="mesher.html">traceon.mesher</a></code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt><code class="name"><a title="traceon.plotting" href="plotting.html">traceon.plotting</a></code></dt>
+<dd>
+<div class="desc"><p>The <code><a title="traceon.plotting" href="plotting.html">traceon.plotting</a></code> module uses the <code>vedo</code> plotting library to provide some convenience functions
+to show the line and triangle meshes generated by …</p></div>
+</dd>
+<dt><code class="name"><a title="traceon.solver" href="solver.html">traceon.solver</a></code></dt>
+<dd>
+<div class="desc"><p>The solver module uses the Boundary Element Method (BEM) to compute the surface charge distribution of a given
+geometry and excitation. Once the …</p></div>
+</dd>
+<dt><code class="name"><a title="traceon.tracing" href="tracing.html">traceon.tracing</a></code></dt>
+<dd>
+<div class="desc"><p>The tracing module allows to trace electrons within any field type returned by the <code><a title="traceon.solver" href="solver.html">traceon.solver</a></code> module. The tracing algorithm
+used is RK45 with …</p></div>
 </dd>
 </dl>
+</section>
+<section>
+</section>
+<section>
 </section>
 <section>
 </section>
 </article>
 <nav id="sidebar">
 <div class="toc">
-<ul></ul>
+<ul>
+<li><a href="#usage">Usage</a></li>
+<li><a href="#validations">Validations</a></li>
+<li><a href="#units">Units</a></li>
+</ul>
 </div>
 <ul id="index">
-<li><h3>Super-module</h3>
+<li><h3><a href="#header-submodules">Sub-modules</a></h3>
 <ul>
-<li><code><a title="traceon" href="index.html">traceon</a></code></li>
-</ul>
-</li>
-<li><h3><a href="#header-functions">Functions</a></h3>
-<ul class="">
-<li><code><a title="traceon.focus.focus_position" href="#traceon.focus.focus_position">focus_position</a></code></li>
+<li><code><a title="traceon.excitation" href="excitation.html">traceon.excitation</a></code></li>
+<li><code><a title="traceon.focus" href="focus.html">traceon.focus</a></code></li>
+<li><code><a title="traceon.geometry" href="geometry.html">traceon.geometry</a></code></li>
+<li><code><a title="traceon.interpolation" href="interpolation.html">traceon.interpolation</a></code></li>
+<li><code><a title="traceon.logging" href="logging.html">traceon.logging</a></code></li>
+<li><code><a title="traceon.mesher" href="mesher.html">traceon.mesher</a></code></li>
+<li><code><a title="traceon.plotting" href="plotting.html">traceon.plotting</a></code></li>
+<li><code><a title="traceon.solver" href="solver.html">traceon.solver</a></code></li>
+<li><code><a title="traceon.tracing" href="tracing.html">traceon.tracing</a></code></li>
 </ul>
 </li>
 </ul>
