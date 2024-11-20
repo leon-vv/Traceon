@@ -57,6 +57,7 @@ mesh = electrode_mesh + defl_mesh
 
 # Show the generated triangle mesh.
 P.plot_mesh(mesh, ground='green', deflector_positive='red', deflector_negative='blue', show_normals=True)
+P.show()
 
 excitation = E.Excitation(mesh, E.Symmetry.THREE_D)
 

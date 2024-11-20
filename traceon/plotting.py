@@ -8,6 +8,142 @@ import vedo.shapes
 
 from . import backend
 
+_current_figures = []
+
+class Figure:
+    def __init__(self, show_legend=True):
+        self.show_legend = show_legend
+        self.is_2d = True
+        self.legend_entries = []
+        self.to_plot = []
+     
+    def plot_mesh(self, mesh, show_normals=False, **colors):
+        """Plot mesh using the Vedo library. Optionally showing normal vectors.
+
+        Parameters
+        ---------------------
+        show_normals: bool
+            Whether to show the normal vectors at every element
+        show_legend: bool
+            Whether to show the legend
+        colors: dict of (string, string)
+            Use keyword arguments to specify colors, for example `plot_mesh(mesh, lens='blue', ground='green')`
+        """
+        if len(mesh.triangles):
+            meshes, normals = _get_vedo_triangles_and_normals(mesh, **colors)
+            self.legend_entries.extend(meshes)
+            self.to_plot.append(meshes)
+        elif len(mesh.lines):
+            lines, normals = _get_vedo_lines_and_normals(mesh, **colors)
+            self.legend_entries.extend(lines)
+            self.to_plot.append(lines)
+            self.to_plot.append(lines)
+        else:
+            raise RuntimeError("Trying to plot empty mesh.")
+        
+        if show_normals:
+            self.to_plot.append(normals)
+        
+        self.is_2d &= mesh.is_2d()
+
+    def plot_equipotential_lines(self, field, surface, N0=75, N1=75, color_map='coolwarm', N_isolines=40, isolines_width=1, isolines_color='#444444'):
+        grid = _get_vedo_grid(field, surface, N0, N1)
+        isolines = grid.isolines(n=N_isolines).color(isolines_color).lw(isolines_width) # type: ignore
+        grid.cmap(color_map)
+        self.to_plot.append(grid)
+        self.to_plot.append(isolines)
+    
+    def plot_trajectories(self, trajectories, 
+                xmin=None, xmax=None,
+                ymin=None, ymax=None,
+                zmin=None, zmax=None,
+                color='#00AA00', line_width=1):
+        for t in trajectories:
+            if not len(t):
+                continue
+            
+            mask = np.full(len(t), True)
+
+            if xmin is not None:
+                mask &= t[:, 0] >= xmin
+            if xmax is not None:
+                mask &= t[:, 0] <= xmax
+            if ymin is not None:
+                mask &= t[:, 1] >= ymin
+            if ymax is not None:
+                mask &= t[:, 1] <= ymax
+            if zmin is not None:
+                mask &= t[:, 2] >= zmin
+            if zmax is not None:
+                mask &= t[:, 2] <= zmax
+            
+            t = t[mask]
+            
+            if not len(t):
+                continue
+            
+            lines = vedo.shapes.Lines(start_pts=t[:-1, :3], end_pts=t[1:, :3], c=color, lw=line_width)
+            self.to_plot.append(lines)
+    
+    def show(self):
+        plotter = vedo.Plotter() 
+
+        for t in self.to_plot:
+            plotter += t
+        
+        if self.show_legend:
+            lb = vedo.LegendBox(self.legend_entries)
+            plotter += lb
+        
+        if self.is_2d:
+            plotter.add_global_axes(dict(number_of_divisions=[12, 0, 12], zxgrid=True, xaxis_rotation=90))
+        else:
+            plotter.add_global_axes(dict(number_of_divisions=[10, 10, 10]))
+        
+        plotter.look_at(plane='xz')
+        plotter.show()
+
+def new_figure(*args, **kwargs):
+    global _current_figures
+    f = Figure(*args, **kwargs)
+    _current_figures.append(f)
+    return f
+
+def get_current_figure() -> Figure:
+    if len(_current_figures):
+        return _current_figures[-1]
+    
+    return new_figure()
+
+def plot_mesh(*args, **kwargs):
+    get_current_figure().plot_mesh(*args, **kwargs)
+
+def plot_equipotential_lines(*args, **kwargs):
+    get_current_figure().plot_equipotential_lines(*args, **kwargs)
+
+def plot_trajectories(*args, **kwargs):
+    get_current_figure().plot_trajectories(*args, **kwargs)
+
+def show():
+    global _current_figures
+        
+    for f in _current_figures:
+        f.show()
+
+    _current_figures = []
+
+def _get_vedo_grid(field, surface, N0, N1):
+    x = np.linspace(0, surface.path_length1, N0)
+    y = np.linspace(0, surface.path_length2, N1)
+
+    grid = vedo.Grid(s=(x, y))
+    points = np.array([surface(x_, y_) for x_, y_, _ in grid.vertices])
+    grid.vertices = points
+    grid.pointdata['z'] = np.array([field.potential_at_point(p[[0, 2]]) for p in points])
+    grid.lw(0)
+
+    return grid
+    
 def _create_point_to_physical_dict(mesh):
     d = {}
     
@@ -16,91 +152,13 @@ def _create_point_to_physical_dict(mesh):
             for element_index in v:
                 for p in elements[element_index]:
                     d[p] = k
-     
     return d
-
-
-def plot_mesh(mesh, show_normals=False, show_legend=True, **colors):
-    """Plot mesh using the Vedo library. Optionally showing normal vectors.
-
-    Parameters
-    ---------------------
-    show_normals: bool
-        Whether to show the normal vectors at every element
-    show_legend: bool
-        Whether to show the legend
-    colors: dict of (string, string)
-        Use keyword arguments to specify colors, for example `plot_mesh(mesh, lens='blue', ground='green')`
-    """
-    plotter = vedo.Plotter()
-    points_to_physical = _create_point_to_physical_dict(mesh)
-    legend_entries = []
-    
-    if len(mesh.triangles):
-        meshes = _plot_triangle_mesh(mesh, plotter, points_to_physical, show_normals=show_normals, **colors)
-        legend_entries.extend(meshes)
-    
-    if len(mesh.lines):
-        lines = _plot_line_mesh(mesh, plotter, points_to_physical, show_normals=show_normals, **colors)
-        legend_entries.extend(lines)
-
-    if show_legend:
-        lb = vedo.LegendBox(legend_entries)
-        plotter += lb
-
-    if mesh.is_2d():
-        plotter.add_global_axes(dict(number_of_divisions=[12, 0, 12], zxgrid=True, xaxis_rotation=90))
-    else:
-        plotter.add_global_axes(dict(number_of_divisions=[10, 10, 10]))
-    
-    plotter.look_at(plane='xz')
-    plotter.show()
-
-def plot_equipotential_lines(field, surface, trajectories, N0=200, N1=200):
-    x = np.linspace(0, surface.path_length1, N0)
-    y = np.linspace(0, surface.path_length2, N1)
-
-    grid = vedo.Grid(s=(x, y))
-    points = np.array([surface(x_, y_) for x_, y_, _ in grid.vertices])
-
-    grid.vertices = points
-
-    grid.pointdata['z'] = np.array([field.potential_at_point(p[[0, 2]]) for p in points])
-    print(grid.pointdata['z'])
-
-    grid.lw(0)
-    grid.cmap('coolwarm')
-    isolines = grid.isolines(n=40).color("#444444").lw(1)
-
-    is_2d = np.all(points[:, 1] == 0.0)
-    print(is_2d)
-    
-    plotter = vedo.Plotter()
-    
-    #if is_2d:
-    #    plotter.add_global_axes(dict(number_of_divisions=[12, 0, 12], zxgrid=True, xaxis_rotation=90))
-    #else:
-    #    plotter.add_global_axes(dict(number_of_divisions=[10, 10, 10]))
-
-    for t in trajectories:
-        lines = vedo.shapes.Lines(start_pts=t[:-1, :3], end_pts=t[1:, :3], c='#00AA00')
-        plotter += lines
-
-
-    
-    plotter += grid
-    plotter += isolines
-    
-    plotter.look_at(plane='xz')
-    plotter.show()
-
-
-def _plot_triangle_mesh(mesh, plotter, points_to_physical, show_normals=False, **phys_colors):
+def _get_vedo_triangles_and_normals(mesh, **phys_colors):
     triangles = mesh.triangles[:, :3]
     normals = np.array([backend.normal_3d(1/3, 1/3, mesh.points[t]) for t in triangles])
     
     colors = np.full(len(triangles), '#CCCCCC')
-    dict_ = points_to_physical
+    dict_ = _create_point_to_physical_dict(mesh)
     
     for i, (A, B, C) in enumerate(triangles):
         if A in dict_ and B in dict_ and C in dict_:
@@ -119,32 +177,30 @@ def _plot_triangle_mesh(mesh, plotter, points_to_physical, show_normals=False, *
         if len(key):
             vm.legend(key[0])
         
-        plotter += vm
         meshes.append(vm)
     
-    if show_normals:
-        start_to_end = np.zeros( (len(triangles), 6) )
-        for i, t in enumerate(triangles):
-            v1, v2, v3 = mesh.points[t]
-            middle = (v1 + v2 + v3)/3
-            area = 1/2*np.linalg.norm(np.cross(v2-v1, v3-v1))
-            side_length = sqrt( (4*area) / sqrt(3) ) # Equilateral triangle, side length with equal area
-            normal = 0.75*side_length*normals[i]
-            start_to_end[i] = [*middle, *(middle+normal)]
-         
-        arrows = vedo.shapes.Arrows(start_to_end[:, :3], start_to_end[:, 3:], res=20, c='black')
-        plotter.add(arrows)
+    start_to_end = np.zeros( (len(triangles), 6) )
+    for i, t in enumerate(triangles):
+        v1, v2, v3 = mesh.points[t]
+        middle = (v1 + v2 + v3)/3
+        area = 1/2*np.linalg.norm(np.cross(v2-v1, v3-v1))
+        side_length = sqrt( (4*area) / sqrt(3) ) # Equilateral triangle, side length with equal area
+        normal = 0.75*side_length*normals[i]
+        start_to_end[i] = [*middle, *(middle+normal)]
+        
+    arrows = vedo.shapes.Arrows(start_to_end[:, :3], start_to_end[:, 3:], res=20, c='black')
      
-    return meshes
+    return meshes, arrows
 
 
-def _plot_line_mesh(mesh, plotter, points_to_physical, show_normals=False, **phys_colors):
+
+def _get_vedo_lines_and_normals(mesh, **phys_colors):
     lines = mesh.lines[:, :2]
     start = np.zeros( (len(lines), 3) )
     end = np.zeros( (len(lines), 3) )
     colors_ = np.zeros(len(lines), dtype=object) 
     normals = []
-    dict_ = points_to_physical
+    dict_ = _create_point_to_physical_dict(mesh)
     points = mesh.points 
      
     for i, (A, B) in enumerate(lines):
@@ -173,21 +229,18 @@ def _plot_line_mesh(mesh, plotter, points_to_physical, show_normals=False, **phy
         if len(key):
             l.legend(key[0])
          
-        plotter += l
         vedo_lines.append(l)
      
-    if show_normals:
-        arrows_to_plot = np.zeros( (len(normals), 6) )
-        
-        for i, (v1, v2) in enumerate(zip(start, end)):
-            middle = (v1 + v2)/2
-            length = np.linalg.norm(v2-v1)
-            normal = 3*length*normals[i]
-            arrows_to_plot[i] = [*middle, *(middle+normal)]
-        
-        arrows = vedo.shapes.Arrows(arrows_to_plot[:, :3], arrows_to_plot[:, 3:], c='black')
-        plotter.add(arrows)
-
-    return vedo_lines
+    arrows_to_plot = np.zeros( (len(normals), 6) )
+    
+    for i, (v1, v2) in enumerate(zip(start, end)):
+        middle = (v1 + v2)/2
+        length = np.linalg.norm(v2-v1)
+        normal = 3*length*normals[i]
+        arrows_to_plot[i] = [*middle, *(middle+normal)]
+    
+    arrows = vedo.shapes.Arrows(arrows_to_plot[:, :3], arrows_to_plot[:, 3:], c='black')
+     
+    return vedo_lines, arrows
     
 

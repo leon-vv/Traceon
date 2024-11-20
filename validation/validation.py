@@ -57,6 +57,7 @@ class Validation:
     def plot_geometry(self, MSF, symmetry, higher_order=False, plot_charges=False, plot_normals=False):
         geom = self.create_mesh(MSF, symmetry, higher_order)
         P.plot_mesh(geom, show_normals=plot_normals, **self.plot_colors) 
+        P.show()
     
     def plot_accuracy(self, MSFs, symmetry, higher_order):
         num_lines = []

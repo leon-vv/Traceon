@@ -37,6 +37,7 @@ mesh = (boundary + bottom + middle + top).mesh(mesh_size_factor=45)
  
 # Show the generated mesh, with the given electrode colors.
 P.plot_mesh(mesh, ground='green', lens='blue', show_normals=True)
+P.show()
 
 excitation = E.Excitation(mesh, E.Symmetry.RADIAL)
 
