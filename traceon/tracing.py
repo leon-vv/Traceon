@@ -139,7 +139,7 @@ class Tracer:
         Returns
         -------
         `(times, positions)` which is a tuple of two numpy arrays. `times` is one dimensional and contains the times
-        (in ns) at which the positions have been computed. The `positions` array is two dimensional, `positions[i]` correspond
+        at which the positions have been computed. The `positions` array is two dimensional, `positions[i]` correspond
         to time step `times[i]`. One element of the positions array has shape (6,).
         The first three elements in the `positions[i]` array contain the x,y,z positions.
         The last three elements in `positions[i]` contain the vx,vy,vz velocities.
