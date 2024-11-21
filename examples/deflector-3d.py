@@ -95,6 +95,13 @@ plt.ylabel('z (mm)')
 plt.show()
 
 
+#surface = G.Path.circle_xy(0.0, 0.0, RADIUS/2).move(dz=-0.5).extrude([0, 0, 1.0])
+surface = G.Surface.rectangle_xz(-10*RADIUS, 10*RADIUS, -3*RADIUS, 3*RADIUS)
+
+P.new_figure()
+P.plot_mesh(defl_mesh, deflector_positive='red', deflector_negative='blue')
+P.plot_equipotential_lines(field, surface, N0=100, N1=150)
+P.show()
 
 
 
