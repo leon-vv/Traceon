@@ -102,7 +102,7 @@ triangle_area(double v0[3], double v1[3], double v2[3]) {
 }
 
 EXPORT void
-normal_3d(double alpha, double beta, triangle t, double *normal) {
+normal_3d(triangle t, double *normal) {
 	double x1 = t[0][0], y1 = t[0][1], z1 = t[0][2];
 	double x2 = t[1][0], y2 = t[1][1], z2 = t[1][2];
 	double x3 = t[2][0], y3 = t[2][1], z3 = t[2][2];

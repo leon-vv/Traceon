@@ -103,14 +103,16 @@ current_axial_derivatives_radial(double *derivs_p,
 }
 
 EXPORT double
-potential_radial(double point[2], double* charges, jacobian_buffer_2d jacobian_buffer, position_buffer_2d position_buffer, size_t N_vertices) {
+potential_radial(double point[3], double* charges, jacobian_buffer_2d jacobian_buffer, position_buffer_2d position_buffer, size_t N_vertices) {
 
 	double sum_ = 0.0;  
+	double r0 = norm_2d(point[0], point[1]);
+	double z0 = point[2];
 	
 	for(int i = 0; i < N_vertices; i++) {  
 		for(int k = 0; k < N_QUAD_2D; k++) {
 			double *pos = &position_buffer[i][k][0];
-			double potential = potential_radial_ring(point[0], point[1], pos[0], pos[1], NULL);
+			double potential = potential_radial_ring(r0, z0, pos[0], pos[1], NULL);
 			sum_ += charges[i] * jacobian_buffer[i][k] * potential;
 		}
 	}  
@@ -308,19 +310,24 @@ EXPORT void fill_matrix_radial(double *matrix,
 }
 
 EXPORT double
-potential_radial_derivs(double point[2], double *z_inter, double *coeff_p, size_t N_z) {
+potential_radial_derivs(double point[3], double *z_inter, double *coeff_p, size_t N_z) {
 	
 	double (*coeff)[DERIV_2D_MAX][6] = (double (*)[DERIV_2D_MAX][6]) coeff_p;
-	
-	double r = point[0], z = point[1];
+		
+	double r = norm_2d(point[0], point[1]), z = point[2];
 	double z0 = z_inter[0], zlast = z_inter[N_z-1];
 	
-	if(!(z0 < z && z < zlast)) {
+	if(!(z0 <= z && z <= zlast)) {
 		return 0.0;
 	}
 	
 	double dz = z_inter[1] - z_inter[0];
 	int index = (int) ( (z-z0)/dz );
+	
+	// Guard against roundoff issues 0 <= index < N_z
+	index = MAX(0, index);
+	index = MIN(index, N_z-1);
+			
 	double diffz = z - z_inter[index];
 		
 	double (*C)[6] = &coeff[index][0];
@@ -342,13 +349,17 @@ field_radial_derivs(double point[3], double field[3], double *z_inter, double *c
 	double r = norm_2d(point[0], point[1]), z = point[2];
 	double z0 = z_inter[0], zlast = z_inter[N_z-1];
 	
-	if(!(z0 < z && z < zlast)) {
+	if(!(z0 <= z && z <= zlast)) {
 		field[0] = 0.0; field[1] = 0.0; field[2] = 0.0;
 		return;
 	}
 	
 	double dz = z_inter[1] - z_inter[0];
 	int index = (int) ( (z-z0)/dz );
+	// Guard against roundoff issues 0 <= index < N_z
+	index = MAX(0, index);
+	index = MIN(index, N_z-1);
+		
 	double diffz = z - z_inter[index];
 		
 	double (*C)[6] = &coeff[index][0];

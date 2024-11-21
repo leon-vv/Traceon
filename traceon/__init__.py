@@ -7,7 +7,7 @@ The electron trajectories obtained can help determine the aberrations of the opt
 
 If you have any issues using the package, please open an issue on the [Traceon Github page](https://github.com/leon-vv/Traceon).
 
-The software is currently distributed under the `AGPLv3` license. 
+The software is currently distributed under the `MPL 2.0` license. 
 
 # Usage
 

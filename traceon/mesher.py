@@ -15,7 +15,7 @@ from .logging import log_debug
 __pdoc__ = {}
 __pdoc__['PointsWithQuads'] = False
 __pdoc__['PointStack'] = False
-__pdoc__['__add__'] = True
+__pdoc__['Mesh.__add__'] = True
 
 
 class GeometricObject(ABC):
@@ -583,16 +583,16 @@ class PointStack:
         assert self.depth() == depth
         assert self.indices[-1].shape == (N, N)
 
-        for i in range(start_depth, len(self.indices)-1):
-            self.indices[i+1][::2, ::2] = self.indices[i]
+        for d in range(start_depth, len(self.indices)-1):
+            previous = self.indices[d]
+            x, y = np.where(previous != -1)
+            self.indices[d+1][2*x, 2*y] = previous[x, y]
 
         quads = np.array(quads)
         assert quads.shape == (len(quads), 5)
         
         for i in range(len(quads)):
             quad_depth, i0, i1, j0, j1 = quads[i]
-            assert quad_depth <= depth
-            assert self.indices[quad_depth][i0, j0] != -1
              
             while quad_depth < depth:
                 i0 *= 2
@@ -602,8 +602,6 @@ class PointStack:
                 quad_depth += 1
               
             quads[i] = (quad_depth, i0, i1, j0, j1)
-            assert self.indices[-1][i0, j0] != -1
-            assert quad_depth == depth
          
         return PointsWithQuads(self.indices[-1], quads)
 
@@ -716,7 +714,7 @@ def _mesh_subsections_to_quads(surface, mesh_size, start_depth):
     all_quads = []
     points: list[np.ndarray] = []
     
-    for s in surface.sections():
+    for s in surface._sections():
         quads: list[tuple[int, int, int, int, int]] = []
         pstack = PointStack(s, points=points)
         

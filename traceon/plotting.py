@@ -206,7 +206,7 @@ def _get_vedo_grid(field, surface, N0, N1):
     grid = vedo.Grid(s=(x, y))
     points = np.array([surface(x_, y_) for x_, y_, _ in grid.vertices])
     grid.vertices = points
-    grid.pointdata['z'] = np.array([field.potential_at_point(p[[0, 2]]) for p in points])
+    grid.pointdata['z'] = np.array([field.potential_at_point(p) for p in points])
     grid.lw(0)
 
     return grid
@@ -223,7 +223,7 @@ def _create_point_to_physical_dict(mesh):
 
 def _get_vedo_triangles_and_normals(mesh, **phys_colors):
     triangles = mesh.triangles[:, :3]
-    normals = np.array([backend.normal_3d(1/3, 1/3, mesh.points[t]) for t in triangles])
+    normals = np.array([backend.normal_3d(mesh.points[t]) for t in triangles])
     
     colors = np.full(len(triangles), '#CCCCCC')
     dict_ = _create_point_to_physical_dict(mesh)

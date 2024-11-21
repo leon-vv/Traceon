@@ -55,8 +55,8 @@ field_axial = FieldRadialAxial(field, -1.5, 1.5, 150)
 # potential is very close to the potential found by an integration over the
 # surface charge.
 z = np.linspace(-1.5, 1.5, 150)
-pot = [field.potential_at_point(np.array([0.0, z_])) for z_ in z]
-pot_axial = [field_axial.potential_at_point(np.array([0.0, z_])) for z_ in z]
+pot = [field.potential_at_point([0.0, 0.0, z_]) for z_ in z]
+pot_axial = [field_axial.potential_at_point([0.0, 0.0, z_]) for z_ in z]
 
 
 
@@ -70,13 +70,13 @@ r_start = np.linspace(-RADIUS/3, RADIUS/3, 7)
 
 # Initial velocity vector points downwards, with a 
 # initial speed corresponding to 1000eV.
-velocity = T.velocity_vec(1000, [0, -1])
+velocity = T.velocity_vec(1000, [0, 0, -1])
 
 trajectories = []
 
 for i, r0 in enumerate(r_start):
     print(f'Tracing electron {i+1}/{len(r_start)}...')
-    _, positions = tracer(np.array([r0, 5]), velocity)
+    _, positions = tracer(np.array([r0, 0, 5]), velocity)
     trajectories.append(positions)
 
 

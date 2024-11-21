@@ -195,7 +195,8 @@ created with the <code><a title="traceon.geometry" href="geometry.html">traceon.
         &#34;&#34;&#34;
         Specify geometry elements as magnetostatic boundary elements. At the boundary we require H·n = 0 at every point on the boundary. This
         is equivalent to stating that the directional derivative of the magnetostatic potential through the boundary is zero. Placing boundaries between
-        the spaces of electrodes usually helps convergence tremendously. 
+        the spaces of electrodes usually helps convergence tremendously. Note that a boundary is equivalent to a magnetic material with a magnetic 
+        permeability of zero. This is how a boundary is actually implemented internally.
         
         Parameters
         ----------
@@ -230,7 +231,7 @@ created with the <code><a title="traceon.geometry" href="geometry.html">traceon.
                 else:
                     new_types_dict[n] = (t, v)
             
-            exc = Excitation(self.mesh)
+            exc = Excitation(self.mesh, self.symmetry)
             exc.excitation_types = new_types_dict
             excitations.append(exc)
 
@@ -293,28 +294,7 @@ created with the <code><a title="traceon.geometry" href="geometry.html">traceon.
         while the values are Numpy arrays of indices that can be used to index the points array.
         &#34;&#34;&#34;
 
-        return self._get_active_elements(&#39;magnetostatic&#39;)
-    
-    def get_number_of_electrostatic_active_elements(self):
-        &#34;&#34;&#34;Get elements in the mesh that are active, in the sense that
-        an excitation to them has been applied. This is the length of the points
-        array returned by the `Excitation.get_electrostatic_active_elements`.
-
-        Returns
-        --------
-        int, giving the number of elements. &#34;&#34;&#34;
-        return self._get_number_of_active_elements(&#39;electrostatic&#39;)
-    
-    def get_number_of_electrostatic_matrix_elements(self):
-        &#34;&#34;&#34;Gets the number of elements along one axis of the matrix. If this function returns N, the
-        matrix will have size NxN. The matrix consists of 64bit float values. Therefore the size of the matrix
-        in bytes is 8·NxN.
-
-        Returns
-        ---------
-        integer number
-        &#34;&#34;&#34;
-        return self._get_number_of_active_elements(&#39;electrostatic&#39;)</code></pre>
+        return self._get_active_elements(&#39;magnetostatic&#39;)</code></pre>
 </details>
 <h3>Methods</h3>
 <dl>
@@ -376,7 +356,8 @@ calling the function as <code>add_dielectric(spacer=2)</code> assign the relativ
 <dd>
 <div class="desc"><p>Specify geometry elements as magnetostatic boundary elements. At the boundary we require H·n = 0 at every point on the boundary. This
 is equivalent to stating that the directional derivative of the magnetostatic potential through the boundary is zero. Placing boundaries between
-the spaces of electrodes usually helps convergence tremendously. </p>
+the spaces of electrodes usually helps convergence tremendously. Note that a boundary is equivalent to a magnetic material with a magnetic
+permeability of zero. This is how a boundary is actually implemented internally.</p>
 <h2 id="parameters">Parameters</h2>
 <dl>
 <dt><strong><code>*args</code></strong> :&ensp;<code>list</code> of <code>str</code></dt>
@@ -436,29 +417,6 @@ Multiple points per line elements are used in the case of 2D since higher order 
 element is given by a polynomial interpolation of the points.
 names is a dictionary, the keys being the names of the physical groups mentioned by this excitation,
 while the values are Numpy arrays of indices that can be used to index the points array.</p></div>
-</dd>
-<dt id="traceon.excitation.Excitation.get_number_of_electrostatic_active_elements"><code class="name flex">
-<span>def <span class="ident">get_number_of_electrostatic_active_elements</span></span>(<span>self)</span>
-</code></dt>
-<dd>
-<div class="desc"><p>Get elements in the mesh that are active, in the sense that
-an excitation to them has been applied. This is the length of the points
-array returned by the <code><a title="traceon.excitation.Excitation.get_electrostatic_active_elements" href="#traceon.excitation.Excitation.get_electrostatic_active_elements">Excitation.get_electrostatic_active_elements()</a></code>.</p>
-<h2 id="returns">Returns</h2>
-<p>int, giving the number of elements.</p></div>
-</dd>
-<dt id="traceon.excitation.Excitation.get_number_of_electrostatic_matrix_elements"><code class="name flex">
-<span>def <span class="ident">get_number_of_electrostatic_matrix_elements</span></span>(<span>self)</span>
-</code></dt>
-<dd>
-<div class="desc"><p>Gets the number of elements along one axis of the matrix. If this function returns N, the
-matrix will have size NxN. The matrix consists of 64bit float values. Therefore the size of the matrix
-in bytes is 8·NxN.</p>
-<h2 id="returns">Returns</h2>
-<dl>
-<dt><code>integer number</code></dt>
-<dd>&nbsp;</dd>
-</dl></div>
 </dd>
 <dt id="traceon.excitation.Excitation.has_current"><code class="name flex">
 <span>def <span class="ident">has_current</span></span>(<span>self)</span>
@@ -665,8 +623,6 @@ supported symmetries are radial symmetry (also called cylindrical symmetry) and 
 <li><code><a title="traceon.excitation.Excitation.add_voltage" href="#traceon.excitation.Excitation.add_voltage">add_voltage</a></code></li>
 <li><code><a title="traceon.excitation.Excitation.get_electrostatic_active_elements" href="#traceon.excitation.Excitation.get_electrostatic_active_elements">get_electrostatic_active_elements</a></code></li>
 <li><code><a title="traceon.excitation.Excitation.get_magnetostatic_active_elements" href="#traceon.excitation.Excitation.get_magnetostatic_active_elements">get_magnetostatic_active_elements</a></code></li>
-<li><code><a title="traceon.excitation.Excitation.get_number_of_electrostatic_active_elements" href="#traceon.excitation.Excitation.get_number_of_electrostatic_active_elements">get_number_of_electrostatic_active_elements</a></code></li>
-<li><code><a title="traceon.excitation.Excitation.get_number_of_electrostatic_matrix_elements" href="#traceon.excitation.Excitation.get_number_of_electrostatic_matrix_elements">get_number_of_electrostatic_matrix_elements</a></code></li>
 <li><code><a title="traceon.excitation.Excitation.has_current" href="#traceon.excitation.Excitation.has_current">has_current</a></code></li>
 <li><code><a title="traceon.excitation.Excitation.is_electrostatic" href="#traceon.excitation.Excitation.is_electrostatic">is_electrostatic</a></code></li>
 <li><code><a title="traceon.excitation.Excitation.is_magnetostatic" href="#traceon.excitation.Excitation.is_magnetostatic">is_magnetostatic</a></code></li>

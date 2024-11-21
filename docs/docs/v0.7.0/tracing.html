@@ -47,42 +47,18 @@ Transfer Problems. 1969. National Aeronautics and Space Administration.</p>
 <span>def <span class="ident">axis_intersection</span></span>(<span>positions)</span>
 </code></dt>
 <dd>
-<div class="desc"><p>Calculate the intersection with the optical axis using a linear interpolation. Notice that
-this only makes sense in 2D as in 3D the particle will never pass exactly through the optical axis.
-However, this function is implemented as <code><a title="traceon.tracing.yz_plane_intersection" href="#traceon.tracing.yz_plane_intersection">yz_plane_intersection()</a>(positions, 0.0)</code> and will therefore
-give meaningful results in 3D if you expect the particle trajectory to be in the xz plane. This function
-only returns the z-coordinate. Use <code><a title="traceon.tracing.yz_plane_intersection" href="#traceon.tracing.yz_plane_intersection">yz_plane_intersection()</a></code> directly if you want to retrieve the velocity
-components.</p>
+<div class="desc"><p>Compute the z-value of the intersection of the trajectory with the x=0 plane.
+Note that this function will not work properly if the trajectory crosses the x=0 plane zero or multiple times.</p>
 <h2 id="parameters">Parameters</h2>
 <dl>
-<dt><strong><code>positions</code></strong> :&ensp;<code>(N, 4)</code> or <code>(N, 6) np.ndarray</code> of <code>float64</code></dt>
-<dd>positions of an electron as returned by <code><a title="traceon.tracing.Tracer" href="#traceon.tracing.Tracer">Tracer</a></code>.</dd>
+<dt><strong><code>positions</code></strong> :&ensp;<code>(N, 6) np.ndarray</code> of <code>float64</code></dt>
+<dd>Positions (and velocities) of an electron as returned by <code><a title="traceon.tracing.Tracer" href="#traceon.tracing.Tracer">Tracer</a></code>.</dd>
 </dl>
 <h2 id="returns">Returns</h2>
 <dl>
-<dt><code>float z-coordinate</code> of <code>intersection point</code></dt>
+<dt><code>float, z-value</code> of <code>the intersection with the x=0 plane</code></dt>
 <dd>&nbsp;</dd>
 </dl></div>
-</dd>
-<dt id="traceon.tracing.line_intersection"><code class="name flex">
-<span>def <span class="ident">line_intersection</span></span>(<span>positions, p0, tangent)</span>
-</code></dt>
-<dd>
-<div class="desc"><p>Compute the intersection of a trajectory with a line in 2D. The line is specified
-by a point (p0) on the line and a vector tangential (tangent) to the line. The intersection
-point is calculated using a linear interpolation.</p>
-<h2 id="parameters">Parameters</h2>
-<dl>
-<dt><strong><code>positions</code></strong> :&ensp;<code>(N, 4) np.ndarray</code> of <code>float64</code></dt>
-<dd>Positions of an electron as returned by <code><a title="traceon.tracing.Tracer" href="#traceon.tracing.Tracer">Tracer</a></code>.</dd>
-<dt><strong><code>p0</code></strong> :&ensp;<code>(2,) np.ndarray</code> of <code>float64</code></dt>
-<dd>A point that lies on the line.</dd>
-<dt><strong><code>tangent</code></strong> :&ensp;<code>(2,) np.ndarray</code> of <code>float64</code></dt>
-<dd>A vector that is tangential to the line. A point p lies on the line if there exists a number k
-such that <code>p0 + k*tangent = p</code>.</dd>
-</dl>
-<h2 id="returns">Returns</h2>
-<p>np.ndarray of shape (4,) containing the position and velocity of the electron at the intersection point.</p></div>
 </dd>
 <dt id="traceon.tracing.plane_intersection"><code class="name flex">
 <span>def <span class="ident">plane_intersection</span></span>(<span>positions, p0, normal)</span>
@@ -105,7 +81,7 @@ dot is the dot product.</dd>
 <p>np.ndarray of shape (6,) containing the position and velocity of the electron at the intersection point.</p></div>
 </dd>
 <dt id="traceon.tracing.velocity_vec"><code class="name flex">
-<span>def <span class="ident">velocity_vec</span></span>(<span>eV, direction)</span>
+<span>def <span class="ident">velocity_vec</span></span>(<span>eV, direction_)</span>
 </code></dt>
 <dd>
 <div class="desc"><p>Compute an initial velocity vector in the correct units and direction.</p>
@@ -113,7 +89,7 @@ dot is the dot product.</dd>
 <dl>
 <dt><strong><code>eV</code></strong> :&ensp;<code>float</code></dt>
 <dd>initial energy in units of eV</dd>
-<dt><strong><code>direction</code></strong> :&ensp;<code>(2,)</code> or <code>(3,) numpy array</code></dt>
+<dt><strong><code>direction</code></strong> :&ensp;<code>(3,) numpy array</code></dt>
 <dd>vector giving the correct direction of the initial velocity vector. Does not
 have to be a unit vector as it is always normalized.</dd>
 </dl>
@@ -139,7 +115,7 @@ The shape of the resulting vector is the same as the shape of <code>direction</c
 <p>Initial velocity vector of shape (3,) with magnitude corresponding to the supplied energy (in eV).</p></div>
 </dd>
 <dt id="traceon.tracing.velocity_vec_xz_plane"><code class="name flex">
-<span>def <span class="ident">velocity_vec_xz_plane</span></span>(<span>eV, angle, downward=True, three_dimensional=False)</span>
+<span>def <span class="ident">velocity_vec_xz_plane</span></span>(<span>eV, angle, downward=True)</span>
 </code></dt>
 <dd>
 <div class="desc"><p>Compute initial velocity vector in the xz plane with the given energy and angle with z-axis.</p>
@@ -151,11 +127,9 @@ The shape of the resulting vector is the same as the shape of <code>direction</c
 <dd>angle with z-axis</dd>
 <dt><strong><code>downward</code></strong> :&ensp;<code>bool</code></dt>
 <dd>whether the velocity vector should point upward or downwards</dd>
-<dt><strong><code>three_dimensional</code></strong> :&ensp;<code>bool</code></dt>
-<dd>whether the resulting velocity vector has shape (2,) or shape (3,)</dd>
 </dl>
 <h2 id="returns">Returns</h2>
-<p>Initial velocity vector with magnitude corresponding to the supplied energy (in eV).</p></div>
+<p>Initial velocity vector of shape (3,) with magnitude corresponding to the supplied energy (in eV).</p></div>
 </dd>
 <dt id="traceon.tracing.xy_plane_intersection"><code class="name flex">
 <span>def <span class="ident">xy_plane_intersection</span></span>(<span>positions, z)</span>
@@ -164,29 +138,28 @@ The shape of the resulting vector is the same as the shape of <code>direction</c
 <div class="desc"><p>Compute the intersection of a trajectory with an xy-plane.</p>
 <h2 id="parameters">Parameters</h2>
 <dl>
-<dt><strong><code>positions</code></strong> :&ensp;<code>(N, 4)</code> or <code>(N, 6) np.ndarray</code> of <code>float64</code></dt>
-<dd>Positions of an electron as returned by <code><a title="traceon.tracing.Tracer" href="#traceon.tracing.Tracer">Tracer</a></code>.</dd>
+<dt><strong><code>positions</code></strong> :&ensp;<code>(N, 6) np.ndarray</code> of <code>float64</code></dt>
+<dd>Positions (and velocities) of an electron as returned by <code><a title="traceon.tracing.Tracer" href="#traceon.tracing.Tracer">Tracer</a></code>.</dd>
 <dt><strong><code>z</code></strong> :&ensp;<code>float</code></dt>
 <dd>z-coordinate of the plane with which to compute the intersection</dd>
 </dl>
 <h2 id="returns">Returns</h2>
-<p>np.ndarray of shape (4,) or (6,) containing the position and velocity of the electron at the intersection point.</p></div>
+<p>(6,) array of float64, containing the position and velocity of the electron at the intersection point.</p></div>
 </dd>
 <dt id="traceon.tracing.xz_plane_intersection"><code class="name flex">
 <span>def <span class="ident">xz_plane_intersection</span></span>(<span>positions, y)</span>
 </code></dt>
 <dd>
-<div class="desc"><p>Compute the intersection of a trajectory with an xz-plane. Note that this function
-does not make sense in 2D (where we consider (r,z) as (x,z) and therefore the y-axis is missing).</p>
+<div class="desc"><p>Compute the intersection of a trajectory with an xz-plane.</p>
 <h2 id="parameters">Parameters</h2>
 <dl>
 <dt><strong><code>positions</code></strong> :&ensp;<code>(N, 6) np.ndarray</code> of <code>float64</code></dt>
-<dd>Positions of an electron as returned by <code><a title="traceon.tracing.Tracer" href="#traceon.tracing.Tracer">Tracer</a></code>.</dd>
-<dt><strong><code>y</code></strong> :&ensp;<code>float</code></dt>
-<dd>y-coordinate of the plane with which to compute the intersection</dd>
+<dd>Positions (and velocities) of an electron as returned by <code><a title="traceon.tracing.Tracer" href="#traceon.tracing.Tracer">Tracer</a></code>.</dd>
+<dt><strong><code>z</code></strong> :&ensp;<code>float</code></dt>
+<dd>z-coordinate of the plane with which to compute the intersection</dd>
 </dl>
 <h2 id="returns">Returns</h2>
-<p>np.ndarray of shape (6,) containing the position and velocity of the electron at the intersection point.</p></div>
+<p>(6,) array of float64, containing the position and velocity of the electron at the intersection point.</p></div>
 </dd>
 <dt id="traceon.tracing.yz_plane_intersection"><code class="name flex">
 <span>def <span class="ident">yz_plane_intersection</span></span>(<span>positions, x)</span>
@@ -195,13 +168,13 @@ does not make sense in 2D (where we consider (r,z) as (x,z) and therefore the y-
 <div class="desc"><p>Compute the intersection of a trajectory with an yz-plane.</p>
 <h2 id="parameters">Parameters</h2>
 <dl>
-<dt><strong><code>positions</code></strong> :&ensp;<code>(N, 4)</code> or <code>(N, 6) np.ndarray</code> of <code>float64</code></dt>
-<dd>Positions of an electron as returned by <code><a title="traceon.tracing.Tracer" href="#traceon.tracing.Tracer">Tracer</a></code>.</dd>
-<dt><strong><code>x</code></strong> :&ensp;<code>float</code></dt>
-<dd>x-coordinate of the plane with which to compute the intersection</dd>
+<dt><strong><code>positions</code></strong> :&ensp;<code>(N, 6) np.ndarray</code> of <code>float64</code></dt>
+<dd>Positions (and velocities) of an electron as returned by <code><a title="traceon.tracing.Tracer" href="#traceon.tracing.Tracer">Tracer</a></code>.</dd>
+<dt><strong><code>z</code></strong> :&ensp;<code>float</code></dt>
+<dd>z-coordinate of the plane with which to compute the intersection</dd>
 </dl>
 <h2 id="returns">Returns</h2>
-<p>np.ndarray of shape (4,) or (6,) containing the position and velocity of the electron at the intersection point.</p></div>
+<p>(6,) array of float64, containing the position and velocity of the electron at the intersection point.</p></div>
 </dd>
 </dl>
 </section>
@@ -254,9 +227,9 @@ does not make sense in 2D (where we consider (r,z) as (x,z) and therefore the y-
 
         Parameters
         ----------
-        position: (2,) or (3,) np.ndarray of float64
+        position: (3,) np.ndarray of float64
             Initial position of electron.
-        velocity: (2,) or (3,) np.ndarray of float64
+        velocity: (3,) np.ndarray of float64
             Initial velocity (expressed in a vector whose magnitude has units of eV). Use one of the utility functions documented
             above to create the initial velocity vector.
         atol: float
@@ -288,9 +261,9 @@ does not make sense in 2D (where we consider (r,z) as (x,z) and therefore the y-
 <div class="desc"><p>Trace an electron.</p>
 <h2 id="parameters">Parameters</h2>
 <dl>
-<dt><strong><code>position</code></strong> :&ensp;<code>(2,)</code> or <code>(3,) np.ndarray</code> of <code>float64</code></dt>
+<dt><strong><code>position</code></strong> :&ensp;<code>(3,) np.ndarray</code> of <code>float64</code></dt>
 <dd>Initial position of electron.</dd>
-<dt><strong><code>velocity</code></strong> :&ensp;<code>(2,)</code> or <code>(3,) np.ndarray</code> of <code>float64</code></dt>
+<dt><strong><code>velocity</code></strong> :&ensp;<code>(3,) np.ndarray</code> of <code>float64</code></dt>
 <dd>Initial velocity (expressed in a vector whose magnitude has units of eV). Use one of the utility functions documented
 above to create the initial velocity vector.</dd>
 <dt><strong><code>atol</code></strong> :&ensp;<code>float</code></dt>
@@ -480,7 +453,6 @@ The last three elements in <code>positions[i]</code> contain the vx,vy,vz veloci
 <li><h3><a href="#header-functions">Functions</a></h3>
 <ul class="">
 <li><code><a title="traceon.tracing.axis_intersection" href="#traceon.tracing.axis_intersection">axis_intersection</a></code></li>
-<li><code><a title="traceon.tracing.line_intersection" href="#traceon.tracing.line_intersection">line_intersection</a></code></li>
 <li><code><a title="traceon.tracing.plane_intersection" href="#traceon.tracing.plane_intersection">plane_intersection</a></code></li>
 <li><code><a title="traceon.tracing.velocity_vec" href="#traceon.tracing.velocity_vec">velocity_vec</a></code></li>
 <li><code><a title="traceon.tracing.velocity_vec_spherical" href="#traceon.tracing.velocity_vec_spherical">velocity_vec_spherical</a></code></li>

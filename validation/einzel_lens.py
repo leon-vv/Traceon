@@ -73,7 +73,7 @@ class EinzelLens(Validation):
         tracer = field_axial.get_tracer(bounds)
          
         p0 = np.array([RADIUS/3, 0.0, 3])
-        v0 = T.velocity_vec_xz_plane(1000, 0, three_dimensional=True)
+        v0 = T.velocity_vec_xz_plane(1000, 0)
          
         _, pos = tracer(p0, v0)
         

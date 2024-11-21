@@ -35,11 +35,10 @@ class Validation:
         
         parser.add_argument('-MSF', '--mesh-size-factor', dest='MSF', default=None, type=int, help='Mesh size factor')
         parser.add_argument('--symmetry', choices=['3d', 'radial'], default='radial', help='Choose the symmetry to use for the geometry (3d or radially symmetric)')
-        parser.add_argument('--higher-order', action='store_true', help='Use higher order (curved) elements')
+        parser.add_argument('--higher-order', action='store_true', help='Use higher order curved line elements, only valid in radial symmetric geometries')
         parser.add_argument('--plot-accuracy', action='store_true', help='Plot the accuracy as a function of time and number of elements')
         parser.add_argument('--plot-geometry', action='store_true', help='Plot the geometry')
         parser.add_argument('--plot-normals', action='store_true', help='When plotting geometry, show normals')
-        parser.add_argument('--plot-charges', action='store_true', help='When plotting geometry, base the colors on the charge on each element')
         parser.add_argument('--use-fmm', action='store_true', help='Use fast multipole method to solve 3D geometry')
         parser.add_argument('--fmm-precision', type=int, default=12, help='Number of element (l_max) to use in multipole expansion')
         
@@ -54,12 +53,12 @@ class Validation:
     def supports_3d(self):
         return True
     
-    def plot_geometry(self, MSF, symmetry, higher_order=False, plot_charges=False, plot_normals=False):
+    def plot_geometry(self, MSF, symmetry, higher_order=False, plot_normals=False):
         geom = self.create_mesh(MSF, symmetry, higher_order)
         P.plot_mesh(geom, show_normals=plot_normals, **self.plot_colors) 
         P.show()
     
-    def plot_accuracy(self, MSFs, symmetry, higher_order):
+    def plot_accuracy(self, MSFs, symmetry, higher_order=False, use_fmm=False):
         num_lines = []
         times = []
         correct = []
@@ -70,7 +69,7 @@ class Validation:
             print('-'*81, f' MSF={n}')
             st = time.time()
             geom = self.create_mesh(n, symmetry, higher_order)
-            exc, field = self.compute_field(geom, symmetry, use_fmm=use_fmm)
+            exc, field = self.compute_field(geom, symmetry, use_fmm)
              
             corr = self.correct_value_of_interest()  
             comp = self.compute_value_of_interest(geom, field)
@@ -118,7 +117,8 @@ class Validation:
         duration = (time.time() - st)*1000
         print_info([MSF], [len(exc.get_electrostatic_active_elements()[0])], [duration], [correct], [computed], [err])
         return duration, err
-     
+    
+    @staticmethod
     def args_to_symmetry(args):
         if args.symmetry == 'radial':
             assert not args.use_fmm, "Fast Multipole Method not supported for radial geometries"
@@ -134,14 +134,12 @@ class Validation:
         
         assert args.symmetry != '3d' or not args.higher_order, "Higher order meshes not supported in 3D"
         
-        plot = args.plot_geometry or args.plot_normals or args.plot_charges
-        symmetry = Validation.args_to_symmetry(args)
+        plot = args.plot_geometry or args.plot_normals
+        symmetry = self.args_to_symmetry(args)
         MSF = args.MSF if args.MSF != None else self.default_MSF(symmetry)[1]
          
         if plot:
-            self.plot_geometry(MSF, symmetry, higher_order=args.higher_order,
-                                            plot_charges=args.plot_charges,
-                                            plot_normals=args.plot_normals) 
+            self.plot_geometry(MSF, symmetry, higher_order=args.higher_order, plot_normals=args.plot_normals) 
         elif args.plot_accuracy:
             self.plot_accuracy(self.default_MSF(symmetry), symmetry)
         else:
@@ -151,7 +149,7 @@ class Validation:
     def create_mesh(self, MSF, symmetry, higher_order):
         pass
     
-    def get_excitation(self, geometry):
+    def get_excitation(self, geometry, symmetry):
         pass
     
     def compute_field(self, geometry, symmetry, use_fmm):

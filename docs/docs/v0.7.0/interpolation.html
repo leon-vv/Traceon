@@ -49,7 +49,7 @@ This base class overloads the +,*,- operators so it is very easy to take a super
 <summary>
 <span>Expand source code</span>
 </summary>
-<pre><code class="python">class FieldAxial(S.Field):
+<pre><code class="python">class FieldAxial(S.Field, ABC):
     &#34;&#34;&#34;An electrostatic field resulting from a radial series expansion around the optical axis. You should
     not initialize this class yourself, but it is used as a base class for the fields returned by the `axial_derivative_interpolation` methods. 
     This base class overloads the +,*,- operators so it is very easy to take a superposition of different fields.&#34;&#34;&#34;
@@ -87,7 +87,7 @@ This base class overloads the +,*,- operators so it is very easy to take a super
             assert self.magnetostatic_coeffs.shape == other.magnetostatic_coeffs.shape, &#34;Cannot add FieldAxial if shape of axial coefficients is unequal.&#34;
             return self.__class__(self.z, self.electrostatic_coeffs+other.electrostatic_coeffs, self.magnetostatic_coeffs + other.magnetostatic_coeffs)
          
-        return NotImpemented
+        return NotImplemented
     
     def __sub__(self, other):
         return self.__add__(-other)
@@ -99,7 +99,7 @@ This base class overloads the +,*,- operators so it is very easy to take a super
         if isinstance(other, int) or isinstance(other, float):
             return self.__class__(self.z, other*self.electrostatic_coeffs, other*self.magnetostatic_coeffs)
          
-        return NotImpemented
+        return NotImplemented
     
     def __neg__(self):
         return -1*self
@@ -110,6 +110,7 @@ This base class overloads the +,*,- operators so it is very easy to take a super
 <h3>Ancestors</h3>
 <ul class="hlist">
 <li><a title="traceon.solver.Field" href="solver.html#traceon.solver.Field">Field</a></li>
+<li>abc.ABC</li>
 </ul>
 <h3>Subclasses</h3>
 <ul class="hlist">
@@ -161,8 +162,9 @@ This base class overloads the +,*,- operators so it is very easy to take a super
         
         assert self.electrostatic_coeffs.shape == (len(z)-1, backend.DERIV_2D_MAX, 6)
         assert self.magnetostatic_coeffs.shape == (len(z)-1, backend.DERIV_2D_MAX, 6)
-
-    def _get_interpolation_coefficients(field, zmin, zmax, N=None):
+    
+    @staticmethod
+    def _get_interpolation_coefficients(field: S.FieldRadialBEM, zmin, zmax, N=None):
         assert zmax &gt; zmin, &#34;zmax should be bigger than zmin&#34;
 
         N_charges = max(len(field.electrostatic_point_charges.charges), len(field.magnetostatic_point_charges.charges))
@@ -180,9 +182,9 @@ This base class overloads the +,*,- operators so it is very easy to take a super
 
         return z, elec_coeffs, mag_coeffs
      
-    def electrostatic_field_at_point(self, point):
+    def electrostatic_field_at_point(self, point_):
         &#34;&#34;&#34;
-        Compute the electric field, \( \\vec{E} = -\\nabla \phi \)
+        Compute the electric field, \\( \\vec{E} = -\\nabla \\phi \\)
         
         Parameters
         ----------
@@ -193,10 +195,11 @@ This base class overloads the +,*,- operators so it is very easy to take a super
         -------
         Numpy array containing the field strengths (in units of V/mm) in the r and z directions.
         &#34;&#34;&#34;
-        assert point.shape == (2,)
+        point = np.array(point_)
+        assert point.shape == (3,), &#34;Please supply a three dimensional point&#34;
         return backend.field_radial_derivs(point, self.z, self.electrostatic_coeffs)
     
-    def magnetostatic_field_at_point(self, point):
+    def magnetostatic_field_at_point(self, point_):
         &#34;&#34;&#34;
         Compute the magnetic field \\( \\vec{H} \\)
         
@@ -209,11 +212,11 @@ This base class overloads the +,*,- operators so it is very easy to take a super
         -------
         (2,) np.ndarray of float64 containing the field strength (in units of A/m) in the x, y and z directions.
         &#34;&#34;&#34;
-        point = np.array(point).astype(np.float64)
-        assert point.shape == (2,)
+        point = np.array(point_)
+        assert point.shape == (3,), &#34;Please supply a three dimensional point&#34;
         return backend.field_radial_derivs(point, self.z, self.magnetostatic_coeffs)
      
-    def electrostatic_potential_at_point(self, point):
+    def electrostatic_potential_at_point(self, point_):
         &#34;&#34;&#34;
         Compute the electrostatic potential (close to the axis).
 
@@ -226,11 +229,11 @@ This base class overloads the +,*,- operators so it is very easy to take a super
         -------
         Potential as a float value (in units of V).
         &#34;&#34;&#34;
-        point = np.array(point).astype(np.float64)
-        assert point.shape == (2,)
+        point = np.array(point_)
+        assert point.shape == (3,), &#34;Please supply a three dimensional point&#34;
         return backend.potential_radial_derivs(point, self.z, self.electrostatic_coeffs)
     
-    def magnetostatic_potential_at_point(self, point):
+    def magnetostatic_potential_at_point(self, point_):
         &#34;&#34;&#34;
         Compute the magnetostatic scalar potential (satisfying \\(\\vec{H} = -\\nabla \\phi \\)) close to the axis
         
@@ -243,7 +246,8 @@ This base class overloads the +,*,- operators so it is very easy to take a super
         -------
         Potential as a float value (in units of A).
         &#34;&#34;&#34;
-        assert point.shape == (2,)
+        point = np.array(point_)
+        assert point.shape == (3,), &#34;Please supply a three dimensional point&#34;
         return backend.potential_radial_derivs(point, self.z, self.magnetostatic_coeffs)
     
     def get_tracer(self, bounds):
@@ -253,11 +257,12 @@ This base class overloads the +,*,- operators so it is very easy to take a super
 <ul class="hlist">
 <li><a title="traceon.interpolation.FieldAxial" href="#traceon.interpolation.FieldAxial">FieldAxial</a></li>
 <li><a title="traceon.solver.Field" href="solver.html#traceon.solver.Field">Field</a></li>
+<li>abc.ABC</li>
 </ul>
 <h3>Methods</h3>
 <dl>
 <dt id="traceon.interpolation.FieldRadialAxial.electrostatic_field_at_point"><code class="name flex">
-<span>def <span class="ident">electrostatic_field_at_point</span></span>(<span>self, point)</span>
+<span>def <span class="ident">electrostatic_field_at_point</span></span>(<span>self, point_)</span>
 </code></dt>
 <dd>
 <div class="desc"><p>Compute the electric field, <span><span class="MathJax_Preview"> \vec{E} = -\nabla \phi </span><script type="math/tex"> \vec{E} = -\nabla \phi </script></span></p>
@@ -270,7 +275,7 @@ This base class overloads the +,*,- operators so it is very easy to take a super
 <p>Numpy array containing the field strengths (in units of V/mm) in the r and z directions.</p></div>
 </dd>
 <dt id="traceon.interpolation.FieldRadialAxial.electrostatic_potential_at_point"><code class="name flex">
-<span>def <span class="ident">electrostatic_potential_at_point</span></span>(<span>self, point)</span>
+<span>def <span class="ident">electrostatic_potential_at_point</span></span>(<span>self, point_)</span>
 </code></dt>
 <dd>
 <div class="desc"><p>Compute the electrostatic potential (close to the axis).</p>
@@ -289,7 +294,7 @@ This base class overloads the +,*,- operators so it is very easy to take a super
 <div class="desc"></div>
 </dd>
 <dt id="traceon.interpolation.FieldRadialAxial.magnetostatic_field_at_point"><code class="name flex">
-<span>def <span class="ident">magnetostatic_field_at_point</span></span>(<span>self, point)</span>
+<span>def <span class="ident">magnetostatic_field_at_point</span></span>(<span>self, point_)</span>
 </code></dt>
 <dd>
 <div class="desc"><p>Compute the magnetic field <span><span class="MathJax_Preview"> \vec{H} </span><script type="math/tex"> \vec{H} </script></span></p>
@@ -302,7 +307,7 @@ This base class overloads the +,*,- operators so it is very easy to take a super
 <p>(2,) np.ndarray of float64 containing the field strength (in units of A/m) in the x, y and z directions.</p></div>
 </dd>
 <dt id="traceon.interpolation.FieldRadialAxial.magnetostatic_potential_at_point"><code class="name flex">
-<span>def <span class="ident">magnetostatic_potential_at_point</span></span>(<span>self, point)</span>
+<span>def <span class="ident">magnetostatic_potential_at_point</span></span>(<span>self, point_)</span>
 </code></dt>
 <dd>
 <div class="desc"><p>Compute the magnetostatic scalar potential (satisfying <span><span class="MathJax_Preview">\vec{H} = -\nabla \phi </span><script type="math/tex">\vec{H} = -\nabla \phi </script></span>) close to the axis</p>
