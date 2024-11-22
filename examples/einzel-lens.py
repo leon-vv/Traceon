@@ -35,13 +35,10 @@ top.name = 'ground'
 
 mesh = (boundary + bottom + middle + top).mesh(mesh_size_factor=45)
  
-# Show the generated mesh, with the given electrode colors.
-P.plot_mesh(mesh, ground='green', lens='blue', show_normals=True)
-
 excitation = E.Excitation(mesh, E.Symmetry.RADIAL)
 
 # Excite the geometry, put ground at 0V and the lens electrode at 1000V.
-excitation.add_voltage(ground=0.0, lens=1000)
+excitation.add_voltage(ground=0.0, lens=1800)
 excitation.add_electrostatic_boundary('boundary')
 
 # Use the Boundary Element Method (BEM) to calculate the surface charges,
@@ -58,16 +55,10 @@ field_axial = FieldRadialAxial(field, -1.5, 1.5, 150)
 # potential is very close to the potential found by an integration over the
 # surface charge.
 z = np.linspace(-1.5, 1.5, 150)
-pot = [field.potential_at_point(np.array([0.0, 0.0, z_])) for z_ in z]
-pot_axial = [field_axial.potential_at_point(np.array([0.0, 0.0, z_])) for z_ in z]
+pot = [field.potential_at_point([0.0, 0.0, z_]) for z_ in z]
+pot_axial = [field_axial.potential_at_point([0.0, 0.0, z_]) for z_ in z]
 
-plt.title('Potential along axis')
-plt.plot(z, pot, label='Surface charge integration')
-plt.plot(z, pot_axial, linestyle='dashed', label='Interpolation')
-plt.xlabel('z (mm)')
-plt.ylabel('Potential (V)')
-plt.legend()
-plt.show()
+
 
 # An instance of the tracer class allows us to easily find the trajectories of 
 # electrons. Here we specify that the interpolated field should be used, and that
@@ -75,27 +66,42 @@ plt.show()
 tracer = field_axial.get_tracer( [(-RADIUS/2, RADIUS/2), (-RADIUS/2,RADIUS/2),  (-10, 10)] )
 
 # Start tracing from z=7mm
-r_start = np.linspace(-RADIUS/5, RADIUS/5, 7)
+r_start = np.linspace(-RADIUS/3, RADIUS/3, 7)
 
 # Initial velocity vector points downwards, with a 
 # initial speed corresponding to 1000eV.
 velocity = T.velocity_vec(1000, [0, 0, -1])
 
-plt.figure()
-plt.title('Electron traces')
+trajectories = []
 
 for i, r0 in enumerate(r_start):
     print(f'Tracing electron {i+1}/{len(r_start)}...')
     _, positions = tracer(np.array([r0, 0, 5]), velocity)
-    # Plot the z position of the electrons vs the r position.
-    # C0 produces the default matplotlib color (a shade of blue).
+    trajectories.append(positions)
+
+
+# Plotting
+
+plt.title('Potential along axis')
+plt.plot(z, pot, label='Surface charge integration')
+plt.plot(z, pot_axial, linestyle='dashed', label='Interpolation')
+plt.xlabel('z (mm)')
+plt.ylabel('Potential (V)')
+plt.legend()
+
+plt.figure()
+plt.title('Electron traces')
+
+for positions in trajectories:
     plt.plot(positions[:, 0], positions[:, 2], color='C0')
 
 plt.xlabel('r (mm)')
 plt.ylabel('z (mm)')
 plt.show()
 
-
-
-
-
+P.new_figure()
+P.plot_mesh(mesh, ground='green', lens='blue', boundary='purple')
+P.plot_trajectories(trajectories, xmin=0, zmin=-1.7, zmax=1.6)
+surface = G.Surface.rectangle_xz(0.0, RADIUS*0.9, -1.75, 1.75)
+P.plot_equipotential_lines(field_axial, surface, N0=250, N1=75)
+P.show()
