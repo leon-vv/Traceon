@@ -62,8 +62,8 @@ class SimpleMirror(Validation):
         axial_field = FieldRadialAxial(field, 0.02, 4) if not _3d else Field3DAxial(field, 0.02, 4)
         tracer = axial_field.get_tracer(bounds)
          
-        pos = np.array([0.0, 10.0]) if not _3d else np.array([0.0, 0.0, 10.0])
-        vel = T.velocity_vec_xz_plane(100, 1e-3, three_dimensional=_3d)
+        pos = [0.0, 0.0, 10.0]
+        vel = T.velocity_vec_xz_plane(100, 1e-3)
         
         st = time.time()
         _, pos = tracer(pos, vel)

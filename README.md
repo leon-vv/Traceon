@@ -2,7 +2,7 @@
 
 Traceon is a general software package used for numerical electron optics. Its main feature is the implementation of the Boundary Element Method (BEM) to quickly calculate the surface charge distribution. The program supports both radial symmetry and general three-dimensional geometries. Electron tracing can be done very quickly using accurate radial series interpolation in both geometries. The electron trajectories obtained can help determine the aberrations of the optical components under study.
 
-Traceon is completely free to use and open source. The source code is distributed under the `AGPLv3` license.
+The core of Traceon is completely free to use and open source. There is a commerical upgrade with more capabilities. The source code in this repository is distributed under the `MPL 2.0` license.
 
 ## Documentation
 
@@ -10,20 +10,16 @@ Traceon is completely free to use and open source. The source code is distribute
 
 [Examples](https://github.com/leon-vv/Traceon/tree/main/examples)
 
+[API documentation v0.7.0](https://traceon.org/docs/v0.7.0/index.html)
+
 [API documentation v0.6.0](https://traceon.org/docs/v0.6.0/index.html)
-
-[API documentation v0.5.0](https://traceon.org/docs/v0.5.0/index.html)
-
-[API documentation v0.4.0](https://traceon.org/docs/v0.4.0/index.html)
-
-[API documentation v0.3.1](https://traceon.org/docs/v0.3.1/index.html)
 
 ## Citation
 
 Please cite the software as follows:
 
 ```
-L.B. van Velzen. Traceon software (version 0.6.0). 2023. https://doi.org/10.5281/zenodo.11528404
+L.B. van Velzen. Traceon software (version 0.7.0). 2024. https://doi.org/10.5281/zenodo.14176070
 ```
 
 ## Installation
@@ -33,7 +29,7 @@ Install using the Python package manager:
 pip install traceon
 ```
 
-The installation is known to work on Linux and Windows. Please reach out to me if you have any installation problems.
+The installation is known to work on Linux, Windows and Mac OS. Please reach out to me if you have any installation problems.
 
 ## Validations
 
@@ -46,7 +42,7 @@ etc...
 
 ## License
 
-[AGPLv3](https://www.gnu.org/licenses/agpl-3.0.en.html)
+[MPL 2.0](https://mozilla.org/MPL/2.0/)
 
 
 ## Help! I have a problem!
@@ -60,8 +56,18 @@ Don't worry. You can reach me.
 ## Gallery
 
 ![Image of 3D deflector](https://raw.githubusercontent.com/leon-vv/traceon/main/images/deflector-image.png)
+![Image of Dohi mirror](https://raw.githubusercontent.com/leon-vv/traceon/main/images/dohi-mirror.png)
+![Image of Einzel lens traces](https://raw.githubusercontent.com/leon-vv/traceon/main/images/einzel-lens-traces.png)
 
 ## Features
+
+v0.7.0:
+- Generate structured, high quality meshes using the new parametric mesher (drop GMSH)
+- Consistenly use 3D points and geometries throughout codebase
+- Add support for Fast Multipole Method (Traceon Pro)
+- Add support for Mac OS on x64
+- Big improvements to code quality, testing, infrastructure
+- Drop dependency on GSL
 
 v0.6.0:
 - New methods to integrate triangle potential and field contribution over a triangle

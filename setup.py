@@ -28,13 +28,13 @@ backend_extension = Extension(
 
 setup(
     name='traceon',
-    version='0.7.0rc1',
+    version='0.7.0',
     description='Solver and tracer for electrostatic problems',
     url='https://github.com/leon-vv/Traceon',
     author='Léon van Velzen',
     author_email='leonvanvelzen@protonmail.com',
     keywords=['boundary element method', 'BEM', 'electrostatic', 'electromagnetic', 'electron microscope', 'electron', 'tracing', 'particle', 'tracer', 'electron optics'],
-    license='AGPLv3',
+    license='MPL 2.0',
     ext_modules=[backend_extension],
     packages=['traceon', 'traceon.backend'],
     package_data={

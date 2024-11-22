@@ -73,6 +73,7 @@ subclass of <code><a title="traceon.mesher.GeometricObject" href="mesher.html#tr
         self.breakpoints = breakpoints
         self.name = name
     
+    @staticmethod
     def from_irregular_function(to_point, N=100, breakpoints=[]):
         &#34;&#34;&#34;Construct a path from a function that is of the form u -&gt; point, where 0 &lt;= u &lt;= 1.
         The length of the path is determined by integration.
@@ -100,9 +101,12 @@ subclass of <code><a title="traceon.mesher.GeometricObject" href="mesher.html#tr
         norm_derivatives = np.linalg.norm(derivatives, axis=1)
         path_lengths = CubicSpline(u, norm_derivatives).antiderivative()(u)
         interpolation = CubicSpline(path_lengths, u) # Path length to [0,1]
+
+        path_length = path_lengths[-1]
         
-        return Path(lambda pl: fun(interpolation(pl)), path_lengths[-1], breakpoints=[b*path_length for b in breakpoints])
+        return Path(lambda pl: fun(interpolation(pl)), path_length, breakpoints=[b*path_length for b in breakpoints])
     
+    @staticmethod
     def spline_through_points(points, N=100):
         &#34;&#34;&#34;Construct a path by fitting a cubic spline through the given points.
 
@@ -144,7 +148,8 @@ subclass of <code><a title="traceon.mesher.GeometricObject" href="mesher.html#tr
             Function taking three dimensional points and returning three dimensional points.
 
         Returns
-        ---------------------------
+        ---------------------------      
+
         Path&#34;&#34;&#34;
         return Path(lambda u: fun(self(u)), self.path_length, self.breakpoints, name=self.name)
      
@@ -268,6 +273,7 @@ subclass of <code><a title="traceon.mesher.GeometricObject" href="mesher.html#tr
         l = Path.line(self.endpoint(), point)
         return self &gt;&gt; l
      
+    @staticmethod
     def circle_xz(x0, z0, radius, angle=2*pi):
         &#34;&#34;&#34;Returns (part of) a circle in the XZ plane around the x-axis. Starting on the positive x-axis.
         
@@ -290,6 +296,7 @@ subclass of <code><a title="traceon.mesher.GeometricObject" href="mesher.html#tr
             return np.array([radius*cos(theta), 0., radius*sin(theta)])
         return Path(f, angle*radius).move(dx=x0, dz=z0)
     
+    @staticmethod
     def circle_yz(y0, z0, radius, angle=2*pi):
         &#34;&#34;&#34;Returns (part of) a circle in the YZ plane around the x-axis. Starting on the positive y-axis.
         
@@ -312,6 +319,7 @@ subclass of <code><a title="traceon.mesher.GeometricObject" href="mesher.html#tr
             return np.array([0., radius*cos(theta), radius*sin(theta)])
         return Path(f, angle*radius).move(dy=y0, dz=z0)
     
+    @staticmethod
     def circle_xy(x0, y0, radius, angle=2*pi):
         &#34;&#34;&#34;Returns (part of) a circle in the XY plane around the z-axis. Starting on the positive X-axis.
         
@@ -351,6 +359,7 @@ subclass of <code><a title="traceon.mesher.GeometricObject" href="mesher.html#tr
         start = self.endpoint()
         return self &gt;&gt; Path.arc(center, start, end, reverse=reverse)
     
+    @staticmethod
     def arc(center, start, end, reverse=False):
         &#34;&#34;&#34;Return an arc by specifying the center, start and end point.
 
@@ -366,17 +375,17 @@ subclass of <code><a title="traceon.mesher.GeometricObject" href="mesher.html#tr
         Returns
         ----------------------------
         Path&#34;&#34;&#34;
-        start, center, end = np.array(start), np.array(center), np.array(end)
+        start_arr, center_arr, end_arr = np.array(start), np.array(center), np.array(end)
          
-        x_unit = start - center
+        x_unit = start_arr - center_arr
         x_unit /= np.linalg.norm(x_unit)
 
-        vector = end - center
+        vector = end_arr - center_arr
          
         y_unit = vector - np.dot(vector, x_unit) * x_unit
         y_unit /= np.linalg.norm(y_unit)
 
-        radius = np.linalg.norm(start - center) 
+        radius = np.linalg.norm(start_arr - center_arr) 
         theta_max = atan2(np.dot(vector, y_unit), np.dot(vector, x_unit))
 
         if reverse:
@@ -510,6 +519,7 @@ subclass of <code><a title="traceon.mesher.GeometricObject" href="mesher.html#tr
         Path&#34;&#34;&#34;
         return self.line_to(self.starting_point())
     
+    @staticmethod
     def ellipse(major, minor):
         &#34;&#34;&#34;Create a path along the outline of an ellipse. The ellipse lies
         in the XY plane, and the path starts on the positive x-axis.
@@ -531,6 +541,7 @@ subclass of <code><a title="traceon.mesher.GeometricObject" href="mesher.html#tr
             return np.array([major*cos(2*pi*u), minor*sin(2*pi*u), 0.])
         return Path.from_irregular_function(f)
     
+    @staticmethod
     def line(from_, to):
         &#34;&#34;&#34;Create a straight line between two points.
 
@@ -564,6 +575,7 @@ subclass of <code><a title="traceon.mesher.GeometricObject" href="mesher.html#tr
         return (Path(self.fun, length, [b for b in self.breakpoints if b &lt;= length], name=self.name),
                 Path(lambda l: self.fun(l + length), self.path_length - length, [b - length for b in self.breakpoints if b &gt;= length], name=self.name))
     
+    @staticmethod
     def rectangle_xz(xmin, xmax, zmin, zmax):
         &#34;&#34;&#34;Create a rectangle in the XZ plane. The path starts at (xmin, 0, zmin), and is 
         counter clockwise around the y-axis.
@@ -585,6 +597,7 @@ subclass of <code><a title="traceon.mesher.GeometricObject" href="mesher.html#tr
         return Path.line([xmin, 0., zmin], [xmax, 0, zmin]) \
             .line_to([xmax, 0, zmax]).line_to([xmin, 0., zmax]).close()
      
+    @staticmethod
     def rectangle_yz(ymin, ymax, zmin, zmax):
         &#34;&#34;&#34;Create a rectangle in the YZ plane. The path starts at (0, ymin, zmin), and is 
         counter clockwise around the x-axis.
@@ -607,6 +620,7 @@ subclass of <code><a title="traceon.mesher.GeometricObject" href="mesher.html#tr
         return Path.line([0., ymin, zmin], [0, ymin, zmax]) \
             .line_to([0., ymax, zmax]).line_to([0., ymax, zmin]).close()
      
+    @staticmethod
     def rectangle_xy(xmin, xmax, ymin, ymax):
         &#34;&#34;&#34;Create a rectangle in the XY plane. The path starts at (xmin, ymin, 0), and is 
         counter clockwise around the z-axis.
@@ -628,6 +642,7 @@ subclass of <code><a title="traceon.mesher.GeometricObject" href="mesher.html#tr
         return Path.line([xmin, ymin, 0.], [xmin, ymax, 0.]) \
             .line_to([xmax, ymax, 0.]).line_to([xmax, ymin, 0.]).close()
     
+    @staticmethod
     def aperture(height, radius, extent, z=0.):
         &#34;&#34;&#34;Create an &#39;aperture&#39;. Note that in a radially symmetric geometry
         an aperture is basically a rectangle with the right side &#39;open&#39;. Revolving
@@ -668,8 +683,9 @@ subclass of <code><a title="traceon.mesher.GeometricObject" href="mesher.html#tr
         elif isinstance(other, PathCollection):
             return PathCollection([self] + [other.paths])
      
-    def mesh(self, mesh_size=None, mesh_size_factor=None, higher_order=False):
-        &#34;&#34;&#34;Mesh the path, so it can be used in the BEM solver.
+    def mesh(self, mesh_size=None, mesh_size_factor=None, higher_order=False, name=None):
+        &#34;&#34;&#34;Mesh the path, so it can be used in the BEM solver. The result of meshing a path
+        are (possibly curved) line elements.
 
         Parameters
         --------------------------
@@ -685,10 +701,12 @@ subclass of <code><a title="traceon.mesher.GeometricObject" href="mesher.html#tr
             produces curved line elements (determined by 4 points on
             each curved element). The BEM solver supports higher order
             elements in radial symmetric geometries only.
-
+        name: str
+            Assign this name to the mesh, instead of the name value assinged to Surface.name
+        
         Returns
         ----------------------------
-        Path&#34;&#34;&#34;
+        `traceon.mesher.Mesh`&#34;&#34;&#34;
         u = discretize_path(self.path_length, self.breakpoints, mesh_size, mesh_size_factor, N_factor=3 if higher_order else 1)
         
         N = len(u) 
@@ -709,70 +727,26 @@ subclass of <code><a title="traceon.mesher.GeometricObject" href="mesher.html#tr
             lines = np.array([p0, p1, p2, p3]).T
           
         assert lines.dtype == np.int64 or lines.dtype == np.int32
+        
+        name = self.name if name is None else name
          
-        if self.name is not None:
-            physical_to_lines = {self.name:np.arange(len(lines))}
+        if name is not None:
+            physical_to_lines = {name:np.arange(len(lines))}
         else:
             physical_to_lines = {}
         
-        return Mesh(points=points, lines=lines, physical_to_lines=physical_to_lines)</code></pre>
+        return Mesh(points=points, lines=lines, physical_to_lines=physical_to_lines)
+
+    def __str__(self):
+        return f&#34;&lt;Path name:{self.name}, length:{self.path_length:.1e}, number of breakpoints:{len(self.breakpoints)}&gt;&#34;</code></pre>
 </details>
 <h3>Ancestors</h3>
 <ul class="hlist">
 <li><a title="traceon.mesher.GeometricObject" href="mesher.html#traceon.mesher.GeometricObject">GeometricObject</a></li>
+<li>abc.ABC</li>
 </ul>
-<h3>Methods</h3>
+<h3>Static methods</h3>
 <dl>
-<dt id="traceon.geometry.Path.__call__"><code class="name flex">
-<span>def <span class="ident">__call__</span></span>(<span>self, t)</span>
-</code></dt>
-<dd>
-<div class="desc"><p>Evaluate a point along the path.</p>
-<h2 id="parameters">Parameters</h2>
-<dl>
-<dt><strong><code>t</code></strong> :&ensp;<code>float</code></dt>
-<dd>The length along the path.</dd>
-</dl>
-<h2 id="returns">Returns</h2>
-<p>(3,) float</p>
-<p>Three dimensional point.</p></div>
-</dd>
-<dt id="traceon.geometry.Path.__rshift__"><code class="name flex">
-<span>def <span class="ident">__rshift__</span></span>(<span>self, other)</span>
-</code></dt>
-<dd>
-<div class="desc"><p>Combine two paths to create a single path. The endpoint of the first path needs
-to match the starting point of the second path. This common point is marked as a breakpoint and
-always included in the mesh. To use this function use the right shift operator (p1 &gt;&gt; p2).</p>
-<h2 id="parameters">Parameters</h2>
-<dl>
-<dt><strong><code>other</code></strong> :&ensp;<code><a title="traceon.geometry.Path" href="#traceon.geometry.Path">Path</a></code></dt>
-<dd>The second path, to extend the current path.</dd>
-</dl>
-<h2 id="returns">Returns</h2>
-<dl>
-<dt><code><a title="traceon.geometry.Path" href="#traceon.geometry.Path">Path</a></code></dt>
-<dd>&nbsp;</dd>
-</dl></div>
-</dd>
-<dt id="traceon.geometry.Path.add_phase"><code class="name flex">
-<span>def <span class="ident">add_phase</span></span>(<span>self, l)</span>
-</code></dt>
-<dd>
-<div class="desc"><p>Add a phase to a closed path. A path is closed when the starting point is equal to the
-end point. A phase of length l means that the path starts 'further down' the closed path.</p>
-<h2 id="parameters">Parameters</h2>
-<dl>
-<dt><strong><code>l</code></strong> :&ensp;<code>float</code></dt>
-<dd>The phase (expressed as a path length). The resulting path starts l distance along the
-original path.</dd>
-</dl>
-<h2 id="returns">Returns</h2>
-<dl>
-<dt><code><a title="traceon.geometry.Path" href="#traceon.geometry.Path">Path</a></code></dt>
-<dd>&nbsp;</dd>
-</dl></div>
-</dd>
 <dt id="traceon.geometry.Path.aperture"><code class="name flex">
 <span>def <span class="ident">aperture</span></span>(<span>height, radius, extent, z=0.0)</span>
 </code></dt>
@@ -817,42 +791,6 @@ This is the most basic model of an aperture.</p>
 <dt><code><a title="traceon.geometry.Path" href="#traceon.geometry.Path">Path</a></code></dt>
 <dd>&nbsp;</dd>
 </dl></div>
-</dd>
-<dt id="traceon.geometry.Path.arc_to"><code class="name flex">
-<span>def <span class="ident">arc_to</span></span>(<span>self, center, end, reverse=False)</span>
-</code></dt>
-<dd>
-<div class="desc"><p>Extend the current path using an arc.</p>
-<h2 id="parameters">Parameters</h2>
-<dl>
-<dt><strong><code>center</code></strong> :&ensp;<code>(3,) float</code></dt>
-<dd>The center point of the arc.</dd>
-<dt><strong><code>end</code></strong> :&ensp;<code>(3,) float</code></dt>
-<dd>The endpoint of the arc, shoud lie on a circle determined
-by the given centerpoint and the current endpoint.</dd>
-</dl>
-<h2 id="returns">Returns</h2>
-<dl>
-<dt><code><a title="traceon.geometry.Path" href="#traceon.geometry.Path">Path</a></code></dt>
-<dd>&nbsp;</dd>
-</dl></div>
-</dd>
-<dt id="traceon.geometry.Path.average"><code class="name flex">
-<span>def <span class="ident">average</span></span>(<span>self, fun)</span>
-</code></dt>
-<dd>
-<div class="desc"><p>Average a function along the path, by integrating 1/l * fun(path(l)) with 0 &lt;= l &lt;= path length.</p>
-<h2 id="parameters">Parameters</h2>
-<dl>
-<dt><strong><code>fun</code></strong> :&ensp;<code>callable (3,) -&gt; float</code></dt>
-<dd>A function taking a three dimensional point and returning a float.</dd>
-</dl>
-<h2 id="returns">Returns</h2>
-<dl>
-<dt><code>float</code></dt>
-<dd>&nbsp;</dd>
-</dl>
-<p>The average value of the function along the point.</p></div>
 </dd>
 <dt id="traceon.geometry.Path.circle_xy"><code class="name flex">
 <span>def <span class="ident">circle_xy</span></span>(<span>x0, y0, radius, angle=6.283185307179586)</span>
@@ -920,31 +858,6 @@ by the given centerpoint and the current endpoint.</dd>
 <dd>&nbsp;</dd>
 </dl></div>
 </dd>
-<dt id="traceon.geometry.Path.close"><code class="name flex">
-<span>def <span class="ident">close</span></span>(<span>self)</span>
-</code></dt>
-<dd>
-<div class="desc"><p>Close the path, by making a straight line to the starting point.</p>
-<h2 id="returns">Returns</h2>
-<dl>
-<dt><code><a title="traceon.geometry.Path" href="#traceon.geometry.Path">Path</a></code></dt>
-<dd>&nbsp;</dd>
-</dl></div>
-</dd>
-<dt id="traceon.geometry.Path.cut"><code class="name flex">
-<span>def <span class="ident">cut</span></span>(<span>self, length)</span>
-</code></dt>
-<dd>
-<div class="desc"><p>Cut the path in two at a specific length along the path.</p>
-<h2 id="parameters">Parameters</h2>
-<dl>
-<dt><strong><code>length</code></strong> :&ensp;<code>float</code></dt>
-<dd>The length along the path at which to cut.</dd>
-</dl>
-<h2 id="returns">Returns</h2>
-<p>(Path, Path)</p>
-<p>A tuple containing two paths. The first path contains the path upto length, while the second path contains the rest.</p></div>
-</dd>
 <dt id="traceon.geometry.Path.ellipse"><code class="name flex">
 <span>def <span class="ident">ellipse</span></span>(<span>major, minor)</span>
 </code></dt>
@@ -961,50 +874,6 @@ in the XY plane, and the path starts on the positive x-axis.</p>
 <h2 id="returns">Returns</h2>
 <dl>
 <dt><code><a title="traceon.geometry.Path" href="#traceon.geometry.Path">Path</a></code></dt>
-<dd>&nbsp;</dd>
-</dl></div>
-</dd>
-<dt id="traceon.geometry.Path.endpoint"><code class="name flex">
-<span>def <span class="ident">endpoint</span></span>(<span>self)</span>
-</code></dt>
-<dd>
-<div class="desc"><p>Returns the endpoint of the path.</p>
-<h2 id="returns">Returns</h2>
-<p>(3,) float</p>
-<p>The endpoint of the path.</p></div>
-</dd>
-<dt id="traceon.geometry.Path.extrude"><code class="name flex">
-<span>def <span class="ident">extrude</span></span>(<span>self, vector)</span>
-</code></dt>
-<dd>
-<div class="desc"><p>Create a surface by extruding the path along a vector. The vector gives both
-the length and the direction of the extrusion.</p>
-<h2 id="parameters">Parameters</h2>
-<dl>
-<dt><strong><code>vector</code></strong> :&ensp;<code>(3,) float</code></dt>
-<dd>The direction and length (norm of the vector) to extrude by.</dd>
-</dl>
-<h2 id="returns">Returns</h2>
-<dl>
-<dt><code><a title="traceon.geometry.Surface" href="#traceon.geometry.Surface">Surface</a></code></dt>
-<dd>&nbsp;</dd>
-</dl></div>
-</dd>
-<dt id="traceon.geometry.Path.extrude_by_path"><code class="name flex">
-<span>def <span class="ident">extrude_by_path</span></span>(<span>self, p2)</span>
-</code></dt>
-<dd>
-<div class="desc"><p>Create a surface by extruding the path along a second path. The second
-path does not need to start along the first path. Imagine the surface created
-by moving the first path along the second path.</p>
-<h2 id="parameters">Parameters</h2>
-<dl>
-<dt><strong><code>p2</code></strong> :&ensp;<code><a title="traceon.geometry.Path" href="#traceon.geometry.Path">Path</a></code></dt>
-<dd>The (second) path defining the extrusion.</dd>
-</dl>
-<h2 id="returns">Returns</h2>
-<dl>
-<dt><code><a title="traceon.geometry.Surface" href="#traceon.geometry.Surface">Surface</a></code></dt>
 <dd>&nbsp;</dd>
 </dl></div>
 </dd>
@@ -1030,14 +899,6 @@ are always included in the resulting mesh.</dd>
 <dd>&nbsp;</dd>
 </dl></div>
 </dd>
-<dt id="traceon.geometry.Path.is_closed"><code class="name flex">
-<span>def <span class="ident">is_closed</span></span>(<span>self)</span>
-</code></dt>
-<dd>
-<div class="desc"><p>Determine whether the path is closed, by comparing the starting and endpoint.</p>
-<h2 id="returns">Returns</h2>
-<p>bool: True if the path is closed, False otherwise.</p></div>
-</dd>
 <dt id="traceon.geometry.Path.line"><code class="name flex">
 <span>def <span class="ident">line</span></span>(<span>from_, to)</span>
 </code></dt>
@@ -1055,75 +916,6 @@ are always included in the resulting mesh.</dd>
 <dt><code><a title="traceon.geometry.Path" href="#traceon.geometry.Path">Path</a></code></dt>
 <dd>&nbsp;</dd>
 </dl></div>
-</dd>
-<dt id="traceon.geometry.Path.line_to"><code class="name flex">
-<span>def <span class="ident">line_to</span></span>(<span>self, point)</span>
-</code></dt>
-<dd>
-<div class="desc"><p>Extend the current path by a line from the current endpoint to the given point.
-The given point is marked a breakpoint.</p>
-<h2 id="parameters">Parameters</h2>
-<dl>
-<dt><strong><code>point</code></strong> :&ensp;<code>(3,) float</code></dt>
-<dd>The new endpoint.</dd>
-</dl>
-<h2 id="returns">Returns</h2>
-<dl>
-<dt><code><a title="traceon.geometry.Path" href="#traceon.geometry.Path">Path</a></code></dt>
-<dd>&nbsp;</dd>
-</dl></div>
-</dd>
-<dt id="traceon.geometry.Path.map_points"><code class="name flex">
-<span>def <span class="ident">map_points</span></span>(<span>self, fun)</span>
-</code></dt>
-<dd>
-<div class="desc"><p>Return a new function by mapping a function over points along the path (see <code><a title="traceon.mesher.GeometricObject" href="mesher.html#traceon.mesher.GeometricObject">GeometricObject</a></code>).
-The path length is assumed to stay the same after this operation.</p>
-<h2 id="parameters">Parameters</h2>
-<dl>
-<dt><strong><code>fun</code></strong> :&ensp;<code>callable (3,) -&gt; (3,)</code></dt>
-<dd>Function taking three dimensional points and returning three dimensional points.</dd>
-</dl>
-<h2 id="returns">Returns</h2>
-<dl>
-<dt><code><a title="traceon.geometry.Path" href="#traceon.geometry.Path">Path</a></code></dt>
-<dd>&nbsp;</dd>
-</dl></div>
-</dd>
-<dt id="traceon.geometry.Path.mesh"><code class="name flex">
-<span>def <span class="ident">mesh</span></span>(<span>self, mesh_size=None, mesh_size_factor=None, higher_order=False)</span>
-</code></dt>
-<dd>
-<div class="desc"><p>Mesh the path, so it can be used in the BEM solver.</p>
-<h2 id="parameters">Parameters</h2>
-<dl>
-<dt><strong><code>mesh_size</code></strong> :&ensp;<code>float</code></dt>
-<dd>Determines amount of elements in the mesh. A smaller
-mesh size leads to more elements.</dd>
-<dt><strong><code>mesh_size_factor</code></strong> :&ensp;<code>float</code></dt>
-<dd>Alternative way to specify the mesh size, which scales
-with the dimensions of the geometry, and therefore more
-easily translates between different geometries.</dd>
-<dt><strong><code>higher_order</code></strong> :&ensp;<code>bool</code></dt>
-<dd>Whether to generate a higher order mesh. A higher order
-produces curved line elements (determined by 4 points on
-each curved element). The BEM solver supports higher order
-elements in radial symmetric geometries only.</dd>
-</dl>
-<h2 id="returns">Returns</h2>
-<dl>
-<dt><code><a title="traceon.geometry.Path" href="#traceon.geometry.Path">Path</a></code></dt>
-<dd>&nbsp;</dd>
-</dl></div>
-</dd>
-<dt id="traceon.geometry.Path.middle_point"><code class="name flex">
-<span>def <span class="ident">middle_point</span></span>(<span>self)</span>
-</code></dt>
-<dd>
-<div class="desc"><p>Returns the midpoint of the path (in terms of length along the path.)</p>
-<h2 id="returns">Returns</h2>
-<p>(3,) float</p>
-<p>The point at the middle of the path.</p></div>
 </dd>
 <dt id="traceon.geometry.Path.rectangle_xy"><code class="name flex">
 <span>def <span class="ident">rectangle_xy</span></span>(<span>xmin, xmax, ymin, ymax)</span>
@@ -1194,6 +986,267 @@ counter clockwise around the x-axis.</p>
 <dd>&nbsp;</dd>
 </dl></div>
 </dd>
+<dt id="traceon.geometry.Path.spline_through_points"><code class="name flex">
+<span>def <span class="ident">spline_through_points</span></span>(<span>points, N=100)</span>
+</code></dt>
+<dd>
+<div class="desc"><p>Construct a path by fitting a cubic spline through the given points.</p>
+<h2 id="parameters">Parameters</h2>
+<dl>
+<dt><strong><code>points</code></strong> :&ensp;<code>(N, 3) ndarray</code> of <code>float</code></dt>
+<dd>Three dimensional points through which the spline is fitted.</dd>
+</dl>
+<h2 id="returns">Returns</h2>
+<dl>
+<dt><code><a title="traceon.geometry.Path" href="#traceon.geometry.Path">Path</a></code></dt>
+<dd>&nbsp;</dd>
+</dl></div>
+</dd>
+</dl>
+<h3>Methods</h3>
+<dl>
+<dt id="traceon.geometry.Path.__add__"><code class="name flex">
+<span>def <span class="ident">__add__</span></span>(<span>self, other)</span>
+</code></dt>
+<dd>
+<div class="desc"><p>Add two paths to create a PathCollection. Note that a PathCollection supports
+a subset of the methods of Path (for example, movement, rotation and meshing). Use
+the + operator to combine paths into a path collection: path1 + path2 + path3.</p>
+<h2 id="returns">Returns</h2>
+<dl>
+<dt><code><a title="traceon.geometry.PathCollection" href="#traceon.geometry.PathCollection">PathCollection</a></code></dt>
+<dd>&nbsp;</dd>
+</dl></div>
+</dd>
+<dt id="traceon.geometry.Path.__call__"><code class="name flex">
+<span>def <span class="ident">__call__</span></span>(<span>self, t)</span>
+</code></dt>
+<dd>
+<div class="desc"><p>Evaluate a point along the path.</p>
+<h2 id="parameters">Parameters</h2>
+<dl>
+<dt><strong><code>t</code></strong> :&ensp;<code>float</code></dt>
+<dd>The length along the path.</dd>
+</dl>
+<h2 id="returns">Returns</h2>
+<p>(3,) float</p>
+<p>Three dimensional point.</p></div>
+</dd>
+<dt id="traceon.geometry.Path.__rshift__"><code class="name flex">
+<span>def <span class="ident">__rshift__</span></span>(<span>self, other)</span>
+</code></dt>
+<dd>
+<div class="desc"><p>Combine two paths to create a single path. The endpoint of the first path needs
+to match the starting point of the second path. This common point is marked as a breakpoint and
+always included in the mesh. To use this function use the right shift operator (p1 &gt;&gt; p2).</p>
+<h2 id="parameters">Parameters</h2>
+<dl>
+<dt><strong><code>other</code></strong> :&ensp;<code><a title="traceon.geometry.Path" href="#traceon.geometry.Path">Path</a></code></dt>
+<dd>The second path, to extend the current path.</dd>
+</dl>
+<h2 id="returns">Returns</h2>
+<dl>
+<dt><code><a title="traceon.geometry.Path" href="#traceon.geometry.Path">Path</a></code></dt>
+<dd>&nbsp;</dd>
+</dl></div>
+</dd>
+<dt id="traceon.geometry.Path.add_phase"><code class="name flex">
+<span>def <span class="ident">add_phase</span></span>(<span>self, l)</span>
+</code></dt>
+<dd>
+<div class="desc"><p>Add a phase to a closed path. A path is closed when the starting point is equal to the
+end point. A phase of length l means that the path starts 'further down' the closed path.</p>
+<h2 id="parameters">Parameters</h2>
+<dl>
+<dt><strong><code>l</code></strong> :&ensp;<code>float</code></dt>
+<dd>The phase (expressed as a path length). The resulting path starts l distance along the
+original path.</dd>
+</dl>
+<h2 id="returns">Returns</h2>
+<dl>
+<dt><code><a title="traceon.geometry.Path" href="#traceon.geometry.Path">Path</a></code></dt>
+<dd>&nbsp;</dd>
+</dl></div>
+</dd>
+<dt id="traceon.geometry.Path.arc_to"><code class="name flex">
+<span>def <span class="ident">arc_to</span></span>(<span>self, center, end, reverse=False)</span>
+</code></dt>
+<dd>
+<div class="desc"><p>Extend the current path using an arc.</p>
+<h2 id="parameters">Parameters</h2>
+<dl>
+<dt><strong><code>center</code></strong> :&ensp;<code>(3,) float</code></dt>
+<dd>The center point of the arc.</dd>
+<dt><strong><code>end</code></strong> :&ensp;<code>(3,) float</code></dt>
+<dd>The endpoint of the arc, shoud lie on a circle determined
+by the given centerpoint and the current endpoint.</dd>
+</dl>
+<h2 id="returns">Returns</h2>
+<dl>
+<dt><code><a title="traceon.geometry.Path" href="#traceon.geometry.Path">Path</a></code></dt>
+<dd>&nbsp;</dd>
+</dl></div>
+</dd>
+<dt id="traceon.geometry.Path.average"><code class="name flex">
+<span>def <span class="ident">average</span></span>(<span>self, fun)</span>
+</code></dt>
+<dd>
+<div class="desc"><p>Average a function along the path, by integrating 1/l * fun(path(l)) with 0 &lt;= l &lt;= path length.</p>
+<h2 id="parameters">Parameters</h2>
+<dl>
+<dt><strong><code>fun</code></strong> :&ensp;<code>callable (3,) -&gt; float</code></dt>
+<dd>A function taking a three dimensional point and returning a float.</dd>
+</dl>
+<h2 id="returns">Returns</h2>
+<dl>
+<dt><code>float</code></dt>
+<dd>&nbsp;</dd>
+</dl>
+<p>The average value of the function along the point.</p></div>
+</dd>
+<dt id="traceon.geometry.Path.close"><code class="name flex">
+<span>def <span class="ident">close</span></span>(<span>self)</span>
+</code></dt>
+<dd>
+<div class="desc"><p>Close the path, by making a straight line to the starting point.</p>
+<h2 id="returns">Returns</h2>
+<dl>
+<dt><code><a title="traceon.geometry.Path" href="#traceon.geometry.Path">Path</a></code></dt>
+<dd>&nbsp;</dd>
+</dl></div>
+</dd>
+<dt id="traceon.geometry.Path.cut"><code class="name flex">
+<span>def <span class="ident">cut</span></span>(<span>self, length)</span>
+</code></dt>
+<dd>
+<div class="desc"><p>Cut the path in two at a specific length along the path.</p>
+<h2 id="parameters">Parameters</h2>
+<dl>
+<dt><strong><code>length</code></strong> :&ensp;<code>float</code></dt>
+<dd>The length along the path at which to cut.</dd>
+</dl>
+<h2 id="returns">Returns</h2>
+<p>(Path, Path)</p>
+<p>A tuple containing two paths. The first path contains the path upto length, while the second path contains the rest.</p></div>
+</dd>
+<dt id="traceon.geometry.Path.endpoint"><code class="name flex">
+<span>def <span class="ident">endpoint</span></span>(<span>self)</span>
+</code></dt>
+<dd>
+<div class="desc"><p>Returns the endpoint of the path.</p>
+<h2 id="returns">Returns</h2>
+<p>(3,) float</p>
+<p>The endpoint of the path.</p></div>
+</dd>
+<dt id="traceon.geometry.Path.extrude"><code class="name flex">
+<span>def <span class="ident">extrude</span></span>(<span>self, vector)</span>
+</code></dt>
+<dd>
+<div class="desc"><p>Create a surface by extruding the path along a vector. The vector gives both
+the length and the direction of the extrusion.</p>
+<h2 id="parameters">Parameters</h2>
+<dl>
+<dt><strong><code>vector</code></strong> :&ensp;<code>(3,) float</code></dt>
+<dd>The direction and length (norm of the vector) to extrude by.</dd>
+</dl>
+<h2 id="returns">Returns</h2>
+<dl>
+<dt><code><a title="traceon.geometry.Surface" href="#traceon.geometry.Surface">Surface</a></code></dt>
+<dd>&nbsp;</dd>
+</dl></div>
+</dd>
+<dt id="traceon.geometry.Path.extrude_by_path"><code class="name flex">
+<span>def <span class="ident">extrude_by_path</span></span>(<span>self, p2)</span>
+</code></dt>
+<dd>
+<div class="desc"><p>Create a surface by extruding the path along a second path. The second
+path does not need to start along the first path. Imagine the surface created
+by moving the first path along the second path.</p>
+<h2 id="parameters">Parameters</h2>
+<dl>
+<dt><strong><code>p2</code></strong> :&ensp;<code><a title="traceon.geometry.Path" href="#traceon.geometry.Path">Path</a></code></dt>
+<dd>The (second) path defining the extrusion.</dd>
+</dl>
+<h2 id="returns">Returns</h2>
+<dl>
+<dt><code><a title="traceon.geometry.Surface" href="#traceon.geometry.Surface">Surface</a></code></dt>
+<dd>&nbsp;</dd>
+</dl></div>
+</dd>
+<dt id="traceon.geometry.Path.is_closed"><code class="name flex">
+<span>def <span class="ident">is_closed</span></span>(<span>self)</span>
+</code></dt>
+<dd>
+<div class="desc"><p>Determine whether the path is closed, by comparing the starting and endpoint.</p>
+<h2 id="returns">Returns</h2>
+<p>bool: True if the path is closed, False otherwise.</p></div>
+</dd>
+<dt id="traceon.geometry.Path.line_to"><code class="name flex">
+<span>def <span class="ident">line_to</span></span>(<span>self, point)</span>
+</code></dt>
+<dd>
+<div class="desc"><p>Extend the current path by a line from the current endpoint to the given point.
+The given point is marked a breakpoint.</p>
+<h2 id="parameters">Parameters</h2>
+<dl>
+<dt><strong><code>point</code></strong> :&ensp;<code>(3,) float</code></dt>
+<dd>The new endpoint.</dd>
+</dl>
+<h2 id="returns">Returns</h2>
+<dl>
+<dt><code><a title="traceon.geometry.Path" href="#traceon.geometry.Path">Path</a></code></dt>
+<dd>&nbsp;</dd>
+</dl></div>
+</dd>
+<dt id="traceon.geometry.Path.map_points"><code class="name flex">
+<span>def <span class="ident">map_points</span></span>(<span>self, fun)</span>
+</code></dt>
+<dd>
+<div class="desc"><p>Return a new function by mapping a function over points along the path (see <code><a title="traceon.mesher.GeometricObject" href="mesher.html#traceon.mesher.GeometricObject">GeometricObject</a></code>).
+The path length is assumed to stay the same after this operation.</p>
+<h2 id="parameters">Parameters</h2>
+<dl>
+<dt><strong><code>fun</code></strong> :&ensp;<code>callable (3,) -&gt; (3,)</code></dt>
+<dd>Function taking three dimensional points and returning three dimensional points.</dd>
+</dl>
+<h2 id="returns">Returns</h2>
+<p>Path</p></div>
+</dd>
+<dt id="traceon.geometry.Path.mesh"><code class="name flex">
+<span>def <span class="ident">mesh</span></span>(<span>self, mesh_size=None, mesh_size_factor=None, higher_order=False, name=None)</span>
+</code></dt>
+<dd>
+<div class="desc"><p>Mesh the path, so it can be used in the BEM solver. The result of meshing a path
+are (possibly curved) line elements.</p>
+<h2 id="parameters">Parameters</h2>
+<dl>
+<dt><strong><code>mesh_size</code></strong> :&ensp;<code>float</code></dt>
+<dd>Determines amount of elements in the mesh. A smaller
+mesh size leads to more elements.</dd>
+<dt><strong><code>mesh_size_factor</code></strong> :&ensp;<code>float</code></dt>
+<dd>Alternative way to specify the mesh size, which scales
+with the dimensions of the geometry, and therefore more
+easily translates between different geometries.</dd>
+<dt><strong><code>higher_order</code></strong> :&ensp;<code>bool</code></dt>
+<dd>Whether to generate a higher order mesh. A higher order
+produces curved line elements (determined by 4 points on
+each curved element). The BEM solver supports higher order
+elements in radial symmetric geometries only.</dd>
+<dt><strong><code>name</code></strong> :&ensp;<code>str</code></dt>
+<dd>Assign this name to the mesh, instead of the name value assinged to Surface.name</dd>
+</dl>
+<h2 id="returns">Returns</h2>
+<p><code><a title="traceon.mesher.Mesh" href="mesher.html#traceon.mesher.Mesh">Mesh</a></code></p></div>
+</dd>
+<dt id="traceon.geometry.Path.middle_point"><code class="name flex">
+<span>def <span class="ident">middle_point</span></span>(<span>self)</span>
+</code></dt>
+<dd>
+<div class="desc"><p>Returns the midpoint of the path (in terms of length along the path.)</p>
+<h2 id="returns">Returns</h2>
+<p>(3,) float</p>
+<p>The point at the middle of the path.</p></div>
+</dd>
 <dt id="traceon.geometry.Path.revolve_x"><code class="name flex">
 <span>def <span class="ident">revolve_x</span></span>(<span>self, angle=6.283185307179586)</span>
 </code></dt>
@@ -1242,22 +1295,6 @@ counter clockwise around the x-axis.</p>
 <dd>&nbsp;</dd>
 </dl></div>
 </dd>
-<dt id="traceon.geometry.Path.spline_through_points"><code class="name flex">
-<span>def <span class="ident">spline_through_points</span></span>(<span>points, N=100)</span>
-</code></dt>
-<dd>
-<div class="desc"><p>Construct a path by fitting a cubic spline through the given points.</p>
-<h2 id="parameters">Parameters</h2>
-<dl>
-<dt><strong><code>points</code></strong> :&ensp;<code>(N, 3) ndarray</code> of <code>float</code></dt>
-<dd>Three dimensional points through which the spline is fitted.</dd>
-</dl>
-<h2 id="returns">Returns</h2>
-<dl>
-<dt><code><a title="traceon.geometry.Path" href="#traceon.geometry.Path">Path</a></code></dt>
-<dd>&nbsp;</dd>
-</dl></div>
-</dd>
 <dt id="traceon.geometry.Path.starting_point"><code class="name flex">
 <span>def <span class="ident">starting_point</span></span>(<span>self)</span>
 </code></dt>
@@ -1299,18 +1336,30 @@ Note that <code><a title="traceon.geometry.PathCollection" href="#traceon.geomet
     def __init__(self, paths):
         assert all([isinstance(p, Path) for p in paths])
         self.paths = paths
-        self.name = None
+        self._name = None
     
+    @property
+    def name(self):
+        return self._name
+
+    @name.setter
+    def name(self, name):
+        self._name = name
+         
+        for path in self.paths:
+            path.name = name
+     
     def map_points(self, fun):
         return PathCollection([p.map_points(fun) for p in self.paths])
      
-    def mesh(self, mesh_size=None, mesh_size_factor=None, higher_order=False):
+    def mesh(self, mesh_size=None, mesh_size_factor=None, higher_order=False, name=None):
+        &#34;&#34;&#34;See `Path.mesh`&#34;&#34;&#34;
         mesh = Mesh()
         
+        name = self.name if name is None else name
+        
         for p in self.paths:
-            if self.name is not None:
-                p.name = self.name
-            mesh = mesh + p.mesh(mesh_size=mesh_size, mesh_size_factor=mesh_size_factor, higher_order=higher_order)
+            mesh = mesh + p.mesh(mesh_size=mesh_size, mesh_size_factor=mesh_size_factor, higher_order=higher_order, name=name)
 
         return mesh
 
@@ -1323,6 +1372,7 @@ Note that <code><a title="traceon.geometry.PathCollection" href="#traceon.geomet
         return SurfaceCollection(surfaces)
     
     def __add__(self, other):
+        &#34;&#34;&#34;Allows you to combine paths and path collection using the + operator (path1 + path2).&#34;&#34;&#34;
         if not isinstance(other, Path) and not isinstance(other, PathCollection):
             return NotImplemented
         
@@ -1332,6 +1382,7 @@ Note that <code><a title="traceon.geometry.PathCollection" href="#traceon.geomet
             return PathCollection(self.paths+other.paths)
       
     def __iadd__(self, other):
+        &#34;&#34;&#34;Allows you to add paths to the collection using the += operator.&#34;&#34;&#34;
         assert isinstance(other, PathCollection) or isinstance(other, Path)
 
         if isinstance(other, Path):
@@ -1346,16 +1397,47 @@ Note that <code><a title="traceon.geometry.PathCollection" href="#traceon.geomet
     def revolve_z(self, angle=2*pi):
         return self._map_to_surfaces(Path.revolve_z, angle=angle)
     def extrude(self, vector):
-        return self._map_to_surface(Path.extrude, vector)
+        return self._map_to_surfaces(Path.extrude, vector)
     def extrude_by_path(self, p2):
-        return self._map_to_surface(Path.extrude_by_path, p2)</code></pre>
+        return self._map_to_surfaces(Path.extrude_by_path, p2)
+    
+    def __str__(self):
+        return f&#34;&lt;PathCollection with {len(self.paths)} surfaces, name: {self.name}&gt;&#34;</code></pre>
 </details>
 <h3>Ancestors</h3>
 <ul class="hlist">
 <li><a title="traceon.mesher.GeometricObject" href="mesher.html#traceon.mesher.GeometricObject">GeometricObject</a></li>
+<li>abc.ABC</li>
 </ul>
+<h3>Instance variables</h3>
+<dl>
+<dt id="traceon.geometry.PathCollection.name"><code class="name">prop <span class="ident">name</span></code></dt>
+<dd>
+<div class="desc"></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">@property
+def name(self):
+    return self._name</code></pre>
+</details>
+</dd>
+</dl>
 <h3>Methods</h3>
 <dl>
+<dt id="traceon.geometry.PathCollection.__add__"><code class="name flex">
+<span>def <span class="ident">__add__</span></span>(<span>self, other)</span>
+</code></dt>
+<dd>
+<div class="desc"><p>Allows you to combine paths and path collection using the + operator (path1 + path2).</p></div>
+</dd>
+<dt id="traceon.geometry.PathCollection.__iadd__"><code class="name flex">
+<span>def <span class="ident">__iadd__</span></span>(<span>self, other)</span>
+</code></dt>
+<dd>
+<div class="desc"><p>Allows you to add paths to the collection using the += operator.</p></div>
+</dd>
 <dt id="traceon.geometry.PathCollection.extrude"><code class="name flex">
 <span>def <span class="ident">extrude</span></span>(<span>self, vector)</span>
 </code></dt>
@@ -1369,10 +1451,10 @@ Note that <code><a title="traceon.geometry.PathCollection" href="#traceon.geomet
 <div class="desc"></div>
 </dd>
 <dt id="traceon.geometry.PathCollection.mesh"><code class="name flex">
-<span>def <span class="ident">mesh</span></span>(<span>self, mesh_size=None, mesh_size_factor=None, higher_order=False)</span>
+<span>def <span class="ident">mesh</span></span>(<span>self, mesh_size=None, mesh_size_factor=None, higher_order=False, name=None)</span>
 </code></dt>
 <dd>
-<div class="desc"></div>
+<div class="desc"><p>See <code><a title="traceon.geometry.Path.mesh" href="#traceon.geometry.Path.mesh">Path.mesh()</a></code></p></div>
 </dd>
 <dt id="traceon.geometry.PathCollection.revolve_x"><code class="name flex">
 <span>def <span class="ident">revolve_x</span></span>(<span>self, angle=6.283185307179586)</span>
@@ -1431,9 +1513,7 @@ Note that <code><a title="traceon.geometry.Surface" href="#traceon.geometry.Surf
         self.breakpoints2 = breakpoints2
         self.name = name
 
-    def sections(self): 
-        # Iterate over the sections defined by
-        # the breakpoints
+    def _sections(self): 
         b1 = [0.] + self.breakpoints1 + [self.path_length1]
         b2 = [0.] + self.breakpoints2 + [self.path_length2]
 
@@ -1444,14 +1524,41 @@ Note that <code><a title="traceon.geometry.Surface" href="#traceon.geometry.Surf
                 yield Surface(fun, u1-u0, v1-v0, [], [])
        
     def __call__(self, u, v):
+        &#34;&#34;&#34;Evaluate the surface at point (u, v). Returns a three dimensional point.
+
+        Parameters
+        ------------------------------
+        u: float
+            First coordinate, should be 0 &lt;= u &lt;= self.path_length1
+        v: float
+            Second coordinate, should be 0 &lt;= v &lt;= self.path_length2
+
+        Returns
+        ----------------------------
+        (3,) np.ndarray of double&#34;&#34;&#34;
         return self.fun(u, v)
 
     def map_points(self, fun):
         return Surface(lambda u, v: fun(self(u, v)),
             self.path_length1, self.path_length2,
-            self.breakpoints1, self.breakpoints2)
+            self.breakpoints1, self.breakpoints2, name=self.name)
      
+    @staticmethod
     def spanned_by_paths(path1, path2):
+        &#34;&#34;&#34;Create a surface by considering the area between two paths. Imagine two points
+        progressing along the path simultaneously and at each step drawing a straight line
+        between the points.
+
+        Parameters
+        --------------------------
+        path1: Path
+            The path characterizing one edge of the surface
+        path2: Path
+            The path characterizing the opposite edge of the surface
+
+        Returns
+        --------------------------
+        Surface&#34;&#34;&#34;
         length1 = max(path1.path_length, path2.path_length)
         
         length_start = np.linalg.norm(path1.starting_point() - path2.starting_point())
@@ -1468,7 +1575,19 @@ Note that <code><a title="traceon.geometry.Surface" href="#traceon.geometry.Surf
          
         return Surface(f, length1, length2, breakpoints)
 
+    @staticmethod
     def sphere(radius):
+        &#34;&#34;&#34;Create a sphere with the given radius, the center of the sphere is
+        at the origin, but can easily be moved by using the `mesher.GeometricObject.move` method.
+
+        Parameters
+        ------------------------------
+        radius: float
+            The radius of the sphere
+
+        Returns
+        -----------------------------
+        Surface representing the sphere&#34;&#34;&#34;
         
         length1 = 2*pi*radius
         length2 = pi*radius
@@ -1484,7 +1603,62 @@ Note that <code><a title="traceon.geometry.Surface" href="#traceon.geometry.Surf
         
         return Surface(f, length1, length2)
 
+    @staticmethod
+    def box(p0, p1):
+        &#34;&#34;&#34;Create a box with the two given points at opposite corners.
+
+        Parameters
+        -------------------------------
+        p0: (3,) np.ndarray double
+            One corner of the box
+        p1: (3,) np.ndarray double
+            The opposite corner of the box
+
+        Returns
+        -------------------------------
+        Surface representing the box&#34;&#34;&#34;
+
+        x0, y0, z0 = p0
+        x1, y1, z1 = p1
+
+        xmin, ymin, zmin = min(x0, x1), min(y0, y1), min(z0, z1)
+        xmax, ymax, zmax = max(x0, x1), max(y0, y1), max(z0, z1)
+        
+        path1 = Path.line([xmin, ymin, zmax], [xmax, ymin, zmax])
+        path2 = Path.line([xmin, ymin, zmin], [xmax, ymin, zmin])
+        path3 = Path.line([xmin, ymax, zmax], [xmax, ymax, zmax])
+        path4 = Path.line([xmin, ymax, zmin], [xmax, ymax, zmin])
+        
+        side_path = Path.line([xmin, ymin, zmin], [xmax, ymin, zmin])\
+            .line_to([xmax, ymin, zmax])\
+            .line_to([xmin, ymin, zmax])\
+            .close()
+
+        side_surface = side_path.extrude([0.0, ymax-ymin, 0.0])
+        top = Surface.spanned_by_paths(path1, path2)
+        bottom = Surface.spanned_by_paths(path4, path3)
+         
+        return (top + bottom + side_surface)
+
+    @staticmethod
     def from_boundary_paths(p1, p2, p3, p4):
+        &#34;&#34;&#34;Create a surface with the four given paths as the boundary.
+
+        Parameters
+        ----------------------------------
+        p1: Path
+            First edge of the surface
+        p2: Path
+            Second edge of the surface
+        p3: Path
+            Third edge of the surface
+        p4: Path
+            Fourth edge of the surface
+
+        Returns
+        ------------------------------------
+        Surface with the four giving paths as the boundary
+        &#34;&#34;&#34;
         path_length_p1_and_p3 = (p1.path_length + p3.path_length)/2
         path_length_p2_and_p4 = (p2.path_length + p4.path_length)/2
 
@@ -1511,6 +1685,7 @@ Note that <code><a title="traceon.geometry.Surface" href="#traceon.geometry.Surf
         
         return Surface(f, path_length_p1_and_p3, path_length_p2_and_p4, b1, b2)
      
+    @staticmethod
     def disk_xz(x0, z0, radius):
         &#34;&#34;&#34;Create a disk in the XZ plane.         
         
@@ -1529,6 +1704,7 @@ Note that <code><a title="traceon.geometry.Surface" href="#traceon.geometry.Surf
         disk_at_origin = Path.line([0.0, 0.0, 0.0], [radius, 0.0, 0.0]).revolve_y()
         return disk_at_origin.move(dx=x0, dz=z0)
     
+    @staticmethod
     def disk_yz(y0, z0, radius):
         &#34;&#34;&#34;Create a disk in the YZ plane.         
         
@@ -1547,6 +1723,7 @@ Note that <code><a title="traceon.geometry.Surface" href="#traceon.geometry.Surf
         disk_at_origin = Path.line([0.0, 0.0, 0.0], [0.0, radius, 0.0]).revolve_x()
         return disk_at_origin.move(dy=y0, dz=z0)
 
+    @staticmethod
     def disk_xy(x0, y0, radius):
         &#34;&#34;&#34;Create a disk in the XY plane.
         
@@ -1565,6 +1742,7 @@ Note that <code><a title="traceon.geometry.Surface" href="#traceon.geometry.Surf
         disk_at_origin = Path.line([0.0, 0.0, 0.0], [radius, 0.0, 0.0]).revolve_z()
         return disk_at_origin.move(dx=x0, dy=y0)
      
+    @staticmethod
     def rectangle_xz(xmin, xmax, zmin, zmax):
         &#34;&#34;&#34;Create a rectangle in the XZ plane. The path starts at (xmin, 0, zmin), and is 
         counter clockwise around the y-axis.
@@ -1585,6 +1763,7 @@ Note that <code><a title="traceon.geometry.Surface" href="#traceon.geometry.Surf
         Surface representing the rectangle&#34;&#34;&#34;
         return Path.line([xmin, 0., zmin], [xmin, 0, zmax]).extrude([xmax-xmin, 0., 0.])
      
+    @staticmethod
     def rectangle_yz(ymin, ymax, zmin, zmax):
         &#34;&#34;&#34;Create a rectangle in the YZ plane. The path starts at (0, ymin, zmin), and is 
         counter clockwise around the x-axis.
@@ -1605,6 +1784,7 @@ Note that <code><a title="traceon.geometry.Surface" href="#traceon.geometry.Surf
         Surface representing the rectangle&#34;&#34;&#34;
         return Path.line([0., ymin, zmin], [0., ymin, zmax]).extrude([0., ymax-ymin, 0.])
      
+    @staticmethod
     def rectangle_xy(xmin, xmax, ymin, ymax):
         &#34;&#34;&#34;Create a rectangle in the XY plane. The path starts at (xmin, ymin, 0), and is 
         counter clockwise around the z-axis.
@@ -1625,10 +1805,12 @@ Note that <code><a title="traceon.geometry.Surface" href="#traceon.geometry.Surf
         Surface representing the rectangle&#34;&#34;&#34;
         return Path.line([xmin, ymin, 0.], [xmin, ymax, 0.]).extrude([xmax-xmin, 0., 0.])
 
+    @staticmethod
     def aperture(height, radius, extent, z=0.):
         return Path.aperture(height, radius, extent, z=z).revolve_z()
      
     def __add__(self, other):
+        &#34;&#34;&#34;Allows you to combine surfaces into a `SurfaceCollection` using the + operator (surface1 + surface2).&#34;&#34;&#34;
         if not isinstance(other, Surface) and not isinstance(other, SurfaceCollection):
             return NotImplemented
 
@@ -1637,8 +1819,26 @@ Note that <code><a title="traceon.geometry.Surface" href="#traceon.geometry.Surf
         else:
             return SurfaceCollection([self] + other.surfaces)
      
-    def mesh(self, mesh_size=None, mesh_size_factor=None):
-          
+    def mesh(self, mesh_size=None, mesh_size_factor=None, name=None):
+        &#34;&#34;&#34;Mesh the surface, so it can be used in the BEM solver. The result of meshing
+        a surface are triangles.
+
+        Parameters
+        --------------------------
+        mesh_size: float
+            Determines amount of elements in the mesh. A smaller
+            mesh size leads to more elements.
+        mesh_size_factor: float
+            Alternative way to specify the mesh size, which scales
+            with the dimensions of the geometry, and therefore more
+            easily translates between different geometries.
+        name: str
+            Assign this name to the mesh, instead of the name value assinged to Surface.name
+        
+        Returns
+        ----------------------------
+        `traceon.mesher.Mesh`&#34;&#34;&#34;
+         
         if mesh_size is None:
             path_length = min(self.path_length1, self.path_length2)
              
@@ -1646,20 +1846,43 @@ Note that <code><a title="traceon.geometry.Surface" href="#traceon.geometry.Surf
 
             if mesh_size_factor is not None:
                 mesh_size /= sqrt(mesh_size_factor)
-         
-        return _mesh(self, mesh_size, name=self.name)</code></pre>
+
+        name = self.name if name is None else name
+        return _mesh(self, mesh_size, name=name)
+    
+    def __str__(self):
+        return f&#34;&lt;Surface with name: {self.name}&gt;&#34;</code></pre>
 </details>
 <h3>Ancestors</h3>
 <ul class="hlist">
 <li><a title="traceon.mesher.GeometricObject" href="mesher.html#traceon.mesher.GeometricObject">GeometricObject</a></li>
+<li>abc.ABC</li>
 </ul>
-<h3>Methods</h3>
+<h3>Static methods</h3>
 <dl>
 <dt id="traceon.geometry.Surface.aperture"><code class="name flex">
 <span>def <span class="ident">aperture</span></span>(<span>height, radius, extent, z=0.0)</span>
 </code></dt>
 <dd>
 <div class="desc"></div>
+</dd>
+<dt id="traceon.geometry.Surface.box"><code class="name flex">
+<span>def <span class="ident">box</span></span>(<span>p0, p1)</span>
+</code></dt>
+<dd>
+<div class="desc"><p>Create a box with the two given points at opposite corners.</p>
+<h2 id="parameters">Parameters</h2>
+<dl>
+<dt><strong><code>p0</code></strong> :&ensp;<code>(3,) np.ndarray double</code></dt>
+<dd>One corner of the box</dd>
+<dt><strong><code>p1</code></strong> :&ensp;<code>(3,) np.ndarray double</code></dt>
+<dd>The opposite corner of the box</dd>
+</dl>
+<h2 id="returns">Returns</h2>
+<dl>
+<dt><code><a title="traceon.geometry.Surface" href="#traceon.geometry.Surface">Surface</a> representing the box</code></dt>
+<dd>&nbsp;</dd>
+</dl></div>
 </dd>
 <dt id="traceon.geometry.Surface.disk_xy"><code class="name flex">
 <span>def <span class="ident">disk_xy</span></span>(<span>x0, y0, radius)</span>
@@ -1727,13 +1950,23 @@ Note that <code><a title="traceon.geometry.Surface" href="#traceon.geometry.Surf
 <span>def <span class="ident">from_boundary_paths</span></span>(<span>p1, p2, p3, p4)</span>
 </code></dt>
 <dd>
-<div class="desc"></div>
-</dd>
-<dt id="traceon.geometry.Surface.mesh"><code class="name flex">
-<span>def <span class="ident">mesh</span></span>(<span>self, mesh_size=None, mesh_size_factor=None)</span>
-</code></dt>
-<dd>
-<div class="desc"></div>
+<div class="desc"><p>Create a surface with the four given paths as the boundary.</p>
+<h2 id="parameters">Parameters</h2>
+<dl>
+<dt><strong><code>p1</code></strong> :&ensp;<code><a title="traceon.geometry.Path" href="#traceon.geometry.Path">Path</a></code></dt>
+<dd>First edge of the surface</dd>
+<dt><strong><code>p2</code></strong> :&ensp;<code><a title="traceon.geometry.Path" href="#traceon.geometry.Path">Path</a></code></dt>
+<dd>Second edge of the surface</dd>
+<dt><strong><code>p3</code></strong> :&ensp;<code><a title="traceon.geometry.Path" href="#traceon.geometry.Path">Path</a></code></dt>
+<dd>Third edge of the surface</dd>
+<dt><strong><code>p4</code></strong> :&ensp;<code><a title="traceon.geometry.Path" href="#traceon.geometry.Path">Path</a></code></dt>
+<dd>Fourth edge of the surface</dd>
+</dl>
+<h2 id="returns">Returns</h2>
+<dl>
+<dt><code><a title="traceon.geometry.Surface" href="#traceon.geometry.Surface">Surface</a> with the four giving paths as the boundary</code></dt>
+<dd>&nbsp;</dd>
+</dl></div>
 </dd>
 <dt id="traceon.geometry.Surface.rectangle_xy"><code class="name flex">
 <span>def <span class="ident">rectangle_xy</span></span>(<span>xmin, xmax, ymin, ymax)</span>
@@ -1804,23 +2037,87 @@ counter clockwise around the x-axis.</p>
 <dd>&nbsp;</dd>
 </dl></div>
 </dd>
-<dt id="traceon.geometry.Surface.sections"><code class="name flex">
-<span>def <span class="ident">sections</span></span>(<span>self)</span>
-</code></dt>
-<dd>
-<div class="desc"></div>
-</dd>
 <dt id="traceon.geometry.Surface.spanned_by_paths"><code class="name flex">
 <span>def <span class="ident">spanned_by_paths</span></span>(<span>path1, path2)</span>
 </code></dt>
 <dd>
-<div class="desc"></div>
+<div class="desc"><p>Create a surface by considering the area between two paths. Imagine two points
+progressing along the path simultaneously and at each step drawing a straight line
+between the points.</p>
+<h2 id="parameters">Parameters</h2>
+<dl>
+<dt><strong><code>path1</code></strong> :&ensp;<code><a title="traceon.geometry.Path" href="#traceon.geometry.Path">Path</a></code></dt>
+<dd>The path characterizing one edge of the surface</dd>
+<dt><strong><code>path2</code></strong> :&ensp;<code><a title="traceon.geometry.Path" href="#traceon.geometry.Path">Path</a></code></dt>
+<dd>The path characterizing the opposite edge of the surface</dd>
+</dl>
+<h2 id="returns">Returns</h2>
+<dl>
+<dt><code><a title="traceon.geometry.Surface" href="#traceon.geometry.Surface">Surface</a></code></dt>
+<dd>&nbsp;</dd>
+</dl></div>
 </dd>
 <dt id="traceon.geometry.Surface.sphere"><code class="name flex">
 <span>def <span class="ident">sphere</span></span>(<span>radius)</span>
 </code></dt>
 <dd>
-<div class="desc"></div>
+<div class="desc"><p>Create a sphere with the given radius, the center of the sphere is
+at the origin, but can easily be moved by using the <code>mesher.GeometricObject.move</code> method.</p>
+<h2 id="parameters">Parameters</h2>
+<dl>
+<dt><strong><code>radius</code></strong> :&ensp;<code>float</code></dt>
+<dd>The radius of the sphere</dd>
+</dl>
+<h2 id="returns">Returns</h2>
+<dl>
+<dt><code><a title="traceon.geometry.Surface" href="#traceon.geometry.Surface">Surface</a> representing the sphere</code></dt>
+<dd>&nbsp;</dd>
+</dl></div>
+</dd>
+</dl>
+<h3>Methods</h3>
+<dl>
+<dt id="traceon.geometry.Surface.__add__"><code class="name flex">
+<span>def <span class="ident">__add__</span></span>(<span>self, other)</span>
+</code></dt>
+<dd>
+<div class="desc"><p>Allows you to combine surfaces into a <code><a title="traceon.geometry.SurfaceCollection" href="#traceon.geometry.SurfaceCollection">SurfaceCollection</a></code> using the + operator (surface1 + surface2).</p></div>
+</dd>
+<dt id="traceon.geometry.Surface.__call__"><code class="name flex">
+<span>def <span class="ident">__call__</span></span>(<span>self, u, v)</span>
+</code></dt>
+<dd>
+<div class="desc"><p>Evaluate the surface at point (u, v). Returns a three dimensional point.</p>
+<h2 id="parameters">Parameters</h2>
+<dl>
+<dt><strong><code>u</code></strong> :&ensp;<code>float</code></dt>
+<dd>First coordinate, should be 0 &lt;= u &lt;= self.path_length1</dd>
+<dt><strong><code>v</code></strong> :&ensp;<code>float</code></dt>
+<dd>Second coordinate, should be 0 &lt;= v &lt;= self.path_length2</dd>
+</dl>
+<h2 id="returns">Returns</h2>
+<p>(3,) np.ndarray of double</p></div>
+</dd>
+<dt id="traceon.geometry.Surface.mesh"><code class="name flex">
+<span>def <span class="ident">mesh</span></span>(<span>self, mesh_size=None, mesh_size_factor=None, name=None)</span>
+</code></dt>
+<dd>
+<div class="desc"><p>Mesh the surface, so it can be used in the BEM solver. The result of meshing
+a surface are triangles.</p>
+<h2 id="parameters">Parameters</h2>
+<dl>
+<dt><strong><code>mesh_size</code></strong> :&ensp;<code>float</code></dt>
+<dd>Determines amount of elements in the mesh. A smaller
+mesh size leads to more elements.</dd>
+<dt><strong><code>mesh_size_factor</code></strong> :&ensp;<code>float</code></dt>
+<dd>Alternative way to specify the mesh size, which scales
+with the dimensions of the geometry, and therefore more
+easily translates between different geometries.</dd>
+<dt><strong><code>name</code></strong> :&ensp;<code>str</code></dt>
+<dd>Assign this name to the mesh, instead of the name value assinged to Surface.name</dd>
+</dl>
+<h2 id="returns">Returns</h2>
+<p><code><a title="traceon.mesher.Mesh" href="mesher.html#traceon.mesher.Mesh">Mesh</a></code></p></div>
 </dd>
 </dl>
 <h3>Inherited members</h3>
@@ -1855,23 +2152,35 @@ Note that <code><a title="traceon.geometry.SurfaceCollection" href="#traceon.geo
     def __init__(self, surfaces):
         assert all([isinstance(s, Surface) for s in surfaces])
         self.surfaces = surfaces
-        self.name = None
+        self._name = None
+
+    @property
+    def name(self):
+        return self._name
+
+    @name.setter
+    def name(self, name):
+        self._name = name
+         
+        for surf in self.surfaces:
+            surf.name = name
      
     def map_points(self, fun):
         return SurfaceCollection([s.map_points(fun) for s in self.surfaces])
      
     def mesh(self, mesh_size=None, mesh_size_factor=None, name=None):
+        &#34;&#34;&#34;See `Surface.mesh`&#34;&#34;&#34;
         mesh = Mesh()
         
+        name = self.name if name is None else name
+        
         for s in self.surfaces:
-            if self.name is not None:
-                s.name = self.name
-            
-            mesh = mesh + s.mesh(mesh_size=mesh_size, mesh_size_factor=mesh_size_factor)
+            mesh = mesh + s.mesh(mesh_size=mesh_size, mesh_size_factor=mesh_size_factor, name=name)
          
         return mesh
      
     def __add__(self, other):
+        &#34;&#34;&#34;Allows you to combine surfaces into a `SurfaceCollection` using the + operator (surface1 + surface2).&#34;&#34;&#34;
         if not isinstance(other, Surface) and not isinstance(other, SurfaceCollection):
             return NotImplemented
               
@@ -1881,24 +2190,56 @@ Note that <code><a title="traceon.geometry.SurfaceCollection" href="#traceon.geo
             return SurfaceCollection(self.surfaces+other.surfaces)
      
     def __iadd__(self, other):
+        &#34;&#34;&#34;Allows you to add surfaces to the collection using the += operator.&#34;&#34;&#34;
         assert isinstance(other, SurfaceCollection) or isinstance(other, Surface)
         
         if isinstance(other, Surface):
             self.surfaces.append(other)
         else:
-            self.surfaces.extend(other.surfaces)</code></pre>
+            self.surfaces.extend(other.surfaces)
+
+    def __str__(self):
+        return f&#34;&lt;SurfaceCollection with {len(self.surfaces)} surfaces, name: {self.name}&gt;&#34;</code></pre>
 </details>
 <h3>Ancestors</h3>
 <ul class="hlist">
 <li><a title="traceon.mesher.GeometricObject" href="mesher.html#traceon.mesher.GeometricObject">GeometricObject</a></li>
+<li>abc.ABC</li>
 </ul>
+<h3>Instance variables</h3>
+<dl>
+<dt id="traceon.geometry.SurfaceCollection.name"><code class="name">prop <span class="ident">name</span></code></dt>
+<dd>
+<div class="desc"></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">@property
+def name(self):
+    return self._name</code></pre>
+</details>
+</dd>
+</dl>
 <h3>Methods</h3>
 <dl>
+<dt id="traceon.geometry.SurfaceCollection.__add__"><code class="name flex">
+<span>def <span class="ident">__add__</span></span>(<span>self, other)</span>
+</code></dt>
+<dd>
+<div class="desc"><p>Allows you to combine surfaces into a <code><a title="traceon.geometry.SurfaceCollection" href="#traceon.geometry.SurfaceCollection">SurfaceCollection</a></code> using the + operator (surface1 + surface2).</p></div>
+</dd>
+<dt id="traceon.geometry.SurfaceCollection.__iadd__"><code class="name flex">
+<span>def <span class="ident">__iadd__</span></span>(<span>self, other)</span>
+</code></dt>
+<dd>
+<div class="desc"><p>Allows you to add surfaces to the collection using the += operator.</p></div>
+</dd>
 <dt id="traceon.geometry.SurfaceCollection.mesh"><code class="name flex">
 <span>def <span class="ident">mesh</span></span>(<span>self, mesh_size=None, mesh_size_factor=None, name=None)</span>
 </code></dt>
 <dd>
-<div class="desc"></div>
+<div class="desc"><p>See <code><a title="traceon.geometry.Surface.mesh" href="#traceon.geometry.Surface.mesh">Surface.mesh()</a></code></p></div>
 </dd>
 </dl>
 <h3>Inherited members</h3>
@@ -1933,6 +2274,7 @@ Note that <code><a title="traceon.geometry.SurfaceCollection" href="#traceon.geo
 <li>
 <h4><code><a title="traceon.geometry.Path" href="#traceon.geometry.Path">Path</a></code></h4>
 <ul class="">
+<li><code><a title="traceon.geometry.Path.__add__" href="#traceon.geometry.Path.__add__">__add__</a></code></li>
 <li><code><a title="traceon.geometry.Path.__call__" href="#traceon.geometry.Path.__call__">__call__</a></code></li>
 <li><code><a title="traceon.geometry.Path.__rshift__" href="#traceon.geometry.Path.__rshift__">__rshift__</a></code></li>
 <li><code><a title="traceon.geometry.Path.add_phase" href="#traceon.geometry.Path.add_phase">add_phase</a></code></li>
@@ -1969,9 +2311,12 @@ Note that <code><a title="traceon.geometry.SurfaceCollection" href="#traceon.geo
 <li>
 <h4><code><a title="traceon.geometry.PathCollection" href="#traceon.geometry.PathCollection">PathCollection</a></code></h4>
 <ul class="two-column">
+<li><code><a title="traceon.geometry.PathCollection.__add__" href="#traceon.geometry.PathCollection.__add__">__add__</a></code></li>
+<li><code><a title="traceon.geometry.PathCollection.__iadd__" href="#traceon.geometry.PathCollection.__iadd__">__iadd__</a></code></li>
 <li><code><a title="traceon.geometry.PathCollection.extrude" href="#traceon.geometry.PathCollection.extrude">extrude</a></code></li>
 <li><code><a title="traceon.geometry.PathCollection.extrude_by_path" href="#traceon.geometry.PathCollection.extrude_by_path">extrude_by_path</a></code></li>
 <li><code><a title="traceon.geometry.PathCollection.mesh" href="#traceon.geometry.PathCollection.mesh">mesh</a></code></li>
+<li><code><a title="traceon.geometry.PathCollection.name" href="#traceon.geometry.PathCollection.name">name</a></code></li>
 <li><code><a title="traceon.geometry.PathCollection.revolve_x" href="#traceon.geometry.PathCollection.revolve_x">revolve_x</a></code></li>
 <li><code><a title="traceon.geometry.PathCollection.revolve_y" href="#traceon.geometry.PathCollection.revolve_y">revolve_y</a></code></li>
 <li><code><a title="traceon.geometry.PathCollection.revolve_z" href="#traceon.geometry.PathCollection.revolve_z">revolve_z</a></code></li>
@@ -1980,7 +2325,10 @@ Note that <code><a title="traceon.geometry.SurfaceCollection" href="#traceon.geo
 <li>
 <h4><code><a title="traceon.geometry.Surface" href="#traceon.geometry.Surface">Surface</a></code></h4>
 <ul class="two-column">
+<li><code><a title="traceon.geometry.Surface.__add__" href="#traceon.geometry.Surface.__add__">__add__</a></code></li>
+<li><code><a title="traceon.geometry.Surface.__call__" href="#traceon.geometry.Surface.__call__">__call__</a></code></li>
 <li><code><a title="traceon.geometry.Surface.aperture" href="#traceon.geometry.Surface.aperture">aperture</a></code></li>
+<li><code><a title="traceon.geometry.Surface.box" href="#traceon.geometry.Surface.box">box</a></code></li>
 <li><code><a title="traceon.geometry.Surface.disk_xy" href="#traceon.geometry.Surface.disk_xy">disk_xy</a></code></li>
 <li><code><a title="traceon.geometry.Surface.disk_xz" href="#traceon.geometry.Surface.disk_xz">disk_xz</a></code></li>
 <li><code><a title="traceon.geometry.Surface.disk_yz" href="#traceon.geometry.Surface.disk_yz">disk_yz</a></code></li>
@@ -1989,7 +2337,6 @@ Note that <code><a title="traceon.geometry.SurfaceCollection" href="#traceon.geo
 <li><code><a title="traceon.geometry.Surface.rectangle_xy" href="#traceon.geometry.Surface.rectangle_xy">rectangle_xy</a></code></li>
 <li><code><a title="traceon.geometry.Surface.rectangle_xz" href="#traceon.geometry.Surface.rectangle_xz">rectangle_xz</a></code></li>
 <li><code><a title="traceon.geometry.Surface.rectangle_yz" href="#traceon.geometry.Surface.rectangle_yz">rectangle_yz</a></code></li>
-<li><code><a title="traceon.geometry.Surface.sections" href="#traceon.geometry.Surface.sections">sections</a></code></li>
 <li><code><a title="traceon.geometry.Surface.spanned_by_paths" href="#traceon.geometry.Surface.spanned_by_paths">spanned_by_paths</a></code></li>
 <li><code><a title="traceon.geometry.Surface.sphere" href="#traceon.geometry.Surface.sphere">sphere</a></code></li>
 </ul>
@@ -1997,7 +2344,10 @@ Note that <code><a title="traceon.geometry.SurfaceCollection" href="#traceon.geo
 <li>
 <h4><code><a title="traceon.geometry.SurfaceCollection" href="#traceon.geometry.SurfaceCollection">SurfaceCollection</a></code></h4>
 <ul class="">
+<li><code><a title="traceon.geometry.SurfaceCollection.__add__" href="#traceon.geometry.SurfaceCollection.__add__">__add__</a></code></li>
+<li><code><a title="traceon.geometry.SurfaceCollection.__iadd__" href="#traceon.geometry.SurfaceCollection.__iadd__">__iadd__</a></code></li>
 <li><code><a title="traceon.geometry.SurfaceCollection.mesh" href="#traceon.geometry.SurfaceCollection.mesh">mesh</a></code></li>
+<li><code><a title="traceon.geometry.SurfaceCollection.name" href="#traceon.geometry.SurfaceCollection.name">name</a></code></li>
 </ul>
 </li>
 </ul>

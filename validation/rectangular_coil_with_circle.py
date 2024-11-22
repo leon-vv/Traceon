@@ -47,8 +47,8 @@ class RectangularCoilWithCircle(Validation):
         return cr/1e4
      
     def compute_value_of_interest(self, geom, field):
-        fr, fz = field.magnetostatic_field_at_point(np.array([2.5, 4]))
-        return fr
+        fx, _, fz = field.magnetostatic_field_at_point([2.5, 0.0, 4])
+        return fx
 
 if __name__ == '__main__':
     RectangularCoilWithCircle().run_validation()

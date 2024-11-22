@@ -1,1 +1,5 @@
 * text eol=lf
+# Bug in git
+# See https://github.com/denoland/deno/issues/1995
+*.png -text
+*.npy -text
