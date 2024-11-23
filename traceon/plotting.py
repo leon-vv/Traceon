@@ -14,6 +14,7 @@ from math import sqrt
 import numpy as np
 import vedo
 import vedo.shapes
+import vedo.colors
 
 from . import backend
 
@@ -129,6 +130,31 @@ class Figure:
             
             lines = vedo.shapes.Lines(start_pts=t[:-1, :3], end_pts=t[1:, :3], c=color, lw=line_width)
             self.to_plot.append(lines)
+
+    def plot_charge_density(self, excitation, field, color_map='coolwarm'):
+        """Plot charge density using the Vedo library.
+        
+        Parameters
+        ---------------------
+        excitation: `traceon.excitation.Excitation`
+            Excitation applied
+        field: `traceon.solver.FieldBEM`
+            Field that resulted after solving for the applied excitation
+        color_map: str
+            Name of the color map to use to color the charge density values
+        """
+        mesh = excitation.mesh
+
+        if len(mesh.triangles):
+            meshes = _get_vedo_charge_density_3d(excitation, field, color_map)
+            self.to_plot.append(meshes)
+        elif len(mesh.lines):
+            lines = _get_vedo_charge_density_2d(excitation, field, color_map)
+            self.to_plot.append(lines)
+        else:
+            raise RuntimeError("Trying to plot empty mesh.")
+         
+        self.is_2d &= mesh.is_2d()
     
     def show(self):
         """Show the figure."""
@@ -180,6 +206,10 @@ def get_current_figure() -> Figure:
 def plot_mesh(*args, **kwargs):
     """Calls `Figure.plot_mesh` on the current `Figure`"""
     get_current_figure().plot_mesh(*args, **kwargs)
+
+def plot_charge_density(*args, **kwargs):
+    """Calls `Figure.plot_charge_density` on the current `Figure`"""
+    get_current_figure().plot_charge_density(*args, **kwargs)
 
 def plot_equipotential_lines(*args, **kwargs):
     """Calls `Figure.plot_equipotential_lines` on the current `Figure`"""
@@ -260,6 +290,55 @@ def _get_vedo_triangles_and_normals(mesh, **phys_colors):
     return meshes, arrows
 
 
+def _get_vedo_charge_density_3d(excitation, field, color_map):
+    
+    if excitation.is_electrostatic():
+        all_vertices, name = excitation.get_electrostatic_active_elements()
+        all_charges = field.electrostatic_point_charges.charges
+    else:
+        all_vertices, name = excitation.get_magnetostatic_active_elements()
+        all_charges = field.magnetostatic_point_charges.charges
+    
+    charge_min, charge_max = np.min(all_charges), np.max(all_charges)
+    
+    meshes = []
+    
+    for _, indices in name.items():
+        vertices = all_vertices[indices, :3]
+        
+        points = np.reshape(vertices, (3*len(vertices), 3))
+        p_indices = np.arange(3*len(vertices)).reshape( (len(vertices), 3) )
+        vm = vedo.Mesh([points, p_indices])
+        vm.linewidth(0)
+        vm.cellcolors = 255*vedo.colors.color_map(all_charges[indices], name=color_map, vmin=charge_min, vmax=charge_max)
+        meshes.append(vm)
+    
+    return meshes
+
+def _get_vedo_charge_density_2d(excitation, field, color_map):
+    if excitation.is_electrostatic():
+        all_vertices, name = excitation.get_electrostatic_active_elements()
+        all_charges = field.electrostatic_point_charges.charges
+    else:
+        all_vertices, name = excitation.get_magnetostatic_active_elements()
+        all_charges = field.magnetostatic_point_charges.charges
+    
+    assert len(all_vertices) == len(all_charges)
+    charge_min, charge_max = np.min(all_charges), np.max(all_charges)
+     
+    lines = []
+    
+    for _, indices in name.items():
+        vertices = all_vertices[indices]
+        start_points = vertices[:, 0]
+        end_points = vertices[:, 1]
+        l = vedo.Lines(start_points, end_points, lw=3)
+        colors = np.repeat(all_charges[indices], 2)
+        l.cmap(color_map, colors, vmin=charge_min, vmax=charge_max)
+        lines.append(l)
+
+    return lines
+    
 
 def _get_vedo_lines_and_normals(mesh, **phys_colors):
     lines = mesh.lines[:, :2]
