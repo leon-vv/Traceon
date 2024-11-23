@@ -46,7 +46,6 @@ class Figure:
             lines, normals = _get_vedo_lines_and_normals(mesh, **colors)
             self.legend_entries.extend(lines)
             self.to_plot.append(lines)
-            self.to_plot.append(lines)
         else:
             raise RuntimeError("Trying to plot empty mesh.")
         
