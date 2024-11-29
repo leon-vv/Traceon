@@ -18,7 +18,7 @@ jobs:
         uses: dawidd6/action-download-artifact@v2
         with:
           workflow: build-and-test.yaml
-          branch: main
+          branch: ${{ github.head_ref || github.ref_name }}
           name: (.*-wheel)|source-distribution
           name_is_regexp: true
           search_artifacts: true
