@@ -4,12 +4,14 @@ import time
 from typing import Callable, Any
 from itertools import chain
 from abc import ABC, abstractmethod
+import ctypes as C
 
 import meshio
 
 from .util import Saveable
 from .backend import triangle_areas
 from .logging import log_debug
+from . import backend as B
 
 
 __pdoc__ = {}
@@ -515,6 +517,23 @@ class Mesh(Saveable, GeometricObject):
             f'\tPhysical triangles: {physical_triangles}\n' \
             f'\tElements in physical triangle groups: {physical_triangles_nums}>'
 
+    def ensure_outward_normals(self, electrode):
+        assert electrode in self.physical_to_triangles, "electrode should be part of mesh" 
+
+        electrode_triangles = self.physical_to_triangles[electrode]
+        triangles = self.triangles[electrode_triangles]
+        _ensure_triangle_orientation(triangles, self.points, True)
+        self.triangles[electrode_triangles] = triangles
+    
+    def ensure_inward_normals(self, electrode):
+        assert electrode in self.physical_to_triangles, "electrode should be part of mesh" 
+
+        electrode_triangles = self.physical_to_triangles[electrode]
+        triangles = self.triangles[electrode_triangles]
+        _ensure_triangle_orientation(triangles, self.points, False)
+        self.triangles[electrode_triangles] = triangles
+
+
 
 
 class PointStack:
@@ -668,6 +687,79 @@ class PointsWithQuads:
     
     def __setitem__(self, *args, **kwargs):
         self.indices.__setitem__(*args, **kwargs)
+
+
+def _are_normals_pointing_outwards(triangles, points):
+    # Based on https://math.stackexchange.com/questions/689418/how-to-compute-surface-normal-pointing-out-of-the-object
+    triangle_points = points[triangles]
+    
+    v0 = triangle_points[:, 0]
+    v1 = triangle_points[:, 1]
+    v2 = triangle_points[:, 2]
+
+    mid_x = (v0[:, 0] + v1[:, 0] + v2[:, 0])/3
+
+    normals = np.cross(v1-v0, v2-v0)
+    double_area = np.linalg.norm(normals, axis=1)
+    normals /= double_area[:, np.newaxis]
+
+    return np.sum(mid_x * normals[:, 0] * double_area/2)
+
+def _compute_vertex_to_triangles(triangles):
+    vertex_to_triangles = {}
+
+    for tri_index, triangle in enumerate(triangles):
+        for vertex in triangle:
+            if vertex not in vertex_to_triangles:
+                vertex_to_triangles[vertex] = []
+            vertex_to_triangles[vertex].append(tri_index)
+    
+    return vertex_to_triangles
+
+def _get_triangle_neighbours(triangle, vertex_to_triangles):
+    neighbours = []
+    for vertex in triangle:
+        neighbours.extend(vertex_to_triangles[vertex])
+    return neighbours
+
+def _reorient_triangles(triangles, points):
+    vertex_to_triangles = _compute_vertex_to_triangles(triangles)
+        
+    oriented = np.full(len(triangles), False)
+    active = [0]
+
+    triangles_ctypes = triangles.ctypes.data_as(C.c_void_p)
+    points_ctypes = points.ctypes.data_as(C.c_void_p)
+    
+    while active:
+        ti = active.pop()
+
+        for n in _get_triangle_neighbours(triangles[ti], vertex_to_triangles):
+            if oriented[n]:
+                continue
+
+            equal_orientation = B.backend_lib.triangle_orientation_is_equal(ti, n, triangles_ctypes, points_ctypes)
+            
+            if equal_orientation == -1: # Vertex neighbours, but not edge neighbours
+                continue
+            elif equal_orientation == 0: # Not equal orientation
+                v0, v1, v2 = triangles[n]
+                triangles[n] = [v0, v2, v1] # Flip normal
+             
+            oriented[n] = True
+            active.append(n)
+
+def _ensure_triangle_orientation(triangles, points, should_be_outwards):
+    # Ensure the triangles forming a closed surface have their
+    # normals either outwards (should_be_outwards is True) or inwards (should_be_outwards is False)
+    _reorient_triangles(triangles, points)
+    
+    outwards = _are_normals_pointing_outwards(triangles, points)
+    
+    if outwards != should_be_outwards:
+        for i in range(len(triangles)):
+            v0, v1, v2 = triangles[i]
+            triangles[i] = [v0, v2, v1]
 
 
 def _subdivide_quads(pstack, mesh_size, to_subdivide=[], quads=[]): 
