@@ -44,9 +44,9 @@ current_potential_axial(double z0, double *currents,
 	for(int i = 0; i < N_vertices; i++) 
 	for(int k = 0; k < N_TRIANGLE_QUAD; k++) {
 		double *pos = &position_buffer[i][k][0];
-		assert(pos[2] == 0.);
+		assert(pos[1] == 0.);
 			
-		result += currents[i] * jacobian_buffer[i][k] * current_potential_axial_radial_ring(z0, pos[0], pos[1]);
+		result += currents[i] * jacobian_buffer[i][k] * current_potential_axial_radial_ring(z0, pos[0], pos[2]);
 	}
 
 	return result;
@@ -92,7 +92,7 @@ current_axial_derivatives_radial(double *derivs_p,
 	for(int j = 0; j < N_vertices; j++)
 	for(int k = 0; k < N_TRIANGLE_QUAD; k++) {
 		double z0 = z[i];
-		double r = pos_buffer[j][k][0], z = pos_buffer[j][k][1];
+		double r = pos_buffer[j][k][0], z = pos_buffer[j][k][2];
 
 		double D[DERIV_2D_MAX];
 		
