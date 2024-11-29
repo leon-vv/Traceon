@@ -666,71 +666,7 @@ class PointStack:
          
         return PointsWithQuads(self.indices[-1], quads)
 
-    
-
-class PointsWithQuads:
-    def __init__(self, indices, quads):
-        N = len(indices)
-        assert indices.shape == (N, N)
-        assert np.all(quads[:, 1] < N)
-        assert quads.shape == (len(quads), 5)
-        assert np.all(quads[:, 0] == quads[0, 0])
-        
-        self.indices = indices
-        self.quads = quads
-        self.depth = quads[0, 0]
-        
-        self.shape = indices.shape
-    
-    def to_triangles(self):
-        triangles = []
-
-        def add_triangle(p0, p1, p2):
-            triangles.append([self.indices[p0[0], p0[1]], self.indices[p1[0], p1[1]], self.indices[p2[0], p2[1]]])
-         
-        for quad in self.quads:
-            depth, i0, i1, j0, j1 = quad 
-            assert depth == self.depth
-
-            p0 = (i0, j0)
-            p1 = (i0, j1)
-            p2 = (i1, j1)
-            p3 = (i1, j0)
-
-            split_edge = False
-            
-            # Check if there is a point on the edge 
-            for edge in range(4):
-                # Is there a point on the first edge?
-                point_on_edge = (p0[0]+p1[0])//2, (p0[1]+p1[1])//2
-                
-                if (abs(p0[0] - p1[0]) > 1 or abs(p0[1] - p1[1]) > 1) and \
-                        self.indices[point_on_edge[0], point_on_edge[1]] != -1:
-                    # Yes there is a point.. we have to split the
-                    # quad into three triangles
-                    add_triangle(p0, point_on_edge, p3)
-                    add_triangle(point_on_edge, p2, p3)
-                    add_triangle(point_on_edge, p1, p2)
-                    split_edge = True
-                    break
-                
-                # Rotate the points so we check the next edge
-                p0, p1, p2, p3 = p1, p2, p3, p0
-             
-            if not split_edge: 
-                add_triangle(p0, p1, p2)
-                add_triangle(p0, p2, p3)
-         
-        assert not (-1 in np.array(triangles))
-        return triangles
-            
-    def __getitem__(self, *args, **kwargs):
-        return self.indices.__getitem__(*args, **kwargs)
-    
-    def __setitem__(self, *args, **kwargs):
-        self.indices.__setitem__(*args, **kwargs)
-
-
+   
 def _are_normals_pointing_outwards(triangles, points):
     # Based on https://math.stackexchange.com/questions/689418/how-to-compute-surface-normal-pointing-out-of-the-object
     triangle_points = points[triangles]
@@ -832,6 +768,75 @@ def _ensure_triangle_orientation(triangles, points, should_be_outwards):
         for i in range(len(triangles)):
             v0, v1, v2 = triangles[i]
             triangles[i] = [v0, v2, v1]
+
+
+
+
+
+
+
+class PointsWithQuads:
+    def __init__(self, indices, quads):
+        N = len(indices)
+        assert indices.shape == (N, N)
+        assert np.all(quads[:, 1] < N)
+        assert quads.shape == (len(quads), 5)
+        assert np.all(quads[:, 0] == quads[0, 0])
+        
+        self.indices = indices
+        self.quads = quads
+        self.depth = quads[0, 0]
+        
+        self.shape = indices.shape
+    
+    def to_triangles(self):
+        triangles = []
+
+        def add_triangle(p0, p1, p2):
+            triangles.append([self.indices[p0[0], p0[1]], self.indices[p1[0], p1[1]], self.indices[p2[0], p2[1]]])
+         
+        for quad in self.quads:
+            depth, i0, i1, j0, j1 = quad 
+            assert depth == self.depth
+
+            p0 = (i0, j0)
+            p1 = (i0, j1)
+            p2 = (i1, j1)
+            p3 = (i1, j0)
+
+            split_edge = False
+            
+            # Check if there is a point on the edge 
+            for edge in range(4):
+                # Is there a point on the first edge?
+                point_on_edge = (p0[0]+p1[0])//2, (p0[1]+p1[1])//2
+                
+                if (abs(p0[0] - p1[0]) > 1 or abs(p0[1] - p1[1]) > 1) and \
+                        self.indices[point_on_edge[0], point_on_edge[1]] != -1:
+                    # Yes there is a point.. we have to split the
+                    # quad into three triangles
+                    add_triangle(p0, point_on_edge, p3)
+                    add_triangle(point_on_edge, p2, p3)
+                    add_triangle(point_on_edge, p1, p2)
+                    split_edge = True
+                    break
+                
+                # Rotate the points so we check the next edge
+                p0, p1, p2, p3 = p1, p2, p3, p0
+             
+            if not split_edge: 
+                add_triangle(p0, p1, p2)
+                add_triangle(p0, p2, p3)
+         
+        assert not (-1 in np.array(triangles))
+        return triangles
+            
+    def __getitem__(self, *args, **kwargs):
+        return self.indices.__getitem__(*args, **kwargs)
+    
+    def __setitem__(self, *args, **kwargs):
+        self.indices.__setitem__(*args, **kwargs)
+
 
 
 def _subdivide_quads(pstack, mesh_size, to_subdivide=[], quads=[]): 
