@@ -738,7 +738,7 @@ def _are_normals_pointing_outwards(triangles, points):
     double_area = np.linalg.norm(normals, axis=1)
     normals /= double_area[:, np.newaxis]
 
-    return np.sum(mid_x * normals[:, 0] * double_area/2)
+    return np.sum(mid_x * normals[:, 0] * double_area/2) > 0.0
 
 def _compute_vertex_to_triangles(triangles):
     vertex_to_triangles = {}
