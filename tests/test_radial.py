@@ -242,7 +242,8 @@ class TestRadial(unittest.TestCase):
 
 class TestFlatEinzelLens(unittest.TestCase):
 
-    def setUp(self):
+    @classmethod
+    def setUpClass(cls):
         boundary = G.Path.line([0.1, 0.0, 1.0], [1.0, 0.0, 1.0])\
             .line_to([1.0, 0.0, -1.0]).line_to([0.1, 0.0, -1.0])
         
@@ -262,9 +263,9 @@ class TestFlatEinzelLens(unittest.TestCase):
         exc.add_voltage(ground=0, lens=1000)
         exc.add_electrostatic_boundary('boundary')
          
-        self.z = np.linspace(-0.85, 0.85, 250)
-        self.field = S.solve_direct(exc)
-        self.field_axial = FieldRadialAxial(self.field, self.z[0], self.z[-1], N=500)
+        cls.z = np.linspace(-0.85, 0.85, 250)
+        cls.field = S.solve_direct(exc)
+        cls.field_axial = FieldRadialAxial(cls.field, cls.z[0], cls.z[-1], N=500)
     
     def test_derivatives(self):
         derivatives = self.field.get_electrostatic_axial_potential_derivatives(self.z)

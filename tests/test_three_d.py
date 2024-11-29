@@ -77,7 +77,8 @@ class TestThreeD(unittest.TestCase):
 
 class TestFlatEinzelLens(unittest.TestCase):
 
-    def setUp(self):
+    @classmethod
+    def setUpClass(cls):
         ground_top = G.Path.line([0.25, 0.0, 0.5], [0.75, 0.0, 0.5])
         lens = G.Path.line([0.25, 0.0, 0.0], [0.75, 0.0, 0.0])
         ground_bottom = G.Path.line([0.25, 0.0, -0.5], [0.75, 0.0, -0.5])
@@ -90,7 +91,7 @@ class TestFlatEinzelLens(unittest.TestCase):
         mesh = (ground_top + lens + ground_bottom).mesh(mesh_size_factor=40)
         exc = E.Excitation(mesh, E.Symmetry.RADIAL)
         exc.add_voltage(ground=0, lens=1000)
-        self.field_radial = S.solve_direct(exc)
+        cls.field_radial = S.solve_direct(exc)
         
         # Solve three d
         ground_top = ground_top.revolve_z()
@@ -100,9 +101,9 @@ class TestFlatEinzelLens(unittest.TestCase):
         mesh = (ground_top + lens + ground_bottom).mesh(mesh_size=0.1)
         exc = E.Excitation(mesh, E.Symmetry.THREE_D)
         exc.add_voltage(ground=0, lens=1000)
-        self.field = S.solve_direct(exc)
+        cls.field = S.solve_direct(exc)
         
-        self.z = np.linspace(-0.85, 0.85, 250)
+        cls.z = np.linspace(-0.85, 0.85, 250)
      
     def test_potential_close_to_axis(self):
         r = 0.1
