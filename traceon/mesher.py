@@ -552,22 +552,29 @@ class Mesh(Saveable, GeometricObject):
             f'\tPhysical triangles: {physical_triangles}\n' \
             f'\tElements in physical triangle groups: {physical_triangles_nums}>'
 
-    def ensure_outward_normals(self, electrode):
-        assert electrode in self.physical_to_triangles, "electrode should be part of mesh" 
+    def _ensure_normal_orientation(self, electrode, outwards):
+        assert electrode in self.physical_to_triangles, "electrode should be part of mesh"
+        
+        triangle_indices = self.physical_to_triangles[electrode]
+        electrode_triangles = self.triangles[triangle_indices]
+          
+        if not len(electrode_triangles):
+            return
+        
+        connected_indices = _get_triangle_connected_surfaces(electrode_triangles)
+        
+        for indices in connected_indices:
+            connected_triangles = electrode_triangles[indices]
+            _ensure_triangle_orientation(connected_triangles, self.points, outwards)
+            electrode_triangles[indices] = connected_triangles
 
-        electrode_triangles = self.physical_to_triangles[electrode]
-        triangles = self.triangles[electrode_triangles]
-        _ensure_triangle_orientation(triangles, self.points, True)
-        self.triangles[electrode_triangles] = triangles
+        self.triangles[triangle_indices] = electrode_triangles
+            
+    def ensure_outward_normals(self, electrode):
+        self._ensure_normal_orientation(electrode, True)
     
     def ensure_inward_normals(self, electrode):
-        assert electrode in self.physical_to_triangles, "electrode should be part of mesh" 
-
-        electrode_triangles = self.physical_to_triangles[electrode]
-        triangles = self.triangles[electrode_triangles]
-        _ensure_triangle_orientation(triangles, self.points, False)
-        self.triangles[electrode_triangles] = triangles
-
+        self._ensure_normal_orientation(electrode, False)
 
 
 
@@ -756,6 +763,36 @@ def _get_triangle_neighbours(triangle, vertex_to_triangles):
     for vertex in triangle:
         neighbours.extend(vertex_to_triangles[vertex])
     return neighbours
+
+def _get_triangle_connected_surfaces(triangles):
+    assert triangles.shape == (len(triangles), 3)
+    vertex_to_triangles = _compute_vertex_to_triangles(triangles)
+    
+    N = len(triangles) 
+    labels = np.full(N, -1, dtype=np.int32)
+    component_id = 0
+
+    for i in range(N):
+        if labels[i] == -1:
+            # Start a new component
+            labels[i] = component_id
+            queue = [triangles[i]]
+            while queue:
+                current = queue.pop()
+                for v in current:
+                    for neighbor in vertex_to_triangles[v]:
+                        if labels[neighbor] == -1:
+                            labels[neighbor] = component_id
+                            queue.append(triangles[neighbor])
+            component_id += 1
+
+    # Group triangles by label
+    connected_surfaces = []
+    for comp_id in range(component_id):
+        triangle_indices = np.where(labels == comp_id)[0]
+        connected_surfaces.append(triangle_indices)
+    
+    return connected_surfaces
 
 def _reorient_triangles(triangles, points):
     vertex_to_triangles = _compute_vertex_to_triangles(triangles)
