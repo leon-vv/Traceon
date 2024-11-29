@@ -175,6 +175,7 @@ class Mesh(Saveable, GeometricObject):
         self.physical_to_triangles = physical_to_triangles.copy()
 
         self._remove_degenerate_triangles()
+        self._deduplicate_points()
         
         assert np.all( (0 <= self.lines) & (self.lines < len(self.points)) ), "Lines reference points outside points array"
         assert np.all( (0 <= self.triangles) & (self.triangles < len(self.points)) ), "Triangles reference points outside points array"
@@ -215,6 +216,40 @@ class Mesh(Saveable, GeometricObject):
          
         if np.any(degenerate):
             log_debug(f'Removed {sum(degenerate)} degenerate triangles')
+
+    def _deduplicate_points(self):
+        if not len(self.points):
+            return
+         
+        # Step 1: Make a copy of the points array using np.array
+        points_copy = np.array(self.points, dtype=np.float64)
+
+        # Step 2: Zero the low 16 bits of the mantissa of the X, Y, Z coordinates
+        points_copy.view(np.uint64)[:] &= np.uint64(0xFFFFFFFFFFFF0000)
+
+        # Step 3: Use Numpy lexsort directly on points_copy
+        sorted_indices = np.lexsort(points_copy.T)
+        points_sorted = points_copy[sorted_indices]
+
+        # Step 4: Create a mask to identify unique points
+        equal_to_previous = np.all(points_sorted[1:] == points_sorted[:-1], axis=1)
+        keep_mask = np.concatenate(([True], ~equal_to_previous))
+
+        # Step 5: Compute new indices for the unique points
+        new_indices_in_sorted_order = np.cumsum(keep_mask) - 1
+
+        # Map old indices to new indices
+        old_to_new_indices = np.empty(len(points_copy), dtype=np.uint64)
+        old_to_new_indices[sorted_indices] = new_indices_in_sorted_order
+        
+        # Step 6: Update the points array with unique points
+        self.points = points_sorted[keep_mask]
+
+        # Step 7: Update all indices
+        if len(self.triangles):
+            self.triangles = old_to_new_indices[self.triangles]
+        if len(self.lines):
+            self.lines = old_to_new_indices[self.lines]
     
     @staticmethod
     def _merge_dicts(dict1, dict2):
