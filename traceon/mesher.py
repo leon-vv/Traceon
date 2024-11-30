@@ -552,7 +552,7 @@ class Mesh(Saveable, GeometricObject):
             f'\tPhysical triangles: {physical_triangles}\n' \
             f'\tElements in physical triangle groups: {physical_triangles_nums}>'
 
-    def _ensure_normal_orientation(self, electrode, outwards):
+    def _ensure_normal_orientation_triangles(self, electrode, outwards):
         assert electrode in self.physical_to_triangles, "electrode should be part of mesh"
         
         triangle_indices = self.physical_to_triangles[electrode]
@@ -561,7 +561,7 @@ class Mesh(Saveable, GeometricObject):
         if not len(electrode_triangles):
             return
         
-        connected_indices = _get_triangle_connected_surfaces(electrode_triangles)
+        connected_indices = _get_connected_elements(electrode_triangles)
         
         for indices in connected_indices:
             connected_triangles = electrode_triangles[indices]
@@ -569,13 +569,38 @@ class Mesh(Saveable, GeometricObject):
             electrode_triangles[indices] = connected_triangles
 
         self.triangles[triangle_indices] = electrode_triangles
-            
-    def ensure_outward_normals(self, electrode):
-        self._ensure_normal_orientation(electrode, True)
-    
-    def ensure_inward_normals(self, electrode):
-        self._ensure_normal_orientation(electrode, False)
+     
+    def _ensure_normal_orientation_lines(self, electrode, outwards):
+        assert electrode in self.physical_to_lines, "electrode should be part of mesh"
+        
+        line_indices = self.physical_to_lines[electrode]
+        electrode_lines = self.lines[line_indices]
+          
+        if not len(electrode_lines):
+            return
+        
+        connected_indices = _get_connected_elements(electrode_lines)
+        
+        for indices in connected_indices:
+            connected_lines = electrode_lines[indices]
+            _ensure_line_orientation(connected_lines, self.points, outwards)
+            electrode_lines[indices] = connected_lines
 
+        self.lines[line_indices] = electrode_lines
+     
+    def ensure_outward_normals(self, electrode):
+        if electrode in self.physical_to_triangles:
+            self._ensure_normal_orientation_triangles(electrode, True)
+        
+        if electrode in self.physical_to_lines:
+            self._ensure_normal_orientation_lines(electrode, True)
+     
+    def ensure_inward_normals(self, electrode):
+        if electrode in self.physical_to_triangles:
+            self._ensure_normal_orientation_triangles(electrode, False)
+         
+        if electrode in self.physical_to_lines:
+            self._ensure_normal_orientation_lines(electrode, False)
 
 
 class PointStack:
@@ -666,8 +691,71 @@ class PointStack:
          
         return PointsWithQuads(self.indices[-1], quads)
 
-   
-def _are_normals_pointing_outwards(triangles, points):
+
+## Code related to checking connectivity  
+
+def _compute_vertex_to_indices(elements):
+    # elements is either a list of line or triangles
+    # containing indices into the points array
+    
+    vertex_to_indices = {}
+
+    for index, el in enumerate(elements):
+        for vertex in el:
+            if vertex not in vertex_to_indices:
+                vertex_to_indices[vertex] = []
+            vertex_to_indices[vertex].append(index)
+    
+    return vertex_to_indices
+
+def _get_element_neighbours(element, vertex_to_indices):
+    neighbours = []
+    for vertex in element:
+        n = vertex_to_indices.get(vertex, None)
+        
+        if n is not None:
+            neighbours.extend(n)
+    
+    return neighbours
+
+def _get_connected_elements(elements):
+    # Get subsets of elements that are connected to each other
+    # For triangle elements, this would be surfaces
+    # For line elements, this would be unbroken paths
+    vertex_to_indices = _compute_vertex_to_indices(elements)
+    
+    N = len(elements) 
+    labels = np.full(N, -1, dtype=np.int32)
+    component_id = 0
+
+    for i in range(N):
+        if labels[i] == -1:
+            # Start a new component
+            labels[i] = component_id
+            queue = [elements[i]]
+            while queue:
+                current = queue.pop()
+                for v in current:
+                    for neighbor in vertex_to_indices[v]:
+                        if labels[neighbor] == -1:
+                            labels[neighbor] = component_id
+                            queue.append(elements[neighbor])
+            component_id += 1
+
+    # Group elements by label
+    connected_elements = []
+    
+    for comp_id in range(component_id):
+        triangle_indices = np.where(labels == comp_id)[0]
+        connected_elements.append(triangle_indices)
+    
+    return connected_elements
+
+
+## Code related to checking if normals point inward or outwards, given
+## that all the normals already agree on orientation (all inwards or all outwards)
+
+def _are_triangle_normals_pointing_outwards(triangles, points):
     # Based on https://math.stackexchange.com/questions/689418/how-to-compute-surface-normal-pointing-out-of-the-object
     triangle_points = points[triangles]
     
@@ -683,55 +771,21 @@ def _are_normals_pointing_outwards(triangles, points):
 
     return np.sum(mid_x * normals[:, 0] * double_area/2) > 0.0
 
-def _compute_vertex_to_triangles(triangles):
-    vertex_to_triangles = {}
-
-    for tri_index, triangle in enumerate(triangles):
-        for vertex in triangle:
-            if vertex not in vertex_to_triangles:
-                vertex_to_triangles[vertex] = []
-            vertex_to_triangles[vertex].append(tri_index)
+def _are_line_normals_pointing_outwards(lines, points):
+    # Based on https://math.stackexchange.com/questions/689418/how-to-compute-surface-normal-pointing-out-of-the-object
+    vertices = points[lines[:, :2]]
+    mid_x = (vertices[:, 0, 0] + vertices[:, 1, 0])/2.
+     
+    normals = np.array([B.normal_2d(v0_, v1_) for v0_, v1_ in vertices[:, :, [0,2]]])
+    length = np.linalg.norm(vertices[:, 1] - vertices[:, 0], axis=1)
     
-    return vertex_to_triangles
+    return np.sum(mid_x * normals[:, 0] * length) > 0.0
 
-def _get_triangle_neighbours(triangle, vertex_to_triangles):
-    neighbours = []
-    for vertex in triangle:
-        neighbours.extend(vertex_to_triangles[vertex])
-    return neighbours
-
-def _get_triangle_connected_surfaces(triangles):
-    assert triangles.shape == (len(triangles), 3)
-    vertex_to_triangles = _compute_vertex_to_triangles(triangles)
-    
-    N = len(triangles) 
-    labels = np.full(N, -1, dtype=np.int32)
-    component_id = 0
-
-    for i in range(N):
-        if labels[i] == -1:
-            # Start a new component
-            labels[i] = component_id
-            queue = [triangles[i]]
-            while queue:
-                current = queue.pop()
-                for v in current:
-                    for neighbor in vertex_to_triangles[v]:
-                        if labels[neighbor] == -1:
-                            labels[neighbor] = component_id
-                            queue.append(triangles[neighbor])
-            component_id += 1
-
-    # Group triangles by label
-    connected_surfaces = []
-    for comp_id in range(component_id):
-        triangle_indices = np.where(labels == comp_id)[0]
-        connected_surfaces.append(triangle_indices)
-    
-    return connected_surfaces
+## Code related to ensuring normals over a connected surface/path agree in orientation.
+## These functios allow us to flip all normals 'inward' or all 'outward'
 
 def _reorient_triangles(triangles, points):
-    vertex_to_triangles = _compute_vertex_to_triangles(triangles)
+    vertex_to_triangles = _compute_vertex_to_indices(triangles)
         
     oriented = np.full(len(triangles), False)
     active = [0]
@@ -742,7 +796,7 @@ def _reorient_triangles(triangles, points):
     while active:
         ti = active.pop()
 
-        for n in _get_triangle_neighbours(triangles[ti], vertex_to_triangles):
+        for n in _get_element_neighbours(triangles[ti], vertex_to_triangles):
             if oriented[n]:
                 continue
 
@@ -762,7 +816,7 @@ def _ensure_triangle_orientation(triangles, points, should_be_outwards):
     # normals either outwards (should_be_outwards is True) or inwards (should_be_outwards is False)
     _reorient_triangles(triangles, points)
     
-    outwards = _are_normals_pointing_outwards(triangles, points)
+    outwards = _are_triangle_normals_pointing_outwards(triangles, points)
     
     if outwards != should_be_outwards:
         for i in range(len(triangles)):
@@ -770,6 +824,84 @@ def _ensure_triangle_orientation(triangles, points, should_be_outwards):
             triangles[i] = [v0, v2, v1]
 
 
+def _reorient_lines(lines, points):
+    assert lines.shape == (len(lines), 2) or lines.shape == (len(lines), 4)
+    
+    # Reorient the normals of lines in the same direction, at this point
+    # in the algorithm we don't know if we are orienting them outwards or inwards,
+    # the important thing is that they all agree (all outwards or all inwards)
+    
+    # Only consider first two points, in the case of higher order lines
+    vertex_to_indices = _compute_vertex_to_indices(lines[:, :2])
+        
+    oriented = np.full(len(lines), False)
+    active = [0]
+    
+    while active:
+        ti = active.pop()
+
+        for n in _get_element_neighbours(lines[ti], vertex_to_indices):
+            if oriented[n]:
+                continue
+
+            point_indices = lines[ti, :2]
+            neighbour_point_indices = lines[n, :2]
+
+            vertex0, vertex1 = points[point_indices][:, [0, 2]]
+            neighbour0, neighbour1 = points[neighbour_point_indices][:, [0, 2]]
+            
+            if point_indices[0] == neighbour_point_indices[0] or point_indices[0] == neighbour_point_indices[1]:
+                common_vertex = vertex0
+            else:
+                common_vertex = vertex1
+
+            # Consider standing on the common vertex, and looking at the midpoints.
+            # This algorithm works by comparing the normal from common vertex to midpoint,
+            # with the normal produced if B.normal_2d is called directly on the line vertices.
+            mid = (vertex0 + vertex1) / 2.
+            neighbour_mid = (neighbour0 + neighbour1) / 2.
+            
+            # If the lines would have these normals, they would have equal orientation,
+            # note that this is still true if BOTH normals are multiplied with -1
+            equal_orientation_normal = B.normal_2d(mid, common_vertex)
+            equal_orientation_normal_neighbour = B.normal_2d(common_vertex, neighbour_mid)
+            
+            actual_normal = B.normal_2d(vertex0, vertex1)
+            actual_neighbour_normal = B.normal_2d(neighbour0, neighbour1)
+            
+            sign = np.dot(equal_orientation_normal, actual_normal) # Lines have equal orientation, if the signs are equal
+            sign_neighbour = np.dot(equal_orientation_normal_neighbour, actual_neighbour_normal)
+            
+            if not (sign == sign_neighbour):
+                # Orientation of neighbour differs, flip it
+                neighbour = lines[n]
+                 
+                if neighbour.shape[0] == 4:
+                    p0, p1, p2, p3 = neighbour
+                    lines[n] = [p1, p0, p3, p2]
+                else:
+                    p0, p1 = neighbour
+                    lines[n] = [p1, p0]
+             
+            oriented[n] = True
+            active.append(n)
+
+def _ensure_line_orientation(lines, points, should_be_outwards):
+    # Ensure the triangles forming a closed surface have their
+    # normals either outwards (should_be_outwards is True) or inwards (should_be_outwards is False)
+    _reorient_lines(lines, points)
+    
+    outwards = _are_line_normals_pointing_outwards(lines, points)
+    
+    if outwards != should_be_outwards:
+        for i in range(len(lines)):
+            line = lines[i]
+            if line.shape[0] == 4:
+                p0, p1, p2, p3 = line
+                lines[i] = [p1, p0, p3, p2]
+            else:
+                p0, p1 = line
+                lines[i] = [p1, p0]
 
 
 
