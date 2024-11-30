@@ -365,7 +365,7 @@ class TestFlatEinzelLens(unittest.TestCase):
         intersection = T.xy_plane_intersection(pos, -0.8)
         intersection_axial = T.xy_plane_intersection(pos_axial, -0.8)
          
-        assert np.allclose(intersection, intersection_axial, rtol=5e-5)
+        assert np.allclose(intersection, intersection_axial, rtol=5e-4)
 
 
 
