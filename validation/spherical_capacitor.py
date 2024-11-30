@@ -1,6 +1,5 @@
 from math import cos
 
-import matplotlib.pyplot as plt
 import numpy as np
 
 import traceon.geometry as G

@@ -2,7 +2,6 @@ import time
 import sys
 
 from scipy.interpolate import *
-import matplotlib.pyplot as plt
 import numpy as np
 
 import traceon.geometry as G
