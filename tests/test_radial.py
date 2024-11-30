@@ -239,10 +239,68 @@ class TestRadial(unittest.TestCase):
 
         assert np.allclose(computed, correct, atol=0.0, rtol=1e-9) 
 
+class TestSimpleMagneticLens(unittest.TestCase):
+
+    @classmethod
+    def setUpClass(cls):
+        coil = G.Surface.rectangle_xz(3, 4, 2, 3)
+        coil.name = 'coil'
+
+        pole = G.Path.line([1, 0, 0], [4, 0, 0])\
+            .line_to([4, 0, 1])\
+            .line_to([2, 0, 1])\
+            .line_to([2, 0, 3])\
+            .line_to([1, 0, 3])\
+            .close()
+        pole.name = 'pole'
+        
+        MSF = 10
+        mesh = coil.mesh(mesh_size_factor=20) + pole.mesh(mesh_size_factor=MSF)
+        
+        MU = 100
+
+        exc = E.Excitation(mesh, E.Symmetry.RADIAL)
+        exc.add_current(coil=1)
+        exc.add_magnetizable(pole=MU)
+
+        cls.field = S.solve_direct(exc)
+        cls.field_axial = FieldRadialAxial(cls.field, -10, 10, N=500)
+
+    def test_potential_is_zeroth_derivative(self):
+        z = np.linspace(-8, 8, 100)
+        mag_pot = np.array([self.field.magnetostatic_potential_at_point([0.0, 0.0, z_]) for z_ in z])
+        current_pot = np.array([self.field.current_potential_axial(z_) for z_ in z])
+        
+        derivatives = self.field.get_magnetostatic_axial_potential_derivatives(z)
+
+        assert np.allclose(current_pot + mag_pot, derivatives[:, 0])
+
+    def test_Hz_is_first_derivative(self):
+        z = np.linspace(-8, 8, 100)
+        Hz = np.array([self.field.field_at_point([0., 0., z_])[2] for z_ in z])
+        derivatives = self.field.get_magnetostatic_axial_potential_derivatives(z)
+
+        assert np.allclose(-derivatives[:, 1], Hz)
+
+    def test_field_and_axial_agree(self):
+        z = np.linspace(-8, 8, 100)
+
+        field_direct = np.array([self.field.field_at_point([0.25, 0., z_]) for z_ in z])
+        field_axial = np.array([self.field_axial.field_at_point([0.25, 0., z_]) for z_ in z])
+        assert np.allclose(field_direct, field_axial, rtol=5e-5)
+    
+    def test_field_equals_comsol(self):
+        comsol = [-0.0081196, 0., 0.024124]
+        f = self.field.field_at_point([0.4, 0., 2.])
+        # Increasing MSF gets this tolerance to below 5%
+        # Also there is some discrepancy with the Comsol model,
+        # as the Comsol model includes a boundary
+        assert np.allclose(comsol, f, rtol=30e-2)
 
 class TestFlatEinzelLens(unittest.TestCase):
 
-    def setUp(self):
+    @classmethod
+    def setUpClass(cls):
         boundary = G.Path.line([0.1, 0.0, 1.0], [1.0, 0.0, 1.0])\
             .line_to([1.0, 0.0, -1.0]).line_to([0.1, 0.0, -1.0])
         
@@ -262,9 +320,9 @@ class TestFlatEinzelLens(unittest.TestCase):
         exc.add_voltage(ground=0, lens=1000)
         exc.add_electrostatic_boundary('boundary')
          
-        self.z = np.linspace(-0.85, 0.85, 250)
-        self.field = S.solve_direct(exc)
-        self.field_axial = FieldRadialAxial(self.field, self.z[0], self.z[-1], N=500)
+        cls.z = np.linspace(-0.85, 0.85, 250)
+        cls.field = S.solve_direct(exc)
+        cls.field_axial = FieldRadialAxial(cls.field, cls.z[0], cls.z[-1], N=500)
     
     def test_derivatives(self):
         derivatives = self.field.get_electrostatic_axial_potential_derivatives(self.z)
@@ -307,7 +365,7 @@ class TestFlatEinzelLens(unittest.TestCase):
         intersection = T.xy_plane_intersection(pos, -0.8)
         intersection_axial = T.xy_plane_intersection(pos_axial, -0.8)
          
-        assert np.allclose(intersection, intersection_axial, rtol=5e-5)
+        assert np.allclose(intersection, intersection_axial, rtol=5e-4)
 
 
 

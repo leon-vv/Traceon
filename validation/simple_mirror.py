@@ -1,7 +1,6 @@
 import time, math
 
 import numpy as np
-import matplotlib.pyplot as plt
 from scipy.interpolate import CubicSpline
 
 import traceon.geometry as G

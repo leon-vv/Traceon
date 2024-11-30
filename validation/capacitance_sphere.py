@@ -2,7 +2,6 @@ import time
 import argparse
 
 import numpy as np
-import matplotlib.pyplot as plt
 
 import traceon.geometry as G
 import traceon.excitation as E
