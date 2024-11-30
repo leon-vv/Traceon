@@ -12,7 +12,6 @@ from math import sqrt, cos, sin, atan2
 import time
 from enum import Enum
 
-import matplotlib.pyplot as plt
 import numpy as np
 import scipy
 from scipy.constants import m_e, e
