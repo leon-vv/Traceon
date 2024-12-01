@@ -1,5 +1,4 @@
 import time
-
 import numpy as np
 import matplotlib.pyplot as plt
 
@@ -11,22 +10,19 @@ import traceon.plotting as P
 import traceon.focus as F
 from traceon.interpolation import FieldRadialAxial
 
-try:
-    from traceon_pro.interpolation import Field3DAxial
-except ImportError:
-    Field3DAxial = None
+
 
 PLOTTING = False
-MSF = 50
+MSF = 20
 
 #voltages
-TUNING_VOLTAGE = 535.03
+TUNING_VOLTAGE = 507.8#535.03
 MIRROR_VOLTAGE = -1250
 
 #displacements in (x y z) coords of seperate components
 ground_elec_displacement = (0.,0.,0.)
 tuning_elec_displacement = (0.,0.,0.)
-mirror_displacement = (1e-6,0.,0.)
+mirror_displacement = (0.,0.,0.)
 
 
 rmax = 1.0
@@ -37,6 +33,8 @@ t = 0.15 # thickness
 r = 0.075 # radius
 st = 0.5  # spacer thickness
 
+boundary = G.Path.line([extent, 0.,0.], [extent, 0., 1.6])
+boundary.name = 'boundary'
 
 #create line geometries
 mirror = G.Path.aperture(0.15, r, extent, z=t/2)
@@ -56,7 +54,7 @@ mirror = mirror.revolve_z()
 mirror_line = mirror_line.revolve_z()
 lens = lens.revolve_z()
 ground = ground.revolve_z()
-
+boundary = boundary.revolve_z()
 #displace electrodes
 ground = ground.move(*ground_elec_displacement)
 lens = lens.move(*tuning_elec_displacement)
@@ -64,19 +62,19 @@ mirror = mirror.move(*mirror_displacement)
 mirror_line = mirror_line.move(*mirror_displacement)
 
 #create geometry
-geom = mirror+mirror_line+lens+ground
+geom = mirror+mirror_line+lens+ground+boundary
 
 #make mesh
 mesh =  geom.mesh(mesh_size_factor=MSF)
 
 if PLOTTING:
-    P.plot_mesh(mesh, ground='green', mirror='red', lens='blue', show_normals=True)
+    P.plot_mesh(mesh, ground='green', mirror='red', lens='blue', boundary = 'grey', show_normals=True)
 
 excitation = E.Excitation(mesh, E.Symmetry.THREE_D)
 
 # Apply the correct voltages. Set the ground electrode to zero.
 excitation.add_voltage(ground=0., lens=TUNING_VOLTAGE, mirror=MIRROR_VOLTAGE)
-
+excitation.add_electrostatic_boundary('boundary')
 # Use the Boundary Element Method (BEM) to calculate the surface charges,
 # the surface charges gives rise to a electrostatic field.
 field = S.solve_direct(excitation)
@@ -92,16 +90,14 @@ start_xy_2 = (-1e-4,0)
 starting_positions = np.array([[*start_xy_1, z0], [*start_xy_2, z0]])
 start_vel = T.velocity_vec_xz_plane(1000, angle = 0)
 
+traces = []
+
 for i, p in enumerate(starting_positions):
     print(f'Starting trace {i}...')
     st = time.time()
-    _, pos_derivs = tracer(p, start_vel)
-    if i == 0:
-        traces = np.zeros((starting_positions.shape[0], *pos_derivs.shape))
-        traces[0] = pos_derivs
-    else:
-        traces[i] = pos_derivs
-    plt.plot(pos_derivs[:,0], pos_derivs[:,2])
+    _, positions = tracer(p, start_vel)
+    traces.append(positions)
+    plt.plot(positions[:,0], positions[:,2])
     print(f'Trace {i} took {(time.time()-st)*1000:.1f} ms')
 
 if PLOTTING:
