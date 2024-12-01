@@ -69,6 +69,7 @@ mesh =  geom.mesh(mesh_size_factor=MSF)
 
 if PLOTTING:
     P.plot_mesh(mesh, ground='green', mirror='red', lens='blue', boundary = 'grey', show_normals=True)
+    P.show()
 
 excitation = E.Excitation(mesh, E.Symmetry.THREE_D)
 
