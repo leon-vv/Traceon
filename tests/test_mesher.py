@@ -2,7 +2,10 @@ import unittest
 
 import numpy as np
 
+import traceon.backend as B
+import traceon.mesher as M
 from traceon.mesher import Mesh
+
 
 class TestMeshDeduplication(unittest.TestCase):
     def test_no_duplicates(self):
@@ -141,5 +144,45 @@ class TestMeshDeduplication(unittest.TestCase):
         self.assertEqual(original_triangle_points.shape, deduplicated_triangle_points.shape)
         np.testing.assert_allclose(original_triangle_points, deduplicated_triangle_points, atol=1e-5)
 
+
+class TestConnectedElements(unittest.TestCase):
+
+    def test_single_element(self):
+        elements = np.array([[1, 2]])
+        expected_result = [np.array([0])]
+        result = M._get_connected_elements(elements)
+        self.assertEqual(len(result), len(expected_result))
+        np.testing.assert_array_equal(result[0], expected_result[0])
+
+    def test_two_connected_elements(self):
+        elements = np.array([[1, 2], [2, 3]])
+        expected_result = [np.array([0, 1])]
+        result = M._get_connected_elements(elements)
+        self.assertEqual(len(result), len(expected_result))
+        np.testing.assert_array_equal(result[0], expected_result[0])
+
+    def test_two_disconnected_elements(self):
+        elements = np.array([[1, 2], [3, 4]])
+        expected_result = [np.array([0]), np.array([1])]
+        result = M._get_connected_elements(elements)
+        self.assertEqual(len(result), len(expected_result))
+        np.testing.assert_array_equal(result[0], expected_result[0])
+        np.testing.assert_array_equal(result[1], expected_result[1])
+
+    def test_multiple_connected_elements(self):
+        elements = np.array([[1, 2], [2, 3], [3, 4], [5, 6]])
+        expected_result = [np.array([0, 1, 2]), np.array([3])]
+        result = M._get_connected_elements(elements)
+        self.assertEqual(len(result), len(expected_result))
+        np.testing.assert_array_equal(result[0], expected_result[0])
+        np.testing.assert_array_equal(result[1], expected_result[1])
+
+    def test_triangle_elements(self):
+        elements = np.array([[1, 2, 3], [3, 4, 5], [6, 7, 8]])
+        expected_result = [np.array([0, 1]), np.array([2])]
+        result = M._get_connected_elements(elements)
+        self.assertEqual(len(result), len(expected_result))
+        np.testing.assert_array_equal(result[0], expected_result[0])
+        np.testing.assert_array_equal(result[1], expected_result[1])
 
 
