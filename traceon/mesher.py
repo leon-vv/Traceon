@@ -5,6 +5,7 @@ from typing import Callable, Any
 from itertools import chain
 from abc import ABC, abstractmethod
 import ctypes as C
+from typing import Dict
 
 import meshio
 
@@ -610,7 +611,7 @@ def _compute_vertex_to_indices(elements):
     # elements is either a list of line or triangles
     # containing indices into the points array
     
-    vertex_to_indices = {}
+    vertex_to_indices: Dict[int, list] = {}
 
     for index, el in enumerate(elements):
         for vertex in el:
