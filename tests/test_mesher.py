@@ -186,3 +186,70 @@ class TestConnectedElements(unittest.TestCase):
         np.testing.assert_array_equal(result[1], expected_result[1])
 
 
+
+
+class TestLineOrientation(unittest.TestCase):
+    
+    def test_normals_same_direction(self):
+        points = np.array([
+            [0, 0],
+            [1, 1], 
+            [2, 2] ], dtype=np.float64)
+
+        lines = np.array([
+            [0, 1],
+            [1, 2]])
+        
+        normal1 = B.normal_2d(points[lines[0, 0]], points[lines[0, 1]])
+        normal2 = B.normal_2d(points[lines[1, 0]], points[lines[1, 1]])
+        assert np.allclose(normal1, normal2)
+        assert M._line_orientation_equal(0, 1, lines)
+    
+    def test_normals_opposite_direction(self):
+        points = np.array([
+            [0, 0],
+            [1, 1], 
+            [2, 2] ], dtype=np.float64)
+
+        lines = np.array([
+            [0, 1],
+            [2, 1]])
+        
+        normal1 = B.normal_2d(points[lines[0, 0]], points[lines[0, 1]])
+        normal2 = B.normal_2d(points[lines[1, 0]], points[lines[1, 1]])
+        assert np.allclose(normal1, -normal2)
+        assert not M._line_orientation_equal(0, 1, lines)
+
+    def test_normals_large_angle(self):
+        points = np.array([
+            [-1, 0],
+            [0, 10], 
+            [1, 0] ], dtype=np.float64)
+
+        lines = np.array([
+            [0, 1],
+            [1, 2]])
+        
+        normal1 = B.normal_2d(points[lines[0, 0]], points[lines[0, 1]])
+        normal2 = B.normal_2d(points[lines[1, 0]], points[lines[1, 1]])
+        
+        assert np.allclose(normal1[0], -normal2[0])
+        assert np.allclose(normal1[1], normal2[1])
+        assert M._line_orientation_equal(0, 1, lines)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
