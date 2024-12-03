@@ -697,6 +697,9 @@ def _are_line_normals_pointing_outwards(lines, points):
 ## These functios allow us to flip all normals 'inward' or all 'outward'
 
 def _reorient_triangles(triangles, points):
+    if not len(triangles):
+        return
+     
     vertex_to_triangles = _compute_vertex_to_indices(triangles)
         
     oriented = np.full(len(triangles), False)
@@ -709,6 +712,8 @@ def _reorient_triangles(triangles, points):
         ti = active.pop()
 
         for n in _get_element_neighbours(triangles[ti], vertex_to_triangles):
+            assert 0 <= n < len(triangles)
+            
             if oriented[n]:
                 continue
 
