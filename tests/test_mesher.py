@@ -1,4 +1,5 @@
 import unittest
+import ctypes as C
 
 import numpy as np
 
@@ -236,6 +237,79 @@ class TestLineOrientation(unittest.TestCase):
         assert np.allclose(normal1[0], -normal2[0])
         assert np.allclose(normal1[1], normal2[1])
         assert M._line_orientation_equal(0, 1, lines)
+
+def triangle_orientation_is_equal(index1, index2, triangles, points):
+    triangles_ctypes = triangles.ctypes.data_as(C.c_void_p)
+    points_ctypes = points.ctypes.data_as(C.c_void_p)
+    
+    assert 0 <= index1 < len(triangles)
+    assert 0 <= index2 < len(triangles)
+    
+    return B.backend_lib.triangle_orientation_is_equal(index1, index2, triangles_ctypes, points_ctypes)
+
+class TestTriangleOrientation(unittest.TestCase):
+    def test_identical_triangles(self):
+        points = np.array([
+            [0, 0, 0],
+            [1, 0, 0],
+            [0, 1, 0]], dtype=np.float64)
+
+        triangles = np.array([[0, 1, 2]])
+
+        result = triangle_orientation_is_equal(0, 0, triangles, points)
+        assert result == 0
+    
+    def test_adjacent_triangles(self):
+        points = np.array([
+            [0, 0, 0],
+            [1, 0, 0],
+            [0, 1, 0],
+            [-1, 0, 0]], dtype=np.float64)
+
+        triangles = np.array([[0, 1, 2], [0, 3, 2]])
+
+        result = triangle_orientation_is_equal(0, 1, triangles, points)
+        assert result == 0
+    
+    def test_adjacent_triangles2(self):
+        points = np.array([
+            [0, 0, 0],
+            [1, 0, 0],
+            [0, 1, 0],
+            [-1, 0, 0]], dtype=np.float64)
+
+        triangles = np.array([[0, 1, 2], [0, 2, 3]])
+
+        result = triangle_orientation_is_equal(0, 1, triangles, points)
+        assert result == 1
+    
+    def test_adjacent_triangles3(self):
+        points = np.array([
+            [0, 0, 0],
+            [1, 0, 0],
+            [0, 1, 0],
+            [0, 0, 0.5],
+            [0.5, 0, 0]], dtype=np.float64)
+        
+        triangles = np.array([[0, 0, 0], [0, 1, 2], [0, 3, 4]])
+
+        result = triangle_orientation_is_equal(1, 2, triangles, points)
+        assert result == 1
+    
+    def test_disconnected_triangles(self):
+        points = np.array([
+            [0, 0, 0],
+            [1, 0, 0],
+            [0, 1, 0],
+            [0, 1, 1],
+            [0, 0, 1]], dtype=np.float64)
+        
+        triangles = np.array([[0, 1, 2], [0, 3, 4]])
+
+        result = triangle_orientation_is_equal(0, 1, triangles, points)
+        assert result == -1
+
+
 
 
 
