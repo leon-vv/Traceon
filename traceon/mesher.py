@@ -603,94 +603,6 @@ class Mesh(Saveable, GeometricObject):
             self._ensure_normal_orientation_lines(electrode, False)
 
 
-class PointStack:
-    def __init__(self, surface, points=[]):
-        self.path_length1 = surface.path_length1
-        self.path_length2 = surface.path_length2
-        
-        self.surf = surface
-         
-        self.points = points
-        self.indices = []
-    
-    def index_to_u(self, depth, i):
-        return self.path_length1/(self.get_number_of_indices(depth) - 1) * i
-     
-    def index_to_v(self, depth, j):
-        return self.path_length2/(self.get_number_of_indices(depth) - 1) * j
-    
-    def index_to_point(self, depth, i, j):
-        u = self.index_to_u(depth, i)
-        v = self.index_to_v(depth, j)
-        return self.surf(u, v)
-    
-    def get_number_of_indices(self, depth):
-        return 2**depth + 1
-    
-    def depth(self):
-        return len(self.indices) - 1
-    
-    def add_level(self):
-        new_depth = len(self.indices)
-        Nu = Nv = self.get_number_of_indices(new_depth)
-        
-        index_map = np.full((Nu, Nv), -1, dtype=np.int64)
-        
-        if new_depth != 0.:
-            index_map[::2, ::2] = self.indices[-1]
-        
-        self.indices.append(index_map)
-     
-    def to_point_index(self, depth, i, j):
-        assert 0 <= i <= self.get_number_of_indices(depth)
-        assert 0 <= j <= self.get_number_of_indices(depth)
-        
-        while depth >= len(self.indices):
-            self.add_level()
-        
-        map_ = self.indices[depth]
-        
-        if map_[i, j] == -1:
-            self.points.append(self.index_to_point(depth, i, j))
-            map_[i, j] = len(self.points) - 1
-
-        return map_[i, j]
-     
-    def __getitem__(self, args):
-        depth, i, j = args
-        return self.points[self.to_point_index(depth, i, j)]
-     
-    def normalize_to_depth(self, depth, quads, start_depth):
-        N = self.get_number_of_indices(depth)
-        
-        while self.depth() < depth:
-            self.add_level()
-        
-        assert self.depth() == depth
-        assert self.indices[-1].shape == (N, N)
-
-        for d in range(start_depth, len(self.indices)-1):
-            previous = self.indices[d]
-            x, y = np.where(previous != -1)
-            self.indices[d+1][2*x, 2*y] = previous[x, y]
-
-        quads = np.array(quads)
-        assert quads.shape == (len(quads), 5)
-        
-        for i in range(len(quads)):
-            quad_depth, i0, i1, j0, j1 = quads[i]
-             
-            while quad_depth < depth:
-                i0 *= 2
-                i1 *= 2
-                j0 *= 2
-                j1 *= 2
-                quad_depth += 1
-              
-            quads[i] = (quad_depth, i0, i1, j0, j1)
-         
-        return PointsWithQuads(self.indices[-1], quads)
-
 
 ## Code related to checking connectivity  
 
@@ -969,6 +881,94 @@ class PointsWithQuads:
     def __setitem__(self, *args, **kwargs):
         self.indices.__setitem__(*args, **kwargs)
 
+
+class PointStack:
+    def __init__(self, surface, points=[]):
+        self.path_length1 = surface.path_length1
+        self.path_length2 = surface.path_length2
+        
+        self.surf = surface
+         
+        self.points = points
+        self.indices = []
+    
+    def index_to_u(self, depth, i):
+        return self.path_length1/(self.get_number_of_indices(depth) - 1) * i
+     
+    def index_to_v(self, depth, j):
+        return self.path_length2/(self.get_number_of_indices(depth) - 1) * j
+    
+    def index_to_point(self, depth, i, j):
+        u = self.index_to_u(depth, i)
+        v = self.index_to_v(depth, j)
+        return self.surf(u, v)
+    
+    def get_number_of_indices(self, depth):
+        return 2**depth + 1
+    
+    def depth(self):
+        return len(self.indices) - 1
+    
+    def add_level(self):
+        new_depth = len(self.indices)
+        Nu = Nv = self.get_number_of_indices(new_depth)
+        
+        index_map = np.full((Nu, Nv), -1, dtype=np.int64)
+        
+        if new_depth != 0.:
+            index_map[::2, ::2] = self.indices[-1]
+        
+        self.indices.append(index_map)
+     
+    def to_point_index(self, depth, i, j):
+        assert 0 <= i <= self.get_number_of_indices(depth)
+        assert 0 <= j <= self.get_number_of_indices(depth)
+        
+        while depth >= len(self.indices):
+            self.add_level()
+        
+        map_ = self.indices[depth]
+        
+        if map_[i, j] == -1:
+            self.points.append(self.index_to_point(depth, i, j))
+            map_[i, j] = len(self.points) - 1
+
+        return map_[i, j]
+     
+    def __getitem__(self, args):
+        depth, i, j = args
+        return self.points[self.to_point_index(depth, i, j)]
+     
+    def normalize_to_depth(self, depth, quads, start_depth):
+        N = self.get_number_of_indices(depth)
+        
+        while self.depth() < depth:
+            self.add_level()
+        
+        assert self.depth() == depth
+        assert self.indices[-1].shape == (N, N)
+
+        for d in range(start_depth, len(self.indices)-1):
+            previous = self.indices[d]
+            x, y = np.where(previous != -1)
+            self.indices[d+1][2*x, 2*y] = previous[x, y]
+
+        quads = np.array(quads)
+        assert quads.shape == (len(quads), 5)
+        
+        for i in range(len(quads)):
+            quad_depth, i0, i1, j0, j1 = quads[i]
+             
+            while quad_depth < depth:
+                i0 *= 2
+                i1 *= 2
+                j0 *= 2
+                j1 *= 2
+                quad_depth += 1
+              
+            quads[i] = (quad_depth, i0, i1, j0, j1)
+         
+        return PointsWithQuads(self.indices[-1], quads)
 
 
 def _subdivide_quads(pstack, mesh_size, to_subdivide=[], quads=[]): 
