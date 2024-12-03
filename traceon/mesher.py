@@ -735,6 +735,18 @@ def _ensure_triangle_orientation(triangles, points, should_be_outwards):
             v0, v1, v2 = triangles[i]
             triangles[i] = [v0, v2, v1]
 
+def _line_orientation_equal(index1, index2, lines):
+    # Note that the orientation is equal if the lines do not
+    # walk 'towards' or both 'away' from the common vertex
+    p1, p2 = lines[index1, :2]
+    n1, n2 = lines[index2, :2]
+     
+    if p2 == n1:
+        return True # p1 -> p2 -> n1 -> n2, same orientation
+    if n2 == p1:
+        return True # n1 -> n2 -> p1 -> p2, same orientation
+
+    return False
 
 def _reorient_lines(lines, points):
     assert lines.shape == (len(lines), 2) or lines.shape == (len(lines), 4)
@@ -755,36 +767,8 @@ def _reorient_lines(lines, points):
         for n in _get_element_neighbours(lines[ti], vertex_to_indices):
             if oriented[n]:
                 continue
-
-            point_indices = lines[ti, :2]
-            neighbour_point_indices = lines[n, :2]
-
-            vertex0, vertex1 = points[point_indices][:, [0, 2]]
-            neighbour0, neighbour1 = points[neighbour_point_indices][:, [0, 2]]
-            
-            if point_indices[0] == neighbour_point_indices[0] or point_indices[0] == neighbour_point_indices[1]:
-                common_vertex = vertex0
-            else:
-                common_vertex = vertex1
-
-            # Consider standing on the common vertex, and looking at the midpoints.
-            # This algorithm works by comparing the normal from common vertex to midpoint,
-            # with the normal produced if B.normal_2d is called directly on the line vertices.
-            mid = (vertex0 + vertex1) / 2.
-            neighbour_mid = (neighbour0 + neighbour1) / 2.
-            
-            # If the lines would have these normals, they would have equal orientation,
-            # note that this is still true if BOTH normals are multiplied with -1
-            equal_orientation_normal = B.normal_2d(mid, common_vertex)
-            equal_orientation_normal_neighbour = B.normal_2d(common_vertex, neighbour_mid)
-            
-            actual_normal = B.normal_2d(vertex0, vertex1)
-            actual_neighbour_normal = B.normal_2d(neighbour0, neighbour1)
-            
-            sign = np.dot(equal_orientation_normal, actual_normal) # Lines have equal orientation, if the signs are equal
-            sign_neighbour = np.dot(equal_orientation_normal_neighbour, actual_neighbour_normal)
-            
-            if not (sign == sign_neighbour):
+             
+            if not _line_orientation_equal(ti, n, lines):
                 # Orientation of neighbour differs, flip it
                 neighbour = lines[n]
                  
