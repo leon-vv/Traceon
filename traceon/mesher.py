@@ -154,7 +154,8 @@ class Mesh(Saveable, GeometricObject):
             lines=[],
             triangles=[],
             physical_to_lines={},
-            physical_to_triangles={}):
+            physical_to_triangles={},
+            ensure_outward_normals=True):
         
         # Ensure the correct shape even if empty arrays
         if len(points):
@@ -177,7 +178,11 @@ class Mesh(Saveable, GeometricObject):
 
         self._remove_degenerate_triangles()
         self._deduplicate_points()
-        
+
+        if ensure_outward_normals:
+            for el in self.get_electrodes():
+                self.ensure_outward_normals(el)
+         
         assert np.all( (0 <= self.lines) & (self.lines < len(self.points)) ), "Lines reference points outside points array"
         assert np.all( (0 <= self.triangles) & (self.triangles < len(self.points)) ), "Triangles reference points outside points array"
         assert np.all([np.all( (0 <= group) & (group < len(self.lines)) ) for group in self.physical_to_lines.values()])
@@ -1027,7 +1032,7 @@ def _copy_over_edge(e1, e2):
     mask = e1 != -1
     e2[mask] = e1[mask]
 
-def _mesh(surface, mesh_size, start_depth=2, name=None):
+def _mesh(surface, mesh_size, start_depth=2, name=None, ensure_outward_normals=True):
     # Create a point stack for each subsection
     points, point_stacks, quads = _mesh_subsections_to_quads(surface, mesh_size, start_depth)
      
@@ -1060,7 +1065,7 @@ def _mesh(surface, mesh_size, start_depth=2, name=None):
     else:
         physical_to_triangles = {}
     
-    return Mesh(points=points, triangles=triangles, physical_to_triangles=physical_to_triangles)
+    return Mesh(points=points, triangles=triangles, physical_to_triangles=physical_to_triangles, ensure_outward_normals=ensure_outward_normals)
 
 
 

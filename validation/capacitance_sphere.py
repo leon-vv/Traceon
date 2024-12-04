@@ -37,15 +37,20 @@ class CapacitanceSphere(Validation):
             else:
                 mesh = arc.mesh(mesh_size_factor=MSF, higher_order=higher_order)
             
-            return mesh.flip_normals() if reverse else mesh
+            return mesh
         
-        return add_shell(r1, 'inner') + add_shell(r2, 'outer') + add_shell(r3, 'dielectric', True) + add_shell(r4, 'dielectric')
+        mesh = add_shell(r1, 'inner') + add_shell(r2, 'outer') + add_shell(r3, 'dielectric_inner') + add_shell(r4, 'dielectric_outer')
+        
+        mesh.ensure_inward_normals('dielectric_inner')
+        mesh.ensure_outward_normals('dielectric_outer')
+
+        return mesh
     
     def get_excitation(self, geom, symmetry):
         exc = E.Excitation(geom, symmetry)
         exc.add_voltage(inner=1)
         exc.add_voltage(outer=0)
-        exc.add_dielectric(dielectric=K)
+        exc.add_dielectric(dielectric_inner=K, dielectric_outer=K)
         return exc
 
     def correct_value_of_interest(self):
