@@ -4,12 +4,15 @@ import time
 from typing import Callable, Any
 from itertools import chain
 from abc import ABC, abstractmethod
+import ctypes as C
+from typing import Dict
 
 import meshio
 
 from .util import Saveable
 from .backend import triangle_areas
 from .logging import log_debug
+from . import backend as B
 
 
 __pdoc__ = {}
@@ -151,7 +154,8 @@ class Mesh(Saveable, GeometricObject):
             lines=[],
             triangles=[],
             physical_to_lines={},
-            physical_to_triangles={}):
+            physical_to_triangles={},
+            ensure_outward_normals=True):
         
         # Ensure the correct shape even if empty arrays
         if len(points):
@@ -173,7 +177,12 @@ class Mesh(Saveable, GeometricObject):
         self.physical_to_triangles = physical_to_triangles.copy()
 
         self._remove_degenerate_triangles()
-        
+        self._deduplicate_points()
+
+        if ensure_outward_normals:
+            for el in self.get_electrodes():
+                self.ensure_outward_normals(el)
+         
         assert np.all( (0 <= self.lines) & (self.lines < len(self.points)) ), "Lines reference points outside points array"
         assert np.all( (0 <= self.triangles) & (self.triangles < len(self.points)) ), "Triangles reference points outside points array"
         assert np.all([np.all( (0 <= group) & (group < len(self.lines)) ) for group in self.physical_to_lines.values()])
@@ -213,6 +222,40 @@ class Mesh(Saveable, GeometricObject):
          
         if np.any(degenerate):
             log_debug(f'Removed {sum(degenerate)} degenerate triangles')
+
+    def _deduplicate_points(self):
+        if not len(self.points):
+            return
+         
+        # Step 1: Make a copy of the points array using np.array
+        points_copy = np.array(self.points, dtype=np.float64)
+
+        # Step 2: Zero the low 16 bits of the mantissa of the X, Y, Z coordinates
+        points_copy.view(np.uint64)[:] &= np.uint64(0xFFFFFFFFFFFF0000)
+
+        # Step 3: Use Numpy lexsort directly on points_copy
+        sorted_indices = np.lexsort(points_copy.T)
+        points_sorted = points_copy[sorted_indices]
+
+        # Step 4: Create a mask to identify unique points
+        equal_to_previous = np.all(points_sorted[1:] == points_sorted[:-1], axis=1)
+        keep_mask = np.concatenate(([True], ~equal_to_previous))
+
+        # Step 5: Compute new indices for the unique points
+        new_indices_in_sorted_order = np.cumsum(keep_mask) - 1
+
+        # Map old indices to new indices
+        old_to_new_indices = np.empty(len(points_copy), dtype=np.uint64)
+        old_to_new_indices[sorted_indices] = new_indices_in_sorted_order
+        
+        # Step 6: Update the points array with unique points
+        self.points = points_sorted[keep_mask]
+
+        # Step 7: Update all indices
+        if len(self.triangles):
+            self.triangles = old_to_new_indices[self.triangles]
+        if len(self.lines):
+            self.lines = old_to_new_indices[self.lines]
     
     @staticmethod
     def _merge_dicts(dict1, dict2):
@@ -515,6 +558,326 @@ class Mesh(Saveable, GeometricObject):
             f'\tPhysical triangles: {physical_triangles}\n' \
             f'\tElements in physical triangle groups: {physical_triangles_nums}>'
 
+    def _ensure_normal_orientation_triangles(self, electrode, outwards):
+        assert electrode in self.physical_to_triangles, "electrode should be part of mesh"
+        
+        triangle_indices = self.physical_to_triangles[electrode]
+        electrode_triangles = self.triangles[triangle_indices]
+          
+        if not len(electrode_triangles):
+            return
+        
+        connected_indices = _get_connected_elements(electrode_triangles)
+        
+        for indices in connected_indices:
+            connected_triangles = electrode_triangles[indices]
+            _ensure_triangle_orientation(connected_triangles, self.points, outwards)
+            electrode_triangles[indices] = connected_triangles
+
+        self.triangles[triangle_indices] = electrode_triangles
+     
+    def _ensure_normal_orientation_lines(self, electrode, outwards):
+        assert electrode in self.physical_to_lines, "electrode should be part of mesh"
+        
+        line_indices = self.physical_to_lines[electrode]
+        electrode_lines = self.lines[line_indices]
+          
+        if not len(electrode_lines):
+            return
+        
+        connected_indices = _get_connected_elements(electrode_lines)
+        
+        for indices in connected_indices:
+            connected_lines = electrode_lines[indices]
+            _ensure_line_orientation(connected_lines, self.points, outwards)
+            electrode_lines[indices] = connected_lines
+
+        self.lines[line_indices] = electrode_lines
+     
+    def ensure_outward_normals(self, electrode):
+        if electrode in self.physical_to_triangles:
+            self._ensure_normal_orientation_triangles(electrode, True)
+        
+        if electrode in self.physical_to_lines:
+            self._ensure_normal_orientation_lines(electrode, True)
+     
+    def ensure_inward_normals(self, electrode):
+        if electrode in self.physical_to_triangles:
+            self._ensure_normal_orientation_triangles(electrode, False)
+         
+        if electrode in self.physical_to_lines:
+            self._ensure_normal_orientation_lines(electrode, False)
+
+
+
+## Code related to checking connectivity  
+
+def _compute_vertex_to_indices(elements):
+    # elements is either a list of line or triangles
+    # containing indices into the points array
+    
+    vertex_to_indices: Dict[int, list] = {}
+
+    for index, el in enumerate(elements):
+        for vertex in el:
+            if vertex not in vertex_to_indices:
+                vertex_to_indices[vertex] = []
+            vertex_to_indices[vertex].append(index)
+    
+    return vertex_to_indices
+
+def _get_element_neighbours(element, vertex_to_indices):
+    neighbours = []
+    for vertex in element:
+        n = vertex_to_indices.get(vertex, None)
+        
+        if n is not None:
+            neighbours.extend(n)
+    
+    return neighbours
+
+def _get_connected_elements(elements):
+    # Get subsets of elements that are connected to each other
+    # For triangle elements, this would be surfaces
+    # For line elements, this would be unbroken paths
+    vertex_to_indices = _compute_vertex_to_indices(elements)
+    
+    N = len(elements) 
+    labels = np.full(N, -1, dtype=np.int32)
+    component_id = 0
+
+    for i in range(N):
+        if labels[i] == -1:
+            # Start a new component
+            labels[i] = component_id
+            queue = [elements[i]]
+            while queue:
+                current = queue.pop()
+                for v in current:
+                    for neighbor in vertex_to_indices[v]:
+                        if labels[neighbor] == -1:
+                            labels[neighbor] = component_id
+                            queue.append(elements[neighbor])
+            component_id += 1
+
+    # Group elements by label
+    connected_elements = []
+    
+    for comp_id in range(component_id):
+        triangle_indices = np.where(labels == comp_id)[0]
+        connected_elements.append(triangle_indices)
+    
+    return connected_elements
+
+
+## Code related to checking if normals point inward or outwards, given
+## that all the normals already agree on orientation (all inwards or all outwards)
+
+def _are_triangle_normals_pointing_outwards(triangles, points):
+    # Based on https://math.stackexchange.com/questions/689418/how-to-compute-surface-normal-pointing-out-of-the-object
+    triangle_points = points[triangles]
+    
+    v0 = triangle_points[:, 0]
+    v1 = triangle_points[:, 1]
+    v2 = triangle_points[:, 2]
+
+    mid_x = (v0[:, 0] + v1[:, 0] + v2[:, 0])/3
+
+    normals = np.cross(v1-v0, v2-v0)
+    double_area = np.linalg.norm(normals, axis=1)
+    normals /= double_area[:, np.newaxis]
+
+    return np.sum(mid_x * normals[:, 0] * double_area/2) > 0.0
+
+def _are_line_normals_pointing_outwards(lines, points):
+    # Based on https://math.stackexchange.com/questions/689418/how-to-compute-surface-normal-pointing-out-of-the-object
+    vertices = points[lines[:, :2]]
+    mid_x = (vertices[:, 0, 0] + vertices[:, 1, 0])/2.
+     
+    normals = np.array([B.normal_2d(v0_, v1_) for v0_, v1_ in vertices[:, :, [0,2]]])
+    length = np.linalg.norm(vertices[:, 1] - vertices[:, 0], axis=1)
+    
+    return np.sum(mid_x * normals[:, 0] * length) > 0.0
+
+## Code related to ensuring normals over a connected surface/path agree in orientation.
+## These functios allow us to flip all normals 'inward' or all 'outward'
+
+def _reorient_triangles(triangles, points):
+    if not len(triangles):
+        return
+     
+    vertex_to_triangles = _compute_vertex_to_indices(triangles)
+        
+    oriented = np.full(len(triangles), False)
+    active = [0]
+
+    assert triangles.dtype == np.uint64
+    assert points.dtype == np.float64
+     
+    triangles_ctypes = triangles.ctypes.data_as(C.c_void_p)
+    points_ctypes = points.ctypes.data_as(C.c_void_p)
+    
+    while active:
+        ti = active.pop()
+
+        for n in _get_element_neighbours(triangles[ti], vertex_to_triangles):
+            assert 0 <= n < len(triangles)
+            
+            if oriented[n]:
+                continue
+
+            equal_orientation = B.backend_lib.triangle_orientation_is_equal(ti, n, triangles_ctypes, points_ctypes)
+            
+            if equal_orientation == -1: # Vertex neighbours, but not edge neighbours
+                continue
+            elif equal_orientation == 0: # Not equal orientation
+                v0, v1, v2 = triangles[n]
+                triangles[n] = [v0, v2, v1] # Flip normal
+             
+            oriented[n] = True
+            active.append(n)
+
+def _ensure_triangle_orientation(triangles, points, should_be_outwards):
+    # Ensure the triangles forming a closed surface have their
+    # normals either outwards (should_be_outwards is True) or inwards (should_be_outwards is False)
+    _reorient_triangles(triangles, points)
+    
+    outwards = _are_triangle_normals_pointing_outwards(triangles, points)
+    
+    if outwards != should_be_outwards:
+        for i in range(len(triangles)):
+            v0, v1, v2 = triangles[i]
+            triangles[i] = [v0, v2, v1]
+
+def _line_orientation_equal(index1, index2, lines):
+    # Note that the orientation is equal if the lines do not
+    # walk 'towards' or both 'away' from the common vertex
+    p1, p2 = lines[index1, :2]
+    n1, n2 = lines[index2, :2]
+     
+    if p2 == n1:
+        return True # p1 -> p2 -> n1 -> n2, same orientation
+    if n2 == p1:
+        return True # n1 -> n2 -> p1 -> p2, same orientation
+
+    return False
+
+def _reorient_lines(lines, points):
+    assert lines.shape == (len(lines), 2) or lines.shape == (len(lines), 4)
+    
+    # Reorient the normals of lines in the same direction, at this point
+    # in the algorithm we don't know if we are orienting them outwards or inwards,
+    # the important thing is that they all agree (all outwards or all inwards)
+    
+    # Only consider first two points, in the case of higher order lines
+    vertex_to_indices = _compute_vertex_to_indices(lines[:, :2])
+        
+    oriented = np.full(len(lines), False)
+    active = [0]
+    
+    while active:
+        ti = active.pop()
+
+        for n in _get_element_neighbours(lines[ti], vertex_to_indices):
+            if oriented[n]:
+                continue
+             
+            if not _line_orientation_equal(ti, n, lines):
+                # Orientation of neighbour differs, flip it
+                neighbour = lines[n]
+                 
+                if neighbour.shape[0] == 4:
+                    p0, p1, p2, p3 = neighbour
+                    lines[n] = [p1, p0, p3, p2]
+                else:
+                    p0, p1 = neighbour
+                    lines[n] = [p1, p0]
+             
+            oriented[n] = True
+            active.append(n)
+
+def _ensure_line_orientation(lines, points, should_be_outwards):
+    # Ensure the triangles forming a closed surface have their
+    # normals either outwards (should_be_outwards is True) or inwards (should_be_outwards is False)
+    _reorient_lines(lines, points)
+    
+    outwards = _are_line_normals_pointing_outwards(lines, points)
+    
+    if outwards != should_be_outwards:
+        for i in range(len(lines)):
+            line = lines[i]
+            if line.shape[0] == 4:
+                p0, p1, p2, p3 = line
+                lines[i] = [p1, p0, p3, p2]
+            else:
+                p0, p1 = line
+                lines[i] = [p1, p0]
+
+
+
+
+
+class PointsWithQuads:
+    def __init__(self, indices, quads):
+        N = len(indices)
+        assert indices.shape == (N, N)
+        assert np.all(quads[:, 1] < N)
+        assert quads.shape == (len(quads), 5)
+        assert np.all(quads[:, 0] == quads[0, 0])
+        
+        self.indices = indices
+        self.quads = quads
+        self.depth = quads[0, 0]
+        
+        self.shape = indices.shape
+    
+    def to_triangles(self):
+        triangles = []
+
+        def add_triangle(p0, p1, p2):
+            triangles.append([self.indices[p0[0], p0[1]], self.indices[p1[0], p1[1]], self.indices[p2[0], p2[1]]])
+         
+        for quad in self.quads:
+            depth, i0, i1, j0, j1 = quad 
+            assert depth == self.depth
+
+            p0 = (i0, j0)
+            p1 = (i0, j1)
+            p2 = (i1, j1)
+            p3 = (i1, j0)
+
+            split_edge = False
+            
+            # Check if there is a point on the edge 
+            for edge in range(4):
+                # Is there a point on the first edge?
+                point_on_edge = (p0[0]+p1[0])//2, (p0[1]+p1[1])//2
+                
+                if (abs(p0[0] - p1[0]) > 1 or abs(p0[1] - p1[1]) > 1) and \
+                        self.indices[point_on_edge[0], point_on_edge[1]] != -1:
+                    # Yes there is a point.. we have to split the
+                    # quad into three triangles
+                    add_triangle(p0, point_on_edge, p3)
+                    add_triangle(point_on_edge, p2, p3)
+                    add_triangle(point_on_edge, p1, p2)
+                    split_edge = True
+                    break
+                
+                # Rotate the points so we check the next edge
+                p0, p1, p2, p3 = p1, p2, p3, p0
+             
+            if not split_edge: 
+                add_triangle(p0, p1, p2)
+                add_triangle(p0, p2, p3)
+         
+        assert not (-1 in np.array(triangles))
+        return triangles
+            
+    def __getitem__(self, *args, **kwargs):
+        return self.indices.__getitem__(*args, **kwargs)
+    
+    def __setitem__(self, *args, **kwargs):
+        self.indices.__setitem__(*args, **kwargs)
 
 
 class PointStack:
@@ -605,70 +968,6 @@ class PointStack:
          
         return PointsWithQuads(self.indices[-1], quads)
 
-    
-
-class PointsWithQuads:
-    def __init__(self, indices, quads):
-        N = len(indices)
-        assert indices.shape == (N, N)
-        assert np.all(quads[:, 1] < N)
-        assert quads.shape == (len(quads), 5)
-        assert np.all(quads[:, 0] == quads[0, 0])
-        
-        self.indices = indices
-        self.quads = quads
-        self.depth = quads[0, 0]
-        
-        self.shape = indices.shape
-    
-    def to_triangles(self):
-        triangles = []
-
-        def add_triangle(p0, p1, p2):
-            triangles.append([self.indices[p0[0], p0[1]], self.indices[p1[0], p1[1]], self.indices[p2[0], p2[1]]])
-         
-        for quad in self.quads:
-            depth, i0, i1, j0, j1 = quad 
-            assert depth == self.depth
-
-            p0 = (i0, j0)
-            p1 = (i0, j1)
-            p2 = (i1, j1)
-            p3 = (i1, j0)
-
-            split_edge = False
-            
-            # Check if there is a point on the edge 
-            for edge in range(4):
-                # Is there a point on the first edge?
-                point_on_edge = (p0[0]+p1[0])//2, (p0[1]+p1[1])//2
-                
-                if (abs(p0[0] - p1[0]) > 1 or abs(p0[1] - p1[1]) > 1) and \
-                        self.indices[point_on_edge[0], point_on_edge[1]] != -1:
-                    # Yes there is a point.. we have to split the
-                    # quad into three triangles
-                    add_triangle(p0, point_on_edge, p3)
-                    add_triangle(point_on_edge, p2, p3)
-                    add_triangle(point_on_edge, p1, p2)
-                    split_edge = True
-                    break
-                
-                # Rotate the points so we check the next edge
-                p0, p1, p2, p3 = p1, p2, p3, p0
-             
-            if not split_edge: 
-                add_triangle(p0, p1, p2)
-                add_triangle(p0, p2, p3)
-         
-        assert not (-1 in np.array(triangles))
-        return triangles
-            
-    def __getitem__(self, *args, **kwargs):
-        return self.indices.__getitem__(*args, **kwargs)
-    
-    def __setitem__(self, *args, **kwargs):
-        self.indices.__setitem__(*args, **kwargs)
-
 
 def _subdivide_quads(pstack, mesh_size, to_subdivide=[], quads=[]): 
     assert isinstance(pstack, PointStack)
@@ -736,7 +1035,7 @@ def _copy_over_edge(e1, e2):
     mask = e1 != -1
     e2[mask] = e1[mask]
 
-def _mesh(surface, mesh_size, start_depth=2, name=None):
+def _mesh(surface, mesh_size, start_depth=2, name=None, ensure_outward_normals=True):
     # Create a point stack for each subsection
     points, point_stacks, quads = _mesh_subsections_to_quads(surface, mesh_size, start_depth)
      
@@ -769,7 +1068,7 @@ def _mesh(surface, mesh_size, start_depth=2, name=None):
     else:
         physical_to_triangles = {}
     
-    return Mesh(points=points, triangles=triangles, physical_to_triangles=physical_to_triangles)
+    return Mesh(points=points, triangles=triangles, physical_to_triangles=physical_to_triangles, ensure_outward_normals=ensure_outward_normals)
 
 
 

@@ -192,7 +192,7 @@ class Excitation:
             assert name in self.electrodes, f'Cannot add {name} to excitation, since it\'s not present in the mesh'
             self.excitation_types[name] = (ExcitationType.DIELECTRIC, permittivity)
 
-    def add_electrostatic_boundary(self, *args):
+    def add_electrostatic_boundary(self, *args, ensure_inward_normals=True):
         """
         Specify geometry elements as electrostatic boundary elements. At the boundary we require E·n = 0 at every point on the boundary. This
         is equivalent to stating that the directional derivative of the electrostatic potential through the boundary is zero. Placing boundaries between
@@ -204,9 +204,13 @@ class Excitation:
         *args: list of str
             The geometry names that should be considered a boundary.
         """
+        if ensure_inward_normals:
+            for electrode in args:
+                self.mesh.ensure_inward_normals(electrode)
+        
         self.add_dielectric(**{a:0 for a in args})
     
-    def add_magnetostatic_boundary(self, *args):
+    def add_magnetostatic_boundary(self, *args, ensure_inward_normals=True):
         """
         Specify geometry elements as magnetostatic boundary elements. At the boundary we require H·n = 0 at every point on the boundary. This
         is equivalent to stating that the directional derivative of the magnetostatic potential through the boundary is zero. Placing boundaries between
@@ -218,7 +222,11 @@ class Excitation:
         *args: list of str
             The geometry names that should be considered a boundary.
         """
-
+        if ensure_inward_normals:
+            for electrode in args:
+                print('flipping normals', electrode)
+                self.mesh.ensure_inward_normals(electrode)
+        
         self.add_magnetizable(**{a:0 for a in args})
     
     def _split_for_superposition(self):
