@@ -244,6 +244,8 @@ def triangle_orientation_is_equal(index1, index2, triangles, points):
     
     assert 0 <= index1 < len(triangles)
     assert 0 <= index2 < len(triangles)
+    assert triangles.dtype == np.uint64
+    assert points.dtype == np.float64
     
     return B.backend_lib.triangle_orientation_is_equal(index1, index2, triangles_ctypes, points_ctypes)
 
@@ -254,7 +256,7 @@ class TestTriangleOrientation(unittest.TestCase):
             [1, 0, 0],
             [0, 1, 0]], dtype=np.float64)
 
-        triangles = np.array([[0, 1, 2]])
+        triangles = np.array([[0, 1, 2]], dtype=np.uint64)
 
         result = triangle_orientation_is_equal(0, 0, triangles, points)
         assert result == 0
@@ -266,7 +268,7 @@ class TestTriangleOrientation(unittest.TestCase):
             [0, 1, 0],
             [-1, 0, 0]], dtype=np.float64)
 
-        triangles = np.array([[0, 1, 2], [0, 3, 2]])
+        triangles = np.array([[0, 1, 2], [0, 3, 2]], dtype=np.uint64)
 
         result = triangle_orientation_is_equal(0, 1, triangles, points)
         assert result == 0
@@ -278,7 +280,7 @@ class TestTriangleOrientation(unittest.TestCase):
             [0, 1, 0],
             [-1, 0, 0]], dtype=np.float64)
 
-        triangles = np.array([[0, 1, 2], [0, 2, 3]])
+        triangles = np.array([[0, 1, 2], [0, 2, 3]], dtype=np.uint64)
 
         result = triangle_orientation_is_equal(0, 1, triangles, points)
         assert result == 1
@@ -291,7 +293,7 @@ class TestTriangleOrientation(unittest.TestCase):
             [0, 0, 0.5],
             [0.5, 0, 0]], dtype=np.float64)
         
-        triangles = np.array([[0, 0, 0], [0, 1, 2], [0, 3, 4]])
+        triangles = np.array([[0, 0, 0], [0, 1, 2], [0, 3, 4]], dtype=np.uint64)
 
         result = triangle_orientation_is_equal(1, 2, triangles, points)
         assert result == 1
@@ -304,7 +306,7 @@ class TestTriangleOrientation(unittest.TestCase):
             [0, 1, 1],
             [0, 0, 1]], dtype=np.float64)
         
-        triangles = np.array([[0, 1, 2], [0, 3, 4]])
+        triangles = np.array([[0, 1, 2], [0, 3, 4]], dtype=np.uint64)
 
         result = triangle_orientation_is_equal(0, 1, triangles, points)
         assert result == -1

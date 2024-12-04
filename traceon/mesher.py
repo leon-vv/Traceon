@@ -711,6 +711,9 @@ def _reorient_triangles(triangles, points):
     oriented = np.full(len(triangles), False)
     active = [0]
 
+    assert triangles.dtype == np.uint64
+    assert points.dtype == np.float64
+     
     triangles_ctypes = triangles.ctypes.data_as(C.c_void_p)
     points_ctypes = points.ctypes.data_as(C.c_void_p)
     
