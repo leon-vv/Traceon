@@ -39,19 +39,26 @@ class Figure:
         colors: dict of (string, string)
             Use keyword arguments to specify colors, for example `plot_mesh(mesh, lens='blue', ground='green')`
         """
+        if not len(mesh.triangles) and not len(mesh.lines):
+            raise RuntimeError("Trying to plot empty mesh.")
+
+        triangle_normals, line_normals = None, None
+        
         if len(mesh.triangles):
-            meshes, normals = _get_vedo_triangles_and_normals(mesh, **colors)
+            meshes, triangle_normals = _get_vedo_triangles_and_normals(mesh, **colors)
             self.legend_entries.extend(meshes)
             self.to_plot.append(meshes)
-        elif len(mesh.lines):
-            lines, normals = _get_vedo_lines_and_normals(mesh, **colors)
+        
+        if len(mesh.lines):
+            lines, line_normals = _get_vedo_lines_and_normals(mesh, **colors)
             self.legend_entries.extend(lines)
             self.to_plot.append(lines)
-        else:
-            raise RuntimeError("Trying to plot empty mesh.")
-        
+         
         if show_normals:
-            self.to_plot.append(normals)
+            if triangle_normals is not None:
+                self.to_plot.append(triangle_normals)
+            if line_normals is not None:
+                self.to_plot.append(line_normals)
         
         self.is_2d &= mesh.is_2d()
 
@@ -144,15 +151,17 @@ class Figure:
             Name of the color map to use to color the charge density values
         """
         mesh = excitation.mesh
-
+        
+        if not len(mesh.triangles) and not len(mesh.lines):
+            raise RuntimeError("Trying to plot empty mesh.")
+        
         if len(mesh.triangles):
             meshes = _get_vedo_charge_density_3d(excitation, field, color_map)
             self.to_plot.append(meshes)
-        elif len(mesh.lines):
+            
+        if len(mesh.lines):
             lines = _get_vedo_charge_density_2d(excitation, field, color_map)
             self.to_plot.append(lines)
-        else:
-            raise RuntimeError("Trying to plot empty mesh.")
          
         self.is_2d &= mesh.is_2d()
     
