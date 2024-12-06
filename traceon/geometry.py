@@ -1155,7 +1155,7 @@ class Surface(GeometricObject):
         
         return boundary
 
-    def extrude_boundary_paths(self, vector, add_cap=True):
+    def extrude_boundary(self, vector, add_cap=True):
         """
         Extrude the boundary paths of the surface along a vector. The vector gives both
         the length and the direction of the extrusion.
@@ -1186,7 +1186,7 @@ class Surface(GeometricObject):
         else:
             return self + extruded_boundary
     
-    def extrude_boundary_paths_by_path(self, path, add_cap=True):
+    def extrude_boundary_by_path(self, path, add_cap=True):
         """Extrude the boundary paths of a surface along a path. The path 
         does not need to start at the surface. Imagine the  extrusion surface 
         created by moving the boundary paths along the path.
@@ -1218,7 +1218,7 @@ class Surface(GeometricObject):
         else:
             return self + extruded_boundary
     
-    def revolve_boundary_paths_x(self, angle=2*pi, add_cap=True):
+    def revolve_boundary_x(self, angle=2*pi, add_cap=True):
         """Revolve the boundary paths of the surface anti-clockwise around the x-axis.
         
         Parameters
@@ -1247,7 +1247,7 @@ class Surface(GeometricObject):
         else:
             return self + revolved_boundary
         
-    def revolve_boundary_paths_y(self, angle=2*pi, add_cap=True):
+    def revolve_boundary_y(self, angle=2*pi, add_cap=True):
         """Revolve the boundary paths of the surface anti-clockwise around the y-axis.
         
         Parameters
@@ -1276,7 +1276,7 @@ class Surface(GeometricObject):
         else:
             return self + revolved_boundary
     
-    def revolve_boundary_paths_z(self, angle=2*pi, add_cap=True):
+    def revolve_boundary_z(self, angle=2*pi, add_cap=True):
         """Revolve the boundary paths of the surface anti-clockwise around the z-axis.
         
         Parameters
