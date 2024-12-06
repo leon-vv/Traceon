@@ -688,7 +688,7 @@ class Path(GeometricObject):
         elif isinstance(other, PathCollection):
             return PathCollection([self] + [other.paths])
      
-    def mesh(self, mesh_size=None, mesh_size_factor=None, higher_order=False, name=None):
+    def mesh(self, mesh_size=None, mesh_size_factor=None, higher_order=False, name=None, ensure_outward_normals=True):
         """Mesh the path, so it can be used in the BEM solver. The result of meshing a path
         are (possibly curved) line elements.
 
@@ -740,7 +740,7 @@ class Path(GeometricObject):
         else:
             physical_to_lines = {}
         
-        return Mesh(points=points, lines=lines, physical_to_lines=physical_to_lines)
+        return Mesh(points=points, lines=lines, physical_to_lines=physical_to_lines, ensure_outward_normals=ensure_outward_normals)
 
     def __str__(self):
         return f"<Path name:{self.name}, length:{self.path_length:.1e}, number of breakpoints:{len(self.breakpoints)}>"
@@ -769,14 +769,15 @@ class PathCollection(GeometricObject):
     def map_points(self, fun):
         return PathCollection([p.map_points(fun) for p in self.paths])
      
-    def mesh(self, mesh_size=None, mesh_size_factor=None, higher_order=False, name=None):
+    def mesh(self, mesh_size=None, mesh_size_factor=None, higher_order=False, name=None, ensure_outward_normals=True):
         """See `Path.mesh`"""
         mesh = Mesh()
         
         name = self.name if name is None else name
         
         for p in self.paths:
-            mesh = mesh + p.mesh(mesh_size=mesh_size, mesh_size_factor=mesh_size_factor, higher_order=higher_order, name=name)
+            mesh = mesh + p.mesh(mesh_size=mesh_size, mesh_size_factor=mesh_size_factor,
+                                higher_order=higher_order, name=name, ensure_outward_normals=ensure_outward_normals)
 
         return mesh
 
@@ -1314,7 +1315,7 @@ class Surface(GeometricObject):
         else:
             return SurfaceCollection([self] + other.surfaces)
      
-    def mesh(self, mesh_size=None, mesh_size_factor=None, name=None):
+    def mesh(self, mesh_size=None, mesh_size_factor=None, name=None, ensure_outward_normals=True):
         """Mesh the surface, so it can be used in the BEM solver. The result of meshing
         a surface are triangles.
 
@@ -1343,7 +1344,7 @@ class Surface(GeometricObject):
                 mesh_size /= sqrt(mesh_size_factor)
 
         name = self.name if name is None else name
-        return _mesh(self, mesh_size, name=name)
+        return _mesh(self, mesh_size, name=name, ensure_outward_normals=ensure_outward_normals)
     
     def __str__(self):
         return f"<Surface with name: {self.name}>"
@@ -1372,14 +1373,14 @@ class SurfaceCollection(GeometricObject):
     def map_points(self, fun):
         return SurfaceCollection([s.map_points(fun) for s in self.surfaces])
      
-    def mesh(self, mesh_size=None, mesh_size_factor=None, name=None):
+    def mesh(self, mesh_size=None, mesh_size_factor=None, name=None, ensure_outward_normals=True):
         """See `Surface.mesh`"""
         mesh = Mesh()
         
         name = self.name if name is None else name
         
         for s in self.surfaces:
-            mesh = mesh + s.mesh(mesh_size=mesh_size, mesh_size_factor=mesh_size_factor, name=name)
+            mesh = mesh + s.mesh(mesh_size=mesh_size, mesh_size_factor=mesh_size_factor, name=name, ensure_outward_normals=ensure_outward_normals)
          
         return mesh
      
