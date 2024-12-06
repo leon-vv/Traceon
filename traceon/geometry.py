@@ -15,6 +15,7 @@ from math import pi, sqrt, sin, cos, atan2, ceil
 import numpy as np
 from scipy.integrate import quad
 from scipy.interpolate import CubicSpline
+from scipy.optimize import minimize
 
 from .mesher import GeometricObject, _mesh, Mesh
 
@@ -673,6 +674,33 @@ class Path(GeometricObject):
         Path"""
         return Path.line([extent, 0., -height/2], [radius, 0., -height/2])\
                 .line_to([radius, 0., height/2]).line_to([extent, 0., height/2]).move(dz=z)
+    
+    def centroid(self):
+        """A function computing the centroid of the Path.
+
+        Returns
+        -------------------------
+        (3,) float
+        
+        Th centroid of the Path.
+        """
+        eps = 1e-6
+        speed = lambda s: np.linalg.norm((self(s + eps) - self(s - eps)) / (2 * eps))
+        arc_length = quad(speed, 0., self.path_length)[0]
+
+        return np.array([quad(lambda s: self(s)[i] * speed(s), 0., self.path_length)[0] / arc_length for i in range(3)])
+
+    def extrude_to_centroid(self):
+        def f(u,v):
+            return (1 - v) * self(u) + v * self.centroid()
+
+        return Surface(f, self.path_length, 1)
+    
+    def contains_point(self, point):
+       
+       point = np.array(point)
+       result = minimize(lambda s: np.linalg.norm(self(s[0]) - point), x0 = [0.])
+       return np.isclose(result.fun, 0., atol=1e-8) if result.success else False
     
     def __add__(self, other):
         """Add two paths to create a PathCollection. Note that a PathCollection supports
