@@ -77,7 +77,6 @@ class Path(GeometricObject):
         # and returns the point on the path
         self.fun = fun
         self.path_length = path_length
-        assert self.path_length > 0
         self.breakpoints = breakpoints
         self.name = name
     
@@ -290,7 +289,7 @@ class Path(GeometricObject):
         x0: float
             x-coordinate of the center of the circle
         z0: float
-            z-coordiante of the center of the circle
+            z-coordinate of the center of the circle
         radius: float
             radius of the circle
         angle: float
@@ -313,7 +312,7 @@ class Path(GeometricObject):
         y0: float
             x-coordinate of the center of the circle
         z0: float
-            z-coordiante of the center of the circle
+            z-coordinate of the center of the circle
         radius: float
             radius of the circle
         angle: float
@@ -333,10 +332,10 @@ class Path(GeometricObject):
         
         Parameters
         --------------------------------
-        y0: float
+        x0: float
             x-coordinate of the center of the circle
         y0: float
-            y-coordiante of the center of the circle
+            y-coordinate of the center of the circle
         radius: float
             radius of the circle
         angle: float
@@ -419,7 +418,6 @@ class Path(GeometricObject):
         -----------------------
         Surface"""
         
-        pstart, pmiddle, pend = self.starting_point(), self.middle_point(), self.endpoint()
         r_avg = self.average(lambda p: sqrt(p[1]**2 + p[2]**2))
         length2 = 2*pi*r_avg
          
@@ -443,7 +441,6 @@ class Path(GeometricObject):
         -----------------------
         Surface"""
 
-        pstart, pend = self.starting_point(), self.endpoint()
         r_avg = self.average(lambda p: sqrt(p[0]**2 + p[2]**2))
         length2 = 2*pi*r_avg
          
@@ -467,7 +464,6 @@ class Path(GeometricObject):
         -----------------------
         Surface"""
 
-        pstart, pend = self.starting_point(), self.endpoint()
         r_avg = self.average(lambda p: sqrt(p[0]**2 + p[1]**2))
         length2 = 2*pi*r_avg
         
@@ -674,6 +670,7 @@ class Path(GeometricObject):
         return Path.line([extent, 0., -height/2], [radius, 0., -height/2])\
                 .line_to([radius, 0., height/2]).line_to([extent, 0., height/2]).move(dz=z)
     
+   
     def __add__(self, other):
         """Add two paths to create a PathCollection. Note that a PathCollection supports
         a subset of the methods of Path (for example, movement, rotation and meshing). Use
@@ -747,8 +744,7 @@ class Path(GeometricObject):
 
     def __str__(self):
         return f"<Path name:{self.name}, length:{self.path_length:.1e}, number of breakpoints:{len(self.breakpoints)}>"
-
-
+     
 class PathCollection(GeometricObject):
     """A PathCollection is a collection of `Path`. It can be created using the + operator (for example path1+path2).
     Note that `PathCollection` is a subclass of `traceon.mesher.GeometricObject`, and therefore can be easily moved and rotated."""
@@ -834,7 +830,6 @@ class Surface(GeometricObject):
         self.fun = fun
         self.path_length1 = path_length1
         self.path_length2 = path_length2
-        assert self.path_length1 > 0 and self.path_length2 > 0
         self.breakpoints1 = breakpoints1
         self.breakpoints2 = breakpoints2
         self.name = name
@@ -868,7 +863,7 @@ class Surface(GeometricObject):
         return Surface(lambda u, v: fun(self(u, v)),
             self.path_length1, self.path_length2,
             self.breakpoints1, self.breakpoints2, name=self.name)
-     
+    
     @staticmethod
     def spanned_by_paths(path1, path2):
         """Create a surface by considering the area between two paths. Imagine two points
@@ -1134,7 +1129,150 @@ class Surface(GeometricObject):
     @staticmethod
     def aperture(height, radius, extent, z=0.):
         return Path.aperture(height, radius, extent, z=z).revolve_z()
-     
+    
+    def get_boundary_paths(self):
+        """Get the boundary paths of the surface.
+        Computes the boundary paths (edges) of the surface and combines them into a `PathCollection`.
+        Non-closed paths get filtered out when closed paths are present, as only closed paths 
+        represent true boundaries in this case.
+        Note that this function might behave unexpectedly for surfaces without any boundaries (e.g a sphere).
+
+        Returns
+        ----------------------------
+        PathCollection representing the boundary paths of the surface"""
+        
+        b1 = Path(lambda u: self(u, 0.), self.path_length1, self.breakpoints1, self.name)
+        b2 = Path(lambda u: self(u, self.path_length2), self.path_length1, self.breakpoints1, self.name)
+        b3 = Path(lambda v: self(0., v), self.path_length2, self.breakpoints2, self.name)
+        b4 = Path(lambda v: self(self.path_length1, v), self.path_length2, self.breakpoints2, self.name)
+        
+        boundary = b1 + b2 + b3 + b4
+
+        if any([b.is_closed() for b in boundary.paths]):
+            boundary = PathCollection([b for b in boundary.paths if b.is_closed()])
+        
+        return boundary
+
+    def extrude_boundary(self, vector, enclose=True):
+        """
+        Extrude the boundary paths of the surface along a vector. The vector gives both
+        the length and the direction of the extrusion.
+
+        Parameters
+        -------------------------
+        vector: (3,) float
+            The direction and length (norm of the vector) to extrude by.
+        enclose: bool
+            Whether enclose the extrusion by adding a copy of the original surface 
+            moved by the extrusion vector to the resulting SurfaceCollection.
+
+        Returns
+        -------------------------
+        SurfaceCollection"""
+
+        boundary = self.get_boundary_paths()
+        extruded_boundary = boundary.extrude(vector)
+
+        if enclose:
+            return self + extruded_boundary + self.move(*vector) 
+        else:
+            return self + extruded_boundary
+    
+    def extrude_boundary_by_path(self, path, enclose=True):
+        """Extrude the boundary paths of a surface along a path. The path 
+        does not need to start at the surface. Imagine the  extrusion surface 
+        created by moving the boundary paths along the path.
+
+        Parameters
+        -------------------------
+        path: Path
+            The path defining the extrusion.
+        enclose: bool
+            Whether to enclose the extrusion by adding a copy of the original surface 
+            moved by the extrusion vector to the resulting SurfaceCollection.
+            
+        Returns
+        ------------------------
+        SurfaceCollection"""
+        
+        boundary = self.get_boundary_paths()
+        extruded_boundary = boundary.extrude(path)
+
+        if enclose:
+            path_vector = path.endpoint() - path.starting_point()
+            return self + extruded_boundary + self.move(*path_vector) 
+        else:
+            return self + extruded_boundary
+    
+    def revolve_boundary_x(self, angle=2*pi, enclose=True):
+        """Revolve the boundary paths of the surface anti-clockwise around the x-axis.
+        
+        Parameters
+        -----------------------
+        angle: float
+            The angle by which to revolve. THe default 2*pi gives a full revolution.
+        enclose: bool
+            Whether enclose the revolution by adding a copy of the original surface 
+            rotated over the angle to the resulting SurfaceCollection.
+
+        Returns
+        -----------------------
+        SurfaceCollection"""
+
+        boundary = self.get_boundary_paths()
+        revolved_boundary = boundary.revolve_x(angle)
+
+        if enclose and not np.isclose(angle, 2*pi, atol=1e-8):
+            return self + revolved_boundary + self.rotate(Rx=angle)
+        else:
+            return self + revolved_boundary
+        
+    def revolve_boundary_y(self, angle=2*pi, enclose=True):
+        """Revolve the boundary paths of the surface anti-clockwise around the y-axis.
+        
+        Parameters
+        -----------------------
+        angle: float
+            The angle by which to revolve. THe default 2*pi gives a full revolution.
+        cap_extension: bool
+            Whether to enclose the revolution by adding a copy of the original surface 
+            rotated over the angle to the resulting SurfaceCollection.
+
+        Returns
+        -----------------------
+        SurfaceCollection"""
+
+        boundary = self.get_boundary_paths()
+        revolved_boundary = boundary.revolve_y(angle)
+
+        if enclose and not np.isclose(angle, 2*pi, atol=1e-8):
+            return self + revolved_boundary + self.rotate(Ry=angle)
+        else:
+            return self + revolved_boundary
+    
+    def revolve_boundary_z(self, angle=2*pi, enclose=True):
+        """Revolve the boundary paths of the surface anti-clockwise around the z-axis.
+        
+        Parameters
+        -----------------------
+        angle: float
+            The angle by which to revolve. THe default 2*pi gives a full revolution.
+        cap_extension: bool
+            Whether to enclose the revolution by adding a copy of the original surface 
+            rotated over the angle to the resulting SurfaceCollection.
+
+        Returns
+        -----------------------
+        SurfaceCollection"""
+
+        boundary = self.get_boundary_paths()
+        revolved_boundary = boundary.revolve_z(angle)
+        
+        if enclose and not np.isclose(angle, 2*pi, atol=1e-8):
+            return self + revolved_boundary + self.rotate(Rz=angle)
+        else:
+            return self + revolved_boundary
+
     def __add__(self, other):
         """Allows you to combine surfaces into a `SurfaceCollection` using the + operator (surface1 + surface2)."""
         if isinstance(other, Surface):
