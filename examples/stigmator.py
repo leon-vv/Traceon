@@ -46,8 +46,9 @@ boundary.name = 'boundary'
 
 # create and plot mesh
 mesh = (multipole.mesh(mesh_size=0.04) + boundary.mesh(mesh_size=0.1))
-#P.plot_mesh(mesh, positive_electrode='red', negative_electrode='blue', boundary='green')
-#P.show()
+
+P.plot_mesh(mesh, positive_electrode='red', negative_electrode='blue', boundary='green')
+P.show()
 
 # add excitations
 excitation = E.Excitation(mesh, E.Symmetry.THREE_D)
