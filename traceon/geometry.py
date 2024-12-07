@@ -683,13 +683,13 @@ class Path(GeometricObject):
         -------------------------
         PathCollection"""
          
-        if not isinstance(other, Path) and not isinstance(other, PathCollection):
-            return NotImplemented
-        
         if isinstance(other, Path):
             return PathCollection([self, other])
-        elif isinstance(other, PathCollection):
+        
+        if isinstance(other, PathCollection):
             return PathCollection([self] + [other.paths])
+
+        return NotImplemented
      
     def mesh(self, mesh_size=None, mesh_size_factor=None, higher_order=False, name=None, ensure_outward_normals=True):
         """Mesh the path, so it can be used in the BEM solver. The result of meshing a path
@@ -794,13 +794,13 @@ class PathCollection(GeometricObject):
     
     def __add__(self, other):
         """Allows you to combine paths and path collection using the + operator (path1 + path2)."""
-        if not isinstance(other, Path) and not isinstance(other, PathCollection):
-            return NotImplemented
-        
         if isinstance(other, Path):
             return PathCollection(self.paths+[other])
-        else:
+        
+        if isinstance(other, PathCollection):
             return PathCollection(self.paths+other.paths)
+
+        return NotImplemented
       
     def __iadd__(self, other):
         """Allows you to add paths to the collection using the += operator."""
@@ -1137,13 +1137,13 @@ class Surface(GeometricObject):
      
     def __add__(self, other):
         """Allows you to combine surfaces into a `SurfaceCollection` using the + operator (surface1 + surface2)."""
-        if not isinstance(other, Surface) and not isinstance(other, SurfaceCollection):
-            return NotImplemented
-
         if isinstance(other, Surface):
             return SurfaceCollection([self, other])
-        else:
+        
+        if isinstance(other, SurfaceCollection):
             return SurfaceCollection([self] + other.surfaces)
+
+        return NotImplemented
      
     def mesh(self, mesh_size=None, mesh_size_factor=None, name=None, ensure_outward_normals=True):
         """Mesh the surface, so it can be used in the BEM solver. The result of meshing
@@ -1216,13 +1216,13 @@ class SurfaceCollection(GeometricObject):
      
     def __add__(self, other):
         """Allows you to combine surfaces into a `SurfaceCollection` using the + operator (surface1 + surface2)."""
-        if not isinstance(other, Surface) and not isinstance(other, SurfaceCollection):
-            return NotImplemented
-              
         if isinstance(other, Surface):
             return SurfaceCollection(self.surfaces+[other])
-        else:
+
+        if isinstance(other, SurfaceCollection):
             return SurfaceCollection(self.surfaces+other.surfaces)
+
+        return NotImplemented
      
     def __iadd__(self, other):
         """Allows you to add surfaces to the collection using the += operator."""
