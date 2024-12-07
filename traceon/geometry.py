@@ -77,7 +77,6 @@ class Path(GeometricObject):
         # and returns the point on the path
         self.fun = fun
         self.path_length = path_length
-        assert self.path_length > 0
         self.breakpoints = breakpoints
         self.name = name
     
@@ -671,6 +670,7 @@ class Path(GeometricObject):
         return Path.line([extent, 0., -height/2], [radius, 0., -height/2])\
                 .line_to([radius, 0., height/2]).line_to([extent, 0., height/2]).move(dz=z)
     
+   
     def __add__(self, other):
         """Add two paths to create a PathCollection. Note that a PathCollection supports
         a subset of the methods of Path (for example, movement, rotation and meshing). Use
@@ -744,8 +744,7 @@ class Path(GeometricObject):
 
     def __str__(self):
         return f"<Path name:{self.name}, length:{self.path_length:.1e}, number of breakpoints:{len(self.breakpoints)}>"
-
-
+     
 class PathCollection(GeometricObject):
     """A PathCollection is a collection of `Path`. It can be created using the + operator (for example path1+path2).
     Note that `PathCollection` is a subclass of `traceon.mesher.GeometricObject`, and therefore can be easily moved and rotated."""
@@ -831,7 +830,6 @@ class Surface(GeometricObject):
         self.fun = fun
         self.path_length1 = path_length1
         self.path_length2 = path_length2
-        assert self.path_length1 > 0 and self.path_length2 > 0
         self.breakpoints1 = breakpoints1
         self.breakpoints2 = breakpoints2
         self.name = name
@@ -1155,7 +1153,7 @@ class Surface(GeometricObject):
         
         return boundary
 
-    def extrude_boundary(self, vector, add_cap=True):
+    def extrude_boundary(self, vector, enclose=True):
         """
         Extrude the boundary paths of the surface along a vector. The vector gives both
         the length and the direction of the extrusion.
@@ -1164,8 +1162,8 @@ class Surface(GeometricObject):
         -------------------------
         vector: (3,) float
             The direction and length (norm of the vector) to extrude by.
-        add_cap: bool
-            Whether to cap the extrusion by adding a copy of the original surface 
+        enclose: bool
+            Whether enclose the extrusion by adding a copy of the original surface 
             moved by the extrusion vector to the resulting SurfaceCollection.
 
         Returns
@@ -1173,20 +1171,14 @@ class Surface(GeometricObject):
         SurfaceCollection"""
 
         boundary = self.get_boundary_paths()
-        extruded_boundary_paths = []
+        extruded_boundary = boundary.extrude(vector)
 
-        for b in boundary.paths:
-            try: extruded_boundary_paths.append(b.extrude(vector))
-            except AssertionError: pass
-
-        extruded_boundary = SurfaceCollection(extruded_boundary_paths)
-
-        if add_cap:
+        if enclose:
             return self + extruded_boundary + self.move(*vector) 
         else:
             return self + extruded_boundary
     
-    def extrude_boundary_by_path(self, path, add_cap=True):
+    def extrude_boundary_by_path(self, path, enclose=True):
         """Extrude the boundary paths of a surface along a path. The path 
         does not need to start at the surface. Imagine the  extrusion surface 
         created by moving the boundary paths along the path.
@@ -1195,8 +1187,8 @@ class Surface(GeometricObject):
         -------------------------
         path: Path
             The path defining the extrusion.
-        add_cap: bool
-            Whether to cap the extrusion by adding a copy of the original surface 
+        enclose: bool
+            Whether to enclose the extrusion by adding a copy of the original surface 
             moved by the extrusion vector to the resulting SurfaceCollection.
             
         Returns
@@ -1204,29 +1196,23 @@ class Surface(GeometricObject):
         SurfaceCollection"""
         
         boundary = self.get_boundary_paths()
-        extruded_boundary_paths = []
+        extruded_boundary = boundary.extrude(path)
 
-        for b in boundary.paths:
-            try: extruded_boundary_paths.append(b.extrude_by_path(path))
-            except AssertionError: pass
-
-        extruded_boundary = SurfaceCollection(extruded_boundary_paths)
-
-        if add_cap:
+        if enclose:
             path_vector = path.endpoint() - path.starting_point()
             return self + extruded_boundary + self.move(*path_vector) 
         else:
             return self + extruded_boundary
     
-    def revolve_boundary_x(self, angle=2*pi, add_cap=True):
+    def revolve_boundary_x(self, angle=2*pi, enclose=True):
         """Revolve the boundary paths of the surface anti-clockwise around the x-axis.
         
         Parameters
         -----------------------
         angle: float
             The angle by which to revolve. THe default 2*pi gives a full revolution.
-        cap_extension: bool
-            Whether to cap the revolution by adding a copy of the original surface 
+        enclose: bool
+            Whether enclose the revolution by adding a copy of the original surface 
             rotated over the angle to the resulting SurfaceCollection.
 
         Returns
@@ -1234,20 +1220,14 @@ class Surface(GeometricObject):
         SurfaceCollection"""
 
         boundary = self.get_boundary_paths()
-        revolved_boundary_paths = []
+        revolved_boundary = boundary.revolve_x(angle)
 
-        for b in boundary.paths:
-            try: revolved_boundary_paths.append(b.revolve_x(angle))
-            except AssertionError: pass
-
-        revolved_boundary = SurfaceCollection(revolved_boundary_paths)
-
-        if add_cap and not np.isclose(angle, 2*pi, atol=1e-8):
+        if enclose and not np.isclose(angle, 2*pi, atol=1e-8):
             return self + revolved_boundary + self.rotate(Rx=angle)
         else:
             return self + revolved_boundary
         
-    def revolve_boundary_y(self, angle=2*pi, add_cap=True):
+    def revolve_boundary_y(self, angle=2*pi, enclose=True):
         """Revolve the boundary paths of the surface anti-clockwise around the y-axis.
         
         Parameters
@@ -1255,7 +1235,7 @@ class Surface(GeometricObject):
         angle: float
             The angle by which to revolve. THe default 2*pi gives a full revolution.
         cap_extension: bool
-            Whether to cap the revolution by adding a copy of the original surface 
+            Whether to enclose the revolution by adding a copy of the original surface 
             rotated over the angle to the resulting SurfaceCollection.
 
         Returns
@@ -1263,20 +1243,14 @@ class Surface(GeometricObject):
         SurfaceCollection"""
 
         boundary = self.get_boundary_paths()
-        revolved_boundary_paths = []
+        revolved_boundary = boundary.revolve_y(angle)
 
-        for b in boundary.paths:
-            try: revolved_boundary_paths.append(b.revolve_y(angle))
-            except AssertionError: pass
-
-        revolved_boundary = SurfaceCollection(revolved_boundary_paths)
-
-        if add_cap and not np.isclose(angle, 2*pi, atol=1e-8):
+        if enclose and not np.isclose(angle, 2*pi, atol=1e-8):
             return self + revolved_boundary + self.rotate(Ry=angle)
         else:
             return self + revolved_boundary
     
-    def revolve_boundary_z(self, angle=2*pi, add_cap=True):
+    def revolve_boundary_z(self, angle=2*pi, enclose=True):
         """Revolve the boundary paths of the surface anti-clockwise around the z-axis.
         
         Parameters
@@ -1284,7 +1258,7 @@ class Surface(GeometricObject):
         angle: float
             The angle by which to revolve. THe default 2*pi gives a full revolution.
         cap_extension: bool
-            Whether to cap the revolution by adding a copy of the original surface 
+            Whether to enclose the revolution by adding a copy of the original surface 
             rotated over the angle to the resulting SurfaceCollection.
 
         Returns
@@ -1292,15 +1266,9 @@ class Surface(GeometricObject):
         SurfaceCollection"""
 
         boundary = self.get_boundary_paths()
-        revolved_boundary_paths = []
-
-        for b in boundary.paths:
-            try: revolved_boundary_paths.append(b.revolve_z(angle))
-            except AssertionError: pass
-
-        revolved_boundary = SurfaceCollection(revolved_boundary_paths)
-
-        if add_cap and not np.isclose(angle, 2*pi, atol=1e-8):
+        revolved_boundary = boundary.revolve_z(angle)
+        
+        if enclose and not np.isclose(angle, 2*pi, atol=1e-8):
             return self + revolved_boundary + self.rotate(Rz=angle)
         else:
             return self + revolved_boundary
