@@ -171,6 +171,7 @@ backend_functions = {
     'dz1_potential_3d_point': (dbl, dbl, dbl, dbl, dbl, dbl, dbl, vp),
     'potential_3d_point': (dbl, dbl, dbl, dbl, dbl, dbl, dbl, vp),
     'axial_coefficients_3d': (None, charges_3d, jac_buffer_3d, pos_buffer_3d, arr(ndim=3), arr(ndim=3), sz, z_values, arr(ndim=4), sz),
+    'fill_jacobian_buffer_current_three_d': (None, lines, jac_buffer_3d, pos_buffer_3d, arr(ndim=3), sz),
     'potential_3d': (dbl, v3, charges_3d, jac_buffer_3d, pos_buffer_3d, sz),
     'potential_3d_derivs': (dbl, v3, z_values, arr(ndim=5), sz),
     'field_3d': (None, v3, v3, charges_3d, jac_buffer_3d, pos_buffer_3d, sz),
@@ -455,6 +456,17 @@ def axial_coefficients_3d(charges, jacobian_buffer, pos_buffer, z):
         len(charges), z, output_coeffs, len(z))
       
     return output_coeffs
+
+def fill_jacobian_buffer_current_three_d(lines):
+    assert lines.shape == (len(lines), 2, 3)
+
+    jacobians = np.zeros( (len(lines), N_QUAD_2D) )
+    positions = np.zeros( (len(lines), N_QUAD_2D, 3) )
+    directions = np.zeros( (len(lines), N_QUAD_2D, 3) )
+
+    backend_lib.fill_jacobian_buffer_current_three_d(lines, jacobians, positions, directions, len(lines))
+
+    return jacobians, positions, directions
 
 def potential_3d(point, charges, jac_buffer, pos_buffer):
     assert point.shape == (3,)

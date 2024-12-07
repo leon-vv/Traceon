@@ -29,6 +29,37 @@ struct field_derivs_args {
 	size_t N_z;
 };
 
+EXPORT void
+fill_jacobian_buffer_current_three_d(
+	double (*line_points)[2][3],
+	double (*jacobians)[N_QUAD_2D],
+	double (*positions)[N_QUAD_2D][3],
+	double (*directions)[N_QUAD_2D][3],
+	size_t N_lines)
+{
+	for(int i = 0; i < N_lines; i++) {
+		double *v1 = &line_points[i][0][0];
+		double *v2 = &line_points[i][1][0];
+		
+		double length = distance_3d(v1, v2);
+
+		for(int k = 0; k < N_QUAD_2D; k++) {
+			double g = 0.5*(GAUSS_QUAD_POINTS[k] + 1); // Rescale to 0, 1
+			
+			jacobians[i][k] = 0.5*GAUSS_QUAD_WEIGHTS[k]*length;
+			
+			positions[i][k][0] = v1[0] + (v2[0] - v1[0])*g;
+			positions[i][k][1] = v1[1] + (v2[1] - v1[1])*g;
+			positions[i][k][2] = v1[2] + (v2[2] - v1[2])*g;
+			
+			directions[i][k][0] = (v2[0] - v1[0])/length;
+			directions[i][k][1] = (v2[1] - v1[1])/length;
+			directions[i][k][2] = (v2[2] - v1[2])/length;
+		}
+	}
+}
+
+
 
 
 EXPORT double  

@@ -247,9 +247,8 @@ class MagnetostaticSolver(Solver):
         super().__init__(*args, **kwargs)
          
         # Field produced by the current excitations on the coils
-        self.current_charges = self.get_current_charges()
-        self.current_field = FieldRadialBEM(current_point_charges=self.current_charges)
-         
+        self.current_field = self.get_current_field()
+        
         # TODO: optimize in backend?
         N = len(self.vertices) 
         normals = np.zeros( (N, 2) if self.is_2d() else (N, 3) )
@@ -270,8 +269,16 @@ class MagnetostaticSolver(Solver):
     def get_flux_indices(self):
         N = self.get_number_of_matrix_elements()
         return np.arange(N)[self.excitation_types == int(E.ExcitationType.MAGNETIZABLE)]
-     
-    def get_current_charges(self):
+
+    def get_current_field(self):
+        if self.excitation.symmetry == E.Symmetry.RADIAL:
+            return self.get_current_field_radial()
+        elif self.excitation.symmetry == E.Symmetry.THREE_D:
+            return self.get_current_field_three_d()
+
+        raise ValueError('Symmetry should be one of RADIAL or THREE_D')
+
+    def get_current_field_radial(self):
         currents: list[np.ndarray] = []
         jacobians = []
         positions = []
@@ -279,7 +286,7 @@ class MagnetostaticSolver(Solver):
         mesh = self.excitation.mesh
         
         if not len(mesh.triangles) or not self.excitation.has_current():
-            return EffectivePointCharges.empty_3d()
+            return FieldRadialBEM(current_point_charges=EffectivePointCharges.empty_3d())
          
         jac, pos = backend.fill_jacobian_buffer_3d(mesh.points[mesh.triangles])
         
@@ -300,10 +307,47 @@ class MagnetostaticSolver(Solver):
             positions.extend(pos[indices])
         
         if not len(currents):
-            return EffectivePointCharges.empty_3d()
+            return FieldRadialBEM(current_point_charges=EffectivePointCharges.empty_3d())
         
-        return EffectivePointCharges(np.array(currents), np.array(jacobians), np.array(positions))
-     
+        return FieldRadialBEM(current_point_charges=EffectivePointCharges(np.array(currents), np.array(jacobians), np.array(positions)))
+    
+    def get_current_field_three_d(self):
+        currents: list[np.ndarray] = []
+        jacobians = []
+        positions = []
+        directions = []
+        
+        mesh = self.excitation.mesh
+        
+        if not len(mesh.lines) or not self.excitation.has_current():
+            return Field3D_BEM(current_point_charges=EffectivePointCharges.empty_3d())
+         
+        jac, pos, dir_ = backend.fill_jacobian_buffer_current_three_d(mesh.points[mesh.lines[:, :2]])
+        
+        for n, v in self.excitation.excitation_types.items():
+            if not v[0] == E.ExcitationType.CURRENT or not n in mesh.physical_to_lines:
+                continue
+            
+            indices = mesh.physical_to_lines[n]
+            
+            if not len(indices):
+                continue
+             
+            # Current supplied is total current, not a current density, therefore
+            # divide by the length
+            length = np.sum(jac[indices])
+            currents.extend(np.full(len(indices), v[1]))
+            jacobians.extend(jac[indices])
+            positions.extend(pos[indices])
+            directions.extend(dir_[indices])
+        
+        if len(currents):
+            eff = EffectivePointCharges(np.array(currents), np.array(jacobians), np.array(positions), directions=np.array(directions))
+        else:
+            eff = Field3D_BEM(EffectivePointCharges.empty_3d())
+        
+        return Field3D_BEM(current_point_charges=eff)
+    
     def get_right_hand_side(self):
         st = time.time()
         N = self.get_number_of_matrix_elements()
@@ -335,15 +379,17 @@ class MagnetostaticSolver(Solver):
             return FieldRadialBEM(magnetostatic_point_charges=charges, current_point_charges=self.current_charges)
 
 class EffectivePointCharges:
-    def __init__(self, charges, jacobians, positions):
+    def __init__(self, charges, jacobians, positions, directions=None):
         self.charges = np.array(charges, dtype=np.float64)
         self.jacobians = np.array(jacobians, dtype=np.float64)
         self.positions = np.array(positions, dtype=np.float64)
-         
+        self.directions = directions # Current elements will have a direction
+
         N = len(self.charges)
         N_QUAD = self.jacobians.shape[1]
         assert self.charges.shape == (N,) and self.jacobians.shape == (N, N_QUAD)
         assert self.positions.shape == (N, N_QUAD, 3) or self.positions.shape == (N, N_QUAD, 2)
+        assert self.directions is None or self.directions.shape == (len(self.charges), N_QUAD, 3)
     
     @staticmethod 
     def empty_2d():
@@ -536,8 +582,9 @@ class Field(ABC):
     def electrostatic_field_at_point(self, point):
         ...
 
-
-
+    @abstractmethod
+    def current_field_at_point(self, point_):
+        ...
     
     
 class FieldBEM(Field, ABC):
@@ -844,14 +891,16 @@ class Field3D_BEM(FieldBEM):
     """An electrostatic field resulting from a general 3D geometry. The field is a result of the surface charges as computed by the
     `solve_direct` function. See the comments in `FieldBEM`."""
      
-    def __init__(self, electrostatic_point_charges=None, magnetostatic_point_charges=None):
+    def __init__(self, electrostatic_point_charges=None, magnetostatic_point_charges=None, current_point_charges=None):
         
         if electrostatic_point_charges is None:
             electrostatic_point_charges = EffectivePointCharges.empty_3d()
         if magnetostatic_point_charges is None:
             magnetostatic_point_charges = EffectivePointCharges.empty_3d()
+        if current_point_charges is None:
+            current_point_charges = EffectivePointCharges.empty_3d()
          
-        super().__init__(electrostatic_point_charges, magnetostatic_point_charges, EffectivePointCharges.empty_3d())
+        super().__init__(electrostatic_point_charges, magnetostatic_point_charges, current_point_charges)
         
         self.symmetry = E.Symmetry.THREE_D
 
@@ -860,6 +909,35 @@ class Field3D_BEM(FieldBEM):
             assert eff.charges.shape == (N,)
             assert eff.jacobians.shape == (N, backend.N_TRIANGLE_QUAD)
             assert eff.positions.shape == (N, backend.N_TRIANGLE_QUAD, 3)
+    
+    def current_field_at_point(self, point_):
+        point = np.array(point_)
+        assert point.shape == (3,), "Please supply a three dimensional point"
+
+        if self.current_point_charges is None:
+            return np.zeros(3)
+        
+        # Biot savart law
+        r_prime = point_ - self.current_point_charges.positions
+
+        r_prime_norm = np.linalg.norm(r_prime, axis=2)
+
+        assert r_prime_norm.shape == self.current_point_charges.jacobians.shape
+
+        currents = self.current_point_charges.charges # In this case actually currents
+        jacobians = self.current_point_charges.jacobians
+        cross_product = np.cross(self.current_point_charges.directions, r_prime, axis=2)
+
+        fields = currents[:, np.newaxis, np.newaxis] * (jacobians/(4*m.pi*r_prime_norm**3))[:, :, np.newaxis] * cross_product
+
+        assert fields.shape == (jacobians.shape[0], jacobians.shape[1], 3)
+
+        # Sum over all but the last axis
+        field = np.sum(fields.reshape( (fields.shape[0]*fields.shape[1], 3) ), axis=0)
+        
+        assert field.shape == (3,)
+
+        return field
      
     def electrostatic_field_at_point(self, point_):
         """

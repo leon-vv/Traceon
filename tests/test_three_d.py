@@ -73,6 +73,49 @@ class TestThreeD(unittest.TestCase):
         geom.mesh(mesh_size_factor=4)
 
 
+class TestCurrentLoop(unittest.TestCase):
+
+    @classmethod
+    def setUpClass(cls):
+        cls.radius = 5.
+        cls.current = 2.5
+        
+        path = G.Path.circle_xy(0., 0., cls.radius)
+        path.name = 'loop'
+
+        mesh = path.mesh(mesh_size_factor=200)
+        
+        exc = E.Excitation(mesh, E.Symmetry.THREE_D)
+        exc.add_current(loop=cls.current)
+
+        solver = S.MagnetostaticSolver(exc)
+        cls.field = solver.current_field
+
+    def test_field_on_axis(self):
+        z = np.linspace(-20, 20, 25)
+        # http://hyperphysics.phy-astr.gsu.edu/hbase/magnetic/curloo.html
+        correct = 1/2 * self.current * self.radius**2 / (z**2 + self.radius**2)**(3/2)
+        approx = np.array([self.field.current_field_at_point([0., 0., z_]) for z_ in z])
+
+        assert np.allclose(approx[:, 0], 0.0)
+        assert np.allclose(approx[:, 1], 0.0)
+        assert np.allclose(correct, approx[:, 2], rtol=1e-4)
+    
+    def test_field_in_loop(self):
+        def get_exact(x_):
+            radius = self.radius
+            f = lambda t: -self.current*radius**2/(4*np.pi*x_**3) * (x_/radius * np.cos(t) - 1)*(1 + radius**2/x_**2 - 2*radius/x_*np.cos(t))**(-3/2)
+            return quad(f, 0, 2*np.pi)[0]
+
+        x = np.concatenate( (np.linspace(0.25*self.radius, 0.75*self.radius, 10), np.linspace(1.25*self.radius, 2*self.radius, 10)) )
+        correct = [get_exact(x_) for x_ in x]
+         
+        approx = np.array([self.field.current_field_at_point([x_, 0., 0.]) for x_ in x])
+        
+        assert np.allclose(approx[:, 0], 0.0)
+        assert np.allclose(approx[:, 1], 0.0)
+        assert np.allclose(correct, approx[:, 2], rtol=1e-4)
+
 
 
 class TestFlatEinzelLens(unittest.TestCase):
