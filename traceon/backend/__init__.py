@@ -24,7 +24,7 @@ if platform.system() in ['Linux', 'Darwin']:
     local_path = path.join(path.dirname(__file__), 'traceon_backend.so')
     global_file = 'traceon/backend/traceon_backend.abi3.so'
 else:
-    local_path = path.join(path.dirname(__file__), 'traceon_backend.dll')
+    local_path = path.join(path.dirname(__file__), 'traceon_backend.pyd')
     global_file = 'traceon/backend/traceon_backend.pyd'
 
 if path.isfile(local_path):
