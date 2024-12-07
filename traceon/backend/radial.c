@@ -323,10 +323,12 @@ potential_radial_derivs(double point[3], double *z_inter, double *coeff_p, size_
 	
 	double dz = z_inter[1] - z_inter[0];
 	int index = (int) ( (z-z0)/dz );
-	
-	// Guard against roundoff issues 0 <= index < N_z
+
+	// Guard against roundoff issues
+	// Note that there are N_z values in z_inter, but only N_z-1 values in coeff_p
+	// therefore index cannot be larger than N_z-2
 	index = MAX(0, index);
-	index = MIN(index, N_z-1);
+	index = MIN(index, N_z-2);
 			
 	double diffz = z - z_inter[index];
 		
@@ -356,9 +358,11 @@ field_radial_derivs(double point[3], double field[3], double *z_inter, double *c
 	
 	double dz = z_inter[1] - z_inter[0];
 	int index = (int) ( (z-z0)/dz );
-	// Guard against roundoff issues 0 <= index < N_z
+	// Guard against roundoff issues
+	// Note that there are N_z values in z_inter, but only N_z-1 values in coeff_p
+	// therefore index cannot be larger than N_z-2
 	index = MAX(0, index);
-	index = MIN(index, N_z-1);
+	index = MIN(index, N_z-2);
 		
 	double diffz = z - z_inter[index];
 		

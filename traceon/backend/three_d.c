@@ -208,9 +208,11 @@ potential_3d_derivs(double point[3], double *zs, double *coeffs_p, size_t N_z) {
 	
 	double dz = zs[1] - zs[0];
 	int index = (int) ((zp-zs[0])/dz);
-	// Guard against roundoff issues 0 <= index < N_z
+	// Guard against roundoff issues
+	// Note that there are N_z values in z_inter, but only N_z-1 values in coeff_p
+	// therefore index cannot be larger than N_z-2
 	index = MAX(0, index);
-	index = MIN(index, N_z-1);
+	index = MIN(index, N_z-2);
 		
 	
 	double z_ = zp - zs[index];
@@ -249,9 +251,11 @@ field_3d_derivs(double point[3], double field[3], double *restrict zs, double *r
 		
 	double dz = zs[1] - zs[0];
 	int index = (int) ((zp-zs[0])/dz);
-	// Guard against roundoff issues 0 <= index < N_z
+	// Guard against roundoff issues
+	// Note that there are N_z values in z_inter, but only N_z-1 values in coeff_p
+	// therefore index cannot be larger than N_z-2
 	index = MAX(0, index);
-	index = MIN(index, N_z-1);
+	index = MIN(index, N_z-2);
 		
 	double z_ = zp - zs[index];
 
