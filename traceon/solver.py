@@ -912,33 +912,9 @@ class Field3D_BEM(FieldBEM):
     
     def current_field_at_point(self, point_):
         point = np.array(point_, dtype=np.double)
-        assert point.shape == (3,), "Please supply a three dimensional point"
-
-        if self.current_point_charges is None:
-            return np.zeros(3)
+        eff = self.current_point_charges
+        return backend.current_field_at_point_3d(point, eff.charges, eff.jacobians, eff.positions, eff.directions)
         
-        # Biot savart law
-        r_prime = point_ - self.current_point_charges.positions
-
-        r_prime_norm = np.linalg.norm(r_prime, axis=2)
-
-        assert r_prime_norm.shape == self.current_point_charges.jacobians.shape
-
-        currents = self.current_point_charges.charges # In this case actually currents
-        jacobians = self.current_point_charges.jacobians
-        cross_product = np.cross(self.current_point_charges.directions, r_prime, axis=2)
-
-        fields = currents[:, np.newaxis, np.newaxis] * (jacobians/(4*m.pi*r_prime_norm**3))[:, :, np.newaxis] * cross_product
-
-        assert fields.shape == (jacobians.shape[0], jacobians.shape[1], 3)
-
-        # Sum over all but the last axis
-        field = np.sum(fields.reshape( (fields.shape[0]*fields.shape[1], 3) ), axis=0)
-        
-        assert field.shape == (3,)
-
-        return field
-     
     def electrostatic_field_at_point(self, point_):
         """
         Compute the electric field, \\( \\vec{E} = -\\nabla \\phi \\)

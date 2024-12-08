@@ -22,6 +22,16 @@ struct effective_point_charges_3d {
 	size_t N;
 };
 
+struct effective_point_currents_3d {
+	double *currents;
+	double (*jacobians)[N_QUAD_2D];
+	double (*positions)[N_QUAD_2D][3];
+	double (*directions)[N_QUAD_2D][3];
+	size_t N;
+};
+
+
+
 struct field_derivs_args {
 	double *z_interpolation;
 	double *electrostatic_axial_coeffs;
@@ -59,7 +69,35 @@ fill_jacobian_buffer_current_three_d(
 	}
 }
 
+EXPORT void
+current_field_at_point_3d(double point[3], struct effective_point_currents_3d epc, double field_out[3]) {
+	// Use Biot-Savart law
+	
+    double field_sum[3] = {0.0, 0.0, 0.0};
+    
+    for (size_t i = 0; i < epc.N; i++)
+	for (int k = 0; k < N_QUAD_2D; k++) {
+		double r_prime[3];
+		r_prime[0] = point[0] - epc.positions[i][k][0];
+		r_prime[1] = point[1] - epc.positions[i][k][1];
+		r_prime[2] = point[2] - epc.positions[i][k][2];
 
+		double r_norm = norm_3d(r_prime[0], r_prime[1], r_prime[2]);
+
+		double cross[3];
+		cross_product_3d(epc.directions[i][k], r_prime, cross);
+
+		double factor = (epc.currents[i] * epc.jacobians[i][k]) / (4.0 * M_PI * (r_norm * r_norm * r_norm));
+
+		field_sum[0] += factor * cross[0];
+		field_sum[1] += factor * cross[1];
+		field_sum[2] += factor * cross[2];
+    }
+
+    field_out[0] = field_sum[0];
+    field_out[1] = field_sum[1];
+    field_out[2] = field_sum[2];
+}
 
 
 EXPORT double  

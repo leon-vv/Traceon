@@ -130,6 +130,31 @@ class EffectivePointCharges3D(C.Structure):
         self.positions = ensure_contiguous_aligned(eff.positions).ctypes.data_as(dbl_p)
         self.N = len(eff)
 
+class EffectivePointCurrents3D(C.Structure):
+    _fields_ = [
+        ("currents", dbl_p),
+        ("jacobians", dbl_p),
+        ("positions", dbl_p),
+        ("directions", dbl_p),
+        ("N", C.c_size_t)
+    ]
+    
+    def __init__(self, currents, jacobians, positions, directions, *args, **kwargs):
+        super(EffectivePointCurrents3D, self).__init__(*args, **kwargs)
+
+        N = len(currents)
+        assert currents.shape == (N,) and currents.dtype == np.double
+        assert jacobians.shape == (N, N_QUAD_2D) and jacobians.dtype == np.double
+        assert positions.shape == (N, N_QUAD_2D, 3) and positions.dtype == np.double
+        assert directions.shape == (N, N_QUAD_2D, 3) and directions.dtype == np.double
+         
+        self.currents = ensure_contiguous_aligned(currents).ctypes.data_as(dbl_p)
+        self.jacobians = ensure_contiguous_aligned(jacobians).ctypes.data_as(dbl_p)
+        self.positions = ensure_contiguous_aligned(positions).ctypes.data_as(dbl_p)
+        self.directions = ensure_contiguous_aligned(directions).ctypes.data_as(dbl_p)
+        self.N = N
+
+
 bounds = arr(shape=(3, 2))
 
 times_block = arr(shape=(TRACING_BLOCK_SIZE,))
@@ -172,6 +197,7 @@ backend_functions = {
     'potential_3d_point': (dbl, dbl, dbl, dbl, dbl, dbl, dbl, vp),
     'axial_coefficients_3d': (None, charges_3d, jac_buffer_3d, pos_buffer_3d, arr(ndim=3), arr(ndim=3), sz, z_values, arr(ndim=4), sz),
     'fill_jacobian_buffer_current_three_d': (None, lines, jac_buffer_3d, pos_buffer_3d, arr(ndim=3), sz),
+    'current_field_at_point_3d': (None, v3, EffectivePointCurrents3D, v3),
     'potential_3d': (dbl, v3, charges_3d, jac_buffer_3d, pos_buffer_3d, sz),
     'potential_3d_derivs': (dbl, v3, z_values, arr(ndim=5), sz),
     'field_3d': (None, v3, v3, charges_3d, jac_buffer_3d, pos_buffer_3d, sz),
@@ -467,6 +493,15 @@ def fill_jacobian_buffer_current_three_d(lines):
     backend_lib.fill_jacobian_buffer_current_three_d(lines, jacobians, positions, directions, len(lines))
 
     return jacobians, positions, directions
+
+def current_field_at_point_3d(point, currents, jacobians, positions, directions):
+    assert point.shape == (3,) 
+    
+    eff = EffectivePointCurrents3D(currents, jacobians, positions, directions)
+    
+    result = np.zeros(3)
+    backend_lib.current_field_at_point_3d(point, eff, result)
+    return result
 
 def potential_3d(point, charges, jac_buffer, pos_buffer):
     assert point.shape == (3,)
