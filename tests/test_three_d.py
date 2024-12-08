@@ -183,9 +183,6 @@ class TestCurrentLine(unittest.TestCase):
         ]
 
         for p in sample_points:
-            print('-'*10)
-            print(correct(p))
-            print(self.current_field.current_field_at_point(p))
             assert np.allclose(correct(p), self.current_field.current_field_at_point(p), rtol=1e-4)
 
                 
