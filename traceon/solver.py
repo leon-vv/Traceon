@@ -90,14 +90,14 @@ class Solver(ABC):
         self.excitation_types = excitation_types
         self.excitation_values = excitation_values
 
-        two_d = self.is_2d()
+        is_radial = self.excitation.symmetry == E.Symmetry.RADIAL
         higher_order = self.is_higher_order()
 
-        assert not higher_order or two_d, "Higher order not supported in 3D"
+        assert not higher_order or is_radial, "Higher order not supported in 3D"
         
-        if two_d and higher_order:
+        if is_radial and higher_order:
             jac, pos = backend.fill_jacobian_buffer_radial(vertices)
-        elif not two_d:
+        elif not is_radial:
             jac, pos = backend.fill_jacobian_buffer_3d(vertices)
         else:
             raise ValueError('Input excitation is 2D but not higher order, this solver input is currently not supported. Consider upgrading mesh to higher order.')
