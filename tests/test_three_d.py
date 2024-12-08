@@ -90,6 +90,17 @@ class TestCurrentLoop(unittest.TestCase):
 
         solver = S.MagnetostaticSolver(exc)
         cls.field = solver.current_field
+        
+        # Now for axial
+        small_circle = G.Surface.disk_xz(5., 0., 0.01)
+        small_circle.name = 'loop'
+
+        import traceon.plotting as P
+
+        mesh = small_circle.mesh(mesh_size_factor=10)._to_higher_order_mesh()
+        exc = E.Excitation(mesh, E.Symmetry.RADIAL)
+        exc.add_current(loop=cls.current)
+        cls.axial_field = S.MagnetostaticSolver(exc).current_field
 
     def test_field_on_axis(self):
         z = np.linspace(-20, 20, 25)
@@ -115,6 +126,26 @@ class TestCurrentLoop(unittest.TestCase):
         assert np.allclose(approx[:, 0], 0.0)
         assert np.allclose(approx[:, 1], 0.0)
         assert np.allclose(correct, approx[:, 2], rtol=1e-4)
+
+    def test_field_with_radial_symmetric(self):
+        points = [
+            [0., 0., 0.], # Bunch of arbitrary points
+            [1., 0., 0.],
+            [0., 0., 1.],
+            [1., 1., 1.],
+            [-1., 1., -1.],
+            [2., 2., 2.],
+            [2., 2., 0.],
+            [4., 4., 3.],
+            [-4., -4., -3.],
+            [np.sqrt(5), np.sqrt(5), 10], # Above the line element
+            [-np.sqrt(5), -np.sqrt(5), -10],
+            [100, 100, 100], # Very far away
+            [200, 200, -100],
+        ]
+
+        for p in points:
+            assert np.allclose(self.field.current_field_at_point(p), self.axial_field.current_field_at_point(p), rtol=1e-4)
 
 
 
