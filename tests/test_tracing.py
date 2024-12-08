@@ -28,7 +28,7 @@ class TestTracing(unittest.TestCase):
             return acceleration() / EM
 
         bounds = ((-2.0, 2.0), (-2.0, 2.0), (-2.0, np.sqrt(12)+1))
-        times, positions = B.trace_particle(np.zeros( (3,) ), np.array([0., 0., 3.]), field, bounds, 1e-10)
+        times, positions = B.trace_particle(np.zeros( (3,) ), np.array([0., 0., 3.]), EM, field, bounds, 1e-10)
 
         correct_x = 3/2*times**2
         correct_z = 3*times
@@ -49,7 +49,7 @@ class TestTracing(unittest.TestCase):
         v0 = np.array([0., 1, -1.])
         
         bounds = ((-5.0, 5.0), (-5.0, 5.0), (-40.0, 10.0))
-        times, positions = B.trace_particle(p0, v0, traceon_acc, bounds, 1e-10)
+        times, positions = B.trace_particle(p0, v0, EM, traceon_acc, bounds, 1e-10)
         
         sol = solve_ivp(acceleration, (0, 30), np.hstack( (p0, v0) ), method='DOP853', rtol=1e-10, atol=1e-10)
 
@@ -200,7 +200,7 @@ class TestTracing(unittest.TestCase):
             mag_field = np.array([0, 0, -1.])
             return np.cross(v, mag_field) / EM # Return acceleration
         
-        times, positions = B.trace_particle(x0, v0, field, bounds, 1e-10)
+        times, positions = B.trace_particle(x0, v0, EM, field, bounds, 1e-10)
 
         # Map y-position to state
         interp = CubicSpline(positions[-10:, 1][::-1], positions[-10:][::-1])
