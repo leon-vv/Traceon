@@ -716,7 +716,7 @@ class FieldRadialBEM(FieldBEM):
         super().__init__(electrostatic_point_charges, magnetostatic_point_charges, current_point_charges)
          
     def current_field_at_point(self, point_):
-        point = np.array(point_)
+        point = np.array(point_, dtype=np.double)
         assert point.shape == (3,), "Please supply a three dimensional point"
             
         currents = self.current_point_charges.charges
@@ -911,7 +911,7 @@ class Field3D_BEM(FieldBEM):
             assert eff.positions.shape == (N, backend.N_TRIANGLE_QUAD, 3)
     
     def current_field_at_point(self, point_):
-        point = np.array(point_)
+        point = np.array(point_, dtype=np.double)
         assert point.shape == (3,), "Please supply a three dimensional point"
 
         if self.current_point_charges is None:
