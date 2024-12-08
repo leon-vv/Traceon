@@ -582,9 +582,7 @@ class Field(ABC):
     def electrostatic_field_at_point(self, point):
         ...
 
-    @abstractmethod
-    def current_field_at_point(self, point_):
-        ...
+    
     
     
 class FieldBEM(Field, ABC):
@@ -698,6 +696,10 @@ class FieldBEM(Field, ABC):
             f'\tNumber of electrostatic points: {len(self.electrostatic_point_charges)}\n' \
             f'\tNumber of magnetizable points: {len(self.magnetostatic_point_charges)}\n' \
             f'\tNumber of current rings: {len(self.current_point_charges)}>'
+    
+    @abstractmethod
+    def current_field_at_point(self, point_):
+        ...
 
 
 class FieldRadialBEM(FieldBEM):
