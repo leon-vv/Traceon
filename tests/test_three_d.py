@@ -1,5 +1,5 @@
 import unittest
-from math import pi, sqrt
+from math import pi, sqrt, atan2
 import os.path as path
 
 import numpy as np
@@ -146,6 +146,50 @@ class TestCurrentLoop(unittest.TestCase):
 
         for p in points:
             assert np.allclose(self.field.current_field_at_point(p), self.axial_field.current_field_at_point(p), rtol=1e-4)
+
+class TestCurrentLine(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        line = G.Path.line([-50., 0., 0.], [50., 0., 0.])
+        line.name = 'line'
+        
+        mesh = line.mesh(mesh_size_factor=50)
+         
+        exc = E.Excitation(mesh, E.Symmetry.THREE_D)
+        cls.current = 2.5
+        exc.add_current(line=cls.current)
+
+        cls.current_field = S.MagnetostaticSolver(exc).current_field
+
+    def test_with_ampere_law(self):
+        def correct(point):
+            r = np.linalg.norm(point[1:])
+            field_strength = self.current/(2*pi*r)
+            angle = atan2(point[2], point[1])
+            return field_strength * np.array([ 0., -np.sin(angle), np.cos(angle)])
+
+        sample_points = [
+            [0.2, 0.2, -0.2],
+            [0.2, 0.2, 0.2],
+            [0.2, -0.2, -0.2],
+            [0.2, -0.2, 0.2],
+            [-0.2, 0.2, -0.2],
+            [-0.2, 0.2, 0.2],
+            [-0.2, -0.2, -0.2],
+            [-0.2, -0.2, 0.2],
+
+            [0.4, 0.6, 0.],
+            [0.4, 0.6, 0.2]
+        ]
+
+        for p in sample_points:
+            print('-'*10)
+            print(correct(p))
+            print(self.current_field.current_field_at_point(p))
+            assert np.allclose(correct(p), self.current_field.current_field_at_point(p), rtol=1e-4)
+
+                
+
 
 
 
