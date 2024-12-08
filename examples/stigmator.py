@@ -1,8 +1,9 @@
-# Simulation of a stimgator using the boundary sweeping functions introduced in v0.8.0
+# Simulation of a stimgator using the boundary sweeping functions introduced in v0.8.0.
+# Shows how particles of general mass and charge can be traced since v0.8.0
 
 import numpy as np
 import matplotlib.pyplot as plt
-from matplotlib.patches import Circle, Ellipse
+from scipy.constants import m_p, e
 
 import traceon.geometry as G
 import traceon.solver as S
@@ -10,7 +11,7 @@ import traceon.excitation as E
 import traceon.plotting as P
 import traceon.tracing as T
 
-# multipole configuration
+# Multipole configuration
 ORDER = 2 # A second-order multipole (quadrupole) acts a stigmator
 THICKNESS = 0.1
 IN_RADIUS = 0.3
@@ -44,27 +45,28 @@ boundary = (
     + G.Path.line([IN_RADIUS, 0, B_HEIGHT/2], [B_RADIUS, 0, B_HEIGHT/2]).revolve_z())
 boundary.name = 'boundary'
 
-# create and plot mesh
+# Create and plot mesh
 mesh = (multipole.mesh(mesh_size=0.04) + boundary.mesh(mesh_size=0.1))
 
 P.plot_mesh(mesh, positive_electrode='red', negative_electrode='blue', boundary='green')
 P.show()
 
-# add excitations
+# Add excitations
 excitation = E.Excitation(mesh, E.Symmetry.THREE_D)
 excitation.add_voltage(positive_electrode=1, negative_electrode=-1, boundary=0)
 
-# calculate field
+# Calculate field
 field = S.solve_direct(excitation)
 
-# plot mesh and equipotential lines
+# Plot mesh and equipotential lines
 margin = 0.02
 x_ext, y_ext, z_ext = B_RADIUS - margin, B_RADIUS - margin, B_HEIGHT/2 - margin
 field_xy = G.Surface.disk_xy(0,0, x_ext)
 field_xz = G.Surface.rectangle_xz(-x_ext, x_ext, -z_ext, z_ext) 
 field_yz = G.Surface.rectangle_yz(-y_ext, y_ext, -z_ext, z_ext) 
 
-# initialize tracer and electron trajectories
+# Initialize tracer and particle trajectories.
+# We will trace both electrons and alpha particles (fully ionized helium atoms)
 tracer = field.get_tracer([(-B_RADIUS/2, B_RADIUS/2), (-B_RADIUS/2,B_RADIUS/2),  (-B_HEIGHT/2, B_HEIGHT/2)])
 
 beam_radius = IN_RADIUS / 3
@@ -73,35 +75,49 @@ x, y = np.meshgrid(r_start, r_start)
 x_start, y_start = x[x**2 + y**2 <= beam_radius**2], y[x**2 + y**2 <= beam_radius**2]
 z_start = B_HEIGHT / 2
 
-trajectories = []
-start_velocity = T.velocity_vec(1, [0, 0, -1])
+e_trajectories = [] # electron trajectories
+a_trajectories = [] # alpha particle trajectories
 
-# trace the electrons through the field
+# We give both beams the same energy
+e_start_velocity = T.velocity_vec(1, [0, 0, -1])
+a_start_velocity = T.velocity_vec(1, [0,0,-1])
+
+
+# Trace the particles through the field
 for i, (x, y) in enumerate(zip(x_start, y_start)):
-    print(f'Tracing electron {i+1}/{len(x_start)}...')
+    print(f'Tracing particles {i+1}/{len(x_start)}...')
     start_point = np.array([x, y, z_start])
-    _, trace = tracer(start_point, start_velocity)
-    trajectories.append(trace)
 
-# plotting
+    _, e_trace = tracer(start_point, e_start_velocity) # electrons are default
+    _, p_trace = tracer(start_point, a_start_velocity, mass=4*m_p, charge=2*e) # alpha-oarticle = two protons + two neutrons
+
+    e_trajectories.append(e_trace)
+    a_trajectories.append(p_trace)
+
+# Plotting
 P.plot_mesh(mesh, positive_electrode='red', negative_electrode='blue', boundary='green')
 P.plot_equipotential_lines(field, surface=field_xy, color_map='coolwarm',  N_isolines=40, N0=200, N1=200)
 P.plot_equipotential_lines(field, surface=field_xz, color_map='coolwarm',  N_isolines=0, N0=200, N1=200)
 P.plot_equipotential_lines(field, surface=field_yz, color_map='coolwarm',  N_isolines=0, N0=200, N1=200)
-P.plot_trajectories(trajectories, line_width=3)
+P.plot_trajectories(e_trajectories, line_width=3)
+P.plot_trajectories(a_trajectories, line_width=3, color='#FF55FF')
 P.show()
 
 
-# compute the output beam size 
-x_end = np.array([t[-1,0] for t in trajectories])
-y_end = np.array([t[-1,1] for t in trajectories])
+# Compute the output beam size 
+e_x_end = np.array([t[-1,0] for t in e_trajectories])
+e_y_end = np.array([t[-1,1] for t in e_trajectories])
+
+p_x_end = np.array([t[-1,0] for t in a_trajectories])
+p_y_end = np.array([t[-1,1] for t in a_trajectories])
 
 # Create a figure of the input and output beam sizes
 plt.figure(figsize=(8, 8))  
-plt.scatter(x_start, y_start, color='blue', label='beam in', marker='o')
-plt.scatter(x_end, y_end, color='red', label='beam out', marker='x')
+plt.scatter(x_start, y_start, color='black', label='beams in', marker='o')
+plt.scatter(e_x_end, e_y_end, label=' electrons out', marker='x', c='#00AA00')
+plt.scatter(p_x_end, p_y_end, label=r'$\alpha$-particles out', marker='x', c='#FF55FF')
 
-plt.title("Electron beam distributions", fontsize=12)
+plt.title("Particle beam distributions", fontsize=12)
 plt.xlabel("x", fontsize=10)
 plt.ylabel("y", fontsize=10)
 plt.axis('equal')
