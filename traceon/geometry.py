@@ -1272,6 +1272,76 @@ class Surface(GeometricObject):
             return self + revolved_boundary + self.rotate(Rz=angle)
         else:
             return self + revolved_boundary
+    
+    @staticmethod
+    def annulus_xy(x0, y0, inner_radius, outer_radius):
+        """Create a annulus in the XY plane.         
+        
+        Parameters
+        ------------------------
+        x0: float
+            x-coordiante of the center of the annulus
+        y0: float
+            y-coordinate of the center of the annulus
+        inner_radius: float
+            inner radius of the annulus
+        outer_radius:
+            outer radius of the annulus
+        Returns
+        -----------------------
+        Surface"""
+        assert inner_radius > 0 and outer_radius > 0, "radii must be positive"
+        assert outer_radius > inner_radius, "outer radius must be larger than inner radius"
+        
+        annulus_at_origin = Path.line([inner_radius, 0.0, 0.0], [outer_radius, 0.0, 0.0]).revolve_z()
+        return annulus_at_origin.move(dx=x0, dy=y0)
+
+    @staticmethod
+    def annulus_xz(x0, z0, inner_radius, outer_radius):
+        """Create a annulus in the XZ plane.         
+        
+        Parameters
+        ------------------------
+        x0: float
+            x-coordiante of the center of the annulus
+        z0: float
+            z-coordinate of the center of the annulus
+        inner_radius: float
+            inner radius of the annulus
+        outer_radius:
+            outer radius of the annulus
+        Returns
+        -----------------------
+        Surface"""
+        assert inner_radius > 0 and outer_radius > 0, "radii must be positive"
+        assert outer_radius > inner_radius, "outer radius must be larger than inner radius"
+
+        annulus_at_origin = Path.line([inner_radius, 0.0, 0.0], [outer_radius, 0.0, 0.0]).revolve_y()
+        return annulus_at_origin.move(dx=x0, dz=z0)
+    
+    @staticmethod
+    def annulus_yz(y0, z0, inner_radius, outer_radius):
+        """Create a annulus in the YZ plane.         
+        
+        Parameters
+        ------------------------
+        y0: float
+            y-coordiante of the center of the annulus
+        z0: float
+            z-coordinate of the center of the annulus
+        inner_radius: float
+            inner radius of the annulus
+        outer_radius:
+            outer radius of the annulus
+        Returns
+        -----------------------
+        Surface"""
+        assert inner_radius > 0 and outer_radius > 0, "radii must be positive"
+        assert outer_radius > inner_radius, "outer radius must be larger than inner radius"
+
+        annulus_at_origin = Path.line([0.0, inner_radius, 0.0], [0.0, outer_radius, 0.0]).revolve_x()
+        return annulus_at_origin.move(dy=y0, dz=z0)
+
 
     def __add__(self, other):
         """Allows you to combine surfaces into a `SurfaceCollection` using the + operator (surface1 + surface2)."""
@@ -1282,7 +1352,7 @@ class Surface(GeometricObject):
             return SurfaceCollection([self] + other.surfaces)
 
         return NotImplemented
-     
+    
     def mesh(self, mesh_size=None, mesh_size_factor=None, name=None, ensure_outward_normals=True):
         """Mesh the surface, so it can be used in the BEM solver. The result of meshing
         a surface are triangles.
