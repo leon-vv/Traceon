@@ -1292,7 +1292,7 @@ class Surface(GeometricObject):
         Surface"""
         assert inner_radius > 0 and outer_radius > 0, "radii must be positive"
         assert outer_radius > inner_radius, "outer radius must be larger than inner radius"
-        
+
         annulus_at_origin = Path.line([inner_radius, 0.0, 0.0], [outer_radius, 0.0, 0.0]).revolve_z()
         return annulus_at_origin.move(dx=x0, dy=y0)
 
@@ -1342,6 +1342,13 @@ class Surface(GeometricObject):
         annulus_at_origin = Path.line([0.0, inner_radius, 0.0], [0.0, outer_radius, 0.0]).revolve_x()
         return annulus_at_origin.move(dy=y0, dz=z0)
 
+    def get_subregion(self, u_start, u_end, v_start, v_end):
+        subregion = Surface(
+            lambda u, v: self(
+                u_start + u / self.path_length1 * (u_end - u_start), 
+                v_start + v / self.path_length2 * (v_end - v_start)), 
+                    u_end - u_start, v_end - v_start, self.breakpoints1, self.breakpoints2, self.name)
+        return subregion
 
     def __add__(self, other):
         """Allows you to combine surfaces into a `SurfaceCollection` using the + operator (surface1 + surface2)."""
