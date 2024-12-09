@@ -123,7 +123,7 @@ class Tracer:
         return f'<Traceon Tracer of {field_name},\n\t' \
             + 'Bounds: ' + bounds_str + ' mm >'
     
-    def __call__(self, position, velocity, mass=m_e, charge=-e, atol=1e-8):
+    def __call__(self, position, velocity, mass=m_e, charge=-e, relativistic=True, atol=1e-8):
         """Trace a charged particle.
 
         Parameters
@@ -137,6 +137,8 @@ class Tracer:
             Particle mass in kilogram (kg). The default value is the electron mass: m_e = 9.1093837015e-31 kg.
         charge: float
             Particle charge in Coulomb (C). The default value is the electron charge: -1 * e = -1.602176634e-19 C.
+        relativistic: bool
+            Relativistic correction to the mass. 
         atol: float
             Absolute tolerance determining the accuracy of the trace.
         
@@ -151,7 +153,7 @@ class Tracer:
         raise RuntimeError('Please use the field.get_tracer(...) method to get the appropriate Tracer instance')
 
 class TracerRadialBEM(Tracer):
-    def __call__(self, position, velocity, mass=m_e, charge=-e, atol=1e-10):
+    def __call__(self, position, velocity, mass=m_e, charge=-e, relativistic=True, atol=1e-10):
         charge_over_mass = charge / mass
         velocity = _convert_velocity_to_SI(velocity, mass)
         
@@ -167,7 +169,7 @@ class TracerRadialBEM(Tracer):
                 field_bounds=self.field.field_bounds)
 
 class TracerRadialAxial(Tracer):
-    def __call__(self, position, velocity, mass=m_e, charge=-e, atol=1e-10):
+    def __call__(self, position, velocity, mass=m_e, charge=-e, relativistic=True, atol=1e-10):
         charge_over_mass = charge / mass
         velocity = _convert_velocity_to_SI(velocity, mass)
         
@@ -176,14 +178,14 @@ class TracerRadialAxial(Tracer):
         return backend.trace_particle_radial_derivs(position, velocity, charge_over_mass, self.bounds, atol, self.field.z, elec, mag)
 
 class Tracer3D_BEM(Tracer):
-    def __call__(self, position, velocity, mass=m_e, charge=-e, atol=1e-10):
+    def __call__(self, position, velocity, mass=m_e, charge=-e, relativistic=True, atol=1e-10):
         charge_over_mass = charge / mass
         velocity = _convert_velocity_to_SI(velocity, mass)
         elec, mag = self.field.electrostatic_point_charges, self.field.magnetostatic_point_charges
         return backend.trace_particle_3d(position, velocity, charge_over_mass, self.bounds, atol, elec, mag, field_bounds=self.field.field_bounds)
 
 class Tracer3DAxial(Tracer):
-    def __call__(self, position, velocity, mass=m_e, charge=-e, atol=1e-10):
+    def __call__(self, position, velocity, mass=m_e, charge=-e, relativistic=True, atol=1e-10):
         charge_over_mass = charge / mass
         velocity = _convert_velocity_to_SI(velocity, mass)
         return backend.trace_particle_3d_derivs(position, velocity, charge_over_mass, self.bounds, atol,
