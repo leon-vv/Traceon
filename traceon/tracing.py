@@ -90,7 +90,7 @@ def _z_to_bounds(z1, z2):
 
 def _convert_velocity_to_SI(velocity, mass):
     # Convert a velocity vector expressed in eV (see functions above)
-    # to one expressed in m/s.
+    # to one expressed in m/s. Relativistically correct.
     speed_eV = np.linalg.norm(velocity)
     kin_energy_joule = speed_eV*e
     rest_energy_joule = mass*c**2
