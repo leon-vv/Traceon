@@ -14,7 +14,7 @@ from enum import Enum
 
 import numpy as np
 import scipy
-from scipy.constants import m_e, e
+from scipy.constants import m_e, e, c
 
 from . import backend
 from . import logging
@@ -39,9 +39,6 @@ def velocity_vec(eV, direction_):
 
     direction = np.array(direction_)
     assert direction.shape == (3,), "Please provide a three dimensional direction vector"
-    
-    if eV > 40000:
-        logging.log_warning(f'Velocity vector with large energy ({eV} eV) requested. Note that relativistic tracing is not yet implemented.')
     
     return eV * np.array(direction)/np.linalg.norm(direction)
 
@@ -95,7 +92,10 @@ def _convert_velocity_to_SI(velocity, mass):
     # Convert a velocity vector expressed in eV (see functions above)
     # to one expressed in m/s.
     speed_eV = np.linalg.norm(velocity)
-    speed = sqrt(2*speed_eV*e/mass)
+    kin_energy_joule = speed_eV*e
+    rest_energy_joule = mass*c**2
+    gamma_factor = sqrt(1 - (rest_energy_joule/(kin_energy_joule**2 + rest_energy_joule))**2)
+    speed = c*gamma_factor
     direction = velocity / speed_eV
     return speed * direction
 
