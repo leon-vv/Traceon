@@ -328,13 +328,13 @@ def position_and_jacobian_radial(alpha, v1, v2, v3, v4):
     return jac.value, pos
 
 
-def trace_particle(position, velocity, charge_over_mass, field, bounds, atol):
+def trace_particle(position, velocity, charge_over_mass, relativistic, field, bounds, atol):
     bounds = np.array(bounds)
     
     return trace_particle_wrapper(position, velocity,
-        lambda T, P: backend_lib.trace_particle(T, P, charge_over_mass, wrap_field_fun(field), bounds, atol, None))
+        lambda T, P: backend_lib.trace_particle(T, P, charge_over_mass, relativistic, wrap_field_fun(field), bounds, atol, None))
 
-def trace_particle_radial(position, velocity, charge_over_mass, bounds, atol, eff_elec, eff_mag, eff_current, field_bounds=None):
+def trace_particle_radial(position, velocity, charge_over_mass, relativistic, bounds, atol, eff_elec, eff_mag, eff_current, field_bounds=None):
     
     eff_elec = EffectivePointCharges2D(eff_elec)
     eff_mag = EffectivePointCharges2D(eff_mag)
@@ -345,11 +345,11 @@ def trace_particle_radial(position, velocity, charge_over_mass, bounds, atol, ef
     field_bounds = field_bounds.ctypes.data_as(dbl_p) if field_bounds is not None else None
      
     times, positions = trace_particle_wrapper(position, velocity,
-        lambda T, P: backend_lib.trace_particle_radial(T, P, charge_over_mass, bounds, atol, field_bounds, eff_elec, eff_mag, eff_current))
+        lambda T, P: backend_lib.trace_particle_radial(T, P, charge_over_mass, relativistic, bounds, atol, field_bounds, eff_elec, eff_mag, eff_current))
     
     return times, positions
 
-def trace_particle_radial_derivs(position, velocity, charge_over_mass, bounds, atol, z, elec_coeffs, mag_coeffs):
+def trace_particle_radial_derivs(position, velocity, charge_over_mass, relativistic, bounds, atol, z, elec_coeffs, mag_coeffs):
     assert elec_coeffs.shape == (len(z)-1, DERIV_2D_MAX, 6)
     assert mag_coeffs.shape == (len(z)-1, DERIV_2D_MAX, 6)
     
@@ -359,11 +359,11 @@ def trace_particle_radial_derivs(position, velocity, charge_over_mass, bounds, a
         bounds = np.array([bounds[0], bounds[0], bounds[1]])
     
     times, positions = trace_particle_wrapper(position, velocity,
-        lambda T, P: backend_lib.trace_particle_radial_derivs(T, P, charge_over_mass, bounds, atol, z, elec_coeffs, mag_coeffs, len(z)))
+        lambda T, P: backend_lib.trace_particle_radial_derivs(T, P, charge_over_mass, relativistic, bounds, atol, z, elec_coeffs, mag_coeffs, len(z)))
     
     return times, positions
 
-def trace_particle_3d(position, velocity, charge_over_mass, bounds, atol, eff_elec, eff_mag, field_bounds=None):
+def trace_particle_3d(position, velocity, charge_over_mass, relativistic, bounds, atol, eff_elec, eff_mag, field_bounds=None):
     assert field_bounds is None or field_bounds.shape == (3,2)
      
     bounds = np.array(bounds)
@@ -374,16 +374,16 @@ def trace_particle_3d(position, velocity, charge_over_mass, bounds, atol, eff_el
     eff_mag = EffectivePointCharges3D(eff_mag)
      
     return trace_particle_wrapper(position, velocity,
-        lambda T, P: backend_lib.trace_particle_3d(T, P, charge_over_mass, bounds, atol, eff_elec, eff_mag, field_bounds))
+        lambda T, P: backend_lib.trace_particle_3d(T, P, charge_over_mass, relativistic, bounds, atol, eff_elec, eff_mag, field_bounds))
 
-def trace_particle_3d_derivs(position, velocity, charge_over_mass, bounds, atol, z, electrostatic_coeffs, magnetostatic_coeffs):
+def trace_particle_3d_derivs(position, velocity, charge_over_mass, relativistic, bounds, atol, z, electrostatic_coeffs, magnetostatic_coeffs):
     assert electrostatic_coeffs.shape == (len(z)-1, 2, NU_MAX, M_MAX, 4)
     assert magnetostatic_coeffs.shape == (len(z)-1, 2, NU_MAX, M_MAX, 4)
     
     bounds = np.array(bounds)
      
     return trace_particle_wrapper(position, velocity,
-        lambda T, P: backend_lib.trace_particle_3d_derivs(T, P, charge_over_mass, bounds, atol, z, electrostatic_coeffs, magnetostatic_coeffs, len(z)))
+        lambda T, P: backend_lib.trace_particle_3d_derivs(T, P, charge_over_mass, relativistic, bounds, atol, z, electrostatic_coeffs, magnetostatic_coeffs, len(z)))
 
 potential_radial_ring = lambda *args: backend_lib.potential_radial_ring(*args, None)
 dr1_potential_radial_ring = lambda *args: backend_lib.dr1_potential_radial_ring(*args, None)
