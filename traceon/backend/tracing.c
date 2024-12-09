@@ -32,22 +32,21 @@ produce_new_y(double y[6], double ys[6][6], double ks[6][6], size_t index) {
 }
 
 void
-produce_new_k(double ys[6][6], double ks[6][6], size_t index, double h, field_fun ff, void *args) {
-	
+produce_new_k(double ys[6][6], double ks[6][6], size_t index, double h, double charge_over_mass, field_fun ff, void *args) {
 	double field[3] = { 0. };
 	ff(ys[index], field, args);
 	
 	ks[index][0] = h*ys[index][3];
 	ks[index][1] = h*ys[index][4];
 	ks[index][2] = h*ys[index][5];
-	ks[index][3] = h*EM*field[0];
-	ks[index][4] = h*EM*field[1];
-	ks[index][5] = h*EM*field[2];
+	ks[index][3] = h*charge_over_mass*field[0];
+	ks[index][4] = h*charge_over_mass*field[1];
+	ks[index][5] = h*charge_over_mass*field[2];
 }
 
 
 EXPORT size_t
-trace_particle(double *times_array, double *pos_array, field_fun field, double bounds[3][2], double atol, void *args) {
+trace_particle(double *times_array, double *pos_array, double charge_over_mass, field_fun field, double bounds[3][2], double atol, void *args) {
 	
 	double (*positions)[6] = (double (*)[6]) pos_array;
 	
@@ -74,7 +73,7 @@ trace_particle(double *times_array, double *pos_array, field_fun field, double b
 		
 		for(int index = 0; index < 6; index++) {
 			produce_new_y(y, ys, k, index);
-			produce_new_k(ys, k, index, h, field, args);
+			produce_new_k(ys, k, index, h, charge_over_mass, field, args);
 		}
 		
 		double max_position_error = 0.0;
@@ -150,7 +149,7 @@ field_radial_traceable(double point[6], double result[3], void *args_p) {
 
 
 EXPORT size_t
-trace_particle_radial(double *times_array, double *pos_array, double tracer_bounds[3][2], double atol, double *field_bounds,
+trace_particle_radial(double *times_array, double *pos_array, double charge_over_mass, double tracer_bounds[3][2], double atol, double *field_bounds,
 		struct effective_point_charges_2d eff_elec,
 		struct effective_point_charges_2d eff_mag,
 		struct effective_point_charges_3d eff_current) {
@@ -162,7 +161,7 @@ trace_particle_radial(double *times_array, double *pos_array, double tracer_boun
 		.bounds = field_bounds
 	};
 		
-	return trace_particle(times_array, pos_array, field_radial_traceable, tracer_bounds, atol, (void*) &args);
+	return trace_particle(times_array, pos_array, charge_over_mass, field_radial_traceable, tracer_bounds, atol, (void*) &args);
 }
 
 void
@@ -180,12 +179,12 @@ field_radial_derivs_traceable(double point[6], double field[3], void *args_p) {
 }
 
 EXPORT size_t
-trace_particle_radial_derivs(double *times_array, double *pos_array, double bounds[3][2], double atol,
+trace_particle_radial_derivs(double *times_array, double *pos_array, double charge_over_mass, double bounds[3][2], double atol,
 	double *z_interpolation, double *electrostatic_coeffs, double *magnetostatic_coeffs, size_t N_z) {
 
 	struct field_derivs_args args = { z_interpolation, electrostatic_coeffs, magnetostatic_coeffs, N_z };
 		
-	return trace_particle(times_array, pos_array, field_radial_derivs_traceable, bounds, atol, (void*) &args);
+	return trace_particle(times_array, pos_array, charge_over_mass, field_radial_derivs_traceable, bounds, atol, (void*) &args);
 }
 
 void
@@ -216,12 +215,12 @@ field_3d_traceable(double point[6], double result[3], void *args_p) {
 }
 
 EXPORT size_t
-trace_particle_3d(double *times_array, double *pos_array, double tracer_bounds[3][2], double atol,
+trace_particle_3d(double *times_array, double *pos_array, double charge_over_mass, double tracer_bounds[3][2], double atol,
 		struct effective_point_charges_3d eff_elec, struct effective_point_charges_3d eff_mag, double *field_bounds) {
 	
 	struct field_evaluation_args args = {.elec_charges = (void*) &eff_elec, .mag_charges = (void*) &eff_mag, .bounds = field_bounds};
 	
-	return trace_particle(times_array, pos_array, field_3d_traceable, tracer_bounds, atol, (void*) &args);
+	return trace_particle(times_array, pos_array, charge_over_mass, field_3d_traceable, tracer_bounds, atol, (void*) &args);
 }
 
 
@@ -241,12 +240,12 @@ field_3d_derivs_traceable(double point[6], double field[3], void *args_p) {
 }
 
 EXPORT size_t
-trace_particle_3d_derivs(double *times_array, double *pos_array, double bounds[3][2], double atol,
+trace_particle_3d_derivs(double *times_array, double *pos_array, double charge_over_mass, double bounds[3][2], double atol,
 	double *z_interpolation, double *electrostatic_coeffs, double *magnetostatic_coeffs, size_t N_z) {
 
 	struct field_derivs_args args = { z_interpolation, electrostatic_coeffs, magnetostatic_coeffs, N_z };
 	
-	return trace_particle(times_array, pos_array, field_3d_derivs_traceable, bounds, atol, (void*) &args);
+	return trace_particle(times_array, pos_array, charge_over_mass, field_3d_derivs_traceable, bounds, atol, (void*) &args);
 }
 
 

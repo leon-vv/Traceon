@@ -1,4 +1,4 @@
-"""The tracing module allows to trace electrons within any field type returned by the `traceon.solver` module. The tracing algorithm
+"""The tracing module allows to trace charged particles within any field type returned by the `traceon.solver` module. The tracing algorithm
 used is RK45 with adaptive step size control [1]. The tracing code is implemented in C (see `traceon.backend`) and has therefore
 excellent performance. The module also provides various helper functions to define appropriate initial velocity vectors and to
 compute intersections of the computed traces with various planes.
@@ -91,23 +91,23 @@ def _z_to_bounds(z1, z2):
     else:
         return (min(z1, z2)-1, max(z1, z2)+1)
 
-def _convert_velocity_to_SI(velocity):
+def _convert_velocity_to_SI(velocity, mass):
     # Convert a velocity vector expressed in eV (see functions above)
     # to one expressed in m/s.
     speed_eV = np.linalg.norm(velocity)
-    speed = sqrt(2*speed_eV*e/m_e)
+    speed = sqrt(2*speed_eV*e/mass)
     direction = velocity / speed_eV
     return speed * direction
 
 class Tracer:
-    """General electron tracer class. Can trace electrons given any field class from `traceon.solver`.
+    """General tracer class for charged particles. Can trace charged particles given any field class from `traceon.solver`.
 
     Parameters
     ----------
     field: traceon.solver.Field (or any class inheriting Field)
-        The field used to compute the force felt by the electron.
+        The field used to compute the force felt by the charged particle.
     bounds: (3, 2) np.ndarray of float64
-        Once the electron reaches one of the boundaries the tracing stops. The bounds are of the form ( (xmin, xmax), (ymin, ymax), (zmin, zmax) ).
+        Once the particle reaches one of the boundaries the tracing stops. The bounds are of the form ( (xmin, xmax), (ymin, ymax), (zmin, zmax) ).
     """
     
     def __init__(self, field, bounds):
@@ -123,16 +123,20 @@ class Tracer:
         return f'<Traceon Tracer of {field_name},\n\t' \
             + 'Bounds: ' + bounds_str + ' mm >'
     
-    def __call__(self, position, velocity):
-        """Trace an electron.
+    def __call__(self, position, velocity, mass=m_e, charge=-e, atol=1e-8):
+        """Trace a charged particle.
 
         Parameters
         ----------
         position: (3,) np.ndarray of float64
-            Initial position of electron.
+            Initial position of the particle.
         velocity: (3,) np.ndarray of float64
             Initial velocity (expressed in a vector whose magnitude has units of eV). Use one of the utility functions documented
             above to create the initial velocity vector.
+        mass: float
+            Particle mass in kilogram (kg). The default value is the electron mass: m_e = 9.1093837015e-31 kg.
+        charge: float
+            Particle charge in Coulomb (C). The default value is the electron charge: -1 * e = -1.602176634e-19 C.
         atol: float
             Absolute tolerance determining the accuracy of the trace.
         
@@ -147,13 +151,14 @@ class Tracer:
         raise RuntimeError('Please use the field.get_tracer(...) method to get the appropriate Tracer instance')
 
 class TracerRadialBEM(Tracer):
-    def __call__(self, position, velocity, atol=1e-10):
-        
-        velocity = _convert_velocity_to_SI(velocity)
+    def __call__(self, position, velocity, mass=m_e, charge=-e, atol=1e-10):
+        charge_over_mass = charge / mass
+        velocity = _convert_velocity_to_SI(velocity, mass)
         
         return backend.trace_particle_radial(
                 position,
-                velocity, 
+                velocity,
+                charge_over_mass, 
                 self.bounds,
                 atol, 
                 self.field.electrostatic_point_charges,
@@ -162,25 +167,26 @@ class TracerRadialBEM(Tracer):
                 field_bounds=self.field.field_bounds)
 
 class TracerRadialAxial(Tracer):
-    def __call__(self, position, velocity, atol=1e-10):
-
-        velocity = _convert_velocity_to_SI(velocity)
+    def __call__(self, position, velocity, mass=m_e, charge=-e, atol=1e-10):
+        charge_over_mass = charge / mass
+        velocity = _convert_velocity_to_SI(velocity, mass)
         
         elec, mag = self.field.electrostatic_coeffs, self.field.magnetostatic_coeffs
         
-        return backend.trace_particle_radial_derivs(position, velocity, self.bounds, atol, self.field.z, elec, mag)
+        return backend.trace_particle_radial_derivs(position, velocity, charge_over_mass, self.bounds, atol, self.field.z, elec, mag)
 
 class Tracer3D_BEM(Tracer):
-    def __call__(self, position, velocity, atol=1e-10):
-        velocity = _convert_velocity_to_SI(velocity)
-        bounds = self.field.field_bounds
+    def __call__(self, position, velocity, mass=m_e, charge=-e, atol=1e-10):
+        charge_over_mass = charge / mass
+        velocity = _convert_velocity_to_SI(velocity, mass)
         elec, mag = self.field.electrostatic_point_charges, self.field.magnetostatic_point_charges
-        return backend.trace_particle_3d(position, velocity, self.bounds, atol, elec, mag)
+        return backend.trace_particle_3d(position, velocity, charge_over_mass, self.bounds, atol, elec, mag, field_bounds=self.field.field_bounds)
 
 class Tracer3DAxial(Tracer):
-    def __call__(self, position, velocity, atol=1e-10):
-        velocity = _convert_velocity_to_SI(velocity)
-        return backend.trace_particle_3d_derivs(position, velocity, self.bounds, atol,
+    def __call__(self, position, velocity, mass=m_e, charge=-e, atol=1e-10):
+        charge_over_mass = charge / mass
+        velocity = _convert_velocity_to_SI(velocity, mass)
+        return backend.trace_particle_3d_derivs(position, velocity, charge_over_mass, self.bounds, atol,
             self.field.z, self.field.electrostatic_coeffs, self.field.magnetostatic_coeffs)
 
 def plane_intersection(positions, p0, normal):
@@ -191,7 +197,7 @@ def plane_intersection(positions, p0, normal):
     Parameters
     ----------
     positions: (N, 6) np.ndarray of float64
-        Positions of an electron as returned by `Tracer`.
+        Positions of a charged particle as returned by `Tracer`.
     
     p0: (3,) np.ndarray of float64
         A point that lies in the plane.
@@ -202,7 +208,7 @@ def plane_intersection(positions, p0, normal):
     
     Returns
     --------
-    np.ndarray of shape (6,) containing the position and velocity of the electron at the intersection point.
+    np.ndarray of shape (6,) containing the position and velocity of the particle at the intersection point.
     """
 
     assert positions.shape == (len(positions), 6), "The positions array should have shape (N, 6)"
@@ -214,13 +220,13 @@ def xy_plane_intersection(positions, z):
     Parameters
     ----------
     positions: (N, 6) np.ndarray of float64
-        Positions (and velocities) of an electron as returned by `Tracer`.
+        Positions (and velocities) of a charged particle as returned by `Tracer`.
     z: float
         z-coordinate of the plane with which to compute the intersection
     
     Returns
     --------
-    (6,) array of float64, containing the position and velocity of the electron at the intersection point.
+    (6,) array of float64, containing the position and velocity of the particle at the intersection point.
     """
     return plane_intersection(positions, np.array([0.,0.,z]), np.array([0., 0., 1.0]))
 
@@ -230,13 +236,13 @@ def xz_plane_intersection(positions, y):
     Parameters
     ----------
     positions: (N, 6) np.ndarray of float64
-        Positions (and velocities) of an electron as returned by `Tracer`.
+        Positions (and velocities) of a charged particle as returned by `Tracer`.
     z: float
         z-coordinate of the plane with which to compute the intersection
     
     Returns
     --------
-    (6,) array of float64, containing the position and velocity of the electron at the intersection point.
+    (6,) array of float64, containing the position and velocity of the particle at the intersection point.
     """
     return plane_intersection(positions, np.array([0.,y,0.]), np.array([0., 1.0, 0.]))
 
@@ -246,13 +252,13 @@ def yz_plane_intersection(positions, x):
     Parameters
     ----------
     positions: (N, 6) np.ndarray of float64
-        Positions (and velocities) of an electron as returned by `Tracer`.
+        Positions (and velocities) of a charged particle as returned by `Tracer`.
     z: float
         z-coordinate of the plane with which to compute the intersection
     
     Returns
     --------
-    (6,) array of float64, containing the position and velocity of the electron at the intersection point.
+    (6,) array of float64, containing the position and velocity of the particle at the intersection point.
     """
     return plane_intersection(positions, np.array([x,0.,0.]), np.array([1.0, 0., 0.]))
 
@@ -263,7 +269,7 @@ def axis_intersection(positions):
     Parameters
     ----------
     positions: (N, 6) np.ndarray of float64
-        Positions (and velocities) of an electron as returned by `Tracer`.
+        Positions (and velocities) of a charged particle as returned by `Tracer`.
     
     Returns
     --------
