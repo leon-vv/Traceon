@@ -670,7 +670,28 @@ class Path(GeometricObject):
         return Path.line([extent, 0., -height/2], [radius, 0., -height/2])\
                 .line_to([radius, 0., height/2]).line_to([extent, 0., height/2]).move(dz=z)
     
-   
+
+    def get_segment(self, t_start, t_end):
+        """Extracts a segment of the current path corresponding to the interval 
+        [t_start, t_end] of the original path. The resulting segment will be 
+        re-parametrized to the interval [0, t_end - t_start].
+
+        Parameters
+        ----------------------------
+        t_start: float
+            The starting point of the segment.
+        t_end:
+            The endpoint of the segment.
+
+        Returns
+        ----------------------------
+        Path"""
+
+        assert 0 <= t_start < t_end <= self.path_length
+        breakpoints = [b for b in self.breakpoints if t_start < b < t_end]
+        return Path(lambda t: self(t_start + t), t_start - t_end, breakpoints, self.name)
+
+
     def __add__(self, other):
         """Add two paths to create a PathCollection. Note that a PathCollection supports
         a subset of the methods of Path (for example, movement, rotation and meshing). Use
@@ -1342,13 +1363,33 @@ class Surface(GeometricObject):
         annulus_at_origin = Path.line([0.0, inner_radius, 0.0], [0.0, outer_radius, 0.0]).revolve_x()
         return annulus_at_origin.move(dy=y0, dz=z0)
 
-    def get_subregion(self, u_start, u_end, v_start, v_end):
-        subregion = Surface(
-            lambda u, v: self(
-                u_start + u / self.path_length1 * (u_end - u_start), 
-                v_start + v / self.path_length2 * (v_end - v_start)), 
-                    u_end - u_start, v_end - v_start, self.breakpoints1, self.breakpoints2, self.name)
-        return subregion
+    def get_region(self, u_start, u_end, v_start, v_end):
+        """Extracts a region of the current surface corresponding to the intervals 
+        [u_start, u_end] along the first parameter and [v_start, v_end] 
+        along the second parameter of the original surface. The resulting 
+        region will be re-parametrized to the intervals [0, u_end - u_start] 
+        and [0, v_end - v_start].
+
+        Parameters
+        ----------------------------
+        u_start : float
+            The starting point of the first interval
+        u_end : float
+            The endpoint of the first interval
+        v_start : float
+            The starting point of the second interval
+        v_end : float
+            The endpoint value of the second interval
+
+        Returns
+        ----------------------------
+        Surface"""
+        assert 0 <= u_start < u_end <= self.path_length1
+        assert 0 <= v_start < v_end <= self.path_length2
+        
+        return Surface(lambda u, v: self(u_start + u, v_start + v), u_end - u_start, v_end - v_start, 
+            self.breakpoints1, self.breakpoints2, self.name)
+        
 
     def __add__(self, other):
         """Allows you to combine surfaces into a `SurfaceCollection` using the + operator (surface1 + surface2)."""
