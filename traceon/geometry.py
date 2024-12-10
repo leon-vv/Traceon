@@ -687,8 +687,9 @@ class Path(GeometricObject):
         return np.array([quad(lambda s: self(s)[i] * speed(s), 0., self.path_length)[0] / arc_length for i in range(3)])
 
     def extrude_to_centroid(self):
+        centroid = self.centroid()
         def f(u,v):
-            return (1 - v) * self(u) + v * self.centroid()
+            return (1 - v) * self(u) + v * centroid
 
         return Surface(f, self.path_length, 1)
     
