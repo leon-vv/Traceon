@@ -92,9 +92,9 @@ def _convert_velocity_to_SI(velocity, mass):
     # Convert a velocity vector expressed in eV (see functions above)
     # to one expressed in m/s. Relativistically correct.
     speed_eV = np.linalg.norm(velocity)
-    kin_energy_joule = speed_eV*e
-    rest_energy_joule = mass*c**2
-    gamma_factor = sqrt(1 - (rest_energy_joule/(kin_energy_joule**2 + rest_energy_joule))**2)
+    kin_E_joule = speed_eV*e
+    rest_E_joule = mass*c**2
+    gamma_factor = sqrt(1 - (rest_E_joule/(kin_E_joule**2 + rest_E_joule))**2)
     speed = c*gamma_factor
     direction = velocity / speed_eV
     return speed * direction
