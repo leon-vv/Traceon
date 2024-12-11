@@ -152,6 +152,7 @@ backend_functions = {
     'normal_3d': (None, arr(shape=(3,3)), v3),
     'position_and_jacobian_3d': (None, dbl, dbl, arr(ndim=2), v3, dbl_p),
     'position_and_jacobian_radial': (None, dbl, v2, v2, v2, v2, v2, dbl_p),
+    'delta_position_and_jacobian_radial': (None, dbl, v2, v2, v2, v2, v2, dbl_p),
     'trace_particle': (sz, times_block, tracing_block, field_fun, bounds, dbl, vp),
     'potential_radial_ring': (dbl, dbl, dbl, dbl, dbl, vp), 
     'dr1_potential_radial_ring': (dbl, dbl, dbl, dbl, dbl, vp), 
@@ -326,6 +327,22 @@ def position_and_jacobian_radial(alpha, v1, v2, v3, v4):
     backend_lib.position_and_jacobian_radial(alpha, v1[:2], v2[:2], v3[:2], v4[:2], pos, C.pointer(jac))
     
     return jac.value, pos
+
+def delta_position_and_jacobian_radial(alpha, v1, v2, v3, v4):
+    assert v1.shape == (2,) or v1.shape == (3,)
+    assert v2.shape == (2,) or v2.shape == (3,)
+    assert v3.shape == (2,) or v3.shape == (3,)
+    assert v4.shape == (2,) or v4.shape == (3,)
+    
+    assert all([v.shape == (2,) or v[1] == 0. for v in [v1,v2,v3,v4]])
+    
+    pos = np.zeros(2)
+    jac = C.c_double(0.0)
+     
+    backend_lib.delta_position_and_jacobian_radial(alpha, v1[:2], v2[:2], v3[:2], v4[:2], pos, C.pointer(jac))
+    
+    return jac.value, pos
+
 
 
 def trace_particle(position, velocity, field, bounds, atol):
