@@ -405,7 +405,47 @@ class Path(GeometricObject):
             return center + radius*cos(theta)*x_unit + radius*sin(theta)*y_unit
         
         return Path(f, path_length)
-     
+    
+    @staticmethod
+    def arc_from_zero(radius, angle):
+        l = radius * angle
+        def f(l):
+            theta= l / radius
+            return radius * np.array([np.cos(theta), 0,np.sin(theta)])
+        
+        return Path(f, radius*angle)
+
+    @staticmethod
+    def arc_with_angle(start, radius, angle, normal=[0., 1., 0.], reverse=False):
+        center = np.array(start) - radius * np.array([1., 0, 0])
+        center_path = Path.line([0, 0, 0], center)
+
+        normal = np.array(normal)
+        normal /= np.linalg.norm(normal)
+
+        # Create the arc in the default plane
+        arc = Path.arc_from_zero(radius, angle)
+
+        # Compute rotation angles
+        angle_x = np.arctan2(normal[2], normal[1])  # Align Z-component
+        print(angle_x)
+        normal_rotated = np.array([normal[0], np.sqrt(normal[1]**2 + normal[2]**2), 0])
+        angle_z = np.arctan2(normal_rotated[0], normal_rotated[1])  # Align X-component
+        print(angle_z)
+        # Rotate the center and the arc
+        if not np.isclose(angle_x, 0):
+            center_path = center_path.rotate(Rx=angle_x)
+            arc = arc.rotate(Rx=angle_x)
+        if not np.isclose(angle_z, 0):
+            center_path = center_path.rotate(Rz=angle_z)
+            arc.rotate(Rz=angle_z).endpoint()
+
+        center = center_path.endpoint()
+
+        return arc.move(*center)
+
+
+
     def revolve_x(self, angle=2*pi):
         """Create a surface by revolving the path anti-clockwise around the x-axis.
         
