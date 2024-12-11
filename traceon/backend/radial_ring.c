@@ -18,14 +18,15 @@ INLINE double flux_density_to_charge_factor(double K) {
 }
 
 
-EXPORT double dr1_potential_radial_ring(double r0, double z0, double r, double z, void *_) {
+EXPORT double dr1_potential_radial_ring(double r0, double z0, double delta_r, double delta_z, void *_) {
 	
 	if(r0 < MIN_DISTANCE_AXIS) {
 		return 0.0;
 	}
 	
-	double delta_r = r - r0;
-	double delta_z = z - z0;
+	double r = r0 + delta_r;
+	double z = z0 + delta_z;
+	
     double common_arg = (delta_z * delta_z + delta_r * delta_r) / (4 * r * r - 4 * delta_r * r + delta_z * delta_z + delta_r * delta_r);
     double denominator = ((-2 * delta_r * delta_r * r) + delta_z * delta_z * (2 * delta_r - 2 * r) + 2 * delta_r * delta_r * delta_r) * sqrt(4 * r * r - 4 * delta_r * r + delta_z * delta_z + delta_r * delta_r);
     double ellipkm1_term = (delta_z * delta_z * r + delta_r * delta_r * r) * ellipkm1(common_arg);
@@ -40,9 +41,10 @@ EXPORT double potential_radial_ring(double r0, double z0, double r, double z, vo
     return 1./M_PI * ellipkm1(t) * (delta_r + r0) / sqrt(pow(delta_z, 2) + pow((delta_r + 2 * r0), 2));
 }
 
-EXPORT double dz1_potential_radial_ring(double r0, double z0, double r, double z, void *_) {
-	double delta_z = z - z0;
-    double delta_r = r - r0;
+EXPORT double dz1_potential_radial_ring(double r0, double z0, double delta_r, double delta_z, void *_) {
+	double r = r0 + delta_r;
+	double z = z0 + delta_z;
+
     double common_arg = (delta_z * delta_z + delta_r * delta_r) / (4 * r0 * r0 + 4 * delta_r * r0 + delta_z * delta_z + delta_r * delta_r);
     double denominator = (delta_z * delta_z + delta_r * delta_r) * sqrt(4 * r0 * r0 + 4 * delta_r * r0 + delta_z * delta_z + delta_r * delta_r);
     double ellipem1_term = -delta_z * (r0 + delta_r) * ellipem1(common_arg);
@@ -50,7 +52,7 @@ EXPORT double dz1_potential_radial_ring(double r0, double z0, double r, double z
 }
 
 double
-field_dot_normal_radial(double r0, double z0, double r, double z, void* args_p) {
+field_dot_normal_radial(double r0, double z0, double delta_r, double delta_z, void* args_p) {
 
 	struct {double *normal; double K;} *args = args_p;
 	
@@ -60,8 +62,8 @@ field_dot_normal_radial(double r0, double z0, double r, double z, void* args_p) 
 	double K = args->K;
 	double factor = flux_density_to_charge_factor(K);
 	
-	double Er = -dr1_potential_radial_ring(r0, z0, r, z, NULL);
-	double Ez = -dz1_potential_radial_ring(r0, z0, r, z, NULL);
+	double Er = -dr1_potential_radial_ring(r0, z0, delta_r, delta_z, NULL);
+	double Ez = -dz1_potential_radial_ring(r0, z0, delta_r, delta_z, NULL);
 	
 	return factor*(args->normal[0]*Er + args->normal[1]*Ez);
 

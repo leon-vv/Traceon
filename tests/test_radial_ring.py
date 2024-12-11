@@ -75,12 +75,12 @@ class TestRadialRing(unittest.TestCase):
 
         r = np.linspace(1.1, 2, 10000)
         pot = [B.potential_radial_ring(r_, zs, rs, zs) for r_ in r]
-        deriv = [B.dr1_potential_radial_ring(r_, zs, rs, zs) for r_ in r]
+        deriv = [B.dr1_potential_radial_ring(r_, zs, rs-r_, 0.) for r_ in r]
         assert np.allclose(CubicSpline(r, pot)(r, 1), deriv, atol=0., rtol=1e-9)
         
         z = np.linspace(0.1, 1, 10000)
         pot = [B.potential_radial_ring(rs, z_, rs, zs) for z_ in z]
-        deriv = [B.dz1_potential_radial_ring(rs, z_, rs, zs) for z_ in z]
+        deriv = [B.dz1_potential_radial_ring(rs, z_, 0., zs-z_) for z_ in z]
         assert np.allclose(CubicSpline(z, pot)(z, 1), deriv, atol=0., rtol=1e-9)
     
     def test_field_radial_ring(self):
@@ -88,14 +88,14 @@ class TestRadialRing(unittest.TestCase):
              
             dz = z0/5e4
             deriv = (potential_of_ring_arbitrary(1., r0, z0+dz, r, z) - potential_of_ring_arbitrary(1., r0, z0-dz, r, z)) / (2*dz)
-            assert np.isclose(B.dz1_potential_radial_ring(r0, z0, r, z)/epsilon_0, deriv, atol=0., rtol=1e-4), (r0, z0, r, z)
+            assert np.isclose(B.dz1_potential_radial_ring(r0, z0, r-r0, z-z0)/epsilon_0, deriv, atol=0., rtol=1e-4), (r0, z0, r, z)
             
             if r0 < 1e-3:
                 continue
             
             dr = r0/5e4
             deriv = (potential_of_ring_arbitrary(1., r0+dr, z0, r, z) - potential_of_ring_arbitrary(1., r0-dr, z0, r, z)) / (2*dr)
-            assert np.isclose(B.dr1_potential_radial_ring(r0, z0, r, z)/epsilon_0, deriv, atol=0., rtol=1e-4), (r0, z0, r, z)
+            assert np.isclose(B.dr1_potential_radial_ring(r0, z0, r-r0, z-z0)/epsilon_0, deriv, atol=0., rtol=1e-4), (r0, z0, r, z)
     
     def test_axial(self):
         z = np.linspace(-10, 10, 200)
