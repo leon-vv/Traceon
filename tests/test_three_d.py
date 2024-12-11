@@ -72,6 +72,42 @@ class TestThreeD(unittest.TestCase):
         geom = geom.revolve_z()
         geom.mesh(mesh_size_factor=4)
 
+    def test_simple_current_line_against_radial(self):
+        rect = G.Path.rectangle_xz(1, 2, -1, 1)
+        rect.name = 'rect'
+
+        coil = G.Surface.disk_xz(3, 0, 0.05)
+        coil.name = 'coil'
+
+        mesh_size = 0.0125
+        mesh = rect.mesh(mesh_size=mesh_size) + coil.mesh(mesh_size=mesh_size)
+
+        e = E.Excitation(mesh, E.Symmetry.RADIAL)
+        e.add_current(coil=2.5)
+        e.add_magnetizable(rect=10)
+
+        field = S.solve_direct(e)
+
+        z = np.linspace(-10, 10, 50)
+        pot_radial = [field.potential_at_point([0., 0., z_]) for z_ in z]
+
+        rect = rect.revolve_z()
+        coil = G.Path.circle_xy(0., 0., 3)
+        coil.name = 'coil'
+
+        mesh_size = 0.70
+        mesh = rect.mesh(mesh_size=mesh_size) + coil.mesh(mesh_size=0.2)
+
+        e = E.Excitation(mesh, E.Symmetry.THREE_D)
+        e.add_current(coil=2.5)
+        e.add_magnetizable(rect=10)
+
+        field_three_d = S.solve_direct(e)
+        pot_three_d = [field_three_d.potential_at_point([0., 0., z_]) for z_ in z]
+        
+        # Accuracy is better if mesh size is increased, but
+        # makes tests too slow
+        assert np.allclose(pot_three_d, pot_radial, atol=0.020)
 
 class TestCurrentLoop(unittest.TestCase):
 
