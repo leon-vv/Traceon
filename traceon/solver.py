@@ -376,7 +376,7 @@ class MagnetostaticSolver(Solver):
         if self.is_3d():
             return Field3D_BEM(magnetostatic_point_charges=charges)
         else:
-            return FieldRadialBEM(magnetostatic_point_charges=charges, current_point_charges=self.current_charges)
+            return FieldRadialBEM(magnetostatic_point_charges=charges, current_point_charges=self.current_field.current_point_charges)
 
 class EffectivePointCharges:
     def __init__(self, charges, jacobians, positions, directions=None):
