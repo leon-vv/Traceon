@@ -931,8 +931,8 @@ class Surface(GeometricObject):
         -----------------------------
         Surface representing the sphere"""
         
-        length1 = 2*pi
-        length2 = pi
+        length1 = 2*pi*radius
+        length2 = pi*radius
          
         def f(u, v):
             phi = u/radius
