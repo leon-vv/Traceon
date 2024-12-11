@@ -840,7 +840,7 @@ class PathCollection(GeometricObject):
         return self._map_to_surfaces(Path.extrude_by_path, p2)
     
     def __str__(self):
-        return f"<PathCollection with {len(self.paths)} surfaces, name: {self.name}>"
+        return f"<PathCollection with {len(self.paths)} paths, name: {self.name}>"
 
 
 class Surface(GeometricObject):
@@ -931,8 +931,8 @@ class Surface(GeometricObject):
         -----------------------------
         Surface representing the sphere"""
         
-        length1 = 2*pi*radius
-        length2 = pi*radius
+        length1 = 2*pi
+        length2 = pi
          
         def f(u, v):
             phi = u/radius
