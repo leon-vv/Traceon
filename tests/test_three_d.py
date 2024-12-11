@@ -8,6 +8,7 @@ from scipy.constants import epsilon_0, mu_0
 from scipy.interpolate import CubicSpline
 
 import traceon.geometry as G
+import traceon.plotting as P
 import traceon.solver as S
 import traceon.excitation as E
 import traceon.tracing as T
@@ -108,6 +109,37 @@ class TestThreeD(unittest.TestCase):
         # Accuracy is better if mesh size is increased, but
         # makes tests too slow
         assert np.allclose(pot_three_d, pot_radial, atol=0.020)
+    
+    def test_magnetostatic_potential_against_radial_symmetric(self):
+        rect = G.Path.rectangle_xz(1, 2, -1, 1)
+        rect.name = 'rect'
+
+        mesh_size = 0.02
+        mesh = rect.mesh(mesh_size=mesh_size)
+        
+        e = E.Excitation(mesh, E.Symmetry.RADIAL)
+        e.add_magnetostatic_potential(rect=10)
+
+        field = S.solve_direct(e)
+
+        z = np.linspace(-10, 10, 50)
+        pot_radial = [field.potential_at_point([0.25, 0., z_]) for z_ in z]
+
+        rect = rect.revolve_z()
+
+        mesh_size = 0.70
+        mesh = rect.mesh(mesh_size=mesh_size)
+          
+        e = E.Excitation(mesh, E.Symmetry.THREE_D)
+        e.add_magnetostatic_potential(rect=10)
+
+        field_three_d = S.solve_direct(e)
+        pot_three_d = [field_three_d.potential_at_point([0.25, 0., z_]) for z_ in z]
+        
+        # Accuracy is better if mesh size is increased, but
+        # makes tests too slow
+        assert np.allclose(pot_three_d, pot_radial, rtol=8e-3)
+
 
 class TestCurrentLoop(unittest.TestCase):
 

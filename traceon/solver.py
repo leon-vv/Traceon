@@ -344,7 +344,7 @@ class MagnetostaticSolver(Solver):
         if len(currents):
             eff = EffectivePointCharges(np.array(currents), np.array(jacobians), np.array(positions), directions=np.array(directions))
         else:
-            eff = Field3D_BEM(EffectivePointCharges.empty_3d())
+            eff = EffectivePointCharges.empty_3d()
         
         return Field3D_BEM(current_point_charges=eff)
     
