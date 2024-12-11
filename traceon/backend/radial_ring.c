@@ -34,9 +34,10 @@ EXPORT double dr1_potential_radial_ring(double r0, double z0, double delta_r, do
     return 1./M_PI * (ellipkm1_term + ellipem1_term) / denominator;
 }
 
-EXPORT double potential_radial_ring(double r0, double z0, double r, double z, void *_) {
-    double delta_z = z - z0;
-    double delta_r = r - r0;
+EXPORT double potential_radial_ring(double r0, double z0, double delta_r, double delta_z, void *_) {
+	double r = r0 + delta_r;
+	double z = z0 + delta_z;
+	
     double t = (pow(delta_z, 2) + pow(delta_r, 2)) / (pow(delta_z, 2) + pow(delta_r, 2) + 4 * r0 * delta_r + 4 * pow(r0, 2));
     return 1./M_PI * ellipkm1(t) * (delta_r + r0) / sqrt(pow(delta_z, 2) + pow((delta_r + 2 * r0), 2));
 }

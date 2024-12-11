@@ -112,7 +112,7 @@ potential_radial(double point[3], double* charges, jacobian_buffer_2d jacobian_b
 	for(int i = 0; i < N_vertices; i++) {  
 		for(int k = 0; k < N_QUAD_2D; k++) {
 			double *pos = &position_buffer[i][k][0];
-			double potential = potential_radial_ring(r0, z0, pos[0], pos[1], NULL);
+			double potential = potential_radial_ring(r0, z0, pos[0]-r0, pos[1]-z0, NULL);
 			sum_ += charges[i] * jacobian_buffer[i][k] * potential;
 		}
 	}  
@@ -186,13 +186,13 @@ EXPORT double self_potential_radial(double alpha, double line_points[4][3]) {
 	double *v3 = line_points[3];
 	double *v4 = line_points[1];
 	
-	double pos[2], jac;
-	position_and_jacobian_radial(alpha, v1, v2, v3, v4, pos, &jac);
+	double delta_pos[2], jac;
+	delta_position_and_jacobian_radial(alpha, v1, v2, v3, v4, delta_pos, &jac);
 	
 	double target[2], jac2;
 	position_and_jacobian_radial(0, v1, v2, v3, v4, target, &jac2);
 
-	return jac*potential_radial_ring(target[0], target[1], pos[0], pos[1], NULL);
+	return jac*potential_radial_ring(target[0], target[1], delta_pos[0], delta_pos[1], NULL);
 }
 
 struct self_field_dot_normal_radial_args {
@@ -280,7 +280,7 @@ EXPORT void fill_matrix_radial(double *matrix,
 						
 					double *pos = pos_buffer[j][k];
 					double jac = jacobian_buffer[j][k];
-					matrix[i*N_matrix + j] += jac * potential_radial_ring(target[0], target[1], pos[0], pos[1], NULL);
+					matrix[i*N_matrix + j] += jac * potential_radial_ring(target[0], target[1], pos[0]-target[0], pos[1]-target[1], NULL);
 				}
             }
 		}
