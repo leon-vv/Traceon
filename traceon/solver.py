@@ -364,8 +364,12 @@ class MagnetostaticSolver(Solver):
                 # and the normal vector of the vertex.
                 center = self.get_center_of_element(i)
                 field_at_center = self.current_field.current_field_at_point(center)
-                #flux_to_charge_factor = (value - 1)/np.pi
-                field_dotted = field_at_center[0] * self.normals[i, 0] + field_at_center[2]*self.normals[i, 1]
+                 
+                n = self.normals[i]
+                if n.shape == (2,):
+                    n = [n[0], 0., n[1]]
+                 
+                field_dotted = np.dot(field_at_center, n)
                 F[i] = -backend.flux_density_to_charge_factor(value) * field_dotted
          
         assert np.all(np.isfinite(F))
