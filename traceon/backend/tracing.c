@@ -57,12 +57,9 @@ double determinant(double matrix[3][3]) {
 int matrix_inverse(double input[3][3], double inverse[3][3]) {
     double det = determinant(input);
     
-    // Check if matrix is invertible
     if (fabs(det) < 1e-10) {
         return 0;  // Not invertible
     }
-
-    // Calculate the inverse using adjugate method
     inverse[0][0] = (input[1][1] * input[2][2] - input[1][2] * input[2][1]) / det;
     inverse[0][1] = (input[0][2] * input[2][1] - input[0][1] * input[2][2]) / det;
     inverse[0][2] = (input[0][1] * input[1][2] - input[0][2] * input[1][1]) / det;
@@ -127,6 +124,9 @@ produce_new_k_relativistic(double ys[6][6], double ks[6][6], size_t index, doubl
 		ks[index][3] = result[0];
 		ks[index][4] = result[1];
 		ks[index][5] = result[2];
+	} else {
+		printf("Matrix used for relativistic correction is not invertible.");
+		exit(1);
 	}
 }
 
