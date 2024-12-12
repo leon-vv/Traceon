@@ -981,10 +981,15 @@ class Field3D_BEM(FieldBEM):
         """
         point = np.array(point_)
         assert point.shape == (3,), "Please supply a three dimensional point"
+        current_field = self.current_field_at_point(point)
+        
         charges = self.magnetostatic_point_charges.charges
         jacobians = self.magnetostatic_point_charges.jacobians
         positions = self.magnetostatic_point_charges.positions
-        return backend.field_3d(point, charges, jacobians, positions)
+
+        mag_field = backend.field_3d(point, charges, jacobians, positions)
+        
+        return current_field + mag_field
      
     def magnetostatic_potential_at_point(self, point_):
         """
