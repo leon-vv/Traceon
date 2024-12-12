@@ -30,6 +30,8 @@ const double EM = -175882001077.2163; // Electron charge over electron mass
 // python -c "from scipy.constants import mu_0; print(mu_0);"
 const double MU_0 = 1.25663706212e-06;
 
+const double c = 299792458.0; // speed of light in m/s
+
 
 enum ExcitationType{
     VOLTAGE_FIXED = 1,

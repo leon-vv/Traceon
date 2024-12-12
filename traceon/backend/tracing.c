@@ -3,6 +3,8 @@ typedef double (*positions_2d)[4];
 typedef double (*positions_3d)[6];
 
 #define TRACING_STEP_MAX 0.01
+#define MAX_ITERS_REL 50
+#define ATOL_REL 1e-1
 
 EXPORT const size_t TRACING_BLOCK_SIZE = (size_t) 1e5;
 
@@ -15,7 +17,6 @@ const double B2[] = {2./9.};
 const double CH[] = {47./450., 0., 12./25., 32./225., 1./30., 6./25.};
 const double CT[] = {-1./150., 0., 3./100., -16./75., -1./20., 6./25.};
 
-const double c = 299792458.0; // speed of light in m/s
 
 typedef void (*field_fun)(double pos[6], double field[3], void* args);
 
@@ -34,7 +35,60 @@ produce_new_y(double y[6], double ys[6][6], double ks[6][6], size_t index) {
 }
 
 void
-produce_new_k(double ys[6][6], double ks[6][6], size_t index, double h, double charge_over_mass, bool relativistic, field_fun ff, void *args) {
+produce_new_k(double ys[6][6], double ks[6][6], size_t index, double h, double charge_over_mass, field_fun ff, void *args) {
+	double field[3] = { 0. };
+	ff(ys[index], field, args);
+
+	ks[index][0] = h*ys[index][3];
+	ks[index][1] = h*ys[index][4];
+	ks[index][2] = h*ys[index][5];
+	ks[index][3] = h*charge_over_mass*field[0];
+	ks[index][4] = h*charge_over_mass*field[1];
+	ks[index][5] = h*charge_over_mass*field[2];
+}
+
+
+double determinant(double matrix[3][3]) {
+    return matrix[0][0] * (matrix[1][1] * matrix[2][2] - matrix[1][2] * matrix[2][1])
+         - matrix[0][1] * (matrix[1][0] * matrix[2][2] - matrix[1][2] * matrix[2][0])
+         + matrix[0][2] * (matrix[1][0] * matrix[2][1] - matrix[1][1] * matrix[2][0]);
+}
+
+int matrix_inverse(double input[3][3], double inverse[3][3]) {
+    double det = determinant(input);
+    
+    // Check if matrix is invertible
+    if (fabs(det) < 1e-10) {
+        return 0;  // Not invertible
+    }
+
+    // Calculate the inverse using adjugate method
+    inverse[0][0] = (input[1][1] * input[2][2] - input[1][2] * input[2][1]) / det;
+    inverse[0][1] = (input[0][2] * input[2][1] - input[0][1] * input[2][2]) / det;
+    inverse[0][2] = (input[0][1] * input[1][2] - input[0][2] * input[1][1]) / det;
+    
+    inverse[1][0] = (input[1][2] * input[2][0] - input[1][0] * input[2][2]) / det;
+    inverse[1][1] = (input[0][0] * input[2][2] - input[0][2] * input[2][0]) / det;
+    inverse[1][2] = (input[0][2] * input[1][0] - input[0][0] * input[1][2]) / det;
+    
+    inverse[2][0] = (input[1][0] * input[2][1] - input[1][1] * input[2][0]) / det;
+    inverse[2][1] = (input[0][1] * input[2][0] - input[0][0] * input[2][1]) / det;
+    inverse[2][2] = (input[0][0] * input[1][1] - input[0][1] * input[1][0]) / det;
+
+    return 1;
+}
+
+void matrix_vector_product(double matrix[3][3], double vector[3], double result[3]) {
+    for (int i = 0; i < 3; i++) {
+        result[i] = 0.0;
+        for (int j = 0; j < 3; j++) {
+            result[i] += matrix[i][j] * vector[j];
+        }
+    }
+}
+
+void
+produce_new_k_relativistic(double ys[6][6], double ks[6][6], size_t index, double h, double charge_over_mass, field_fun ff, void *args) {
 	double field[3] = { 0. };
 	ff(ys[index], field, args);
 
@@ -42,17 +96,38 @@ produce_new_k(double ys[6][6], double ks[6][6], size_t index, double h, double c
 	double vy = ys[index][4];
 	double vz = ys[index][5];
 
-	double gamma = 1.0;
-	if(relativistic){
-		gamma = 1 / sqrt(1 - (vx*vx + vy*vy + vz*vz) / (c*c));
-	}
+	double speed_squared = vx*vx + vy*vy + vz*vz;
+	double c_squared = c*c;
+	double gamma = 1/sqrt(1 - speed_squared / c_squared);
+	charge_over_mass /= gamma;
 	
 	ks[index][0] = h*vx;
 	ks[index][1] = h*vy;
 	ks[index][2] = h*vz;
-	ks[index][3] = h*(charge_over_mass / gamma)*field[0];
-	ks[index][4] = h*(charge_over_mass / gamma)*field[1];
-	ks[index][5] = h*(charge_over_mass / gamma)*field[2];
+
+	ks[index][3] = h*charge_over_mass*field[0];
+	ks[index][4] = h*charge_over_mass*field[1];
+	ks[index][5] = h*charge_over_mass*field[2];
+
+	double gamma_over_c_squared = gamma*gamma / c_squared;
+	double M[3][3];
+	for (int i = 0; i < 3; i++) {
+    	for (int j = 0; j < 3; j++) {
+       		M[i][j] = (i == j) ? 1.0 : 0.0;
+			M[i][j] += gamma_over_c_squared * ys[index][i+3] * ys[index][j+3];
+    	}
+	}
+
+	double M_inverse[3][3];
+	if(matrix_inverse(M, M_inverse)){
+		double vector[3] = {ks[index][3], ks[index][4], ks[index][5]};
+		double result[3];
+		matrix_vector_product(M_inverse, vector, result);
+
+		ks[index][3] = result[0];
+		ks[index][4] = result[1];
+		ks[index][5] = result[2];
+	}
 }
 
 
@@ -82,9 +157,16 @@ trace_particle(double *times_array, double *pos_array, double charge_over_mass, 
 		double k[6][6] = { {0.} };
 		double ys[6][6] = { {0.} };
 		
+		if(relativistic) {
 		for(int index = 0; index < 6; index++) {
-			produce_new_y(y, ys, k, index);
-			produce_new_k(ys, k, index, h, charge_over_mass, relativistic, field, args);
+				produce_new_y(y, ys, k, index);
+				produce_new_k_relativistic(ys, k, index, h, charge_over_mass, field, args);
+			}
+		}
+		else for(int index = 0; index < 6; index++) {
+				produce_new_y(y, ys, k, index);
+				produce_new_k(ys, k, index, h, charge_over_mass, field, args);
+			}
 		}
 		
 		double max_position_error = 0.0;
