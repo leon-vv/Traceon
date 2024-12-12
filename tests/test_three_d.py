@@ -163,8 +163,6 @@ class TestCurrentLoop(unittest.TestCase):
         small_circle = G.Surface.disk_xz(5., 0., 0.01)
         small_circle.name = 'loop'
 
-        import traceon.plotting as P
-
         mesh = small_circle.mesh(mesh_size_factor=10)._to_higher_order_mesh()
         exc = E.Excitation(mesh, E.Symmetry.RADIAL)
         exc.add_current(loop=cls.current)
@@ -214,6 +212,7 @@ class TestCurrentLoop(unittest.TestCase):
 
         for p in points:
             assert np.allclose(self.field.current_field_at_point(p), self.axial_field.current_field_at_point(p), rtol=1e-4)
+
 
 class TestCurrentLine(unittest.TestCase):
     @classmethod
