@@ -411,40 +411,102 @@ class Path(GeometricObject):
         l = radius * angle
         def f(l):
             theta= l / radius
-            return radius * np.array([np.cos(theta), 0,np.sin(theta)])
+            return radius * np.array([np.cos(theta), 0, np.sin(theta)])
         
         return Path(f, radius*angle)
+    
 
     @staticmethod
-    def arc_with_angle(start, radius, angle, normal=[0., 1., 0.], reverse=False):
+    def arc_with_angle(start, radius, arc_angle, start_angle, normal=[0., 1., 0.]):
+        """
+        Create an arc starting from a point, rotated to align with a specified normal vector.
+
+        Parameters:
+        ------------------------------------
+        start : (3,) array-like
+            Starting point of the arc.
+        radius : float
+            Radius of the arc.
+        angle : float
+            Angle of the arc in radians.
+        normal : (3,) array-like, optional
+            Normal vector defining the plane of the arc (default is [0, 1, 0]).
+        reverse : bool, optional
+            If True, reverse the arc direction (default is False).
+
+        Returns:
+        ------------------------------------
+        Path
+            The rotated and translated arc as a path object.
+        """
+        # Compute the center of the arc
         center = np.array(start) - radius * np.array([1., 0, 0])
         center_path = Path.line([0, 0, 0], center)
 
-        normal = np.array(normal)
-        normal /= np.linalg.norm(normal)
-
         # Create the arc in the default plane
-        arc = Path.arc_from_zero(radius, angle)
+        arc = Path.arc_from_zero(radius, arc_angle)
 
-        # Compute rotation angles
-        angle_x = np.arctan2(normal[2], normal[1])  # Align Z-component
-        print(angle_x)
-        normal_rotated = np.array([normal[0], np.sqrt(normal[1]**2 + normal[2]**2), 0])
-        angle_z = np.arctan2(normal_rotated[0], normal_rotated[1])  # Align X-component
-        print(angle_z)
-        # Rotate the center and the arc
-        if not np.isclose(angle_x, 0):
-            center_path = center_path.rotate(Rx=angle_x)
-            arc = arc.rotate(Rx=angle_x)
-        if not np.isclose(angle_z, 0):
-            center_path = center_path.rotate(Rz=angle_z)
-            arc.rotate(Rz=angle_z).endpoint()
-
+        # Rotate the center path and the arc to align with the desired normal
+        current_normal = [0., 1., 0.]  # Default plane normal
+        center_path = center_path.rotate_to_plane(current_normal=current_normal, target_normal=normal)
+        arc = arc.rotate_to_plane(current_normal=current_normal, target_normal=normal)
+        
+        # Move the arc to the new center
         center = center_path.endpoint()
 
-        return arc.move(*center)
+        arc = arc.move(*center)
+        return arc.rotate_around_axis(axis=normal, angle=start_angle, origin=start)
 
+    def arc_to_with_angle(self, radius, arc_angle, normal, reverse=False):
+        """Extend the current path using an arc.
 
+        Parameters
+        ----------------------------
+        center: (3,) float
+            The center point of the arc.
+        end: (3,) float
+            The endpoint of the arc, shoud lie on a circle determined
+            by the given centerpoint and the current endpoint.
+
+        Returns
+        -----------------------------
+        Path"""
+
+        start = self.endpoint()
+        tangent = self.tangent(t=self.path_length) 
+
+        tangent /=  np.linalg.norm(tangent)
+        normal /= np.linalg.norm(normal)
+
+        to_center = np.cross(normal, tangent)
+        print(to_center)
+        center = np.array(start) + radius*to_center
+
+        arc = Path.arc_from_zero(radius, arc_angle)
+
+        # Rotate the center path and the arc to align with the desired normal
+        current_normal = [0., 1., 0.]  # Default plane normal
+
+        arc = arc.rotate_to_plane(current_normal=current_normal, target_normal=normal)
+        dir_angle = np.arccos(np.dot(to_center, np.array([1,0,0])))
+
+        arc = arc.rotate_around_axis(normal, dir_angle, start)
+        
+        return self >> arc.move(*center)
+
+    
+    def tangent(self, t, num_splines=1000):
+        samples = np.linspace(0, self.path_length, num_splines) 
+        
+        #include t to slightly improve accuracy
+        if not t in samples:
+            samples = np.append(samples, t)
+            samples = np.sort(samples)
+        
+        splines = CubicSpline(samples, [self(s) for s in samples])
+        tangent = splines.derivative()(t)
+        
+        return tangent
 
     def revolve_x(self, angle=2*pi):
         """Create a surface by revolving the path anti-clockwise around the x-axis.

@@ -102,6 +102,80 @@ class GeometricObject(ABC):
                 [0, 0, 1]])
 
         return self.map_points(lambda p: origin + matrix @ (p - origin))
+    
+    def rotate_around_axis(self, axis=[0., 1., 0.], angle=0., origin=[0., 0., 0.]):
+        """
+        Rotate around a general axis defined by a vector. The rotation follows the 
+        **right-hand rule**: Rotation follows the **right-hand rule**: if the normal 
+        vector points towards the observer, the arc rotatescounter-clockwise. 
+        If the normal points away, it rotates clockwise.
+        
+        Parameters
+        ------------------------------------
+        axis: (3,) float
+            Vector defining the axis of rotation. Must be non-zero.
+        angle: float
+            Amount to rotate around the axis (radians).
+        origin: (3,) float
+            Point around which to rotate, which is the origin by default.
+
+        Returns
+        --------------------------------------
+        GeometricObject
+        
+        This function returns the same type as the object on which this method was called.
+        """
+        origin = np.array(origin)
+        assert origin.shape == (3,), "Please supply a 3D point for origin"
+        axis = np.array(axis)
+        assert axis.shape == (3,), "Please supply a 3D vector for axis"
+        axis = axis / np.linalg.norm(axis)
+
+        K = np.array([
+            [0, -axis[2], axis[1]],
+            [axis[2], 0, -axis[0]],
+            [-axis[1], axis[0], 0]
+        ])
+        I = np.eye(3)
+        R = I + np.sin(angle) * K + (1 - np.cos(angle)) * (K @ K)
+
+        return self.map_points(lambda p: origin + R @ (p - origin))
+
+    
+    def rotate_to_plane(self, current_normal=[0., 1., 0.], target_normal=[0., 1., 0.], origin=[0., 0., 0.]):
+        """
+        Rotate the object to align with a plane defined by its normal vector.
+
+        Parameters
+        ------------------------------------
+        current_normal: (3,) float
+            The normal vector of the object's current orientation.
+        target_normal: (3,) float
+            The normal vector of the target plane to align with.
+        origin: (3,) float
+            Point around which to rotate, which is the origin by default.
+
+        Returns
+        --------------------------------------
+        GeometricObject
+
+        This function returns the same type as the object on which this method was called.
+        """
+
+        current_normal = np.array(current_normal)
+        target_normal = np.array(target_normal)
+        current_normal = current_normal / np.linalg.norm(current_normal)
+        target_normal = target_normal / np.linalg.norm(target_normal)
+
+        axis = np.cross(current_normal, target_normal)
+        axis_norm = np.linalg.norm(axis)
+        if axis_norm < 1e-6:  
+            return self
+        axis /= axis_norm
+
+        angle = np.arccos(np.dot(current_normal, target_normal))#, -1.0, 1.0))
+
+        return self.rotate_around_axis(axis=axis, angle=angle, origin=origin)
 
     def mirror_xz(self):
         """Mirror object in the XZ plane.
