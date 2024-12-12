@@ -378,7 +378,7 @@ class MagnetostaticSolver(Solver):
      
     def charges_to_field(self, charges):
         if self.is_3d():
-            return Field3D_BEM(magnetostatic_point_charges=charges)
+            return Field3D_BEM(magnetostatic_point_charges=charges, current_point_charges=self.current_field.current_point_charges)
         else:
             return FieldRadialBEM(magnetostatic_point_charges=charges, current_point_charges=self.current_field.current_point_charges)
 
@@ -404,6 +404,11 @@ class EffectivePointCharges:
     def empty_3d():
         N_TRIANGLE_QUAD = backend.N_TRIANGLE_QUAD
         return EffectivePointCharges(np.empty((0,)), np.empty((0, N_TRIANGLE_QUAD)), np.empty((0, N_TRIANGLE_QUAD, 3)))
+    
+    @staticmethod 
+    def empty_line_3d():
+        N_QUAD_2D = backend.N_QUAD_2D
+        return EffectivePointCharges(np.empty((0,)), np.empty((0, N_QUAD_2D)), np.empty((0, N_QUAD_2D, 3)), np.empty((0, N_QUAD_2D, 3)))
 
     def is_2d(self):
         return self.jacobians.shape[1] == backend.N_QUAD_2D
@@ -904,7 +909,7 @@ class Field3D_BEM(FieldBEM):
         if magnetostatic_point_charges is None:
             magnetostatic_point_charges = EffectivePointCharges.empty_3d()
         if current_point_charges is None:
-            current_point_charges = EffectivePointCharges.empty_3d()
+            current_point_charges = EffectivePointCharges.empty_line_3d()
          
         super().__init__(electrostatic_point_charges, magnetostatic_point_charges, current_point_charges)
         
