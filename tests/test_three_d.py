@@ -140,6 +140,31 @@ class TestThreeD(unittest.TestCase):
         # makes tests too slow
         assert np.allclose(pot_three_d, pot_radial, rtol=8e-3)
 
+    def test_magnetostatic_line_sphere(self):
+        # Benchmark against FEM package
+        sphere = G.Surface.sphere(0.1).move(dx=0.2, dy=0.2)
+        sphere.name = 'sphere'
+
+        line = G.Path.line([-0.2, -0.2, 0.], [-0.2, 0.2, 0.])
+        line.name = 'line'
+
+        ms = 0.020
+        mesh = sphere.mesh(mesh_size=ms) + line.mesh(mesh_size_factor=5)
+
+        e = E.Excitation(mesh, E.Symmetry.THREE_D)
+        e.add_current(line=-2.0)
+        e.add_magnetizable(sphere=10.)
+
+        field = S.solve_direct(e)
+
+        f1 = field.field_at_point([0.2, 0.2, -0.125])
+        f2 = field.field_at_point([0.2, 0.2, 0.2])
+
+        assert np.isclose(f1[0], 0.05156, rtol=3e-2) # FEM fails to resolve y component
+        assert np.isclose(f1[2], 0.44525, rtol=1e-2)
+        assert np.isclose(f2[0], -0.10423, rtol=2e-2)
+        assert np.isclose(f2[2], 0.25941, rtol=1e-2)
+
 
 class TestCurrentLoop(unittest.TestCase):
 
