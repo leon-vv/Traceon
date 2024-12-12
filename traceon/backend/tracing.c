@@ -167,7 +167,7 @@ trace_particle(double *times_array, double *pos_array, double charge_over_mass, 
 				produce_new_y(y, ys, k, index);
 				produce_new_k(ys, k, index, h, charge_over_mass, field, args);
 			}
-		}
+		
 		
 		double max_position_error = 0.0;
 		double max_velocity_error = 0.0;
