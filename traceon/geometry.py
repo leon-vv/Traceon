@@ -393,7 +393,7 @@ class Path(GeometricObject):
         "Use extend_with_arc() instead.",
         DeprecationWarning,
         stacklevel=2)
-        
+
         start = self.endpoint()
         return self >> Path.arc(center, start, end, reverse=reverse)
     
@@ -787,12 +787,13 @@ class Path(GeometricObject):
         Path"""
         plane_normal = np.array(plane_normal, dtype=float)
         start_point = self.endpoint()
-        direction = self.tangent(self.path_length)
+        direction = self.velocity_vector(self.path_length)
 
         plane_normal_unit = plane_normal / np.linalg.norm(plane_normal)
-        
-        if not np.isclose(np.dot(plane_normal_unit, direction), 0,atol=1e-7):
-            corrected_normal = plane_normal - np.dot(direction, plane_normal) * direction
+        direction_unit = direction / np.linalg.norm(direction)
+
+        if not np.isclose(np.dot(plane_normal_unit, direction_unit), 0,atol=1e-7):
+            corrected_normal = plane_normal - np.dot(direction_unit, plane_normal) * direction_unit
             raise AssertionError(
                 f"The provided plane normal {plane_normal} is not orthogonal to the direction {direction}  \n"
                 f"of the path at the endpoint so no smooth arc can be made. The closest valid normal is "
@@ -811,14 +812,14 @@ class Path(GeometricObject):
         return Path(lambda t: self(self.path_length-t), self.path_length, 
                     [self.path_length - b for b in self.breakpoints], self.name)
     
-    def tangent(self, t, num_splines=1000):
-        """Calculate the tangent vector at a specific point on the path 
+    def velocity_vector(self, t, num_splines=1000):
+        """Calculate the velocity (tangent) vector at a specific point on the path 
         using cubic spline interpolation.
 
         Parameters
         ----------------------------
         t : float
-            The point on the path at which to calculate the tangent
+            The point on the path at which to calculate the velocity
         num_splines : int
             The number of samples used for cubic spline interpolation
 
