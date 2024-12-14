@@ -201,7 +201,7 @@ backend_functions = {
     'potential_3d_point': (dbl, dbl, dbl, dbl, dbl, dbl, dbl, vp),
     'axial_coefficients_3d': (None, charges_3d, jac_buffer_3d, pos_buffer_3d, arr(ndim=3), arr(ndim=3), sz, z_values, arr(ndim=4), sz),
     'fill_jacobian_buffer_current_three_d': (None, lines, jac_buffer_3d, pos_buffer_3d, arr(ndim=3), sz),
-    'current_field_at_point_3d': (None, v3, EffectivePointCurrents3D, v3),
+    'current_field_3d': (None, v3, EffectivePointCurrents3D, v3),
     'potential_3d': (dbl, v3, charges_3d, jac_buffer_3d, pos_buffer_3d, sz),
     'potential_3d_derivs': (dbl, v3, z_values, arr(ndim=5), sz),
     'field_3d': (None, v3, v3, charges_3d, jac_buffer_3d, pos_buffer_3d, sz),
@@ -499,13 +499,13 @@ def fill_jacobian_buffer_current_three_d(lines):
 
     return jacobians, positions, directions
 
-def current_field_at_point_3d(point, eff):
+def current_field_3d(point, eff):
     assert point.shape == (3,) 
     
     eff = EffectivePointCurrents3D(eff)
     
     result = np.zeros(3)
-    backend_lib.current_field_at_point_3d(point, eff, result)
+    backend_lib.current_field_3d(point, eff, result)
     return result
 
 def potential_3d(point, charges, jac_buffer, pos_buffer):

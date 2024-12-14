@@ -206,7 +206,7 @@ field_3d_traceable(double point[6], double result[3], void *args_p) {
 			
 		field_3d(point, elec_field, elec_charges->charges, elec_charges->jacobians, elec_charges->positions, elec_charges->N);
 		field_3d(point, mag_field, mag_charges->charges, mag_charges->jacobians, mag_charges->positions, mag_charges->N);
-		current_field_at_point_3d(point, *currents, curr_field);
+		current_field_3d(point, *currents, curr_field);
 		field_3d(point, mag_field, mag_charges->charges, mag_charges->jacobians, mag_charges->positions, mag_charges->N);
 		combine_elec_magnetic_field(point + 3, elec_field, mag_field, curr_field, result);
 	}

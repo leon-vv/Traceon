@@ -70,7 +70,7 @@ fill_jacobian_buffer_current_three_d(
 }
 
 EXPORT void
-current_field_at_point_3d(double point[3], struct effective_point_currents_3d epc, double field_out[3]) {
+current_field_3d(double point[3], struct effective_point_currents_3d epc, double field_out[3]) {
 	// Use Biot-Savart law
 	
     double field_sum[3] = {0.0, 0.0, 0.0};
