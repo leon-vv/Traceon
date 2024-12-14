@@ -350,7 +350,7 @@ class Path(GeometricObject):
             return np.array([radius*cos(theta), radius*sin(theta), 0.])
         return Path(f, angle*radius).move(dx=x0, dy=y0)
      
-    def arc_to(self, center, end):
+    def arc_to(self, center, end, reverse=False):
         """Extend the current path using an arc.
 
         Parameters
@@ -365,10 +365,10 @@ class Path(GeometricObject):
         -----------------------------
         Path"""
         start = self.endpoint()
-        return self >> Path.arc(center, start, end)
+        return self >> Path.arc(center, start, end, reverse=reverse)
     
     @staticmethod
-    def arc(center, start, end):
+    def arc(center, start, end, reverse=False):
         """Return an arc by specifying the center, start and end point.
 
         Parameters
@@ -395,6 +395,9 @@ class Path(GeometricObject):
 
         radius = np.linalg.norm(start_arr - center_arr) 
         theta_max = atan2(np.dot(vector, y_unit), np.dot(vector, x_unit))
+
+        if reverse:
+            theta_max = theta_max - 2*pi
 
         path_length = abs(theta_max * radius)
           
