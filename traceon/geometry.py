@@ -757,7 +757,7 @@ class Path(GeometricObject):
 
         return self >> Path.polar_arc(radius, angle, start_point, tangent, plane_normal)
 
-    def reversed(self):
+    def reverse(self):
         """Generate a reversed version of the current path.
         The reversed path is created by inverting the traversal direction,
         such that the start becomes the end and vice versa.
