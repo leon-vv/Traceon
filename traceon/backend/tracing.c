@@ -124,7 +124,7 @@ produce_new_k_relativistic(double ys[6][6], double ks[6][6], size_t index, doubl
 		ks[index][5] = result[2];
 	} else {
 		printf("Matrix used for relativistic correction is not invertible.\n");
-		printf("Speed of particle became % .3f ", vx/c);
+		printf("Speed of particle became % .3f \n", vx/c);
 		exit(1);
 	}
 }
