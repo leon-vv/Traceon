@@ -163,7 +163,7 @@ class PathTests(unittest.TestCase):
         assert np.isclose(extended_path.path_length, expected_length)
         
         end_point = extended_path(extended_path.path_length)
-        assert np.allclose(end_point, [1.,0.,1.], atol=1e-7)
+        assert np.allclose(end_point, [1.,0.,-1.], atol=1e-7) # should with right hand rule around y
 
     def test_velocity_vector(self):
         circle = Path.circle_xy(x0=0.0, y0=0., radius=1., angle=2*pi)
