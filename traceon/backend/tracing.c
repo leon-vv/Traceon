@@ -3,8 +3,6 @@ typedef double (*positions_2d)[4];
 typedef double (*positions_3d)[6];
 
 #define TRACING_STEP_MAX 0.01
-#define MAX_ITERS_REL 50
-#define ATOL_REL 1e-1
 
 EXPORT const size_t TRACING_BLOCK_SIZE = (size_t) 1e5;
 
@@ -125,7 +123,9 @@ produce_new_k_relativistic(double ys[6][6], double ks[6][6], size_t index, doubl
 		ks[index][4] = result[1];
 		ks[index][5] = result[2];
 	} else {
-		printf("Matrix used for relativistic correction is not invertible.");
+		printf("Matrix used for relativistic correction is not invertible.\n");
+		printf("%f", gamma);
+		printf("%f", vx/c);
 		exit(1);
 	}
 }
