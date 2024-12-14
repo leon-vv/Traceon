@@ -761,7 +761,8 @@ class Path(GeometricObject):
         Returns
         ----------------------------
         Path"""
-        return Path(lambda t: self(self.path_length-t), self.path_length, self.breakpoints, self.name)
+        return Path(lambda t: self(self.path_length-t), self.path_length, 
+                    [self.path_length - b for b in self.breakpoints], self.name)
     
     def tangent(self, t, num_splines=1000):
         """Calculate the tangent vector at a specific point on the path 
