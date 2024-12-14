@@ -53,7 +53,7 @@ current_potential_axial(double z0, double *currents,
 }
 
 EXPORT void
-current_field(double point[3], double result[3], double *currents,
+current_field_radial(double point[3], double result[3], double *currents,
 	jacobian_buffer_3d jacobian_buffer, position_buffer_3d position_buffer, size_t N_vertices) {
 
 	double Br = 0., Bz = 0.;

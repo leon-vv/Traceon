@@ -733,7 +733,7 @@ class FieldRadialBEM(FieldBEM):
         currents = self.current_point_charges.charges
         jacobians = self.current_point_charges.jacobians
         positions = self.current_point_charges.positions
-        return backend.current_field(point, currents, jacobians, positions)
+        return backend.current_field_radial(point, currents, jacobians, positions)
      
     def electrostatic_field_at_point(self, point_):
         """

@@ -134,7 +134,7 @@ field_radial_traceable(double point[6], double result[3], void *args_p) {
 		field_radial(point, mag_field,
 			mag_charges->charges, mag_charges->jacobians, mag_charges->positions, mag_charges->N);
 			
-		current_field(point, curr_field,
+		current_field_radial(point, curr_field,
 			current_charges->charges, current_charges->jacobians, current_charges->positions, current_charges->N);
 			
 		combine_elec_magnetic_field(point + 3, elec_field, mag_field, curr_field, result);

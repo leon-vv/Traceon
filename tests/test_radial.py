@@ -118,7 +118,7 @@ class TestRadial(unittest.TestCase):
         eff = get_ring_effective_point_charges(current, 1)
          
         for p in np.random.rand(10, 3):
-            field = mu_0 * B.current_field(p, eff.charges, eff.jacobians, eff.positions)
+            field = mu_0 * B.current_field_radial(p, eff.charges, eff.jacobians, eff.positions)
             correct = biot_savart_loop(current, p)
             assert np.allclose(field, correct)
     

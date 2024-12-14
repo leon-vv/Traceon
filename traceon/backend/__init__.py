@@ -211,7 +211,7 @@ backend_functions = {
     'current_potential_axial_radial_ring': (dbl, dbl, dbl, dbl),
     'current_potential_axial': (dbl, dbl, currents_2d, jac_buffer_3d, pos_buffer_3d, sz),
     'current_field_radial_ring': (None, dbl, dbl, dbl, dbl, v2),
-    'current_field': (None, v3, v3, currents_2d, jac_buffer_3d, pos_buffer_3d, sz),
+    'current_field_radial': (None, v3, v3, currents_2d, jac_buffer_3d, pos_buffer_3d, sz),
     'current_axial_derivatives_radial': (None, arr(ndim=2), currents_2d, jac_buffer_3d, pos_buffer_3d, sz, z_values, sz),
     'fill_jacobian_buffer_radial': (None, jac_buffer_2d, pos_buffer_2d, vertices, sz),
     'self_potential_radial': (dbl, dbl, vp),
@@ -557,7 +557,7 @@ def current_field_radial_ring(x0, y0, x, y):
     backend_lib.current_field_radial_ring(x0, y0, x, y, res)
     return res
 
-def current_field(p0, currents, jac_buffer, pos_buffer):
+def current_field_radial(p0, currents, jac_buffer, pos_buffer):
     assert p0.shape == (3,)
     N = len(currents)
     assert currents.shape == (N,)
@@ -567,7 +567,7 @@ def current_field(p0, currents, jac_buffer, pos_buffer):
     assert np.all(pos_buffer[:, :, 1] == 0.)
     
     result = np.zeros( (3,) )
-    backend_lib.current_field(p0, result, currents, jac_buffer, pos_buffer, N)
+    backend_lib.current_field_radial(p0, result, currents, jac_buffer, pos_buffer, N)
     return result
 
 def current_axial_derivatives_radial(z, currents, jac_buffer, pos_buffer):
