@@ -350,7 +350,7 @@ class Path(GeometricObject):
             return np.array([radius*cos(theta), radius*sin(theta), 0.])
         return Path(f, angle*radius).move(dx=x0, dy=y0)
      
-    def arc_to(self, center, end, reverse=False):
+    def arc_to(self, center, end):
         """Extend the current path using an arc.
 
         Parameters
@@ -365,10 +365,10 @@ class Path(GeometricObject):
         -----------------------------
         Path"""
         start = self.endpoint()
-        return self >> Path.arc(center, start, end, reverse=reverse)
+        return self >> Path.arc(center, start, end)
     
     @staticmethod
-    def arc(center, start, end, reverse=False):
+    def arc(center, start, end):
         """Return an arc by specifying the center, start and end point.
 
         Parameters
@@ -395,9 +395,6 @@ class Path(GeometricObject):
 
         radius = np.linalg.norm(start_arr - center_arr) 
         theta_max = atan2(np.dot(vector, y_unit), np.dot(vector, x_unit))
-
-        if reverse:
-            theta_max = theta_max - 2*pi
 
         path_length = abs(theta_max * radius)
           
@@ -673,6 +670,126 @@ class Path(GeometricObject):
         Path"""
         return Path.line([extent, 0., -height/2], [radius, 0., -height/2])\
                 .line_to([radius, 0., height/2]).line_to([extent, 0., height/2]).move(dz=z)
+
+    @staticmethod
+    def arc_polar(radius, angle, start=[0,0,1], plane_normal=[0,1,0], direction=[1,0,0]):
+        """Return an arc of specified by polar coordinates. The arc lies in a plane defined by the 
+        provided normal vector and curves from the start point in the specified direction 
+        counterclockwise around the normal.
+
+        Parameters
+        ---------------------------
+        radius : float
+            The radius of the arc.
+        angle : float
+            The angle subtended by the arc (in radians)
+        start: (3,) float
+            The start point of the arc
+        plane_normal : (3,) float
+            The normal vector of the plane containing the arc
+        direction : (3,) float
+            A tangent of the arc at the starting point. 
+            Must lie in the specified plane. Does not need to be normalized. 
+        Returns
+        ----------------------------
+        Path"""
+        start = np.array(start, dtype=float)
+        plane_normal = np.array(plane_normal, dtype=float)
+        direction = np.array(direction, dtype=float)
+
+        dot_product = np.dot(direction, plane_normal)
+
+        if not np.isclose(dot_product, 0, atol=1e-7):
+            corrected_direction = direction - (dot_product / np.linalg.norm(plane_normal)**2) * plane_normal
+            raise AssertionError(
+                f"The provided direction {direction} does not lie in the specified plane. \n"
+                f"The closed valid direction is {np.round(corrected_direction, 10)}.")
+        
+        direction /= np.linalg.norm(direction)
+        plane_normal /= np.linalg.norm(plane_normal)
+
+        if angle < 0:
+            direction, angle = -direction, -angle
+
+        center = start - radius * np.cross(direction, plane_normal)
+        center_to_start = start - center
+        
+        def f(l):
+            theta = l/radius
+            return center + np.cos(theta) * center_to_start + np.sin(theta)*np.cross(plane_normal, center_to_start)
+        
+        return Path(f, radius*angle)
+    
+    def arc_to_polar(self, radius, angle, plane_normal=[0, 1, 0]):
+        """Extend the current path by a smooth arc using polar coordinates.
+        The arc is defined by a specified radius and angle and rotates counterclockwise
+         around around the normal that defines the arcing plane.
+
+        Parameters
+        ---------------------------
+        radius : float
+            The radius of the arc
+        angle : float
+            The angle subtended by the arc (in radians)
+        plane_normal : (3,) float
+            The normal vector of the plane containing the arc
+
+        Returns
+        ----------------------------
+        Path"""
+        plane_normal = np.array(plane_normal, dtype=float)
+        start_point = self.endpoint()
+        tangent = self.tangent(self.path_length)
+
+        dot_product = np.dot(tangent, plane_normal)
+        if not np.isclose(dot_product, 0,atol=1e-7):
+
+            corrected_normal = plane_normal - (dot_product / np.linalg.norm(tangent)**2) * tangent
+            raise AssertionError(
+                f"The provided plane normal {plane_normal} is not orthogonal to the tangent {tangent}  \n"
+                f"of the path at the endpoint so no smooth arc can be made. The closest valid normal is "
+                f"{np.round(corrected_normal, 10)}.")
+        
+        plane_normal /= np.linalg.norm(plane_normal)
+
+        return self >> Path.arc_polar(radius, angle, start_point, plane_normal, tangent)
+
+    def reversed(self):
+        """Generate a reversed version of the current path.
+        The reversed path is created by inverting the traversal direction,
+        such that the start becomes the end and vice versa.
+
+        Returns
+        ----------------------------
+        Path"""
+        return Path(lambda t: self(self.path_length-t), self.path_length, self.breakpoints, self.name)
+    
+    def tangent(self, t, num_splines=1000):
+        """Calculate the tangent vector at a specific point on the path 
+        using cubic spline interpolation.
+
+        Parameters
+        ----------------------------
+        t : float
+            The point on the path at which to calculate the tangent
+        num_splines : int
+            The number of samples used for cubic spline interpolation
+
+        Returns
+        ----------------------------
+        (3,) np.ndarray of float"""
+
+        samples = np.linspace(0, self.path_length, num_splines) 
+        
+        # Include t to slightly improve accuracy
+        if not t in samples:
+            samples = np.append(samples, t)
+            samples = np.sort(samples)
+
+        splines = CubicSpline(samples, [self(s) for s in samples])
+        tangent = splines.derivative()(t)
+        
+        return tangent
     
     def __add__(self, other):
         """Add two paths to create a PathCollection. Note that a PathCollection supports
