@@ -676,7 +676,7 @@ class Path(GeometricObject):
 
     @staticmethod
     def polar_arc(radius, angle, start=[0,0,1], plane_normal=[0,1,0], direction=[1,0,0]):
-        """Return an arc of specified by polar coordinates. The arc lies in a plane defined by the 
+        """Return an arc specified by polar coordinates. The arc lies in a plane defined by the 
         provided normal vector and curves from the start point in the specified direction 
         counterclockwise around the normal.
 
