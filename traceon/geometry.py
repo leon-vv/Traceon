@@ -812,7 +812,7 @@ class Path(GeometricObject):
         return Path(lambda t: self(self.path_length-t), self.path_length, 
                     [self.path_length - b for b in self.breakpoints], self.name)
     
-    def velocity_vector(self, t, num_splines=1000):
+    def velocity_vector(self, t):
         """Calculate the velocity (tangent) vector at a specific point on the path 
         using cubic spline interpolation.
 
@@ -827,17 +827,10 @@ class Path(GeometricObject):
         ----------------------------
         (3,) np.ndarray of float"""
 
-        samples = np.linspace(0, self.path_length, num_splines) 
-        
-        # Include t to slightly improve accuracy
-        if not t in samples:
-            samples = np.append(samples, t)
-            samples = np.sort(samples)
-
-        splines = CubicSpline(samples, [self(s) for s in samples])
-        tangent = splines.derivative()(t)
-        
-        return tangent
+        samples = np.linspace(t - self.path_length*1e-3, t + self.path_length*1e-3, 7) # Odd number to include t
+        samples_on_path = [s for s in samples if 0 <= s <= self.path_length]
+        assert len(samples_on_path), "Please supply a point that lies on the path"
+        return CubicSpline(samples_on_path, [self(s) for s in samples_on_path])(t, nu=1)
     
     def __add__(self, other):
         """Add two paths to create a PathCollection. Note that a PathCollection supports
