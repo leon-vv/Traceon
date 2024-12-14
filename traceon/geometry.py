@@ -675,7 +675,7 @@ class Path(GeometricObject):
                 .line_to([radius, 0., height/2]).line_to([extent, 0., height/2]).move(dz=z)
 
     @staticmethod
-    def polar_arc(radius, angle, start=[0,0,1], plane_normal=[0,1,0], direction=[1,0,0]):
+    def polar_arc(radius, angle, start, direction, plane_normal=[0,1,0]):
         """Return an arc specified by polar coordinates. The arc lies in a plane defined by the 
         provided normal vector and curves from the start point in the specified direction 
         counterclockwise around the normal.
@@ -755,7 +755,7 @@ class Path(GeometricObject):
         
         plane_normal /= np.linalg.norm(plane_normal)
 
-        return self >> Path.polar_arc(radius, angle, start_point, plane_normal, tangent)
+        return self >> Path.polar_arc(radius, angle, start_point, tangent, plane_normal)
 
     def reversed(self):
         """Generate a reversed version of the current path.
