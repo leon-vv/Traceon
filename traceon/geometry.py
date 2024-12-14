@@ -349,7 +349,7 @@ class Path(GeometricObject):
             return np.array([radius*cos(theta), radius*sin(theta), 0.])
         return Path(f, angle*radius).move(dx=x0, dy=y0)
      
-    def arc_to(self, center, end, reverse=False):
+    def arc_to(self, center, end):
         """Extend the current path using an arc.
 
         Parameters
@@ -364,10 +364,10 @@ class Path(GeometricObject):
         -----------------------------
         Path"""
         start = self.endpoint()
-        return self >> Path.arc(center, start, end, reverse=reverse)
+        return self >> Path.arc(center, start, end)
     
     @staticmethod
-    def arc(center, start, end, reverse=False):
+    def arc(center, start, end):
         """Return an arc by specifying the center, start and end point.
 
         Parameters
@@ -395,9 +395,6 @@ class Path(GeometricObject):
         radius = np.linalg.norm(start_arr - center_arr) 
         theta_max = atan2(np.dot(vector, y_unit), np.dot(vector, x_unit))
 
-        if reverse:
-            theta_max = theta_max - 2*pi
-
         path_length = abs(theta_max * radius)
           
         def f(l):
@@ -407,102 +404,106 @@ class Path(GeometricObject):
         return Path(f, path_length)
     
     @staticmethod
-    def arc_from_zero(radius, angle):
-        l = radius * angle
-        def f(l):
-            theta= l / radius
-            return radius * np.array([np.cos(theta), 0, np.sin(theta)])
-        
-        return Path(f, radius*angle)
-    
+    def arc2(radius, angle, start=[1,0,0], plane_normal=[0,1,0], direction=[0,0,1]):
+        """Return an arc of specified radius and angle in a specified plane.
+        The arc lies in a plane defined by the provided normal vector and. The direction 
+        vector is a tangent to the arc in the start point.
 
-    @staticmethod
-    def arc_with_angle(start, radius, arc_angle, start_angle, normal=[0., 1., 0.]):
-        """
-        Create an arc starting from a point, rotated to align with a specified normal vector.
-
-        Parameters:
-        ------------------------------------
-        start : (3,) array-like
-            Starting point of the arc.
+        Parameters
+        ---------------------------
         radius : float
-            Radius of the arc.
+            The radius of the arc.
         angle : float
-            Angle of the arc in radians.
-        normal : (3,) array-like, optional
-            Normal vector defining the plane of the arc (default is [0, 1, 0]).
-        reverse : bool, optional
-            If True, reverse the arc direction (default is False).
-
-        Returns:
-        ------------------------------------
+            The angle subtended by the arc (in radians).
+        start: (3,) float
+            The start point of the arc.
+        plane_normal : (3,) float
+            The normal vector of the plane containing the arc.
+        direction : (3,) float
+            A tangent of the arc at the starting point. Does not need to be normalized. 
+        Returns
+        ----------------------------
         Path
-            The rotated and translated arc as a path object.
+            A Path object representing the arc.
         """
-        # Compute the center of the arc
-        center = np.array(start) - radius * np.array([1., 0, 0])
-        center_path = Path.line([0, 0, 0], center)
+        start = np.array(start, dtype=float)
+        plane_normal=np.array(plane_normal, dtype=float)
+        direction= np.array(direction, dtype=float)
+    
+        dot_product = np.dot(direction, plane_normal)
 
-        # Create the arc in the default plane
-        arc = Path.arc_from_zero(radius, arc_angle)
-
-        # Rotate the center path and the arc to align with the desired normal
-        current_normal = [0., 1., 0.]  # Default plane normal
-        center_path = center_path.rotate_to_plane(current_normal=current_normal, target_normal=normal)
-        arc = arc.rotate_to_plane(current_normal=current_normal, target_normal=normal)
+        if not np.isclose(dot_product, 0, atol=1e-7):
+            corrected_direction = direction - (dot_product / np.linalg.norm(plane_normal)**2) * plane_normal
+            raise AssertionError(
+                f"The provided direction {direction} does not lie in the specified plane. \n"
+                f"The closed valid direction is {corrected_direction}.")
         
-        # Move the arc to the new center
-        center = center_path.endpoint()
+        direction /= np.linalg.norm(direction)
+        plane_normal /= np.linalg.norm(plane_normal)
 
-        arc = arc.move(*center)
-        return arc.rotate_around_axis(axis=normal, angle=start_angle, origin=start)
+        center = start - radius * np.cross(plane_normal, direction)
+        start_to_center = start - center
+        
+        def f(l):
+            theta = l/radius
+            return center + np.cos(theta) * start_to_center + np.sin(theta)*np.cross(start_to_center, plane_normal)
+        
+        return Path(f, radius * angle)
+    
+    def arc_to2(self, radius, angle, plane_normal=[0, 1, 0]):
+        plane_normal = np.array(plane_normal, dtype=float)
+        start_point = self.endpoint()
+        tangent = self.tangent(self.path_length)
 
-    def arc_to_with_angle(self, radius, arc_angle, normal, reverse=False):
-        """Extend the current path using an arc.
+        dot_product = np.dot(tangent, plane_normal)
+        if not np.isclose(dot_product, 0,atol=1e-7):
+
+            corrected_normal = plane_normal - (dot_product / np.linalg.norm(tangent)**2) * tangent
+            raise AssertionError(
+                f"The provided plane normal {plane_normal} is not orthogonal to the tangent {tangent}  \n"
+                f"of the path at the endpoint. No smooth arc can be made. The closest valid normal is "
+                f"{np.round(corrected_normal,8)}.")
+        
+        plane_normal /= np.linalg.norm(plane_normal)
+
+        return self >> Path.arc2(radius, angle, start_point, plane_normal, tangent)
+
+    def reversed(self):
+        """Generate a reversed version of the current path.
+        The reversed path is created by inverting the traversal direction,
+        such that the start becomes the end and vice versa.
+
+        Returns
+        ----------------------------
+        Path
+            A new path object representing the reversed traversal
+            """
+        return Path(lambda t: self(self.path_length-t), self.path_length, self.breakpoints, self.name)
+    
+    def tangent(self, t, num_splines=1000):
+        """Calculate the tangent vector at a specific point on the path.
+        The tangent is computed using cubic spline interpolation for accurate results.
+        The method ensures that the specified point `t` is included in the interpolation
+        to improve the precision of the tangent calculation.
 
         Parameters
         ----------------------------
-        center: (3,) float
-            The center point of the arc.
-        end: (3,) float
-            The endpoint of the arc, shoud lie on a circle determined
-            by the given centerpoint and the current endpoint.
+        t : float
+            The point on the path at which to calculate the tangent
+        num_splines : int
+            The number of samples used for cubic spline interpolation
 
         Returns
-        -----------------------------
-        Path"""
-
-        start = self.endpoint()
-        tangent = self.tangent(t=self.path_length) 
-
-        tangent /=  np.linalg.norm(tangent)
-        normal /= np.linalg.norm(normal)
-
-        to_center = np.cross(normal, tangent)
-        print(to_center)
-        center = np.array(start) + radius*to_center
-
-        arc = Path.arc_from_zero(radius, arc_angle)
-
-        # Rotate the center path and the arc to align with the desired normal
-        current_normal = [0., 1., 0.]  # Default plane normal
-
-        arc = arc.rotate_to_plane(current_normal=current_normal, target_normal=normal)
-        dir_angle = np.arccos(np.dot(to_center, np.array([1,0,0])))
-
-        arc = arc.rotate_around_axis(normal, dir_angle, start)
-        
-        return self >> arc.move(*center)
-
-    
-    def tangent(self, t, num_splines=1000):
+        ----------------------------
+        np.ndarray
+            The tangent vector at the specified point `t` on the path."""
         samples = np.linspace(0, self.path_length, num_splines) 
         
-        #include t to slightly improve accuracy
+        # Include t to slightly improve accuracy
         if not t in samples:
             samples = np.append(samples, t)
             samples = np.sort(samples)
-        
+
         splines = CubicSpline(samples, [self(s) for s in samples])
         tangent = splines.derivative()(t)
         

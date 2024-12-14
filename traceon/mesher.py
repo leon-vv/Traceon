@@ -103,7 +103,7 @@ class GeometricObject(ABC):
 
         return self.map_points(lambda p: origin + matrix @ (p - origin))
     
-    def rotate_around_axis(self, axis=[0., 1., 0.], angle=0., origin=[0., 0., 0.]):
+    def rotate_around_axis(self, axis=[0., 0, 1.], angle=0., origin=[0., 0., 0.]):
         """
         Rotate around a general axis defined by a vector. The rotation follows the 
         **right-hand rule**: Rotation follows the **right-hand rule**: if the normal 
@@ -134,15 +134,16 @@ class GeometricObject(ABC):
         K = np.array([
             [0, -axis[2], axis[1]],
             [axis[2], 0, -axis[0]],
-            [-axis[1], axis[0], 0]
-        ])
+            [-axis[1], axis[0], 0]])
+        
+        K2 = K @ K
         I = np.eye(3)
-        R = I + np.sin(angle) * K + (1 - np.cos(angle)) * (K @ K)
+        R = I + np.sin(angle) * K + (1 - np.cos(angle)) * K2
 
         return self.map_points(lambda p: origin + R @ (p - origin))
 
     
-    def rotate_to_plane(self, current_normal=[0., 1., 0.], target_normal=[0., 1., 0.], origin=[0., 0., 0.]):
+    def rotate_to_plane(self, current_normal=[0., 0, 1.], target_normal=[0., 0., 1.], origin=[0., 0., 0.]):
         """
         Rotate the object to align with a plane defined by its normal vector.
 
@@ -173,9 +174,11 @@ class GeometricObject(ABC):
             return self
         axis /= axis_norm
 
-        angle = np.arccos(np.dot(current_normal, target_normal))#, -1.0, 1.0))
+        angle = np.pi + np.arccos(np.clip(np.dot(current_normal, target_normal), -1., 1.))
 
         return self.rotate_around_axis(axis=axis, angle=angle, origin=origin)
+
+        
 
     def mirror_xz(self):
         """Mirror object in the XZ plane.
