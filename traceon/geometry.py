@@ -700,17 +700,15 @@ class Path(GeometricObject):
         plane_normal = np.array(plane_normal, dtype=float)
         direction = np.array(direction, dtype=float)
 
-        dot_product = np.dot(direction, plane_normal)
+        direction_unit = direction / np.linalg.norm(direction)
+        plane_normal_unit = plane_normal / np.linalg.norm(plane_normal)
 
-        if not np.isclose(dot_product, 0, atol=1e-7):
-            corrected_direction = direction - (dot_product / np.linalg.norm(plane_normal)**2) * plane_normal
+        if not np.isclose(np.dot(direction_unit, plane_normal_unit), 0., atol=1e-7):
+            corrected_direction = direction - np.dot(direction, plane_normal_unit) * plane_normal_unit
             raise AssertionError(
                 f"The provided direction {direction} does not lie in the specified plane. \n"
                 f"The closed valid direction is {np.round(corrected_direction, 10)}.")
         
-        direction /= np.linalg.norm(direction)
-        plane_normal /= np.linalg.norm(plane_normal)
-
         if angle < 0:
             direction, angle = -direction, -angle
 
@@ -742,20 +740,18 @@ class Path(GeometricObject):
         Path"""
         plane_normal = np.array(plane_normal, dtype=float)
         start_point = self.endpoint()
-        tangent = self.tangent(self.path_length)
+        direction = self.tangent(self.path_length)
 
-        dot_product = np.dot(tangent, plane_normal)
-        if not np.isclose(dot_product, 0,atol=1e-7):
-
-            corrected_normal = plane_normal - (dot_product / np.linalg.norm(tangent)**2) * tangent
+        plane_normal_unit = plane_normal / np.linalg.norm(plane_normal)
+        
+        if not np.isclose(np.dot(plane_normal_unit, direction), 0,atol=1e-7):
+            corrected_normal = plane_normal - np.dot(direction, plane_normal) * direction
             raise AssertionError(
-                f"The provided plane normal {plane_normal} is not orthogonal to the tangent {tangent}  \n"
+                f"The provided plane normal {plane_normal} is not orthogonal to the direction {direction}  \n"
                 f"of the path at the endpoint so no smooth arc can be made. The closest valid normal is "
                 f"{np.round(corrected_normal, 10)}.")
         
-        plane_normal /= np.linalg.norm(plane_normal)
-
-        return self >> Path.polar_arc(radius, angle, start_point, tangent, plane_normal)
+        return self >> Path.polar_arc(radius, angle, start_point, direction, plane_normal)
 
     def reverse(self):
         """Generate a reversed version of the current path.
