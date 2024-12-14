@@ -175,7 +175,7 @@ field_radial(double point[3], double result[3], double* charges, jacobian_buffer
 struct field_evaluation_args {
 	void *elec_charges;
 	void *mag_charges;
-	void *current_charges;
+	void *currents;
 	double *bounds;
 };
 

@@ -924,7 +924,7 @@ class Field3D_BEM(FieldBEM):
     def current_field_at_point(self, point_):
         point = np.array(point_, dtype=np.double)
         eff = self.current_point_charges
-        return backend.current_field_at_point_3d(point, eff.charges, eff.jacobians, eff.positions, eff.directions)
+        return backend.current_field_at_point_3d(point, eff)
         
     def electrostatic_field_at_point(self, point_):
         """

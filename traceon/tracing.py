@@ -180,7 +180,8 @@ class Tracer3D_BEM(Tracer):
         charge_over_mass = charge / mass
         velocity = _convert_velocity_to_SI(velocity, mass)
         elec, mag = self.field.electrostatic_point_charges, self.field.magnetostatic_point_charges
-        return backend.trace_particle_3d(position, velocity, charge_over_mass, self.bounds, atol, elec, mag, field_bounds=self.field.field_bounds)
+        currents = self.field.current_point_charges
+        return backend.trace_particle_3d(position, velocity, charge_over_mass, self.bounds, atol, elec, mag, currents, field_bounds=self.field.field_bounds)
 
 class Tracer3DAxial(Tracer):
     def __call__(self, position, velocity, mass=m_e, charge=-e, atol=1e-10):

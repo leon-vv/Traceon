@@ -117,7 +117,7 @@ field_radial_traceable(double point[6], double result[3], void *args_p) {
 
 	struct effective_point_charges_2d *elec_charges = (struct effective_point_charges_2d*) args->elec_charges;
 	struct effective_point_charges_2d *mag_charges = (struct effective_point_charges_2d*) args->mag_charges;
-	struct effective_point_charges_3d *current_charges = (struct effective_point_charges_3d*) args->current_charges;
+	struct effective_point_charges_3d *current_charges = (struct effective_point_charges_3d*) args->currents;
 	
 	double (*bounds)[2] = (double (*)[2]) args->bounds;
 	
@@ -157,7 +157,7 @@ trace_particle_radial(double *times_array, double *pos_array, double charge_over
 	struct field_evaluation_args args = {
 		.elec_charges = (void*) &eff_elec,
 		.mag_charges = (void*) &eff_mag,
-		.current_charges = (void*) &eff_current,
+		.currents = (void*) &eff_current,
 		.bounds = field_bounds
 	};
 		
@@ -192,6 +192,7 @@ field_3d_traceable(double point[6], double result[3], void *args_p) {
 	struct field_evaluation_args *args = (struct field_evaluation_args*)args_p;
 	struct effective_point_charges_3d *elec_charges = (struct effective_point_charges_3d*) args->elec_charges;
 	struct effective_point_charges_3d *mag_charges = (struct effective_point_charges_3d*) args->mag_charges;
+	struct effective_point_currents_3d *currents = (struct effective_point_currents_3d*) args->currents;
 	
 	double (*bounds)[2] = (double (*)[2]) args->bounds;
 	
@@ -205,6 +206,8 @@ field_3d_traceable(double point[6], double result[3], void *args_p) {
 			
 		field_3d(point, elec_field, elec_charges->charges, elec_charges->jacobians, elec_charges->positions, elec_charges->N);
 		field_3d(point, mag_field, mag_charges->charges, mag_charges->jacobians, mag_charges->positions, mag_charges->N);
+		current_field_at_point_3d(point, *currents, curr_field);
+		field_3d(point, mag_field, mag_charges->charges, mag_charges->jacobians, mag_charges->positions, mag_charges->N);
 		combine_elec_magnetic_field(point + 3, elec_field, mag_field, curr_field, result);
 	}
 	else {
@@ -215,10 +218,20 @@ field_3d_traceable(double point[6], double result[3], void *args_p) {
 }
 
 EXPORT size_t
-trace_particle_3d(double *times_array, double *pos_array, double charge_over_mass, double tracer_bounds[3][2], double atol,
-		struct effective_point_charges_3d eff_elec, struct effective_point_charges_3d eff_mag, double *field_bounds) {
+trace_particle_3d(double *times_array, double *pos_array, double charge_over_mass,
+		double tracer_bounds[3][2],
+		double atol,
+		struct effective_point_charges_3d eff_elec,
+		struct effective_point_charges_3d eff_mag,
+		struct effective_point_currents_3d eff_currents,
+		double *field_bounds) {
 	
-	struct field_evaluation_args args = {.elec_charges = (void*) &eff_elec, .mag_charges = (void*) &eff_mag, .bounds = field_bounds};
+	struct field_evaluation_args args = {
+		.elec_charges = (void*) &eff_elec,
+		.mag_charges = (void*) &eff_mag,
+		.currents = (void*) &eff_currents,
+		.bounds = field_bounds
+	};
 	
 	return trace_particle(times_array, pos_array, charge_over_mass, field_3d_traceable, tracer_bounds, atol, (void*) &args);
 }

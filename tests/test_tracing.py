@@ -1,11 +1,14 @@
 import unittest
 from math import sqrt
 
+import matplotlib.pyplot as plt
 import numpy as np
 from scipy.integrate import solve_ivp
 from scipy.constants import m_e, e, mu_0, epsilon_0
 from scipy.interpolate import CubicSpline
 
+import traceon.geometry as G
+import traceon.excitation as E
 import traceon.backend as B
 import traceon.solver as S
 import traceon.tracing as T
@@ -115,7 +118,65 @@ class TestTracing(unittest.TestCase):
         interp = CubicSpline(positions[::-1, 2], np.array([positions[::-1, 0], positions[::-1, 1]]).T)
         
         assert np.allclose(interp(sol.y[2]), np.array([sol.y[0], sol.y[1]]).T, atol=1e-4, rtol=5e-5)
-    
+
+    def test_magnetic_deflection_radial_three_d(self):
+        # Radial symmetric
+        circle1 = G.Surface.disk_xz(1.0, 3.0, 0.1)
+        circle1.name = 'circle1'
+
+        circle2 = G.Surface.disk_xz(1.0, -3.0, 0.1)
+        circle2.name = 'circle2'
+
+        mesh_radial = (circle1+circle2).mesh(mesh_size_factor=2)
+
+        exc = E.Excitation(mesh_radial, E.Symmetry.RADIAL)
+        exc.add_current(circle1=2.0, circle2=2.0)
+
+        field_radial = S.solve_direct(exc)
+
+        # Three D
+
+        circle1 = G.Path.circle_xy(0., 0., 1.0).move(dz=3.0)
+        circle1.name = 'circle1'
+
+        circle2 = G.Path.circle_xy(0., 0., 1.0).move(dz=-3.0)
+        circle2.name = 'circle2'
+
+        mesh_three_d = (circle1+circle2).mesh(mesh_size_factor=15)
+
+        exc = E.Excitation(mesh_three_d, E.Symmetry.THREE_D)
+        exc.add_current(circle1=2.0, circle2=2.0)
+
+        field_three_d = S.solve_direct(exc)
+        
+        x = np.linspace(-30, 30, 10)
+        H_radial = [field_radial.current_field_at_point([x_, 0., 0.])[2] for x_ in x]
+        H_three_d = [field_three_d.current_field_at_point([x_, 0., 0.])[2] for x_ in x]
+        
+        assert np.allclose(H_radial, H_three_d, rtol=1.5e-2)
+
+        # Trace particles and compare
+
+        bounds = [(-20, 2.5), (-10, 10), (-10, 10)]
+        tracer_radial = field_radial.get_tracer(bounds)
+        tracer_three_d = field_three_d.get_tracer(bounds)
+
+        v0 = [100., 0., 0.]
+        x0s = [-10]
+
+        positions_radial = [tracer_radial([x0, 0., 0.], v0, atol=1e-5)[1] for x0 in x0s][0]
+        positions_three_d = [tracer_three_d([x0, 0., 0.], v0, atol=1e-5)[1] for x0 in x0s][0]
+
+        assert np.allclose(positions_radial[:, 2], 0.0)
+        assert np.allclose(positions_three_d[:, 2], 0.0)
+
+        spline_radial = CubicSpline(positions_radial[:, 0], positions_radial[:, 1])
+        spline_three_d = CubicSpline(positions_three_d[:, 0], positions_three_d[:, 1])
+        
+        x = np.linspace(-1.5, 5.0, 10)
+
+        assert np.allclose(spline_radial(x), spline_three_d(x), atol=0.0005)
+        
     def test_plane_intersection(self):
         p = np.array([
             [3, 0, 0, 0, 0, 0],

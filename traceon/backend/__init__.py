@@ -139,19 +139,23 @@ class EffectivePointCurrents3D(C.Structure):
         ("N", C.c_size_t)
     ]
     
-    def __init__(self, currents, jacobians, positions, directions, *args, **kwargs):
+    def __init__(self, eff, *args, **kwargs):
         super(EffectivePointCurrents3D, self).__init__(*args, **kwargs)
 
+        # In solver.py we use consistently the EffectivePointCharges class
+        # so when storing effective point currents, the charges are actually currents
+        currents = eff.charges
+        
         N = len(currents)
         assert currents.shape == (N,) and currents.dtype == np.double
-        assert jacobians.shape == (N, N_QUAD_2D) and jacobians.dtype == np.double
-        assert positions.shape == (N, N_QUAD_2D, 3) and positions.dtype == np.double
-        assert directions.shape == (N, N_QUAD_2D, 3) and directions.dtype == np.double
+        assert eff.jacobians.shape == (N, N_QUAD_2D) and eff.jacobians.dtype == np.double
+        assert eff.positions.shape == (N, N_QUAD_2D, 3) and eff.positions.dtype == np.double
+        assert eff.directions.shape == (N, N_QUAD_2D, 3) and eff.directions.dtype == np.double
          
         self.currents = ensure_contiguous_aligned(currents).ctypes.data_as(dbl_p)
-        self.jacobians = ensure_contiguous_aligned(jacobians).ctypes.data_as(dbl_p)
-        self.positions = ensure_contiguous_aligned(positions).ctypes.data_as(dbl_p)
-        self.directions = ensure_contiguous_aligned(directions).ctypes.data_as(dbl_p)
+        self.jacobians = ensure_contiguous_aligned(eff.jacobians).ctypes.data_as(dbl_p)
+        self.positions = ensure_contiguous_aligned(eff.positions).ctypes.data_as(dbl_p)
+        self.directions = ensure_contiguous_aligned(eff.directions).ctypes.data_as(dbl_p)
         self.N = N
 
 
@@ -201,7 +205,7 @@ backend_functions = {
     'potential_3d': (dbl, v3, charges_3d, jac_buffer_3d, pos_buffer_3d, sz),
     'potential_3d_derivs': (dbl, v3, z_values, arr(ndim=5), sz),
     'field_3d': (None, v3, v3, charges_3d, jac_buffer_3d, pos_buffer_3d, sz),
-    'trace_particle_3d': (sz, times_block, tracing_block, dbl, bounds, dbl, EffectivePointCharges3D, EffectivePointCharges3D, dbl_p),
+    'trace_particle_3d': (sz, times_block, tracing_block, dbl, bounds, dbl, EffectivePointCharges3D, EffectivePointCharges3D, EffectivePointCurrents3D, dbl_p),
     'field_3d_derivs': (None, v3, v3, z_values, arr(ndim=5), sz),
     'trace_particle_3d_derivs': (sz, times_block, tracing_block, dbl, bounds, dbl, z_values, arr(ndim=5), arr(ndim=5), sz),
     'current_potential_axial_radial_ring': (dbl, dbl, dbl, dbl),
@@ -390,7 +394,7 @@ def trace_particle_radial_derivs(position, velocity, charge_over_mass, bounds, a
     
     return times, positions
 
-def trace_particle_3d(position, velocity, charge_over_mass, bounds, atol, eff_elec, eff_mag, field_bounds=None):
+def trace_particle_3d(position, velocity, charge_over_mass, bounds, atol, eff_elec, eff_mag, eff_currents, field_bounds=None):
     assert field_bounds is None or field_bounds.shape == (3,2)
      
     bounds = np.array(bounds)
@@ -399,9 +403,10 @@ def trace_particle_3d(position, velocity, charge_over_mass, bounds, atol, eff_el
 
     eff_elec = EffectivePointCharges3D(eff_elec)
     eff_mag = EffectivePointCharges3D(eff_mag)
+    eff_currents = EffectivePointCurrents3D(eff_currents)
      
     return trace_particle_wrapper(position, velocity,
-        lambda T, P: backend_lib.trace_particle_3d(T, P, charge_over_mass, bounds, atol, eff_elec, eff_mag, field_bounds))
+        lambda T, P: backend_lib.trace_particle_3d(T, P, charge_over_mass, bounds, atol, eff_elec, eff_mag, eff_currents, field_bounds))
 
 def trace_particle_3d_derivs(position, velocity, charge_over_mass, bounds, atol, z, electrostatic_coeffs, magnetostatic_coeffs):
     assert electrostatic_coeffs.shape == (len(z)-1, 2, NU_MAX, M_MAX, 4)
@@ -494,10 +499,10 @@ def fill_jacobian_buffer_current_three_d(lines):
 
     return jacobians, positions, directions
 
-def current_field_at_point_3d(point, currents, jacobians, positions, directions):
+def current_field_at_point_3d(point, eff):
     assert point.shape == (3,) 
     
-    eff = EffectivePointCurrents3D(currents, jacobians, positions, directions)
+    eff = EffectivePointCurrents3D(eff)
     
     result = np.zeros(3)
     backend_lib.current_field_at_point_3d(point, eff, result)
