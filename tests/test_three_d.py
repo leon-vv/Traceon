@@ -21,8 +21,8 @@ class TestThreeD(unittest.TestCase):
         #Define surface
         THICKNESS = 1
         path = G.Path.line([0.0, 0.0, 0.0], [0.0, 0.0,THICKNESS])\
-            .line_to([1., 0.0, THICKNESS])\
-            .line_to([1., 0.0, 0.0])\
+            .extend_with_line([1., 0.0, THICKNESS])\
+            .extend_with_line([1., 0.0, 0.0])\
             .close()
 
         surf = path.revolve_z()
@@ -65,7 +65,7 @@ class TestThreeD(unittest.TestCase):
         ground.name = 'ground'
     
         boundary = G.Path.line([0., 0., 1.75], [rmax, 0., 1.75]) \
-            .line_to([rmax, 0., -0.3]).line_to([0., 0., -0.3])
+            .extend_with_line([rmax, 0., -0.3]).extend_with_line([0., 0., -0.3])
         boundary.name = 'boundary'
         
         geom = mirror+mirror_line+lens+ground+boundary

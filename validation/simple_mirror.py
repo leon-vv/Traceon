@@ -30,7 +30,7 @@ class SimpleMirror(Validation):
             return [4, 8, 16, 32]
     
     def create_mesh(self, MSF, symmetry, higher_order):
-        boundary = G.Path.line([0, 0, -1], [2, 0, -1]).line_to([2, 0, 1]).line_to([0.3, 0., 1])
+        boundary = G.Path.line([0, 0, -1], [2, 0, -1]).extend_with_line([2, 0, 1]).extend_with_line([0.3, 0., 1])
         mirror = G.Path.line([0., 0., 0.], [1., 0., 0.])
 
         boundary.name = 'boundary'

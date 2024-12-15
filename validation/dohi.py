@@ -53,7 +53,7 @@ class DohiMirror(Validation):
         ground.name = 'ground'
     
         boundary = G.Path.line([0., 0., 1.75], [rmax, 0., 1.75]) \
-            .line_to([rmax, 0., -0.3]).line_to([0., 0., -0.3])
+            .extend_with_line([rmax, 0., -0.3]).extend_with_line([0., 0., -0.3])
         boundary.name = 'boundary'
         
         geom = mirror+mirror_line+lens+ground+boundary
