@@ -10,7 +10,7 @@ The core of Traceon is completely free to use and open source. There is a commer
 
 [Examples](https://github.com/leon-vv/Traceon/tree/main/examples)
 
-[API documentation v0.7.0](https://traceon.org/docs/v0.7.0/index.html)
+[API documentation v0.7.3](https://traceon.org/docs/v0.7.3/index.html)
 
 [API documentation v0.6.0](https://traceon.org/docs/v0.6.0/index.html)
 
