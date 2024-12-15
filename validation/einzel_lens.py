@@ -28,7 +28,7 @@ class EinzelLens(Validation):
     def create_mesh(self, MSF, symmetry, higher_order):
         
         boundary = G.Path.line([0., 0., 1.75],  [2.0, 0., 1.75])\
-            .line_to([2.0, 0., -1.75]).line_to([0., 0., -1.75])
+            .extend_with_line([2.0, 0., -1.75]).extend_with_line([0., 0., -1.75])
 
 
         margin_right = 0.1

@@ -30,9 +30,9 @@ class TwoCylinderEdwards(Validation):
     def create_mesh(self, MSF, symmetry, higher_order):
         cylinder_length = (boundary_length - gap_size)/2
         
-        bottom  = G.Path.line([0., 0., 0.], [R, 0., 0.]).line_to([R, 0., cylinder_length])
+        bottom  = G.Path.line([0., 0., 0.], [R, 0., 0.]).extend_with_line([R, 0., cylinder_length])
         gap = G.Path.line([R, 0., cylinder_length], [R, 0., cylinder_length+gap_size])
-        top = G.Path.line([R, 0., cylinder_length+gap_size], [R, 0., boundary_length]).line_to([0., 0., boundary_length])
+        top = G.Path.line([R, 0., cylinder_length+gap_size], [R, 0., boundary_length]).extend_with_line([0., 0., boundary_length])
 
         bottom.name = 'v1'
         gap.name = 'gap'
