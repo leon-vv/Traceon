@@ -10,6 +10,8 @@ The core of Traceon is completely free to use and open source. There is a commer
 
 [Examples](https://github.com/leon-vv/Traceon/tree/main/examples)
 
+[API documentation v0.8.0](https://traceon.org/docs/v0.8.0/index.html)
+
 [API documentation v0.7.3](https://traceon.org/docs/v0.7.3/index.html)
 
 [API documentation v0.6.0](https://traceon.org/docs/v0.6.0/index.html)
@@ -59,9 +61,21 @@ Don't worry. You can reach me.
 ![Image of Dohi mirror](https://raw.githubusercontent.com/leon-vv/traceon/main/images/dohi-mirror.png)
 ![Image of Einzel lens traces](https://raw.githubusercontent.com/leon-vv/traceon/main/images/einzel-lens-traces.png)
 
-## Features
+## Release notes
 
-v0.7.0:
+### v0.8.0
+- New plotting module (charge density, equipotential lines)
+- Automatic orientation of normal vectors
+- Geometry functions for extruding/revolving edges of surfaces
+- Tracing of particles other than electrons (charge, mass as input)
+- Various bug fixes and improvements
+
+**Breaking changes**:
+- Call `P.show()` after `P.plot_mesh()` to show figures
+- Normal vectors should be oriented automatically (please check if this works correctly for your geometry)
+<br />
+
+### v0.7.0
 - Generate structured, high quality meshes using the new parametric mesher (drop GMSH)
 - Consistenly use 3D points and geometries throughout codebase
 - Add support for Fast Multipole Method (Traceon Pro)
@@ -69,7 +83,7 @@ v0.7.0:
 - Big improvements to code quality, testing, infrastructure
 - Drop dependency on GSL
 
-v0.6.0:
+### v0.6.0:
 - New methods to integrate triangle potential and field contribution over a triangle
 - Fix 3D convergence issues by more accurately calculating neighbouring triangle interactions
 - Fix error calculation in particle tracing
@@ -77,18 +91,18 @@ v0.6.0:
 - Clean up unit tests
 - Remove higher order (curved) triangle support, in preparation of parametric meshers and improved FFM implementation
 
-v0.5.0:
+### v0.5.0:
 - Add preliminary support for magnetostatics
 - Improve and generalize mesh class (allow import/export)
 - Make consistent use of SI units
 
-v0.4.0:
+### v0.4.0:
 - Introduce Fast Multipole Method (FMM) for large 3D problems
 - Compute 3D radial expansion coefficients using analytical formulas
 - Further speed up computation of 3D radial expansion coefficients 
 - Big code quality improvement of validation/ files
 
-v0.3.0:
+### v0.3.0:
 - Use adaptive integration using GNU Scientific Library (GSL)
 - Add support for boundary constraint
 - Use [Vedo](https://vedo.embl.es/) for better plotting capabilities
@@ -96,12 +110,12 @@ v0.3.0:
 - Precompute jacobians/positions for better performance
 - First implementation of element splitting based on charges (work in progress)
 
-v0.2.0:
+### v0.2.0:
 - Use higher order charge distribution on line elements in radial symmetry
 - Use higher order line elements (polynomials) in radial symmetry
 - Better integration techniques, especially with regards to the logarithmic singularities
 
-v0.1.0:
+### v0.1.0:
 - Uses the powerful [GMSH library](https://gmsh.info/) for meshing
 - Solve for surface charge distribution using BEM
 - General 3D geometries and radially symmetric geometries
