@@ -10,6 +10,8 @@ The core of Traceon is completely free to use and open source. There is a commer
 
 [Examples](https://github.com/leon-vv/Traceon/tree/main/examples)
 
+[API documentation v0.8.0](https://traceon.org/docs/v0.8.0/index.html)
+
 [API documentation v0.7.3](https://traceon.org/docs/v0.7.3/index.html)
 
 [API documentation v0.6.0](https://traceon.org/docs/v0.6.0/index.html)
@@ -60,6 +62,17 @@ Don't worry. You can reach me.
 ![Image of Einzel lens traces](https://raw.githubusercontent.com/leon-vv/traceon/main/images/einzel-lens-traces.png)
 
 ## Features
+
+v0.8.0:
+- New plotting module (charge density, equipotential lines)
+- Automatic orientation of normal vectors
+- Geometry functions for extruding/revolving edges of surfaces
+- Tracing of particles other than electrons (charge, mass as input)
+- Various bug fixes and improvements
+
+**Breaking changes**:
+- Call `P.show()` after `P.plot_mesh()` to show figures
+- Normal vectors should be oriented automatically (please check if this works correctly for your geometry)
 
 v0.7.0:
 - Generate structured, high quality meshes using the new parametric mesher (drop GMSH)
