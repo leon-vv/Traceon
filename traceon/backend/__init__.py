@@ -407,13 +407,13 @@ def trace_particle_3d_derivs(position: np.ndarray, velocity: np.ndarray, charge_
         lambda T, P: backend_lib.trace_particle_3d_derivs(T, P, charge_over_mass, bounds, atol, z, electrostatic_coeffs, magnetostatic_coeffs, len(z)))
 
 def potential_radial_ring(r0: float, z0: float, delta_r: float, delta_z: float) -> float:
-    return backend_lib.potential_radial_ring(r0, z0, delta_r, delta_z)
+    return backend_lib.potential_radial_ring(r0, z0, delta_r, delta_z, None)
 
 def dr1_potential_radial_ring(r0: float, z0: float, delta_r: float, delta_z: float) -> float:
-    return backend_lib.dr1_potential_radial_ring(r0, z0, delta_r, delta_z)
+    return backend_lib.dr1_potential_radial_ring(r0, z0, delta_r, delta_z, None)
 
 def dz1_potential_radial_ring(r0: float, z0: float, delta_r: float, delta_z: float) -> float:
-    return backend_lib.dz1_potential_radial_ring(r0, z0, delta_r, delta_z)
+    return backend_lib.dz1_potential_radial_ring(r0, z0, delta_r, delta_z, None)
 
 def axial_derivatives_radial(z: np.ndarray, charges: np.ndarray, jac_buffer: np.ndarray, pos_buffer: np.ndarray) -> np.ndarray:
     derivs = np.zeros( (z.size, DERIV_2D_MAX) )
