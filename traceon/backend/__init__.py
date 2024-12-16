@@ -157,7 +157,7 @@ class FieldEvaluationArgsRadial(C.Structure):
         if bounds is None:
             self.bounds = None
         else:
-            self.bounds = ensure_contiguous_aligned(bounds).ctypes.data_as(C.c_double_p)
+            self.bounds = ensure_contiguous_aligned(bounds).ctypes.data_as(dbl_p)
 
 class FieldEvaluationArgs3D(C.Structure):
     _fields_ = [
@@ -178,7 +178,7 @@ class FieldEvaluationArgs3D(C.Structure):
         if bounds is None:
             self.bounds = None
         else:
-            self.bounds = ensure_contiguous_aligned(bounds).ctypes.data_as(C.c_double_p)
+            self.bounds = ensure_contiguous_aligned(bounds).ctypes.data_as(dbl_p)
 
 
 
@@ -425,7 +425,7 @@ def wrap_field_fun(ff: Callable) -> Callable:
     
     return field_fun(field_fun_wrapper)
 
-def trace_particle(position: np.ndarray, velocity: np.ndarray, charge_over_mass: float, field, bounds: np.ndarray, atol: float, args: C.c_void_p=None) -> Tuple[np.ndarray, np.ndarray]:
+def trace_particle(position: np.ndarray, velocity: np.ndarray, charge_over_mass: float, field, bounds: np.ndarray, atol: float, args =None) -> Tuple[np.ndarray, np.ndarray]:
     bounds = np.array(bounds)
      
     return trace_particle_wrapper(position, velocity,

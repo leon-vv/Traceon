@@ -508,7 +508,7 @@ class Field(ABC):
         if elec and not mag:
             return self.electrostatic_potential_at_point(point)
         elif not elec and mag:
-            return self.magnetostatic_potential_at_point(point)
+            return self.magnetostatic_potential_at_point(point) # type: ignore
          
         raise RuntimeError("Cannot use potential_at_point when both electric and magnetic fields are present, " \
             "use electrostatic_potential_at_point or magnetostatic_potential_at_point")
