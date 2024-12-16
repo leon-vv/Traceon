@@ -25,7 +25,7 @@ class TestTracing(unittest.TestCase):
 
         def field(*_):
             acceleration_x = 3 # mm/ns
-            return acceleration() / EM
+            return acceleration() / EM, np.zeros(3)
 
         bounds = ((-2.0, 2.0), (-2.0, 2.0), (-2.0, np.sqrt(12)+1))
         times, positions = B.trace_particle(np.zeros( (3,) ), np.array([0., 0., 3.]), EM, B.wrap_field_fun(field), bounds, 1e-10)
@@ -43,9 +43,8 @@ class TestTracing(unittest.TestCase):
             return np.hstack( (v, np.cross(v, B)) )
          
         def traceon_acc(pos, vel):
-            y = np.concatenate( (pos, vel) )
-            return acceleration(0., y)[3:] / EM
-        
+            return np.zeros(3), np.array([0, 0, 1])/(mu_0*EM)
+         
         p0 = np.zeros(3)
         v0 = np.array([0., 1, -1.])
         
@@ -197,11 +196,7 @@ class TestTracing(unittest.TestCase):
         bounds = ((-2., 2.), (0., 2.), (-2., 2.))
          
         def field(pos, vel):
-            x, y, z = pos
-            vx, vy, vz = vel
-            p, v = np.array([x,y,z]), np.array([vx, vy, vz])
-            mag_field = np.array([0, 0, -1.])
-            return np.cross(v, mag_field) / EM # Return acceleration
+            return np.zeros(3), np.array([0, 0, -1.])/(EM*mu_0)
         
         times, positions = B.trace_particle(x0, v0, EM, B.wrap_field_fun(field), bounds, 1e-10)
 

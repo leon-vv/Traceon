@@ -79,7 +79,14 @@ vp = C.c_void_p
 sz = C.c_size_t
 
 integration_cb_1d = C.CFUNCTYPE(dbl, dbl, vp)
-field_fun = C.CFUNCTYPE(None, C.POINTER(dbl), C.POINTER(dbl), C.POINTER(dbl), vp);
+
+# The low level field function has the following arguments:
+# - A pointer to position (three doubles)
+# - A pointer to velocity (three doubles)
+# - A pointer to auxillary data the field function needs
+# - A pointer to write the computed electric field (three doubles)
+# - A pointer to write the computed magnetic field (three doubles)
+field_fun = C.CFUNCTYPE(None, C.POINTER(dbl), C.POINTER(dbl), vp, C.POINTER(dbl), C.POINTER(dbl));
 
 vertices = arr(ndim=3)
 lines = arr(ndim=3)
@@ -227,7 +234,6 @@ backend_functions = {
     'flux_density_to_charge_factor': (dbl, dbl),
     'charge_radial': (dbl, arr(ndim=2), dbl),
     'field_radial': (None, v3, v3, charges_2d, jac_buffer_2d, pos_buffer_2d, sz),
-    'combine_elec_magnetic_field': (None, v3, v3, v3, v3, v3),
     'field_radial_derivs': (None, v3, v3, z_values, arr(ndim=3), sz),
     'dx1_potential_3d_point': (dbl, dbl, dbl, dbl, dbl, dbl, dbl, vp),
     'dy1_potential_3d_point': (dbl, dbl, dbl, dbl, dbl, dbl, dbl, vp),
@@ -405,12 +411,17 @@ def delta_position_and_jacobian_radial(alpha: float, v1: np.ndarray, v2: np.ndar
     return jac.value, pos
 
 def wrap_field_fun(ff: Callable) -> Callable:
-    def field_fun_wrapper(pos, vel, result, _):
-        acceleration = ff(np.array([pos[0], pos[1], pos[2]]), np.array([vel[0], vel[1], vel[2]]))
-        assert acceleration.shape == (3,)
-        result[0] = acceleration[0]
-        result[1] = acceleration[1]
-        result[2] = acceleration[2]
+    def field_fun_wrapper(pos, vel, _, elec_out, mag_out):
+        elec, mag = ff(np.array([pos[0], pos[1], pos[2]]), np.array([vel[0], vel[1], vel[2]]))
+        assert elec.shape == (3,) and mag.shape == (3,)
+
+        elec_out[0] = elec[0]
+        elec_out[1] = elec[1]
+        elec_out[2] = elec[2]
+        
+        mag_out[0] = mag[0]
+        mag_out[1] = mag[1]
+        mag_out[2] = mag[2]
     
     return field_fun(field_fun_wrapper)
 
@@ -505,11 +516,6 @@ def field_radial(point: np.ndarray, charges: np.ndarray, jac_buffer: np.ndarray,
     field = np.zeros( (3,) )
     backend_lib.field_radial(point.astype(np.float64), field, charges, jac_buffer, pos_buffer, len(charges))
     return field
-
-def combine_elec_magnetic_field(vel: np.ndarray, elec: np.ndarray, mag: np.ndarray, current: np.ndarray) -> np.ndarray:
-    result = np.zeros( (3,) )
-    backend_lib.combine_elec_magnetic_field(vel, elec, mag, current, result)
-    return result
 
 def field_radial_derivs(point: np.ndarray, z: np.ndarray, coeffs: np.ndarray) -> np.ndarray:
     assert point.shape == (3,)

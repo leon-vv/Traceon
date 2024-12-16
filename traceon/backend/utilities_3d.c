@@ -132,32 +132,3 @@ INLINE void position_and_jacobian_3d(double alpha, double beta, triangle t, doub
 	pos_out[2] = z;
 	*jac = 2*triangle_area(t[0], t[1], t[2]);
 }
-
-// Compute E + v x B, which is used in the Lorentz force law to calculate the force
-// on the particle. The magnetic field produced by magnetiziation and the magnetic field
-// produced by currents are passed in separately, but can simpy be summed to find the total
-// magnetic field.
-EXPORT void
-combine_elec_magnetic_field(double velocity[3], double elec_field[3],
-		double mag_field[3], double current_field[3], double result[3]) {
-		
-	double total_mag[3] = {0.}; // Total magnetic field, produced by charges and currents
-		
-	// Important: Traceon always computes the H field
-	// Therefore when converting from H to B we need to multiply
-	// by mu_0.
-	total_mag[0] = MU_0*(mag_field[0] + current_field[0]);
-	total_mag[1] = MU_0*(mag_field[1] + current_field[1]);
-	total_mag[2] = MU_0*(mag_field[2] + current_field[2]);
-			
-	double cross[3] = {0.};
-		
-	// Calculate v x B
-	cross_product_3d(velocity, total_mag, cross);
-	
-	result[0] = elec_field[0] + cross[0];
-	result[1] = elec_field[1] + cross[1];
-	result[2] = elec_field[2] + cross[2];
-}
-
-
