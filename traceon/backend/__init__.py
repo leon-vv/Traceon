@@ -218,10 +218,24 @@ for (fun, (res, *args)) in backend_functions.items():
     libfun.restype = res
     libfun.argtypes = args
 
-self_potential_triangle_v0 = backend_lib.self_potential_triangle_v0
-self_potential_triangle = backend_lib.self_potential_triangle
-potential_triangle = backend_lib.potential_triangle
-flux_triangle = backend_lib.flux_triangle
+def self_potential_triangle_v0(v0: np.ndarray, v1: np.ndarray, v2: np.ndarray) -> float:
+    assert v0.shape == (3,) and v1.shape == (3,) and v2.shape == (3,)
+    return backend_lib.self_potential_triangle_v0(v0, v1, v2)
+
+def self_potential_triangle(v0: np.ndarray, v1: np.ndarray, v2: np.ndarray, target: np.ndarray) -> float:
+    assert v0.shape == (3,) and v1.shape == (3,) and v2.shape == (3,)
+    assert target.shape == (3,)
+    return backend_lib.self_potential_triangle(v0, v1, v2, target)
+
+def potential_triangle(v0: np.ndarray, v1: np.ndarray, v2: np.ndarray, target: np.ndarray) -> float:
+    assert v0.shape == (3,) and v1.shape == (3,) and v2.shape == (3,)
+    assert target.shape == (3,)
+    return backend_lib.potential_triangle(v0, v1, v2, target)
+
+def flux_triangle(v0: np.ndarray, v1: np.ndarray, v2: np.ndarray, target: np.ndarray, normal: np.ndarray) -> float:
+    assert v0.shape == (3,) and v1.shape == (3,) and v2.shape == (3,)
+    assert target.shape == (3,) and normal.shape == (3,)
+    return backend_lib.flux_triangle(v0, v1, v2, target, normal)
 
 ellipkm1 = np.vectorize(backend_lib.ellipkm1)
 ellipk = np.vectorize(backend_lib.ellipk)
