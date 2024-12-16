@@ -361,15 +361,7 @@ def trace_particle_wrapper(position_: np.ndarray, velocity_: np.ndarray,
     else:
         return np.concatenate(times_blocks), np.concatenate(pos_blocks)
 
-def wrap_field_fun(ff: Callable) -> Callable:
-    def wrapper(y, result, _):
-        field = ff(y[0], y[1], y[2], y[3], y[4], y[5])
-        assert field.shape == (3,)
-        result[0] = field[0]
-        result[1] = field[1]
-        result[2] = field[2]
-    
-    return field_fun(wrapper)
+
 
 def position_and_jacobian_3d(alpha: float, beta: float, triangle: np.ndarray) -> Tuple[float, np.ndarray]:
     assert triangle.shape == (3, 3)
@@ -412,7 +404,15 @@ def delta_position_and_jacobian_radial(alpha: float, v1: np.ndarray, v2: np.ndar
     
     return jac.value, pos
 
-
+def wrap_field_fun(ff: Callable) -> Callable:
+    def wrapper(y, result, _):
+        field = ff(y[0], y[1], y[2], y[3], y[4], y[5])
+        assert field.shape == (3,)
+        result[0] = field[0]
+        result[1] = field[1]
+        result[2] = field[2]
+    
+    return field_fun(wrapper)
 
 def trace_particle(position: np.ndarray, velocity: np.ndarray, charge_over_mass: float, field, bounds: np.ndarray, atol: float, args: C.c_void_p=None) -> Tuple[np.ndarray, np.ndarray]:
     bounds = np.array(bounds)
