@@ -1,0 +1,1397 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, minimum-scale=1">
+<meta name="generator" content="pdoc3 0.11.1">
+<title>traceon.solver API documentation</title>
+<meta name="description" content="The solver module uses the Boundary Element Method (BEM) to compute the surface charge distribution of a given
+geometry and excitation. Once the …">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/10up-sanitize.css/13.0.0/sanitize.min.css" integrity="sha512-y1dtMcuvtTMJc1yPgEqF0ZjQbhnc/bFhyvIyVNb9Zk5mIGtqVaAB1Ttl28su8AvFMOY0EwRbAe+HCLqj6W7/KA==" crossorigin>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/10up-sanitize.css/13.0.0/typography.min.css" integrity="sha512-Y1DYSb995BAfxobCkKepB1BqJJTPrOp3zPL74AWFugHHmmdcvO+C48WLrUOlhGMc0QG7AE3f7gmvvcrmX2fDoA==" crossorigin>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/default.min.css" crossorigin>
+<style>:root{--highlight-color:#fe9}.flex{display:flex !important}body{line-height:1.5em}#content{padding:20px}#sidebar{padding:1.5em;overflow:hidden}#sidebar > *:last-child{margin-bottom:2cm}.http-server-breadcrumbs{font-size:130%;margin:0 0 15px 0}#footer{font-size:.75em;padding:5px 30px;border-top:1px solid #ddd;text-align:right}#footer p{margin:0 0 0 1em;display:inline-block}#footer p:last-child{margin-right:30px}h1,h2,h3,h4,h5{font-weight:300}h1{font-size:2.5em;line-height:1.1em}h2{font-size:1.75em;margin:2em 0 .50em 0}h3{font-size:1.4em;margin:1.6em 0 .7em 0}h4{margin:0;font-size:105%}h1:target,h2:target,h3:target,h4:target,h5:target,h6:target{background:var(--highlight-color);padding:.2em 0}a{color:#058;text-decoration:none;transition:color .2s ease-in-out}a:visited{color:#503}a:hover{color:#b62}.title code{font-weight:bold}h2[id^="header-"]{margin-top:2em}.ident{color:#900;font-weight:bold}pre code{font-size:.8em;line-height:1.4em;padding:1em;display:block}code{background:#f3f3f3;font-family:"DejaVu Sans Mono",monospace;padding:1px 4px;overflow-wrap:break-word}h1 code{background:transparent}pre{border-top:1px solid #ccc;border-bottom:1px solid #ccc;margin:1em 0}#http-server-module-list{display:flex;flex-flow:column}#http-server-module-list div{display:flex}#http-server-module-list dt{min-width:10%}#http-server-module-list p{margin-top:0}.toc ul,#index{list-style-type:none;margin:0;padding:0}#index code{background:transparent}#index h3{border-bottom:1px solid #ddd}#index ul{padding:0}#index h4{margin-top:.6em;font-weight:bold}@media (min-width:200ex){#index .two-column{column-count:2}}@media (min-width:300ex){#index .two-column{column-count:3}}dl{margin-bottom:2em}dl dl:last-child{margin-bottom:4em}dd{margin:0 0 1em 3em}#header-classes + dl > dd{margin-bottom:3em}dd dd{margin-left:2em}dd p{margin:10px 0}.name{background:#eee;font-size:.85em;padding:5px 10px;display:inline-block;min-width:40%}.name:hover{background:#e0e0e0}dt:target .name{background:var(--highlight-color)}.name > span:first-child{white-space:nowrap}.name.class > span:nth-child(2){margin-left:.4em}.inherited{color:#999;border-left:5px solid #eee;padding-left:1em}.inheritance em{font-style:normal;font-weight:bold}.desc h2{font-weight:400;font-size:1.25em}.desc h3{font-size:1em}.desc dt code{background:inherit}.source summary,.git-link-div{color:#666;text-align:right;font-weight:400;font-size:.8em;text-transform:uppercase}.source summary > *{white-space:nowrap;cursor:pointer}.git-link{color:inherit;margin-left:1em}.source pre{max-height:500px;overflow:auto;margin:0}.source pre code{font-size:12px;overflow:visible}.hlist{list-style:none}.hlist li{display:inline}.hlist li:after{content:',\2002'}.hlist li:last-child:after{content:none}.hlist .hlist{display:inline;padding-left:1em}img{max-width:100%}td{padding:0 .5em}.admonition{padding:.1em 1em;margin-bottom:1em}.admonition-title{font-weight:bold}.admonition.note,.admonition.info,.admonition.important{background:#aef}.admonition.todo,.admonition.versionadded,.admonition.tip,.admonition.hint{background:#dfd}.admonition.warning,.admonition.versionchanged,.admonition.deprecated{background:#fd4}.admonition.error,.admonition.danger,.admonition.caution{background:lightpink}</style>
+<style media="screen and (min-width: 700px)">@media screen and (min-width:700px){#sidebar{width:30%;height:100vh;overflow:auto;position:sticky;top:0}#content{width:70%;max-width:100ch;padding:3em 4em;border-left:1px solid #ddd}pre code{font-size:1em}.name{font-size:1em}main{display:flex;flex-direction:row-reverse;justify-content:flex-end}.toc ul ul,#index ul ul{padding-left:1em}.toc > ul > li{margin-top:.5em}}</style>
+<style media="print">@media print{#sidebar h1{page-break-before:always}.source{display:none}}@media print{*{background:transparent !important;color:#000 !important;box-shadow:none !important;text-shadow:none !important}a[href]:after{content:" (" attr(href) ")";font-size:90%}a[href][title]:after{content:none}abbr[title]:after{content:" (" attr(title) ")"}.ir a:after,a[href^="javascript:"]:after,a[href^="#"]:after{content:""}pre,blockquote{border:1px solid #999;page-break-inside:avoid}thead{display:table-header-group}tr,img{page-break-inside:avoid}img{max-width:100% !important}@page{margin:0.5cm}p,h2,h3{orphans:3;widows:3}h1,h2,h3,h4,h5,h6{page-break-after:avoid}}</style>
+<script type="text/x-mathjax-config">MathJax.Hub.Config({ tex2jax: { inlineMath: [ ['$','$'], ["\\(","\\)"] ], processEscapes: true } });</script>
+<script async src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.7/latest.js?config=TeX-AMS_CHTML" integrity="sha256-kZafAc6mZvK3W3v1pHOcUix30OHQN6pU/NO2oFkqZVw=" crossorigin></script>
+<script defer src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js" integrity="sha512-D9gUyxqja7hBtkWpPWGt9wfbfaMGVt9gnyCvYa+jojwwPHLCzUm5i8rpk7vD7wNee9bA35eYIjobYPaQuKS1MQ==" crossorigin></script>
+<script>window.addEventListener('DOMContentLoaded', () => {
+hljs.configure({languages: ['bash', 'css', 'diff', 'graphql', 'ini', 'javascript', 'json', 'plaintext', 'python', 'python-repl', 'rust', 'shell', 'sql', 'typescript', 'xml', 'yaml']});
+hljs.highlightAll();
+})</script>
+</head>
+<body>
+<main>
+<article id="content">
+<header>
+<h1 class="title">Module <code>traceon.solver</code></h1>
+</header>
+<section id="section-intro">
+<p>The solver module uses the Boundary Element Method (BEM) to compute the surface charge distribution of a given
+geometry and excitation. Once the surface charge distribution is known, the field at any arbitrary position in space
+can be calculated by integration over the charged boundary. However, doing a field evaluation in this manner is very slow
+as for every field evaluation an iteration needs to be done over all elements in the mesh. Especially for particle tracing it
+is crucial that the field evaluation can be done faster. To achieve this, interpolation techniques can be used. </p>
+<p>The solver package offers interpolation in the form of <em>radial series expansions</em> to drastically increase the speed of ray tracing. For
+this consider the <code>axial_derivative_interpolation</code> methods documented below.</p>
+<h2 id="radial-series-expansion-in-cylindrical-symmetry">Radial series expansion in cylindrical symmetry</h2>
+<p>Let <span><span class="MathJax_Preview"> \phi_0(z) </span><script type="math/tex"> \phi_0(z) </script></span> be the potential along the optical axis. We can express the potential around the optical axis as:</p>
+<p><span><span class="MathJax_Preview">
+\phi = \phi_0(z_0) - \frac{r^2}{4} \frac{\partial \phi_0^2}{\partial z^2} + \frac{r^4}{64} \frac{\partial^4 \phi_0}{\partial z^4} - \frac{r^6}{2304} \frac{\partial \phi_0^6}{\partial z^6} + \cdots
+</span><script type="math/tex; mode=display">
+\phi = \phi_0(z_0) - \frac{r^2}{4} \frac{\partial \phi_0^2}{\partial z^2} + \frac{r^4}{64} \frac{\partial^4 \phi_0}{\partial z^4} - \frac{r^6}{2304} \frac{\partial \phi_0^6}{\partial z^6} + \cdots
+</script></span></p>
+<p>Therefore, if we can efficiently compute the axial potential derivatives <span><span class="MathJax_Preview"> \frac{\partial \phi_0^n}{\partial z^n} </span><script type="math/tex"> \frac{\partial \phi_0^n}{\partial z^n} </script></span> we can compute the potential and therefore the fields around the optical axis.
+For the derivatives of <span><span class="MathJax_Preview"> \phi_0(z) </span><script type="math/tex"> \phi_0(z) </script></span> closed form formulas exist in the case of radially symmetric geometries, see for example formula 13.16a in [1]. Traceon uses a recursive version of these formulas to
+very efficiently compute the axial derivatives of the potential.</p>
+<h2 id="radial-series-expansion-in-3d">Radial series expansion in 3D</h2>
+<p>In a general three dimensional geometry the potential will be dependent not only on the distance from the optical axis but also on the angle <span><span class="MathJax_Preview"> \theta </span><script type="math/tex"> \theta </script></span> around the optical axis
+at which the potential is sampled. It turns out (equation (35, 24) in [2]) the potential can be written as follows:</p>
+<p><span><span class="MathJax_Preview">
+\phi = \sum_{\nu=0}^\infty \sum_{m=0}^\infty r^{2\nu + m} \left( A^\nu_m \cos(m\theta) + B^\nu_m \sin(m\theta) \right)
+</span><script type="math/tex; mode=display">
+\phi = \sum_{\nu=0}^\infty \sum_{m=0}^\infty r^{2\nu + m} \left( A^\nu_m \cos(m\theta) + B^\nu_m \sin(m\theta) \right)
+</script></span></p>
+<p>The <span><span class="MathJax_Preview">A^\nu_m</span><script type="math/tex">A^\nu_m</script></span> and <span><span class="MathJax_Preview">B^\nu_m</span><script type="math/tex">B^\nu_m</script></span> coefficients can be expressed in <em>directional derivatives</em> perpendicular to the optical axis, analogous to the radial symmetric case. The
+mathematics of calculating these coefficients quickly and accurately gets quite involved, but all details have been abstracted away from the user.</p>
+<h3 id="references">References</h3>
+<p>[1] P. Hawkes, E. Kasper. Principles of Electron Optics. Volume one: Basic Geometrical Optics. 2018.</p>
+<p>[2] W. Glaser. Grundlagen der Elektronenoptik. 1952.</p>
+</section>
+<section>
+</section>
+<section>
+</section>
+<section>
+<h2 class="section-title" id="header-functions">Functions</h2>
+<dl>
+<dt id="traceon.solver.solve_direct"><code class="name flex">
+<span>def <span class="ident">solve_direct</span></span>(<span>excitation)</span>
+</code></dt>
+<dd>
+<div class="desc"><p>Solve for the charges on the surface of the geometry by using a direct method and taking
+into account the specified <code>excitation</code>. </p>
+<h2 id="parameters">Parameters</h2>
+<dl>
+<dt><strong><code>excitation</code></strong> :&ensp;<code><a title="traceon.excitation.Excitation" href="excitation.html#traceon.excitation.Excitation">Excitation</a></code></dt>
+<dd>The excitation that produces the resulting field.</dd>
+</dl>
+<h2 id="returns">Returns</h2>
+<p>A <code><a title="traceon.solver.FieldRadialBEM" href="#traceon.solver.FieldRadialBEM">FieldRadialBEM</a></code> if the geometry (contained in the given <code>excitation</code>) is radially symmetric. If the geometry is a three
+dimensional geometry <code><a title="traceon.solver.Field3D_BEM" href="#traceon.solver.Field3D_BEM">Field3D_BEM</a></code> is returned.</p></div>
+</dd>
+<dt id="traceon.solver.solve_direct_superposition"><code class="name flex">
+<span>def <span class="ident">solve_direct_superposition</span></span>(<span>excitation)</span>
+</code></dt>
+<dd>
+<div class="desc"><p>superposition : bool
+When using superposition the function returns multiple fields. Each field corresponds with a unity excitation (1V)
+of a physical group that was previously assigned a non-zero fixed voltage value. This is useful when a geometry needs
+to be analyzed for many different voltage settings. In this case taking a linear superposition of the returned fields
+allows to select a different voltage 'setting' without inducing any computational cost. There is no computational cost
+involved in using <code>superposition=True</code> since a direct solver is used which easily allows for multiple right hand sides (the
+matrix does not have to be inverted multiple times). However, voltage functions are invalid in the superposition process (position dependent voltages).</p></div>
+</dd>
+</dl>
+</section>
+<section>
+<h2 class="section-title" id="header-classes">Classes</h2>
+<dl>
+<dt id="traceon.solver.Field"><code class="flex name class">
+<span>class <span class="ident">Field</span></span>
+</code></dt>
+<dd>
+<div class="desc"><p>Helper class that provides a standard way to create an ABC using
+inheritance.</p></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class Field(ABC):
+    def field_at_point(self, point):
+        &#34;&#34;&#34;Convenience function for getting the field in the case that the field is purely electrostatic
+        or magneotstatic. Automatically picks one of `electrostatic_field_at_point` or `magnetostatic_field_at_point`.
+        Throws an exception when the field is both electrostatic and magnetostatic.
+
+        Parameters
+        ---------------------
+        point: (3,) np.ndarray of float64
+
+        Returns
+        --------------------
+        (3,) np.ndarray of float64. The electrostatic field \\(\\vec{E}\\) or the magnetostatic field \\(\\vec{H}\\).
+        &#34;&#34;&#34;
+        elec, mag = self.is_electrostatic(), self.is_magnetostatic()
+        
+        if elec and not mag:
+            return self.electrostatic_field_at_point(point)
+        elif not elec and mag:
+            return self.magnetostatic_field_at_point(point)
+         
+        raise RuntimeError(&#34;Cannot use field_at_point when both electric and magnetic fields are present, &#34; \
+            &#34;use electrostatic_field_at_point or magnetostatic_potential_at_point&#34;)
+     
+    def potential_at_point(self, point):
+        &#34;&#34;&#34;Convenience function for getting the potential in the case that the field is purely electrostatic
+        or magneotstatic. Automatically picks one of `electrostatic_potential_at_point` or `magnetostatic_potential_at_point`.
+        Throws an exception when the field is both electrostatic and magnetostatic.
+         
+        Parameters
+        ---------------------
+        point: (3,) np.ndarray of float64
+
+        Returns
+        --------------------
+        float. The electrostatic potential (unit Volt) or magnetostaic scalar potential (unit Ampere)
+        &#34;&#34;&#34;
+        elec, mag = self.is_electrostatic(), self.is_magnetostatic()
+         
+        if elec and not mag:
+            return self.electrostatic_potential_at_point(point)
+        elif not elec and mag:
+            return self.magnetostatic_potential_at_point(point)
+         
+        raise RuntimeError(&#34;Cannot use potential_at_point when both electric and magnetic fields are present, &#34; \
+            &#34;use electrostatic_potential_at_point or magnetostatic_potential_at_point&#34;)
+
+    @abstractmethod
+    def is_electrostatic(self):
+        ...
+    
+    @abstractmethod
+    def is_magnetostatic(self):
+        ...
+    
+    @abstractmethod
+    def magnetostatic_potential_at_point(self, point):
+        ...
+    
+    @abstractmethod
+    def electrostatic_potential_at_point(self, point):
+        ...
+    
+    @abstractmethod
+    def magnetostatic_field_at_point(self, point):
+        ...
+    
+    @abstractmethod
+    def electrostatic_field_at_point(self, point):
+        ...</code></pre>
+</details>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li>abc.ABC</li>
+</ul>
+<h3>Subclasses</h3>
+<ul class="hlist">
+<li><a title="traceon.interpolation.FieldAxial" href="interpolation.html#traceon.interpolation.FieldAxial">FieldAxial</a></li>
+<li><a title="traceon.solver.FieldAxial" href="#traceon.solver.FieldAxial">FieldAxial</a></li>
+<li><a title="traceon.solver.FieldBEM" href="#traceon.solver.FieldBEM">FieldBEM</a></li>
+</ul>
+<h3>Methods</h3>
+<dl>
+<dt id="traceon.solver.Field.electrostatic_field_at_point"><code class="name flex">
+<span>def <span class="ident">electrostatic_field_at_point</span></span>(<span>self, point)</span>
+</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="traceon.solver.Field.electrostatic_potential_at_point"><code class="name flex">
+<span>def <span class="ident">electrostatic_potential_at_point</span></span>(<span>self, point)</span>
+</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="traceon.solver.Field.field_at_point"><code class="name flex">
+<span>def <span class="ident">field_at_point</span></span>(<span>self, point)</span>
+</code></dt>
+<dd>
+<div class="desc"><p>Convenience function for getting the field in the case that the field is purely electrostatic
+or magneotstatic. Automatically picks one of <code>electrostatic_field_at_point</code> or <code>magnetostatic_field_at_point</code>.
+Throws an exception when the field is both electrostatic and magnetostatic.</p>
+<h2 id="parameters">Parameters</h2>
+<dl>
+<dt><strong><code>point</code></strong> :&ensp;<code>(3,) np.ndarray</code> of <code>float64</code></dt>
+<dd>&nbsp;</dd>
+</dl>
+<h2 id="returns">Returns</h2>
+<p>(3,) np.ndarray of float64. The electrostatic field <span><span class="MathJax_Preview">\vec{E}</span><script type="math/tex">\vec{E}</script></span> or the magnetostatic field <span><span class="MathJax_Preview">\vec{H}</span><script type="math/tex">\vec{H}</script></span>.</p></div>
+</dd>
+<dt id="traceon.solver.Field.is_electrostatic"><code class="name flex">
+<span>def <span class="ident">is_electrostatic</span></span>(<span>self)</span>
+</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="traceon.solver.Field.is_magnetostatic"><code class="name flex">
+<span>def <span class="ident">is_magnetostatic</span></span>(<span>self)</span>
+</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="traceon.solver.Field.magnetostatic_field_at_point"><code class="name flex">
+<span>def <span class="ident">magnetostatic_field_at_point</span></span>(<span>self, point)</span>
+</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="traceon.solver.Field.magnetostatic_potential_at_point"><code class="name flex">
+<span>def <span class="ident">magnetostatic_potential_at_point</span></span>(<span>self, point)</span>
+</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="traceon.solver.Field.potential_at_point"><code class="name flex">
+<span>def <span class="ident">potential_at_point</span></span>(<span>self, point)</span>
+</code></dt>
+<dd>
+<div class="desc"><p>Convenience function for getting the potential in the case that the field is purely electrostatic
+or magneotstatic. Automatically picks one of <code>electrostatic_potential_at_point</code> or <code>magnetostatic_potential_at_point</code>.
+Throws an exception when the field is both electrostatic and magnetostatic.</p>
+<h2 id="parameters">Parameters</h2>
+<dl>
+<dt><strong><code>point</code></strong> :&ensp;<code>(3,) np.ndarray</code> of <code>float64</code></dt>
+<dd>&nbsp;</dd>
+</dl>
+<h2 id="returns">Returns</h2>
+<dl>
+<dt><code>float. The electrostatic potential (unit Volt)</code> or <code>magnetostaic scalar potential (unit Ampere)</code></dt>
+<dd>&nbsp;</dd>
+</dl></div>
+</dd>
+</dl>
+</dd>
+<dt id="traceon.solver.Field3D_BEM"><code class="flex name class">
+<span>class <span class="ident">Field3D_BEM</span></span>
+<span>(</span><span>electrostatic_point_charges=None, magnetostatic_point_charges=None)</span>
+</code></dt>
+<dd>
+<div class="desc"><p>An electrostatic field resulting from a general 3D geometry. The field is a result of the surface charges as computed by the
+<code><a title="traceon.solver.solve_direct" href="#traceon.solver.solve_direct">solve_direct()</a></code> function. See the comments in <code><a title="traceon.solver.FieldBEM" href="#traceon.solver.FieldBEM">FieldBEM</a></code>.</p></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class Field3D_BEM(FieldBEM):
+    &#34;&#34;&#34;An electrostatic field resulting from a general 3D geometry. The field is a result of the surface charges as computed by the
+    `solve_direct` function. See the comments in `FieldBEM`.&#34;&#34;&#34;
+     
+    def __init__(self, electrostatic_point_charges=None, magnetostatic_point_charges=None):
+        
+        if electrostatic_point_charges is None:
+            electrostatic_point_charges = EffectivePointCharges.empty_3d()
+        if magnetostatic_point_charges is None:
+            magnetostatic_point_charges = EffectivePointCharges.empty_3d()
+         
+        super().__init__(electrostatic_point_charges, magnetostatic_point_charges, EffectivePointCharges.empty_3d())
+        
+        self.symmetry = E.Symmetry.THREE_D
+
+        for eff in [electrostatic_point_charges, magnetostatic_point_charges]:
+            N = len(eff.charges)
+            assert eff.charges.shape == (N,)
+            assert eff.jacobians.shape == (N, backend.N_TRIANGLE_QUAD)
+            assert eff.positions.shape == (N, backend.N_TRIANGLE_QUAD, 3)
+     
+    def electrostatic_field_at_point(self, point_):
+        &#34;&#34;&#34;
+        Compute the electric field, \\( \\vec{E} = -\\nabla \\phi \\)
+        
+        Parameters
+        ----------
+        point: (3,) array of float64
+            Position at which to compute the field.
+             
+        Returns
+        -------
+        (3,) array of float64 representing the electric field 
+        &#34;&#34;&#34;
+        point = np.array(point_)
+        assert point.shape == (3,), &#34;Please supply a three dimensional point&#34;
+        charges = self.electrostatic_point_charges.charges
+        jacobians = self.electrostatic_point_charges.jacobians
+        positions = self.electrostatic_point_charges.positions
+        return backend.field_3d(point, charges, jacobians, positions)
+     
+    def electrostatic_potential_at_point(self, point_):
+        &#34;&#34;&#34;
+        Compute the electrostatic potential.
+
+        Parameters
+        ----------
+        point: (3,) array of float64
+            Position at which to compute the field.
+        
+        Returns
+        -------
+        Potential as a float value (in units of V).
+        &#34;&#34;&#34;
+        point = np.array(point_)
+        assert point.shape == (3,), &#34;Please supply a three dimensional point&#34;
+        charges = self.electrostatic_point_charges.charges
+        jacobians = self.electrostatic_point_charges.jacobians
+        positions = self.electrostatic_point_charges.positions
+        return backend.potential_3d(point, charges, jacobians, positions)
+     
+    def magnetostatic_field_at_point(self, point_):
+        &#34;&#34;&#34;
+        Compute the magnetic field \\( \\vec{H} \\)
+        
+        Parameters
+        ----------
+        point: (3,) array of float64
+            Position at which to compute the field.
+             
+        Returns
+        -------
+        (3,) np.ndarray of float64 containing the field strength (in units of A/m) in the x, y and z directions.
+        &#34;&#34;&#34;
+        point = np.array(point_)
+        assert point.shape == (3,), &#34;Please supply a three dimensional point&#34;
+        charges = self.magnetostatic_point_charges.charges
+        jacobians = self.magnetostatic_point_charges.jacobians
+        positions = self.magnetostatic_point_charges.positions
+        return backend.field_3d(point, charges, jacobians, positions)
+     
+    def magnetostatic_potential_at_point(self, point_):
+        &#34;&#34;&#34;
+        Compute the magnetostatic scalar potential (satisfying \\(\\vec{H} = -\\nabla \\phi \\))
+        
+        Parameters
+        ----------
+        point: (3,) array of float64
+            Position at which to compute the field.
+        
+        Returns
+        -------
+        Potential as a float value (in units of A).
+        &#34;&#34;&#34;
+        point = np.array(point_)
+        assert point.shape == (3,), &#34;Please supply a three dimensional point&#34;
+        charges = self.magnetostatic_point_charges.charges
+        jacobians = self.magnetostatic_point_charges.jacobians
+        positions = self.magnetostatic_point_charges.positions
+        return backend.potential_3d(point, charges, jacobians, positions)
+     
+    def area_of_element(self, i):
+        jacobians = self.electrostatic_point_charges.jacobians
+        return np.sum(jacobians[i])
+    
+    def get_tracer(self, bounds):
+        return T.Tracer3D_BEM(self, bounds)</code></pre>
+</details>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li><a title="traceon.solver.FieldBEM" href="#traceon.solver.FieldBEM">FieldBEM</a></li>
+<li><a title="traceon.solver.Field" href="#traceon.solver.Field">Field</a></li>
+<li>abc.ABC</li>
+</ul>
+<h3>Methods</h3>
+<dl>
+<dt id="traceon.solver.Field3D_BEM.area_of_element"><code class="name flex">
+<span>def <span class="ident">area_of_element</span></span>(<span>self, i)</span>
+</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="traceon.solver.Field3D_BEM.electrostatic_field_at_point"><code class="name flex">
+<span>def <span class="ident">electrostatic_field_at_point</span></span>(<span>self, point_)</span>
+</code></dt>
+<dd>
+<div class="desc"><p>Compute the electric field, <span><span class="MathJax_Preview"> \vec{E} = -\nabla \phi </span><script type="math/tex"> \vec{E} = -\nabla \phi </script></span></p>
+<h2 id="parameters">Parameters</h2>
+<dl>
+<dt><strong><code>point</code></strong> :&ensp;<code>(3,) array</code> of <code>float64</code></dt>
+<dd>Position at which to compute the field.</dd>
+</dl>
+<h2 id="returns">Returns</h2>
+<p>(3,) array of float64 representing the electric field</p></div>
+</dd>
+<dt id="traceon.solver.Field3D_BEM.electrostatic_potential_at_point"><code class="name flex">
+<span>def <span class="ident">electrostatic_potential_at_point</span></span>(<span>self, point_)</span>
+</code></dt>
+<dd>
+<div class="desc"><p>Compute the electrostatic potential.</p>
+<h2 id="parameters">Parameters</h2>
+<dl>
+<dt><strong><code>point</code></strong> :&ensp;<code>(3,) array</code> of <code>float64</code></dt>
+<dd>Position at which to compute the field.</dd>
+</dl>
+<h2 id="returns">Returns</h2>
+<p>Potential as a float value (in units of V).</p></div>
+</dd>
+<dt id="traceon.solver.Field3D_BEM.get_tracer"><code class="name flex">
+<span>def <span class="ident">get_tracer</span></span>(<span>self, bounds)</span>
+</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="traceon.solver.Field3D_BEM.magnetostatic_field_at_point"><code class="name flex">
+<span>def <span class="ident">magnetostatic_field_at_point</span></span>(<span>self, point_)</span>
+</code></dt>
+<dd>
+<div class="desc"><p>Compute the magnetic field <span><span class="MathJax_Preview"> \vec{H} </span><script type="math/tex"> \vec{H} </script></span></p>
+<h2 id="parameters">Parameters</h2>
+<dl>
+<dt><strong><code>point</code></strong> :&ensp;<code>(3,) array</code> of <code>float64</code></dt>
+<dd>Position at which to compute the field.</dd>
+</dl>
+<h2 id="returns">Returns</h2>
+<p>(3,) np.ndarray of float64 containing the field strength (in units of A/m) in the x, y and z directions.</p></div>
+</dd>
+<dt id="traceon.solver.Field3D_BEM.magnetostatic_potential_at_point"><code class="name flex">
+<span>def <span class="ident">magnetostatic_potential_at_point</span></span>(<span>self, point_)</span>
+</code></dt>
+<dd>
+<div class="desc"><p>Compute the magnetostatic scalar potential (satisfying <span><span class="MathJax_Preview">\vec{H} = -\nabla \phi </span><script type="math/tex">\vec{H} = -\nabla \phi </script></span>)</p>
+<h2 id="parameters">Parameters</h2>
+<dl>
+<dt><strong><code>point</code></strong> :&ensp;<code>(3,) array</code> of <code>float64</code></dt>
+<dd>Position at which to compute the field.</dd>
+</dl>
+<h2 id="returns">Returns</h2>
+<p>Potential as a float value (in units of A).</p></div>
+</dd>
+</dl>
+<h3>Inherited members</h3>
+<ul class="hlist">
+<li><code><b><a title="traceon.solver.FieldBEM" href="#traceon.solver.FieldBEM">FieldBEM</a></b></code>:
+<ul class="hlist">
+<li><code><a title="traceon.solver.FieldBEM.area_of_elements" href="#traceon.solver.FieldBEM.area_of_elements">area_of_elements</a></code></li>
+<li><code><a title="traceon.solver.FieldBEM.charge_on_elements" href="#traceon.solver.FieldBEM.charge_on_elements">charge_on_elements</a></code></li>
+<li><code><a title="traceon.solver.FieldBEM.field_at_point" href="#traceon.solver.Field.field_at_point">field_at_point</a></code></li>
+<li><code><a title="traceon.solver.FieldBEM.potential_at_point" href="#traceon.solver.Field.potential_at_point">potential_at_point</a></code></li>
+<li><code><a title="traceon.solver.FieldBEM.set_bounds" href="#traceon.solver.FieldBEM.set_bounds">set_bounds</a></code></li>
+</ul>
+</li>
+</ul>
+</dd>
+<dt id="traceon.solver.FieldAxial"><code class="flex name class">
+<span>class <span class="ident">FieldAxial</span></span>
+<span>(</span><span>z, electrostatic_coeffs=None, magnetostatic_coeffs=None)</span>
+</code></dt>
+<dd>
+<div class="desc"><p>An electrostatic field resulting from a radial series expansion around the optical axis. You should
+not initialize this class yourself, but it is used as a base class for the fields returned by the <code>axial_derivative_interpolation</code> methods.
+This base class overloads the +,*,- operators so it is very easy to take a superposition of different fields.</p></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class FieldAxial(Field):
+    &#34;&#34;&#34;An electrostatic field resulting from a radial series expansion around the optical axis. You should
+    not initialize this class yourself, but it is used as a base class for the fields returned by the `axial_derivative_interpolation` methods. 
+    This base class overloads the +,*,- operators so it is very easy to take a superposition of different fields.&#34;&#34;&#34;
+    
+    def __init__(self, z, electrostatic_coeffs=None, magnetostatic_coeffs=None):
+        N = len(z)
+        assert z.shape == (N,)
+        assert electrostatic_coeffs is None or len(electrostatic_coeffs)== N-1
+        assert magnetostatic_coeffs is None or len(magnetostatic_coeffs) == N-1
+        assert electrostatic_coeffs is not None or magnetostatic_coeffs is not None
+        
+        assert z[0] &lt; z[-1], &#34;z values in axial interpolation should be ascending&#34;
+         
+        self.z = z
+        self.electrostatic_coeffs = electrostatic_coeffs if electrostatic_coeffs is not None else np.zeros_like(magnetostatic_coeffs)
+        self.magnetostatic_coeffs = magnetostatic_coeffs if magnetostatic_coeffs is not None else np.zeros_like(electrostatic_coeffs)
+        
+        self.has_electrostatic = np.any(self.electrostatic_coeffs != 0.)
+        self.has_magnetostatic = np.any(self.magnetostatic_coeffs != 0.)
+     
+    def is_electrostatic(self):
+        return self.has_electrostatic
+
+    def is_magnetostatic(self):
+        return self.has_magnetostatic
+     
+    def __str__(self):
+        name = self.__class__.__name__
+        return f&#39;&lt;Traceon {name}, zmin={self.z[0]} mm, zmax={self.z[-1]} mm,\n\tNumber of samples on optical axis: {len(self.z)}&gt;&#39;
+     
+    def __add__(self, other):
+        if isinstance(other, FieldAxial):
+            assert np.array_equal(self.z, other.z), &#34;Cannot add FieldAxial if optical axis sampling is different.&#34;
+            assert self.electrostatic_coeffs.shape == other.electrostatic_coeffs.shape, &#34;Cannot add FieldAxial if shape of axial coefficients is unequal.&#34;
+            assert self.magnetostatic_coeffs.shape == other.magnetostatic_coeffs.shape, &#34;Cannot add FieldAxial if shape of axial coefficients is unequal.&#34;
+            return self.__class__(self.z, self.electrostatic_coeffs+other.electrostatic_coeffs, self.magnetostatic_coeffs + other.magnetostatic_coeffs)
+         
+        return NotImplemented
+    
+    def __sub__(self, other):
+        return self.__add__(-other)
+    
+    def __radd__(self, other):
+        return self.__add__(other)
+     
+    def __mul__(self, other):
+        if isinstance(other, int) or isinstance(other, float):
+            return self.__class__(self.z, other*self.electrostatic_coeffs, other*self.magnetostatic_coeffs)
+         
+        return NotImplemented
+    
+    def __neg__(self):
+        return -1*self
+    
+    def __rmul__(self, other):
+        return self.__mul__(other)</code></pre>
+</details>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li><a title="traceon.solver.Field" href="#traceon.solver.Field">Field</a></li>
+<li>abc.ABC</li>
+</ul>
+<h3>Subclasses</h3>
+<ul class="hlist">
+<li><a title="traceon.solver.FieldRadialAxial" href="#traceon.solver.FieldRadialAxial">FieldRadialAxial</a></li>
+</ul>
+<h3>Methods</h3>
+<dl>
+<dt id="traceon.solver.FieldAxial.is_electrostatic"><code class="name flex">
+<span>def <span class="ident">is_electrostatic</span></span>(<span>self)</span>
+</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="traceon.solver.FieldAxial.is_magnetostatic"><code class="name flex">
+<span>def <span class="ident">is_magnetostatic</span></span>(<span>self)</span>
+</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+</dl>
+<h3>Inherited members</h3>
+<ul class="hlist">
+<li><code><b><a title="traceon.solver.Field" href="#traceon.solver.Field">Field</a></b></code>:
+<ul class="hlist">
+<li><code><a title="traceon.solver.Field.field_at_point" href="#traceon.solver.Field.field_at_point">field_at_point</a></code></li>
+<li><code><a title="traceon.solver.Field.potential_at_point" href="#traceon.solver.Field.potential_at_point">potential_at_point</a></code></li>
+</ul>
+</li>
+</ul>
+</dd>
+<dt id="traceon.solver.FieldBEM"><code class="flex name class">
+<span>class <span class="ident">FieldBEM</span></span>
+<span>(</span><span>electrostatic_point_charges, magnetostatic_point_charges, current_point_charges)</span>
+</code></dt>
+<dd>
+<div class="desc"><p>An electrostatic field (resulting from surface charges) as computed from the Boundary Element Method. You should
+not initialize this class yourself, but it is used as a base class for the fields returned by the <code><a title="traceon.solver.solve_direct" href="#traceon.solver.solve_direct">solve_direct()</a></code> function.
+This base class overloads the +,*,- operators so it is very easy to take a superposition of different fields.</p></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class FieldBEM(Field, ABC):
+    &#34;&#34;&#34;An electrostatic field (resulting from surface charges) as computed from the Boundary Element Method. You should
+    not initialize this class yourself, but it is used as a base class for the fields returned by the `solve_direct` function. 
+    This base class overloads the +,*,- operators so it is very easy to take a superposition of different fields.&#34;&#34;&#34;
+    
+    def __init__(self, electrostatic_point_charges, magnetostatic_point_charges, current_point_charges):
+        assert all([isinstance(eff, EffectivePointCharges) for eff in [electrostatic_point_charges,
+                                                                       magnetostatic_point_charges,
+                                                                       current_point_charges]])
+        self.electrostatic_point_charges = electrostatic_point_charges
+        self.magnetostatic_point_charges = magnetostatic_point_charges
+        self.current_point_charges = current_point_charges
+        self.field_bounds = None
+     
+    def set_bounds(self, bounds):
+        &#34;&#34;&#34;Set the field bounds. Outside the field bounds the field always returns zero (i.e. no field). Note
+        that even in 2D the field bounds needs to be specified for x,y and z axis. The trajectories in the presence
+        of magnetostatic field are in general 3D even in radial symmetric geometries.
+        
+        Parameters
+        -------------------
+        bounds: (3, 2) np.ndarray of float64
+            The min, max value of x, y, z respectively within the field is still computed.
+        &#34;&#34;&#34;
+        self.field_bounds = np.array(bounds)
+        assert self.field_bounds.shape == (3,2)
+    
+    def is_electrostatic(self):
+        return len(self.electrostatic_point_charges) &gt; 0
+
+    def is_magnetostatic(self):
+        return len(self.magnetostatic_point_charges) &gt; 0 or len(self.current_point_charges) &gt; 0 
+     
+    def __add__(self, other):
+        return self.__class__(
+            self.electrostatic_point_charges.__add__(other.electrostatic_point_charges),
+            self.magnetostatic_point_charges.__add__(other.magnetostatic_point_charges),
+            self.current_point_charges.__add__(other.current_point_charges))
+     
+    def __sub__(self, other):
+        return self.__class__(
+            self.electrostatic_point_charges.__sub__(other.electrostatic_point_charges),
+            self.magnetostatic_point_charges.__sub__(other.magnetostatic_point_charges),
+            self.current_point_charges.__sub__(other.current_point_charges))
+    
+    def __radd__(self, other):
+        return self.__class__(
+            self.electrostatic_point_charges.__radd__(other.electrostatic_point_charges),
+            self.magnetostatic_point_charges.__radd__(other.magnetostatic_point_charges),
+            self.current_point_charges.__radd__(other.current_point_charges))
+    
+    def __mul__(self, other):
+        return self.__class__(
+            self.electrostatic_point_charges.__mul__(other.electrostatic_point_charges),
+            self.magnetostatic_point_charges.__mul__(other.magnetostatic_point_charges),
+            self.current_point_charges.__mul__(other.current_point_charges))
+    
+    def __neg__(self, other):
+        return self.__class__(
+            self.electrostatic_point_charges.__neg__(other.electrostatic_point_charges),
+            self.magnetostatic_point_charges.__neg__(other.magnetostatic_point_charges),
+            self.current_point_charges.__neg__(other.current_point_charges))
+     
+    def __rmul__(self, other):
+        return self.__class__(
+            self.electrostatic_point_charges.__rmul__(other.electrostatic_point_charges),
+            self.magnetostatic_point_charges.__rmul__(other.magnetostatic_point_charges),
+            self.current_point_charges.__rmul__(other.current_point_charges))
+     
+    def area_of_elements(self, indices):
+        &#34;&#34;&#34;Compute the total area of the elements at the given indices.
+        
+        Parameters
+        ------------
+        indices: int iterable
+            Indices giving which elements to include in the area calculation.
+
+        Returns
+        ---------------
+        The sum of the area of all elements with the given indices.
+        &#34;&#34;&#34;
+        return sum(self.area_of_element(i) for i in indices) 
+
+    @abstractmethod
+    def area_of_element(self, i: int) -&gt; float:
+        ...
+    
+    def charge_on_element(self, i):
+        return self.area_of_element(i) * self.electrostatic_point_charges.charges[i]
+    
+    def charge_on_elements(self, indices):
+        &#34;&#34;&#34;Compute the sum of the charges present on the elements with the given indices. To
+        get the total charge of a physical group use `names[&#39;name&#39;]` for indices where `names` 
+        is returned by `traceon.excitation.Excitation.get_electrostatic_active_elements()`.
+
+        Parameters
+        ----------
+        indices: (N,) array of int
+            indices of the elements contributing to the charge sum. 
+         
+        Returns
+        -------
+        The sum of the charge. See the note about units on the front page.&#34;&#34;&#34;
+        return sum(self.charge_on_element(i) for i in indices)
+    
+    def __str__(self):
+        name = self.__class__.__name__
+        return f&#39;&lt;Traceon {name}\n&#39; \
+            f&#39;\tNumber of electrostatic points: {len(self.electrostatic_point_charges)}\n&#39; \
+            f&#39;\tNumber of magnetizable points: {len(self.magnetostatic_point_charges)}\n&#39; \
+            f&#39;\tNumber of current rings: {len(self.current_point_charges)}&gt;&#39;</code></pre>
+</details>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li><a title="traceon.solver.Field" href="#traceon.solver.Field">Field</a></li>
+<li>abc.ABC</li>
+</ul>
+<h3>Subclasses</h3>
+<ul class="hlist">
+<li><a title="traceon.solver.Field3D_BEM" href="#traceon.solver.Field3D_BEM">Field3D_BEM</a></li>
+<li><a title="traceon.solver.FieldRadialBEM" href="#traceon.solver.FieldRadialBEM">FieldRadialBEM</a></li>
+</ul>
+<h3>Methods</h3>
+<dl>
+<dt id="traceon.solver.FieldBEM.area_of_element"><code class="name flex">
+<span>def <span class="ident">area_of_element</span></span>(<span>self, i: int) ‑> float</span>
+</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="traceon.solver.FieldBEM.area_of_elements"><code class="name flex">
+<span>def <span class="ident">area_of_elements</span></span>(<span>self, indices)</span>
+</code></dt>
+<dd>
+<div class="desc"><p>Compute the total area of the elements at the given indices.</p>
+<h2 id="parameters">Parameters</h2>
+<dl>
+<dt><strong><code>indices</code></strong> :&ensp;<code>int iterable</code></dt>
+<dd>Indices giving which elements to include in the area calculation.</dd>
+</dl>
+<h2 id="returns">Returns</h2>
+<p>The sum of the area of all elements with the given indices.</p></div>
+</dd>
+<dt id="traceon.solver.FieldBEM.charge_on_element"><code class="name flex">
+<span>def <span class="ident">charge_on_element</span></span>(<span>self, i)</span>
+</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="traceon.solver.FieldBEM.charge_on_elements"><code class="name flex">
+<span>def <span class="ident">charge_on_elements</span></span>(<span>self, indices)</span>
+</code></dt>
+<dd>
+<div class="desc"><p>Compute the sum of the charges present on the elements with the given indices. To
+get the total charge of a physical group use <code>names['name']</code> for indices where <code>names</code>
+is returned by <code><a title="traceon.excitation.Excitation.get_electrostatic_active_elements" href="excitation.html#traceon.excitation.Excitation.get_electrostatic_active_elements">Excitation.get_electrostatic_active_elements()</a></code>.</p>
+<h2 id="parameters">Parameters</h2>
+<dl>
+<dt><strong><code>indices</code></strong> :&ensp;<code>(N,) array</code> of <code>int</code></dt>
+<dd>indices of the elements contributing to the charge sum.</dd>
+</dl>
+<h2 id="returns">Returns</h2>
+<p>The sum of the charge. See the note about units on the front page.</p></div>
+</dd>
+<dt id="traceon.solver.FieldBEM.is_electrostatic"><code class="name flex">
+<span>def <span class="ident">is_electrostatic</span></span>(<span>self)</span>
+</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="traceon.solver.FieldBEM.is_magnetostatic"><code class="name flex">
+<span>def <span class="ident">is_magnetostatic</span></span>(<span>self)</span>
+</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="traceon.solver.FieldBEM.set_bounds"><code class="name flex">
+<span>def <span class="ident">set_bounds</span></span>(<span>self, bounds)</span>
+</code></dt>
+<dd>
+<div class="desc"><p>Set the field bounds. Outside the field bounds the field always returns zero (i.e. no field). Note
+that even in 2D the field bounds needs to be specified for x,y and z axis. The trajectories in the presence
+of magnetostatic field are in general 3D even in radial symmetric geometries.</p>
+<h2 id="parameters">Parameters</h2>
+<dl>
+<dt><strong><code>bounds</code></strong> :&ensp;<code>(3, 2) np.ndarray</code> of <code>float64</code></dt>
+<dd>The min, max value of x, y, z respectively within the field is still computed.</dd>
+</dl></div>
+</dd>
+</dl>
+<h3>Inherited members</h3>
+<ul class="hlist">
+<li><code><b><a title="traceon.solver.Field" href="#traceon.solver.Field">Field</a></b></code>:
+<ul class="hlist">
+<li><code><a title="traceon.solver.Field.field_at_point" href="#traceon.solver.Field.field_at_point">field_at_point</a></code></li>
+<li><code><a title="traceon.solver.Field.potential_at_point" href="#traceon.solver.Field.potential_at_point">potential_at_point</a></code></li>
+</ul>
+</li>
+</ul>
+</dd>
+<dt id="traceon.solver.FieldRadialAxial"><code class="flex name class">
+<span>class <span class="ident">FieldRadialAxial</span></span>
+<span>(</span><span>z, electrostatic_coeffs=None, magnetostatic_coeffs=None)</span>
+</code></dt>
+<dd>
+<div class="desc"></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class FieldRadialAxial(FieldAxial):
+    &#34;&#34;&#34; &#34;&#34;&#34;
+    def __init__(self, z, electrostatic_coeffs=None, magnetostatic_coeffs=None):
+        super().__init__(z, electrostatic_coeffs, magnetostatic_coeffs)
+        assert self.electrostatic_coeffs.shape == (len(z)-1, backend.DERIV_2D_MAX, 6)
+        assert self.magnetostatic_coeffs.shape == (len(z)-1, backend.DERIV_2D_MAX, 6)
+        self.symmetry = E.Symmetry.RADIAL
+    
+    def electrostatic_field_at_point(self, point_):
+        &#34;&#34;&#34;
+        Compute the electric field, \\( \\vec{E} = -\\nabla \\phi \\)
+        
+        Parameters
+        ----------
+        point: (3,) array of float64
+            Position at which to compute the field.
+             
+        Returns
+        -------
+        (3,) array of float64, containing the field strengths (units of V/m)
+        &#34;&#34;&#34;
+        point = np.array(point_)
+        assert point.shape == (3,), &#34;Please supply a three dimensional point&#34;
+        return backend.field_radial_derivs(point, self.z, self.electrostatic_coeffs)
+    
+    def magnetostatic_field_at_point(self, point_):
+        &#34;&#34;&#34;
+        Compute the magnetic field \\( \\vec{H} \\)
+        
+        Parameters
+        ----------
+        point: (3,) array of float64
+            Position at which to compute the field.
+             
+        Returns
+        -------
+        (3,) array of float64, containing the field strengths (units of A/m)
+        &#34;&#34;&#34;
+        point = np.array(point_)
+        assert point.shape == (3,), &#34;Please supply a three dimensional point&#34;
+        return backend.field_radial_derivs(point, self.z, self.magnetostatic_coeffs)
+     
+    def electrostatic_potential_at_point(self, point_):
+        &#34;&#34;&#34;
+        Compute the electrostatic potential (close to the axis).
+
+        Parameters
+        ----------
+        point: (3,) array of float64
+            Position at which to compute the potential.
+        
+        Returns
+        -------
+        Potential as a float value (in units of V).
+        &#34;&#34;&#34;
+        point = np.array(point_)
+        assert point.shape == (3,), &#34;Please supply a three dimensional point&#34;
+        return backend.potential_radial_derivs(point, self.z, self.electrostatic_coeffs)
+    
+    def magnetostatic_potential_at_point(self, point_):
+        &#34;&#34;&#34;
+        Compute the magnetostatic scalar potential (satisfying \\(\\vec{H} = -\\nabla \\phi \\)) close to the axis
+        
+        Parameters
+        ----------
+        point: (3,) array of float64
+            Position at which to compute the field.
+        
+        Returns
+        -------
+        Potential as a float value (in units of A).
+        &#34;&#34;&#34;
+        point = np.array(point_)
+        assert point.shape == (3,), &#34;Please supply a three dimensional point&#34;
+        return backend.potential_radial_derivs(point, self.z, self.magnetostatic_coeffs)
+    
+    def get_tracer(self, bounds):
+        return T.TracerRadialAxial(self, bounds)</code></pre>
+</details>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li><a title="traceon.solver.FieldAxial" href="#traceon.solver.FieldAxial">FieldAxial</a></li>
+<li><a title="traceon.solver.Field" href="#traceon.solver.Field">Field</a></li>
+<li>abc.ABC</li>
+</ul>
+<h3>Methods</h3>
+<dl>
+<dt id="traceon.solver.FieldRadialAxial.electrostatic_field_at_point"><code class="name flex">
+<span>def <span class="ident">electrostatic_field_at_point</span></span>(<span>self, point_)</span>
+</code></dt>
+<dd>
+<div class="desc"><p>Compute the electric field, <span><span class="MathJax_Preview"> \vec{E} = -\nabla \phi </span><script type="math/tex"> \vec{E} = -\nabla \phi </script></span></p>
+<h2 id="parameters">Parameters</h2>
+<dl>
+<dt><strong><code>point</code></strong> :&ensp;<code>(3,) array</code> of <code>float64</code></dt>
+<dd>Position at which to compute the field.</dd>
+</dl>
+<h2 id="returns">Returns</h2>
+<p>(3,) array of float64, containing the field strengths (units of V/m)</p></div>
+</dd>
+<dt id="traceon.solver.FieldRadialAxial.electrostatic_potential_at_point"><code class="name flex">
+<span>def <span class="ident">electrostatic_potential_at_point</span></span>(<span>self, point_)</span>
+</code></dt>
+<dd>
+<div class="desc"><p>Compute the electrostatic potential (close to the axis).</p>
+<h2 id="parameters">Parameters</h2>
+<dl>
+<dt><strong><code>point</code></strong> :&ensp;<code>(3,) array</code> of <code>float64</code></dt>
+<dd>Position at which to compute the potential.</dd>
+</dl>
+<h2 id="returns">Returns</h2>
+<p>Potential as a float value (in units of V).</p></div>
+</dd>
+<dt id="traceon.solver.FieldRadialAxial.get_tracer"><code class="name flex">
+<span>def <span class="ident">get_tracer</span></span>(<span>self, bounds)</span>
+</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="traceon.solver.FieldRadialAxial.magnetostatic_field_at_point"><code class="name flex">
+<span>def <span class="ident">magnetostatic_field_at_point</span></span>(<span>self, point_)</span>
+</code></dt>
+<dd>
+<div class="desc"><p>Compute the magnetic field <span><span class="MathJax_Preview"> \vec{H} </span><script type="math/tex"> \vec{H} </script></span></p>
+<h2 id="parameters">Parameters</h2>
+<dl>
+<dt><strong><code>point</code></strong> :&ensp;<code>(3,) array</code> of <code>float64</code></dt>
+<dd>Position at which to compute the field.</dd>
+</dl>
+<h2 id="returns">Returns</h2>
+<p>(3,) array of float64, containing the field strengths (units of A/m)</p></div>
+</dd>
+<dt id="traceon.solver.FieldRadialAxial.magnetostatic_potential_at_point"><code class="name flex">
+<span>def <span class="ident">magnetostatic_potential_at_point</span></span>(<span>self, point_)</span>
+</code></dt>
+<dd>
+<div class="desc"><p>Compute the magnetostatic scalar potential (satisfying <span><span class="MathJax_Preview">\vec{H} = -\nabla \phi </span><script type="math/tex">\vec{H} = -\nabla \phi </script></span>) close to the axis</p>
+<h2 id="parameters">Parameters</h2>
+<dl>
+<dt><strong><code>point</code></strong> :&ensp;<code>(3,) array</code> of <code>float64</code></dt>
+<dd>Position at which to compute the field.</dd>
+</dl>
+<h2 id="returns">Returns</h2>
+<p>Potential as a float value (in units of A).</p></div>
+</dd>
+</dl>
+<h3>Inherited members</h3>
+<ul class="hlist">
+<li><code><b><a title="traceon.solver.FieldAxial" href="#traceon.solver.FieldAxial">FieldAxial</a></b></code>:
+<ul class="hlist">
+<li><code><a title="traceon.solver.FieldAxial.field_at_point" href="#traceon.solver.Field.field_at_point">field_at_point</a></code></li>
+<li><code><a title="traceon.solver.FieldAxial.potential_at_point" href="#traceon.solver.Field.potential_at_point">potential_at_point</a></code></li>
+</ul>
+</li>
+</ul>
+</dd>
+<dt id="traceon.solver.FieldRadialBEM"><code class="flex name class">
+<span>class <span class="ident">FieldRadialBEM</span></span>
+<span>(</span><span>electrostatic_point_charges=None, magnetostatic_point_charges=None, current_point_charges=None)</span>
+</code></dt>
+<dd>
+<div class="desc"><p>A radially symmetric electrostatic field. The field is a result of the surface charges as computed by the
+<code><a title="traceon.solver.solve_direct" href="#traceon.solver.solve_direct">solve_direct()</a></code> function. See the comments in <code><a title="traceon.solver.FieldBEM" href="#traceon.solver.FieldBEM">FieldBEM</a></code>.</p></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class FieldRadialBEM(FieldBEM):
+    &#34;&#34;&#34;A radially symmetric electrostatic field. The field is a result of the surface charges as computed by the
+    `solve_direct` function. See the comments in `FieldBEM`.&#34;&#34;&#34;
+    
+    def __init__(self, electrostatic_point_charges=None, magnetostatic_point_charges=None, current_point_charges=None):
+        if electrostatic_point_charges is None:
+            electrostatic_point_charges = EffectivePointCharges.empty_2d()
+        if magnetostatic_point_charges is None:
+            magnetostatic_point_charges = EffectivePointCharges.empty_2d()
+        if current_point_charges is None:
+            current_point_charges = EffectivePointCharges.empty_3d()
+         
+        self.symmetry = E.Symmetry.RADIAL
+        super().__init__(electrostatic_point_charges, magnetostatic_point_charges, current_point_charges)
+         
+    def current_field_at_point(self, point_):
+        point = np.array(point_)
+        assert point.shape == (3,), &#34;Please supply a three dimensional point&#34;
+            
+        currents = self.current_point_charges.charges
+        jacobians = self.current_point_charges.jacobians
+        positions = self.current_point_charges.positions
+        return backend.current_field(point, currents, jacobians, positions)
+     
+    def electrostatic_field_at_point(self, point_):
+        &#34;&#34;&#34;
+        Compute the electric field, \\( \\vec{E} = -\\nabla \\phi \\)
+        
+        Parameters
+        ----------
+        point: (3,) array of float64
+            Position at which to compute the field.
+        
+        Returns
+        -------
+        (3,) array of float64, containing the field strengths (units of V/m)
+        &#34;&#34;&#34;
+        point = np.array(point_)
+        assert point.shape == (3,), &#34;Please supply a three dimensional point&#34;
+          
+        charges = self.electrostatic_point_charges.charges
+        jacobians = self.electrostatic_point_charges.jacobians
+        positions = self.electrostatic_point_charges.positions
+        return backend.field_radial(point, charges, jacobians, positions)
+     
+    def electrostatic_potential_at_point(self, point_):
+        &#34;&#34;&#34;
+        Compute the electrostatic potential.
+        
+        Parameters
+        ----------
+        point: (3,) array of float64
+            Position at which to compute the field.
+        
+        Returns
+        -------
+        Potential as a float value (in units of V).
+        &#34;&#34;&#34;
+        point = np.array(point_)
+        assert point.shape == (3,), &#34;Please supply a three dimensional point&#34;
+        charges = self.electrostatic_point_charges.charges
+        jacobians = self.electrostatic_point_charges.jacobians
+        positions = self.electrostatic_point_charges.positions
+        return backend.potential_radial(point, charges, jacobians, positions)
+    
+    def magnetostatic_field_at_point(self, point_):
+        &#34;&#34;&#34;
+        Compute the magnetic field \\( \\vec{H} \\)
+        
+        Parameters
+        ----------
+        point: (3,) array of float64
+            Position at which to compute the field.
+             
+        Returns
+        -------
+        (3,) np.ndarray of float64 containing the field strength (in units of A/m) in the x, y and z directions.
+        &#34;&#34;&#34;
+        point = np.array(point_)
+        assert point.shape == (3,), &#34;Please supply a three dimensional point&#34;
+        current_field = self.current_field_at_point(point)
+        
+        charges = self.magnetostatic_point_charges.charges
+        jacobians = self.magnetostatic_point_charges.jacobians
+        positions = self.magnetostatic_point_charges.positions
+        
+        mag_field = backend.field_radial(point, charges, jacobians, positions)
+
+        return current_field + mag_field
+
+    def magnetostatic_potential_at_point(self, point_):
+        &#34;&#34;&#34;
+        Compute the magnetostatic scalar potential (satisfying \\(\\vec{H} = -\\nabla \\phi \\))
+        
+        Parameters
+        ----------
+        point: (3,) array of float64
+            Position at which to compute the field.
+        
+        Returns
+        -------
+        Potential as a float value (in units of A).
+        &#34;&#34;&#34;
+        point = np.array(point_)
+        assert point.shape == (3,), &#34;Please supply a three dimensional point&#34;
+        charges = self.magnetostatic_point_charges.charges
+        jacobians = self.magnetostatic_point_charges.jacobians
+        positions = self.magnetostatic_point_charges.positions
+        return backend.potential_radial(point, charges, jacobians, positions)
+    
+    def current_potential_axial(self, z):
+        assert isinstance(z, float)
+        currents = self.current_point_charges.charges
+        jacobians = self.current_point_charges.jacobians
+        positions = self.current_point_charges.positions
+        return backend.current_potential_axial(z, currents, jacobians, positions)
+     
+    def get_electrostatic_axial_potential_derivatives(self, z):
+        &#34;&#34;&#34;
+        Compute the derivatives of the electrostatic potential a points on the optical axis (z-axis). 
+         
+        Parameters
+        ----------
+        z : (N,) np.ndarray of float64
+            Positions on the optical axis at which to compute the derivatives.
+
+        Returns
+        ------- 
+        Numpy array of shape (N, 9) containing the derivatives. At index i one finds the i-th derivative (so
+        at position 0 the potential itself is returned). The highest derivative returned is a 
+        constant currently set to 9.&#34;&#34;&#34;
+        charges = self.electrostatic_point_charges.charges
+        jacobians = self.electrostatic_point_charges.jacobians
+        positions = self.electrostatic_point_charges.positions
+        return backend.axial_derivatives_radial(z, charges, jacobians, positions)
+    
+    def get_magnetostatic_axial_potential_derivatives(self, z):
+        &#34;&#34;&#34;
+        Compute the derivatives of the magnetostatic potential at points on the optical axis (z-axis). 
+         
+        Parameters
+        ----------
+        z : (N,) np.ndarray of float64
+            Positions on the optical axis at which to compute the derivatives.
+
+        Returns
+        ------- 
+        Numpy array of shape (N, 9) containing the derivatives. At index i one finds the i-th derivative (so
+        at position 0 the potential itself is returned). The highest derivative returned is a 
+        constant currently set to 9.&#34;&#34;&#34;
+        charges = self.magnetostatic_point_charges.charges
+        jacobians = self.magnetostatic_point_charges.jacobians
+        positions = self.magnetostatic_point_charges.positions
+         
+        derivs_magnetic = backend.axial_derivatives_radial(z, charges, jacobians, positions)
+        derivs_current = self.get_current_axial_potential_derivatives(z)
+        return derivs_magnetic + derivs_current
+     
+    def get_current_axial_potential_derivatives(self, z):
+        &#34;&#34;&#34;
+        Compute the derivatives of the current magnetostatic scalar potential at points on the optical axis.
+         
+        Parameters
+        ----------
+        z : (N,) np.ndarray of float64
+            Positions on the optical axis at which to compute the derivatives.
+         
+        Returns
+        ------- 
+        Numpy array of shape (N, 9) containing the derivatives. At index i one finds the i-th derivative (so
+        at position 0 the potential itself is returned). The highest derivative returned is a 
+        constant currently set to 9.&#34;&#34;&#34;
+
+        currents = self.current_point_charges.charges
+        jacobians = self.current_point_charges.jacobians
+        positions = self.current_point_charges.positions
+        return backend.current_axial_derivatives_radial(z, currents, jacobians, positions)
+      
+    def area_of_element(self, i):
+        jacobians = self.electrostatic_point_charges.jacobians
+        positions = self.electrostatic_point_charges.positions
+        return 2*np.pi*np.sum(jacobians[i] * positions[i, :, 0])
+    
+    def get_tracer(self, bounds):
+        return T.TracerRadialBEM(self, bounds)</code></pre>
+</details>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li><a title="traceon.solver.FieldBEM" href="#traceon.solver.FieldBEM">FieldBEM</a></li>
+<li><a title="traceon.solver.Field" href="#traceon.solver.Field">Field</a></li>
+<li>abc.ABC</li>
+</ul>
+<h3>Methods</h3>
+<dl>
+<dt id="traceon.solver.FieldRadialBEM.area_of_element"><code class="name flex">
+<span>def <span class="ident">area_of_element</span></span>(<span>self, i)</span>
+</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="traceon.solver.FieldRadialBEM.current_field_at_point"><code class="name flex">
+<span>def <span class="ident">current_field_at_point</span></span>(<span>self, point_)</span>
+</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="traceon.solver.FieldRadialBEM.current_potential_axial"><code class="name flex">
+<span>def <span class="ident">current_potential_axial</span></span>(<span>self, z)</span>
+</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="traceon.solver.FieldRadialBEM.electrostatic_field_at_point"><code class="name flex">
+<span>def <span class="ident">electrostatic_field_at_point</span></span>(<span>self, point_)</span>
+</code></dt>
+<dd>
+<div class="desc"><p>Compute the electric field, <span><span class="MathJax_Preview"> \vec{E} = -\nabla \phi </span><script type="math/tex"> \vec{E} = -\nabla \phi </script></span></p>
+<h2 id="parameters">Parameters</h2>
+<dl>
+<dt><strong><code>point</code></strong> :&ensp;<code>(3,) array</code> of <code>float64</code></dt>
+<dd>Position at which to compute the field.</dd>
+</dl>
+<h2 id="returns">Returns</h2>
+<p>(3,) array of float64, containing the field strengths (units of V/m)</p></div>
+</dd>
+<dt id="traceon.solver.FieldRadialBEM.electrostatic_potential_at_point"><code class="name flex">
+<span>def <span class="ident">electrostatic_potential_at_point</span></span>(<span>self, point_)</span>
+</code></dt>
+<dd>
+<div class="desc"><p>Compute the electrostatic potential.</p>
+<h2 id="parameters">Parameters</h2>
+<dl>
+<dt><strong><code>point</code></strong> :&ensp;<code>(3,) array</code> of <code>float64</code></dt>
+<dd>Position at which to compute the field.</dd>
+</dl>
+<h2 id="returns">Returns</h2>
+<p>Potential as a float value (in units of V).</p></div>
+</dd>
+<dt id="traceon.solver.FieldRadialBEM.get_current_axial_potential_derivatives"><code class="name flex">
+<span>def <span class="ident">get_current_axial_potential_derivatives</span></span>(<span>self, z)</span>
+</code></dt>
+<dd>
+<div class="desc"><p>Compute the derivatives of the current magnetostatic scalar potential at points on the optical axis.</p>
+<h2 id="parameters">Parameters</h2>
+<dl>
+<dt><strong><code>z</code></strong> :&ensp;<code>(N,) np.ndarray</code> of <code>float64</code></dt>
+<dd>Positions on the optical axis at which to compute the derivatives.</dd>
+</dl>
+<h2 id="returns">Returns</h2>
+<p>Numpy array of shape (N, 9) containing the derivatives. At index i one finds the i-th derivative (so
+at position 0 the potential itself is returned). The highest derivative returned is a
+constant currently set to 9.</p></div>
+</dd>
+<dt id="traceon.solver.FieldRadialBEM.get_electrostatic_axial_potential_derivatives"><code class="name flex">
+<span>def <span class="ident">get_electrostatic_axial_potential_derivatives</span></span>(<span>self, z)</span>
+</code></dt>
+<dd>
+<div class="desc"><p>Compute the derivatives of the electrostatic potential a points on the optical axis (z-axis). </p>
+<h2 id="parameters">Parameters</h2>
+<dl>
+<dt><strong><code>z</code></strong> :&ensp;<code>(N,) np.ndarray</code> of <code>float64</code></dt>
+<dd>Positions on the optical axis at which to compute the derivatives.</dd>
+</dl>
+<h2 id="returns">Returns</h2>
+<p>Numpy array of shape (N, 9) containing the derivatives. At index i one finds the i-th derivative (so
+at position 0 the potential itself is returned). The highest derivative returned is a
+constant currently set to 9.</p></div>
+</dd>
+<dt id="traceon.solver.FieldRadialBEM.get_magnetostatic_axial_potential_derivatives"><code class="name flex">
+<span>def <span class="ident">get_magnetostatic_axial_potential_derivatives</span></span>(<span>self, z)</span>
+</code></dt>
+<dd>
+<div class="desc"><p>Compute the derivatives of the magnetostatic potential at points on the optical axis (z-axis). </p>
+<h2 id="parameters">Parameters</h2>
+<dl>
+<dt><strong><code>z</code></strong> :&ensp;<code>(N,) np.ndarray</code> of <code>float64</code></dt>
+<dd>Positions on the optical axis at which to compute the derivatives.</dd>
+</dl>
+<h2 id="returns">Returns</h2>
+<p>Numpy array of shape (N, 9) containing the derivatives. At index i one finds the i-th derivative (so
+at position 0 the potential itself is returned). The highest derivative returned is a
+constant currently set to 9.</p></div>
+</dd>
+<dt id="traceon.solver.FieldRadialBEM.get_tracer"><code class="name flex">
+<span>def <span class="ident">get_tracer</span></span>(<span>self, bounds)</span>
+</code></dt>
+<dd>
+<div class="desc"></div>
+</dd>
+<dt id="traceon.solver.FieldRadialBEM.magnetostatic_field_at_point"><code class="name flex">
+<span>def <span class="ident">magnetostatic_field_at_point</span></span>(<span>self, point_)</span>
+</code></dt>
+<dd>
+<div class="desc"><p>Compute the magnetic field <span><span class="MathJax_Preview"> \vec{H} </span><script type="math/tex"> \vec{H} </script></span></p>
+<h2 id="parameters">Parameters</h2>
+<dl>
+<dt><strong><code>point</code></strong> :&ensp;<code>(3,) array</code> of <code>float64</code></dt>
+<dd>Position at which to compute the field.</dd>
+</dl>
+<h2 id="returns">Returns</h2>
+<p>(3,) np.ndarray of float64 containing the field strength (in units of A/m) in the x, y and z directions.</p></div>
+</dd>
+<dt id="traceon.solver.FieldRadialBEM.magnetostatic_potential_at_point"><code class="name flex">
+<span>def <span class="ident">magnetostatic_potential_at_point</span></span>(<span>self, point_)</span>
+</code></dt>
+<dd>
+<div class="desc"><p>Compute the magnetostatic scalar potential (satisfying <span><span class="MathJax_Preview">\vec{H} = -\nabla \phi </span><script type="math/tex">\vec{H} = -\nabla \phi </script></span>)</p>
+<h2 id="parameters">Parameters</h2>
+<dl>
+<dt><strong><code>point</code></strong> :&ensp;<code>(3,) array</code> of <code>float64</code></dt>
+<dd>Position at which to compute the field.</dd>
+</dl>
+<h2 id="returns">Returns</h2>
+<p>Potential as a float value (in units of A).</p></div>
+</dd>
+</dl>
+<h3>Inherited members</h3>
+<ul class="hlist">
+<li><code><b><a title="traceon.solver.FieldBEM" href="#traceon.solver.FieldBEM">FieldBEM</a></b></code>:
+<ul class="hlist">
+<li><code><a title="traceon.solver.FieldBEM.area_of_elements" href="#traceon.solver.FieldBEM.area_of_elements">area_of_elements</a></code></li>
+<li><code><a title="traceon.solver.FieldBEM.charge_on_elements" href="#traceon.solver.FieldBEM.charge_on_elements">charge_on_elements</a></code></li>
+<li><code><a title="traceon.solver.FieldBEM.field_at_point" href="#traceon.solver.Field.field_at_point">field_at_point</a></code></li>
+<li><code><a title="traceon.solver.FieldBEM.potential_at_point" href="#traceon.solver.Field.potential_at_point">potential_at_point</a></code></li>
+<li><code><a title="traceon.solver.FieldBEM.set_bounds" href="#traceon.solver.FieldBEM.set_bounds">set_bounds</a></code></li>
+</ul>
+</li>
+</ul>
+</dd>
+</dl>
+</section>
+</article>
+<nav id="sidebar">
+<div class="toc">
+<ul>
+<li><a href="#radial-series-expansion-in-cylindrical-symmetry">Radial series expansion in cylindrical symmetry</a></li>
+<li><a href="#radial-series-expansion-in-3d">Radial series expansion in 3D</a><ul>
+<li><a href="#references">References</a></li>
+</ul>
+</li>
+</ul>
+</div>
+<ul id="index">
+<li><h3>Super-module</h3>
+<ul>
+<li><code><a title="traceon" href="index.html">traceon</a></code></li>
+</ul>
+</li>
+<li><h3><a href="#header-functions">Functions</a></h3>
+<ul class="">
+<li><code><a title="traceon.solver.solve_direct" href="#traceon.solver.solve_direct">solve_direct</a></code></li>
+<li><code><a title="traceon.solver.solve_direct_superposition" href="#traceon.solver.solve_direct_superposition">solve_direct_superposition</a></code></li>
+</ul>
+</li>
+<li><h3><a href="#header-classes">Classes</a></h3>
+<ul>
+<li>
+<h4><code><a title="traceon.solver.Field" href="#traceon.solver.Field">Field</a></code></h4>
+<ul class="">
+<li><code><a title="traceon.solver.Field.electrostatic_field_at_point" href="#traceon.solver.Field.electrostatic_field_at_point">electrostatic_field_at_point</a></code></li>
+<li><code><a title="traceon.solver.Field.electrostatic_potential_at_point" href="#traceon.solver.Field.electrostatic_potential_at_point">electrostatic_potential_at_point</a></code></li>
+<li><code><a title="traceon.solver.Field.field_at_point" href="#traceon.solver.Field.field_at_point">field_at_point</a></code></li>
+<li><code><a title="traceon.solver.Field.is_electrostatic" href="#traceon.solver.Field.is_electrostatic">is_electrostatic</a></code></li>
+<li><code><a title="traceon.solver.Field.is_magnetostatic" href="#traceon.solver.Field.is_magnetostatic">is_magnetostatic</a></code></li>
+<li><code><a title="traceon.solver.Field.magnetostatic_field_at_point" href="#traceon.solver.Field.magnetostatic_field_at_point">magnetostatic_field_at_point</a></code></li>
+<li><code><a title="traceon.solver.Field.magnetostatic_potential_at_point" href="#traceon.solver.Field.magnetostatic_potential_at_point">magnetostatic_potential_at_point</a></code></li>
+<li><code><a title="traceon.solver.Field.potential_at_point" href="#traceon.solver.Field.potential_at_point">potential_at_point</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="traceon.solver.Field3D_BEM" href="#traceon.solver.Field3D_BEM">Field3D_BEM</a></code></h4>
+<ul class="">
+<li><code><a title="traceon.solver.Field3D_BEM.area_of_element" href="#traceon.solver.Field3D_BEM.area_of_element">area_of_element</a></code></li>
+<li><code><a title="traceon.solver.Field3D_BEM.electrostatic_field_at_point" href="#traceon.solver.Field3D_BEM.electrostatic_field_at_point">electrostatic_field_at_point</a></code></li>
+<li><code><a title="traceon.solver.Field3D_BEM.electrostatic_potential_at_point" href="#traceon.solver.Field3D_BEM.electrostatic_potential_at_point">electrostatic_potential_at_point</a></code></li>
+<li><code><a title="traceon.solver.Field3D_BEM.get_tracer" href="#traceon.solver.Field3D_BEM.get_tracer">get_tracer</a></code></li>
+<li><code><a title="traceon.solver.Field3D_BEM.magnetostatic_field_at_point" href="#traceon.solver.Field3D_BEM.magnetostatic_field_at_point">magnetostatic_field_at_point</a></code></li>
+<li><code><a title="traceon.solver.Field3D_BEM.magnetostatic_potential_at_point" href="#traceon.solver.Field3D_BEM.magnetostatic_potential_at_point">magnetostatic_potential_at_point</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="traceon.solver.FieldAxial" href="#traceon.solver.FieldAxial">FieldAxial</a></code></h4>
+<ul class="">
+<li><code><a title="traceon.solver.FieldAxial.is_electrostatic" href="#traceon.solver.FieldAxial.is_electrostatic">is_electrostatic</a></code></li>
+<li><code><a title="traceon.solver.FieldAxial.is_magnetostatic" href="#traceon.solver.FieldAxial.is_magnetostatic">is_magnetostatic</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="traceon.solver.FieldBEM" href="#traceon.solver.FieldBEM">FieldBEM</a></code></h4>
+<ul class="two-column">
+<li><code><a title="traceon.solver.FieldBEM.area_of_element" href="#traceon.solver.FieldBEM.area_of_element">area_of_element</a></code></li>
+<li><code><a title="traceon.solver.FieldBEM.area_of_elements" href="#traceon.solver.FieldBEM.area_of_elements">area_of_elements</a></code></li>
+<li><code><a title="traceon.solver.FieldBEM.charge_on_element" href="#traceon.solver.FieldBEM.charge_on_element">charge_on_element</a></code></li>
+<li><code><a title="traceon.solver.FieldBEM.charge_on_elements" href="#traceon.solver.FieldBEM.charge_on_elements">charge_on_elements</a></code></li>
+<li><code><a title="traceon.solver.FieldBEM.is_electrostatic" href="#traceon.solver.FieldBEM.is_electrostatic">is_electrostatic</a></code></li>
+<li><code><a title="traceon.solver.FieldBEM.is_magnetostatic" href="#traceon.solver.FieldBEM.is_magnetostatic">is_magnetostatic</a></code></li>
+<li><code><a title="traceon.solver.FieldBEM.set_bounds" href="#traceon.solver.FieldBEM.set_bounds">set_bounds</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="traceon.solver.FieldRadialAxial" href="#traceon.solver.FieldRadialAxial">FieldRadialAxial</a></code></h4>
+<ul class="">
+<li><code><a title="traceon.solver.FieldRadialAxial.electrostatic_field_at_point" href="#traceon.solver.FieldRadialAxial.electrostatic_field_at_point">electrostatic_field_at_point</a></code></li>
+<li><code><a title="traceon.solver.FieldRadialAxial.electrostatic_potential_at_point" href="#traceon.solver.FieldRadialAxial.electrostatic_potential_at_point">electrostatic_potential_at_point</a></code></li>
+<li><code><a title="traceon.solver.FieldRadialAxial.get_tracer" href="#traceon.solver.FieldRadialAxial.get_tracer">get_tracer</a></code></li>
+<li><code><a title="traceon.solver.FieldRadialAxial.magnetostatic_field_at_point" href="#traceon.solver.FieldRadialAxial.magnetostatic_field_at_point">magnetostatic_field_at_point</a></code></li>
+<li><code><a title="traceon.solver.FieldRadialAxial.magnetostatic_potential_at_point" href="#traceon.solver.FieldRadialAxial.magnetostatic_potential_at_point">magnetostatic_potential_at_point</a></code></li>
+</ul>
+</li>
+<li>
+<h4><code><a title="traceon.solver.FieldRadialBEM" href="#traceon.solver.FieldRadialBEM">FieldRadialBEM</a></code></h4>
+<ul class="">
+<li><code><a title="traceon.solver.FieldRadialBEM.area_of_element" href="#traceon.solver.FieldRadialBEM.area_of_element">area_of_element</a></code></li>
+<li><code><a title="traceon.solver.FieldRadialBEM.current_field_at_point" href="#traceon.solver.FieldRadialBEM.current_field_at_point">current_field_at_point</a></code></li>
+<li><code><a title="traceon.solver.FieldRadialBEM.current_potential_axial" href="#traceon.solver.FieldRadialBEM.current_potential_axial">current_potential_axial</a></code></li>
+<li><code><a title="traceon.solver.FieldRadialBEM.electrostatic_field_at_point" href="#traceon.solver.FieldRadialBEM.electrostatic_field_at_point">electrostatic_field_at_point</a></code></li>
+<li><code><a title="traceon.solver.FieldRadialBEM.electrostatic_potential_at_point" href="#traceon.solver.FieldRadialBEM.electrostatic_potential_at_point">electrostatic_potential_at_point</a></code></li>
+<li><code><a title="traceon.solver.FieldRadialBEM.get_current_axial_potential_derivatives" href="#traceon.solver.FieldRadialBEM.get_current_axial_potential_derivatives">get_current_axial_potential_derivatives</a></code></li>
+<li><code><a title="traceon.solver.FieldRadialBEM.get_electrostatic_axial_potential_derivatives" href="#traceon.solver.FieldRadialBEM.get_electrostatic_axial_potential_derivatives">get_electrostatic_axial_potential_derivatives</a></code></li>
+<li><code><a title="traceon.solver.FieldRadialBEM.get_magnetostatic_axial_potential_derivatives" href="#traceon.solver.FieldRadialBEM.get_magnetostatic_axial_potential_derivatives">get_magnetostatic_axial_potential_derivatives</a></code></li>
+<li><code><a title="traceon.solver.FieldRadialBEM.get_tracer" href="#traceon.solver.FieldRadialBEM.get_tracer">get_tracer</a></code></li>
+<li><code><a title="traceon.solver.FieldRadialBEM.magnetostatic_field_at_point" href="#traceon.solver.FieldRadialBEM.magnetostatic_field_at_point">magnetostatic_field_at_point</a></code></li>
+<li><code><a title="traceon.solver.FieldRadialBEM.magnetostatic_potential_at_point" href="#traceon.solver.FieldRadialBEM.magnetostatic_potential_at_point">magnetostatic_potential_at_point</a></code></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</nav>
+</main>
+<footer id="footer">
+<p>Generated by <a href="https://pdoc3.github.io/pdoc" title="pdoc: Python API documentation generator"><cite>pdoc</cite> 0.11.1</a>.</p>
+</footer>
+</body>
+</html>
