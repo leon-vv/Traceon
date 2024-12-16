@@ -124,14 +124,14 @@ class EffectivePointCharges3D(C.Structure):
     
     def __init__(self, eff, *args, **kwargs):
         assert eff.is_3d()
-        super(EffectivePointCharges3D, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
          
         self.charges = ensure_contiguous_aligned(eff.charges).ctypes.data_as(dbl_p)
         self.jacobians = ensure_contiguous_aligned(eff.jacobians).ctypes.data_as(dbl_p)
         self.positions = ensure_contiguous_aligned(eff.positions).ctypes.data_as(dbl_p)
         self.N = len(eff)
 
-class FieldEvaluationArgs(C.Structure):
+class FieldEvaluationArgsRadial(C.Structure):
     _fields_ = [
         ("elec_charges", C.c_void_p),
         ("mag_charges", C.c_void_p),
@@ -140,7 +140,7 @@ class FieldEvaluationArgs(C.Structure):
     ]
 
     def __init__(self, elec, mag, current, bounds, *args, **kwargs):
-        super(FieldEvaluationArgs, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
         assert bounds is None or bounds.shape == (3, 2)
         
         self.elec_charges = C.cast(C.pointer(EffectivePointCharges2D(elec)), C.c_void_p)
@@ -151,6 +151,29 @@ class FieldEvaluationArgs(C.Structure):
             self.bounds = None
         else:
             self.bounds = ensure_contiguous_aligned(bounds).ctypes.data_as(C.c_double_p)
+
+class FieldEvaluationArgs3D(C.Structure):
+    _fields_ = [
+        ("elec_charges", C.c_void_p),
+        ("mag_charges", C.c_void_p),
+        ("current_charges", C.c_void_p),
+        ("bounds", C.POINTER(C.c_double))
+    ]
+
+    def __init__(self, elec, mag, bounds, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        assert bounds is None or bounds.shape == (3, 2)
+        
+        self.elec_charges = C.cast(C.pointer(EffectivePointCharges3D(elec)), C.c_void_p)
+        self.mag_charges = C.cast(C.pointer(EffectivePointCharges3D(mag)), C.c_void_p)
+        self.current_charges = None
+        
+        if bounds is None:
+            self.bounds = None
+        else:
+            self.bounds = ensure_contiguous_aligned(bounds).ctypes.data_as(C.c_double_p)
+
+
 
 class FieldDerivsArgs(C.Structure):
     _fields_ = [
@@ -394,7 +417,7 @@ def delta_position_and_jacobian_radial(alpha: float, v1: np.ndarray, v2: np.ndar
 
 
 
-def trace_particle(position: np.ndarray, velocity: np.ndarray, charge_over_mass: float, field, bounds: np.ndarray, atol: float, args: C.c_void_p) -> Tuple[np.ndarray, np.ndarray]:
+def trace_particle(position: np.ndarray, velocity: np.ndarray, charge_over_mass: float, field, bounds: np.ndarray, atol: float, args: C.c_void_p=None) -> Tuple[np.ndarray, np.ndarray]:
     bounds = np.array(bounds)
      
     return trace_particle_wrapper(position, velocity,

@@ -840,7 +840,7 @@ class FieldRadialBEM(FieldBEM):
         return T.Tracer(self, bounds)
     
     def get_low_level_trace_function(self):
-        args = backend.FieldEvaluationArgs(self.electrostatic_point_charges, self.magnetostatic_point_charges, self.current_point_charges, self.field_bounds)
+        args = backend.FieldEvaluationArgsRadial(self.electrostatic_point_charges, self.magnetostatic_point_charges, self.current_point_charges, self.field_bounds)
         return backend.field_fun(("field_radial_traceable", backend.backend_lib)), args
         
     
@@ -951,7 +951,12 @@ class Field3D_BEM(FieldBEM):
         return np.sum(jacobians[i])
     
     def get_tracer(self, bounds):
-        return T.Tracer3D_BEM(self, bounds)
+        return T.Tracer(self, bounds)
+    
+    def get_low_level_trace_function(self):
+        args = backend.FieldEvaluationArgs3D(self.electrostatic_point_charges, self.magnetostatic_point_charges, self.field_bounds)
+        return backend.field_fun(("field_3d_traceable", backend.backend_lib)), args
+ 
      
 
 class FieldAxial(Field):

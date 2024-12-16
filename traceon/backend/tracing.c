@@ -187,7 +187,7 @@ trace_particle_radial_derivs(double *times_array, double *pos_array, double char
 	return trace_particle(times_array, pos_array, charge_over_mass, field_radial_derivs_traceable, bounds, atol, (void*) &args);
 }
 
-void
+EXPORT void
 field_3d_traceable(double point[6], double result[3], void *args_p) {
 	struct field_evaluation_args *args = (struct field_evaluation_args*)args_p;
 	struct effective_point_charges_3d *elec_charges = (struct effective_point_charges_3d*) args->elec_charges;
