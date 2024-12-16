@@ -199,6 +199,11 @@ class FieldRadialAxial(FieldAxial):
         return backend.potential_radial_derivs(point, self.z, self.magnetostatic_coeffs)
     
     def get_tracer(self, bounds):
-        return T.TracerRadialAxial(self, bounds)
+        return T.Tracer(self, bounds)
+    
+    def get_low_level_trace_function(self):
+        args = backend.FieldDerivsArgs(self.z, self.electrostatic_coeffs, self.magnetostatic_coeffs)
+        return backend.field_fun(("field_radial_derivs_traceable", backend.backend_lib)), args
+ 
     
 

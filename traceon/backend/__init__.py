@@ -131,6 +131,46 @@ class EffectivePointCharges3D(C.Structure):
         self.positions = ensure_contiguous_aligned(eff.positions).ctypes.data_as(dbl_p)
         self.N = len(eff)
 
+class FieldEvaluationArgs(C.Structure):
+    _fields_ = [
+        ("elec_charges", C.c_void_p),
+        ("mag_charges", C.c_void_p),
+        ("current_charges", C.c_void_p),
+        ("bounds", C.POINTER(C.c_double))
+    ]
+
+    def __init__(self, elec, mag, current, bounds, *args, **kwargs):
+        super(FieldEvaluationArgs, self).__init__(*args, **kwargs)
+        assert bounds is None or bounds.shape == (3, 2)
+        
+        self.elec_charges = C.cast(C.pointer(EffectivePointCharges2D(elec)), C.c_void_p)
+        self.mag_charges = C.cast(C.pointer(EffectivePointCharges2D(mag)), C.c_void_p)
+        self.current_charges = C.cast(C.pointer(EffectivePointCharges3D(current)), C.c_void_p)
+
+        if bounds is None:
+            self.bounds = None
+        else:
+            self.bounds = ensure_contiguous_aligned(bounds).ctypes.data_as(C.c_double_p)
+
+class FieldDerivsArgs(C.Structure):
+    _fields_ = [
+        ("z_interpolation", dbl_p),
+        ("electrostatic_axial_coeffs", dbl_p),
+        ("magnetostatic_axial_coeffs", dbl_p),
+        ("N_z", C.c_size_t)
+    ]
+
+    def __init__(self, z, elec, mag, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        assert z.shape == (len(z),)
+        assert elec.shape[0] == len(z)-1
+        assert mag.shape[0] == len(z)-1
+        
+        self.z_interpolation = ensure_contiguous_aligned(z).ctypes.data_as(dbl_p)
+        self.electrostatic_axial_coeffs = ensure_contiguous_aligned(elec).ctypes.data_as(dbl_p)
+        self.magnetostatic_axial_coeffs = ensure_contiguous_aligned(mag).ctypes.data_as(dbl_p)
+        self.N_z = len(z)
+
 bounds = arr(shape=(3, 2))
 
 times_block = arr(shape=(TRACING_BLOCK_SIZE,))
@@ -165,7 +205,6 @@ backend_functions = {
     'charge_radial': (dbl, arr(ndim=2), dbl),
     'field_radial': (None, v3, v3, charges_2d, jac_buffer_2d, pos_buffer_2d, sz),
     'combine_elec_magnetic_field': (None, v3, v3, v3, v3, v3),
-    'trace_particle_radial': (sz, times_block, tracing_block, dbl, bounds, dbl, dbl_p, EffectivePointCharges2D, EffectivePointCharges2D, EffectivePointCharges3D),
     'field_radial_derivs': (None, v3, v3, z_values, arr(ndim=3), sz),
     'trace_particle_radial_derivs': (sz, times_block, tracing_block, dbl, bounds, dbl, z_values, radial_coeffs, radial_coeffs, sz),
     'dx1_potential_3d_point': (dbl, dbl, dbl, dbl, dbl, dbl, dbl, vp),
@@ -355,27 +394,11 @@ def delta_position_and_jacobian_radial(alpha: float, v1: np.ndarray, v2: np.ndar
 
 
 
-def trace_particle(position: np.ndarray, velocity: np.ndarray, charge_over_mass: float, field: Callable, bounds: np.ndarray, atol: float) -> Tuple[np.ndarray, np.ndarray]:
+def trace_particle(position: np.ndarray, velocity: np.ndarray, charge_over_mass: float, field, bounds: np.ndarray, atol: float, args: C.c_void_p) -> Tuple[np.ndarray, np.ndarray]:
     bounds = np.array(bounds)
-    
+     
     return trace_particle_wrapper(position, velocity,
-        lambda T, P: backend_lib.trace_particle(T, P, charge_over_mass, wrap_field_fun(field), bounds, atol, None))
-
-def trace_particle_radial(position: np.ndarray, velocity: np.ndarray, charge_over_mass: float, 
-                          bounds: np.ndarray, atol: float, eff_elec, eff_mag, eff_current, 
-                          field_bounds: Optional[np.ndarray]=None) -> Tuple[np.ndarray, np.ndarray]:
-    eff_elec = EffectivePointCharges2D(eff_elec)
-    eff_mag = EffectivePointCharges2D(eff_mag)
-    eff_current = EffectivePointCharges3D(eff_current)
-    
-    bounds = np.array(bounds)
-     
-    field_bounds_ptr = field_bounds.ctypes.data_as(dbl_p) if field_bounds is not None else None
-     
-    times, positions = trace_particle_wrapper(position, velocity,
-        lambda T, P: backend_lib.trace_particle_radial(T, P, charge_over_mass, bounds, atol, field_bounds_ptr, eff_elec, eff_mag, eff_current))
-    
-    return times, positions
+        lambda T, P: backend_lib.trace_particle(T, P, charge_over_mass, field, bounds, atol, args))
 
 def trace_particle_radial_derivs(position: np.ndarray, velocity: np.ndarray, charge_over_mass: float, 
                                  bounds: np.ndarray, atol: float, z: np.ndarray, 

@@ -110,7 +110,7 @@ trace_particle(double *times_array, double *pos_array, double charge_over_mass, 
 	return N;
 }
 
-void
+EXPORT void
 field_radial_traceable(double point[6], double result[3], void *args_p) {
 	
 	struct field_evaluation_args *args = (struct field_evaluation_args*) args_p;
@@ -164,7 +164,7 @@ trace_particle_radial(double *times_array, double *pos_array, double charge_over
 	return trace_particle(times_array, pos_array, charge_over_mass, field_radial_traceable, tracer_bounds, atol, (void*) &args);
 }
 
-void
+EXPORT void
 field_radial_derivs_traceable(double point[6], double field[3], void *args_p) {
 	struct field_derivs_args *args = (struct field_derivs_args*) args_p;
 

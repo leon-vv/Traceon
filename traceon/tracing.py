@@ -7,7 +7,7 @@ compute intersections of the computed traces with various planes.
 [1] Erwin Fehlberg. Low-Order Classical Runge-Kutta Formulas With Stepsize Control and their Application to Some Heat
 Transfer Problems. 1969. National Aeronautics and Space Administration."""
 
-
+import ctypes
 from math import sqrt, cos, sin, atan2
 import time
 from enum import Enum
@@ -116,7 +116,16 @@ class Tracer:
         bounds = np.array(bounds).astype(np.float64)
         assert bounds.shape == (3,2)
         self.bounds = bounds
-    
+
+        fun = field.get_low_level_trace_function()
+
+        if fun is None:
+            self.low_level_trace_function = None
+            self.low_level_trace_args = None
+        else:
+            self.low_level_trace_function, args = fun
+            self.low_level_trace_args = ctypes.cast(ctypes.pointer(args), ctypes.c_void_p)
+     
     def __str__(self):
         field_name = self.field.__class__.__name__
         bounds_str = ' '.join([f'({bmin:.2f}, {bmax:.2f})' for bmin, bmax in self.bounds])
@@ -148,23 +157,18 @@ class Tracer:
         The first three elements in the `positions[i]` array contain the x,y,z positions.
         The last three elements in `positions[i]` contain the vx,vy,vz velocities.
         """
-        raise RuntimeError('Please use the field.get_tracer(...) method to get the appropriate Tracer instance')
-
-class TracerRadialBEM(Tracer):
-    def __call__(self, position, velocity, mass=m_e, charge=-e, atol=1e-10):
         charge_over_mass = charge / mass
         velocity = _convert_velocity_to_SI(velocity, mass)
-        
-        return backend.trace_particle_radial(
+
+        return backend.trace_particle(
                 position,
                 velocity,
                 charge_over_mass, 
+                self.low_level_trace_function,
                 self.bounds,
-                atol, 
-                self.field.electrostatic_point_charges,
-                self.field.magnetostatic_point_charges,
-                self.field.current_point_charges,
-                field_bounds=self.field.field_bounds)
+                atol,
+                self.low_level_trace_args)
+
 
 class TracerRadialAxial(Tracer):
     def __call__(self, position, velocity, mass=m_e, charge=-e, atol=1e-10):
