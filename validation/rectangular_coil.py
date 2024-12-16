@@ -18,7 +18,7 @@ class RectangularCoil(Validation):
         self.plot_colors = dict(coil='red', boundary='purple')
 
     def create_mesh(self, MSF, symmetry, higher_order):
-        boundary = G.Path.line([0., 0., 5.], [5., 0., 5.]).line_to([5., 0., 0]).line_to([0., 0., 0.]);
+        boundary = G.Path.line([0., 0., 5.], [5., 0., 5.]).extend_with_line([5., 0., 0]).extend_with_line([0., 0., 0.]);
         boundary.name = 'boundary'
         mesh1 = boundary.mesh(mesh_size_factor=MSF)
 

@@ -34,10 +34,10 @@ class Edwards2007(Validation):
         ]
 
         inner = G.Path.line(points[0], points[1])\
-            .line_to(points[2]).line_to(points[3])
+            .extend_with_line(points[2]).extend_with_line(points[3])
          
         boundary = G.Path.line(points[4], points[5])\
-            .line_to(points[6]).line_to(points[7])
+            .extend_with_line(points[6]).extend_with_line(points[7])
         
         if symmetry.is_3d():
             inner = inner.revolve_z()

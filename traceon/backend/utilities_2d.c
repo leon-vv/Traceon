@@ -64,3 +64,24 @@ INLINE void position_and_jacobian_radial(double alpha, double *v1, double *v2, d
 	// Term following from the Jacobian
 	*jac = 1/16. * sqrt(pow(2*alpha*(9*v4y-9*v3y-9*v2y+9*v1y)+3*a2*(9*v4y-27*v3y+27*v2y-9*v1y)-v4y+27*v3y-27*v2y+v1y, 2) +pow(2*alpha*(9*v4x-9*v3x-9*v2x+9*v1x)+3*a2*(9*v4x-27*v3x+27*v2x-9*v1x)-v4x+27*v3x-27*v2x+v1x, 2));
 }
+
+INLINE void delta_position_and_jacobian_radial(double alpha, double *v1, double *v2, double *v3, double *v4, double *pos_out, double *jac) {
+	// Note that this function is the same as position_and_jacobian_radial, except
+	// it gives the delta with respect to alpha=0, this is useful when computing the singular
+	// self potentials
+
+	double v1x = v1[0], v1y = v1[2];
+	double v2x = v2[0], v2y = v2[2];
+	double v3x = v3[0], v3y = v3[2];
+	double v4x = v4[0], v4y = v4[2];
+		
+	double a2 = pow(alpha, 2);
+	double a3 = pow(alpha, 3);
+	
+	// Higher order line element parametrization, relative to alpha=0
+	pos_out[0] = (a2*(9*v4x-9*v3x-9*v2x+9*v1x)+a3*(9*v4x-27*v3x+27*v2x-9*v1x)+alpha*(-v4x+27*v3x-27*v2x+v1x))/16;
+	pos_out[1] = (a2*(9*v4y-9*v3y-9*v2y+9*v1y)+a3*(9*v4y-27*v3y+27*v2y-9*v1y)+alpha*(-v4y+27*v3y-27*v2y+v1y))/16;
+	
+	// Term following from the Jacobian
+	*jac = 1/16. * sqrt(pow(2*alpha*(9*v4y-9*v3y-9*v2y+9*v1y)+3*a2*(9*v4y-27*v3y+27*v2y-9*v1y)-v4y+27*v3y-27*v2y+v1y, 2) +pow(2*alpha*(9*v4x-9*v3x-9*v2x+9*v1x)+3*a2*(9*v4x-27*v3x+27*v2x-9*v1x)-v4x+27*v3x-27*v2x+v1x, 2));
+}

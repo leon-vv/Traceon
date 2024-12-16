@@ -5,8 +5,8 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, minimum-scale=1">
 <meta name="generator" content="pdoc3 0.11.1">
 <title>traceon.tracing API documentation</title>
-<meta name="description" content="The tracing module allows to trace electrons within any field type returned by the `traceon.solver` module. The tracing algorithm
-used is RK45 with …">
+<meta name="description" content="The tracing module allows to trace charged particles within any field type returned by the `traceon.solver` module. The tracing algorithm
+used is RK45 …">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/10up-sanitize.css/13.0.0/sanitize.min.css" integrity="sha512-y1dtMcuvtTMJc1yPgEqF0ZjQbhnc/bFhyvIyVNb9Zk5mIGtqVaAB1Ttl28su8AvFMOY0EwRbAe+HCLqj6W7/KA==" crossorigin>
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/10up-sanitize.css/13.0.0/typography.min.css" integrity="sha512-Y1DYSb995BAfxobCkKepB1BqJJTPrOp3zPL74AWFugHHmmdcvO+C48WLrUOlhGMc0QG7AE3f7gmvvcrmX2fDoA==" crossorigin>
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/default.min.css" crossorigin>
@@ -28,7 +28,7 @@ hljs.highlightAll();
 <h1 class="title">Module <code>traceon.tracing</code></h1>
 </header>
 <section id="section-intro">
-<p>The tracing module allows to trace electrons within any field type returned by the <code><a title="traceon.solver" href="solver.html">traceon.solver</a></code> module. The tracing algorithm
+<p>The tracing module allows to trace charged particles within any field type returned by the <code><a title="traceon.solver" href="solver.html">traceon.solver</a></code> module. The tracing algorithm
 used is RK45 with adaptive step size control [1]. The tracing code is implemented in C (see <code>traceon.backend</code>) and has therefore
 excellent performance. The module also provides various helper functions to define appropriate initial velocity vectors and to
 compute intersections of the computed traces with various planes.</p>
@@ -52,7 +52,7 @@ Note that this function will not work properly if the trajectory crosses the x=0
 <h2 id="parameters">Parameters</h2>
 <dl>
 <dt><strong><code>positions</code></strong> :&ensp;<code>(N, 6) np.ndarray</code> of <code>float64</code></dt>
-<dd>Positions (and velocities) of an electron as returned by <code><a title="traceon.tracing.Tracer" href="#traceon.tracing.Tracer">Tracer</a></code>.</dd>
+<dd>Positions (and velocities) of a charged particle as returned by <code><a title="traceon.tracing.Tracer" href="#traceon.tracing.Tracer">Tracer</a></code>.</dd>
 </dl>
 <h2 id="returns">Returns</h2>
 <dl>
@@ -70,7 +70,7 @@ point is calculated using a linear interpolation.</p>
 <h2 id="parameters">Parameters</h2>
 <dl>
 <dt><strong><code>positions</code></strong> :&ensp;<code>(N, 6) np.ndarray</code> of <code>float64</code></dt>
-<dd>Positions of an electron as returned by <code><a title="traceon.tracing.Tracer" href="#traceon.tracing.Tracer">Tracer</a></code>.</dd>
+<dd>Positions of a charged particle as returned by <code><a title="traceon.tracing.Tracer" href="#traceon.tracing.Tracer">Tracer</a></code>.</dd>
 <dt><strong><code>p0</code></strong> :&ensp;<code>(3,) np.ndarray</code> of <code>float64</code></dt>
 <dd>A point that lies in the plane.</dd>
 <dt><strong><code>normal</code></strong> :&ensp;<code>(3,) np.ndarray</code> of <code>float64</code></dt>
@@ -78,7 +78,7 @@ point is calculated using a linear interpolation.</p>
 dot is the dot product.</dd>
 </dl>
 <h2 id="returns">Returns</h2>
-<p>np.ndarray of shape (6,) containing the position and velocity of the electron at the intersection point.</p></div>
+<p>np.ndarray of shape (6,) containing the position and velocity of the particle at the intersection point.</p></div>
 </dd>
 <dt id="traceon.tracing.velocity_vec"><code class="name flex">
 <span>def <span class="ident">velocity_vec</span></span>(<span>eV, direction_)</span>
@@ -139,12 +139,12 @@ The shape of the resulting vector is the same as the shape of <code>direction</c
 <h2 id="parameters">Parameters</h2>
 <dl>
 <dt><strong><code>positions</code></strong> :&ensp;<code>(N, 6) np.ndarray</code> of <code>float64</code></dt>
-<dd>Positions (and velocities) of an electron as returned by <code><a title="traceon.tracing.Tracer" href="#traceon.tracing.Tracer">Tracer</a></code>.</dd>
+<dd>Positions (and velocities) of a charged particle as returned by <code><a title="traceon.tracing.Tracer" href="#traceon.tracing.Tracer">Tracer</a></code>.</dd>
 <dt><strong><code>z</code></strong> :&ensp;<code>float</code></dt>
 <dd>z-coordinate of the plane with which to compute the intersection</dd>
 </dl>
 <h2 id="returns">Returns</h2>
-<p>(6,) array of float64, containing the position and velocity of the electron at the intersection point.</p></div>
+<p>(6,) array of float64, containing the position and velocity of the particle at the intersection point.</p></div>
 </dd>
 <dt id="traceon.tracing.xz_plane_intersection"><code class="name flex">
 <span>def <span class="ident">xz_plane_intersection</span></span>(<span>positions, y)</span>
@@ -154,12 +154,12 @@ The shape of the resulting vector is the same as the shape of <code>direction</c
 <h2 id="parameters">Parameters</h2>
 <dl>
 <dt><strong><code>positions</code></strong> :&ensp;<code>(N, 6) np.ndarray</code> of <code>float64</code></dt>
-<dd>Positions (and velocities) of an electron as returned by <code><a title="traceon.tracing.Tracer" href="#traceon.tracing.Tracer">Tracer</a></code>.</dd>
+<dd>Positions (and velocities) of a charged particle as returned by <code><a title="traceon.tracing.Tracer" href="#traceon.tracing.Tracer">Tracer</a></code>.</dd>
 <dt><strong><code>z</code></strong> :&ensp;<code>float</code></dt>
 <dd>z-coordinate of the plane with which to compute the intersection</dd>
 </dl>
 <h2 id="returns">Returns</h2>
-<p>(6,) array of float64, containing the position and velocity of the electron at the intersection point.</p></div>
+<p>(6,) array of float64, containing the position and velocity of the particle at the intersection point.</p></div>
 </dd>
 <dt id="traceon.tracing.yz_plane_intersection"><code class="name flex">
 <span>def <span class="ident">yz_plane_intersection</span></span>(<span>positions, x)</span>
@@ -169,12 +169,12 @@ The shape of the resulting vector is the same as the shape of <code>direction</c
 <h2 id="parameters">Parameters</h2>
 <dl>
 <dt><strong><code>positions</code></strong> :&ensp;<code>(N, 6) np.ndarray</code> of <code>float64</code></dt>
-<dd>Positions (and velocities) of an electron as returned by <code><a title="traceon.tracing.Tracer" href="#traceon.tracing.Tracer">Tracer</a></code>.</dd>
+<dd>Positions (and velocities) of a charged particle as returned by <code><a title="traceon.tracing.Tracer" href="#traceon.tracing.Tracer">Tracer</a></code>.</dd>
 <dt><strong><code>z</code></strong> :&ensp;<code>float</code></dt>
 <dd>z-coordinate of the plane with which to compute the intersection</dd>
 </dl>
 <h2 id="returns">Returns</h2>
-<p>(6,) array of float64, containing the position and velocity of the electron at the intersection point.</p></div>
+<p>(6,) array of float64, containing the position and velocity of the particle at the intersection point.</p></div>
 </dd>
 </dl>
 </section>
@@ -186,27 +186,27 @@ The shape of the resulting vector is the same as the shape of <code>direction</c
 <span>(</span><span>field, bounds)</span>
 </code></dt>
 <dd>
-<div class="desc"><p>General electron tracer class. Can trace electrons given any field class from <code><a title="traceon.solver" href="solver.html">traceon.solver</a></code>.</p>
+<div class="desc"><p>General tracer class for charged particles. Can trace charged particles given any field class from <code><a title="traceon.solver" href="solver.html">traceon.solver</a></code>.</p>
 <h2 id="parameters">Parameters</h2>
 <dl>
 <dt><strong><code>field</code></strong> :&ensp;<code><a title="traceon.solver.Field" href="solver.html#traceon.solver.Field">Field</a> (or any class inheriting Field)</code></dt>
-<dd>The field used to compute the force felt by the electron.</dd>
+<dd>The field used to compute the force felt by the charged particle.</dd>
 <dt><strong><code>bounds</code></strong> :&ensp;<code>(3, 2) np.ndarray</code> of <code>float64</code></dt>
-<dd>Once the electron reaches one of the boundaries the tracing stops. The bounds are of the form ( (xmin, xmax), (ymin, ymax), (zmin, zmax) ).</dd>
+<dd>Once the particle reaches one of the boundaries the tracing stops. The bounds are of the form ( (xmin, xmax), (ymin, ymax), (zmin, zmax) ).</dd>
 </dl></div>
 <details class="source">
 <summary>
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">class Tracer:
-    &#34;&#34;&#34;General electron tracer class. Can trace electrons given any field class from `traceon.solver`.
+    &#34;&#34;&#34;General tracer class for charged particles. Can trace charged particles given any field class from `traceon.solver`.
 
     Parameters
     ----------
     field: traceon.solver.Field (or any class inheriting Field)
-        The field used to compute the force felt by the electron.
+        The field used to compute the force felt by the charged particle.
     bounds: (3, 2) np.ndarray of float64
-        Once the electron reaches one of the boundaries the tracing stops. The bounds are of the form ( (xmin, xmax), (ymin, ymax), (zmin, zmax) ).
+        Once the particle reaches one of the boundaries the tracing stops. The bounds are of the form ( (xmin, xmax), (ymin, ymax), (zmin, zmax) ).
     &#34;&#34;&#34;
     
     def __init__(self, field, bounds):
@@ -222,23 +222,27 @@ The shape of the resulting vector is the same as the shape of <code>direction</c
         return f&#39;&lt;Traceon Tracer of {field_name},\n\t&#39; \
             + &#39;Bounds: &#39; + bounds_str + &#39; mm &gt;&#39;
     
-    def __call__(self, position, velocity):
-        &#34;&#34;&#34;Trace an electron.
+    def __call__(self, position, velocity, mass=m_e, charge=-e, atol=1e-8):
+        &#34;&#34;&#34;Trace a charged particle.
 
         Parameters
         ----------
         position: (3,) np.ndarray of float64
-            Initial position of electron.
+            Initial position of the particle.
         velocity: (3,) np.ndarray of float64
             Initial velocity (expressed in a vector whose magnitude has units of eV). Use one of the utility functions documented
             above to create the initial velocity vector.
+        mass: float
+            Particle mass in kilogram (kg). The default value is the electron mass: m_e = 9.1093837015e-31 kg.
+        charge: float
+            Particle charge in Coulomb (C). The default value is the electron charge: -1 * e = -1.602176634e-19 C.
         atol: float
             Absolute tolerance determining the accuracy of the trace.
         
         Returns
         -------
         `(times, positions)` which is a tuple of two numpy arrays. `times` is one dimensional and contains the times
-        (in ns) at which the positions have been computed. The `positions` array is two dimensional, `positions[i]` correspond
+        at which the positions have been computed. The `positions` array is two dimensional, `positions[i]` correspond
         to time step `times[i]`. One element of the positions array has shape (6,).
         The first three elements in the `positions[i]` array contain the x,y,z positions.
         The last three elements in `positions[i]` contain the vx,vy,vz velocities.
@@ -255,23 +259,27 @@ The shape of the resulting vector is the same as the shape of <code>direction</c
 <h3>Methods</h3>
 <dl>
 <dt id="traceon.tracing.Tracer.__call__"><code class="name flex">
-<span>def <span class="ident">__call__</span></span>(<span>self, position, velocity)</span>
+<span>def <span class="ident">__call__</span></span>(<span>self, position, velocity, mass=9.1093837015e-31, charge=-1.602176634e-19, atol=1e-08)</span>
 </code></dt>
 <dd>
-<div class="desc"><p>Trace an electron.</p>
+<div class="desc"><p>Trace a charged particle.</p>
 <h2 id="parameters">Parameters</h2>
 <dl>
 <dt><strong><code>position</code></strong> :&ensp;<code>(3,) np.ndarray</code> of <code>float64</code></dt>
-<dd>Initial position of electron.</dd>
+<dd>Initial position of the particle.</dd>
 <dt><strong><code>velocity</code></strong> :&ensp;<code>(3,) np.ndarray</code> of <code>float64</code></dt>
 <dd>Initial velocity (expressed in a vector whose magnitude has units of eV). Use one of the utility functions documented
 above to create the initial velocity vector.</dd>
+<dt><strong><code>mass</code></strong> :&ensp;<code>float</code></dt>
+<dd>Particle mass in kilogram (kg). The default value is the electron mass: m_e = 9.1093837015e-31 kg.</dd>
+<dt><strong><code>charge</code></strong> :&ensp;<code>float</code></dt>
+<dd>Particle charge in Coulomb (C). The default value is the electron charge: -1 * e = -1.602176634e-19 C.</dd>
 <dt><strong><code>atol</code></strong> :&ensp;<code>float</code></dt>
 <dd>Absolute tolerance determining the accuracy of the trace.</dd>
 </dl>
 <h2 id="returns">Returns</h2>
 <p><code>(times, positions)</code> which is a tuple of two numpy arrays. <code>times</code> is one dimensional and contains the times
-(in ns) at which the positions have been computed. The <code>positions</code> array is two dimensional, <code>positions[i]</code> correspond
+at which the positions have been computed. The <code>positions</code> array is two dimensional, <code>positions[i]</code> correspond
 to time step <code>times[i]</code>. One element of the positions array has shape (6,).
 The first three elements in the <code>positions[i]</code> array contain the x,y,z positions.
 The last three elements in <code>positions[i]</code> contain the vx,vy,vz velocities.</p></div>
@@ -283,22 +291,23 @@ The last three elements in <code>positions[i]</code> contain the vx,vy,vz veloci
 <span>(</span><span>field, bounds)</span>
 </code></dt>
 <dd>
-<div class="desc"><p>General electron tracer class. Can trace electrons given any field class from <code><a title="traceon.solver" href="solver.html">traceon.solver</a></code>.</p>
+<div class="desc"><p>General tracer class for charged particles. Can trace charged particles given any field class from <code><a title="traceon.solver" href="solver.html">traceon.solver</a></code>.</p>
 <h2 id="parameters">Parameters</h2>
 <dl>
 <dt><strong><code>field</code></strong> :&ensp;<code><a title="traceon.solver.Field" href="solver.html#traceon.solver.Field">Field</a> (or any class inheriting Field)</code></dt>
-<dd>The field used to compute the force felt by the electron.</dd>
+<dd>The field used to compute the force felt by the charged particle.</dd>
 <dt><strong><code>bounds</code></strong> :&ensp;<code>(3, 2) np.ndarray</code> of <code>float64</code></dt>
-<dd>Once the electron reaches one of the boundaries the tracing stops. The bounds are of the form ( (xmin, xmax), (ymin, ymax), (zmin, zmax) ).</dd>
+<dd>Once the particle reaches one of the boundaries the tracing stops. The bounds are of the form ( (xmin, xmax), (ymin, ymax), (zmin, zmax) ).</dd>
 </dl></div>
 <details class="source">
 <summary>
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">class Tracer3DAxial(Tracer):
-    def __call__(self, position, velocity, atol=1e-10):
-        velocity = _convert_velocity_to_SI(velocity)
-        return backend.trace_particle_3d_derivs(position, velocity, self.bounds, atol,
+    def __call__(self, position, velocity, mass=m_e, charge=-e, atol=1e-10):
+        charge_over_mass = charge / mass
+        velocity = _convert_velocity_to_SI(velocity, mass)
+        return backend.trace_particle_3d_derivs(position, velocity, charge_over_mass, self.bounds, atol,
             self.field.z, self.field.electrostatic_coeffs, self.field.magnetostatic_coeffs)</code></pre>
 </details>
 <h3>Ancestors</h3>
@@ -319,24 +328,24 @@ The last three elements in <code>positions[i]</code> contain the vx,vy,vz veloci
 <span>(</span><span>field, bounds)</span>
 </code></dt>
 <dd>
-<div class="desc"><p>General electron tracer class. Can trace electrons given any field class from <code><a title="traceon.solver" href="solver.html">traceon.solver</a></code>.</p>
+<div class="desc"><p>General tracer class for charged particles. Can trace charged particles given any field class from <code><a title="traceon.solver" href="solver.html">traceon.solver</a></code>.</p>
 <h2 id="parameters">Parameters</h2>
 <dl>
 <dt><strong><code>field</code></strong> :&ensp;<code><a title="traceon.solver.Field" href="solver.html#traceon.solver.Field">Field</a> (or any class inheriting Field)</code></dt>
-<dd>The field used to compute the force felt by the electron.</dd>
+<dd>The field used to compute the force felt by the charged particle.</dd>
 <dt><strong><code>bounds</code></strong> :&ensp;<code>(3, 2) np.ndarray</code> of <code>float64</code></dt>
-<dd>Once the electron reaches one of the boundaries the tracing stops. The bounds are of the form ( (xmin, xmax), (ymin, ymax), (zmin, zmax) ).</dd>
+<dd>Once the particle reaches one of the boundaries the tracing stops. The bounds are of the form ( (xmin, xmax), (ymin, ymax), (zmin, zmax) ).</dd>
 </dl></div>
 <details class="source">
 <summary>
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">class Tracer3D_BEM(Tracer):
-    def __call__(self, position, velocity, atol=1e-10):
-        velocity = _convert_velocity_to_SI(velocity)
-        bounds = self.field.field_bounds
+    def __call__(self, position, velocity, mass=m_e, charge=-e, atol=1e-10):
+        charge_over_mass = charge / mass
+        velocity = _convert_velocity_to_SI(velocity, mass)
         elec, mag = self.field.electrostatic_point_charges, self.field.magnetostatic_point_charges
-        return backend.trace_particle_3d(position, velocity, self.bounds, atol, elec, mag)</code></pre>
+        return backend.trace_particle_3d(position, velocity, charge_over_mass, self.bounds, atol, elec, mag, field_bounds=self.field.field_bounds)</code></pre>
 </details>
 <h3>Ancestors</h3>
 <ul class="hlist">
@@ -356,26 +365,26 @@ The last three elements in <code>positions[i]</code> contain the vx,vy,vz veloci
 <span>(</span><span>field, bounds)</span>
 </code></dt>
 <dd>
-<div class="desc"><p>General electron tracer class. Can trace electrons given any field class from <code><a title="traceon.solver" href="solver.html">traceon.solver</a></code>.</p>
+<div class="desc"><p>General tracer class for charged particles. Can trace charged particles given any field class from <code><a title="traceon.solver" href="solver.html">traceon.solver</a></code>.</p>
 <h2 id="parameters">Parameters</h2>
 <dl>
 <dt><strong><code>field</code></strong> :&ensp;<code><a title="traceon.solver.Field" href="solver.html#traceon.solver.Field">Field</a> (or any class inheriting Field)</code></dt>
-<dd>The field used to compute the force felt by the electron.</dd>
+<dd>The field used to compute the force felt by the charged particle.</dd>
 <dt><strong><code>bounds</code></strong> :&ensp;<code>(3, 2) np.ndarray</code> of <code>float64</code></dt>
-<dd>Once the electron reaches one of the boundaries the tracing stops. The bounds are of the form ( (xmin, xmax), (ymin, ymax), (zmin, zmax) ).</dd>
+<dd>Once the particle reaches one of the boundaries the tracing stops. The bounds are of the form ( (xmin, xmax), (ymin, ymax), (zmin, zmax) ).</dd>
 </dl></div>
 <details class="source">
 <summary>
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">class TracerRadialAxial(Tracer):
-    def __call__(self, position, velocity, atol=1e-10):
-
-        velocity = _convert_velocity_to_SI(velocity)
+    def __call__(self, position, velocity, mass=m_e, charge=-e, atol=1e-10):
+        charge_over_mass = charge / mass
+        velocity = _convert_velocity_to_SI(velocity, mass)
         
         elec, mag = self.field.electrostatic_coeffs, self.field.magnetostatic_coeffs
         
-        return backend.trace_particle_radial_derivs(position, velocity, self.bounds, atol, self.field.z, elec, mag)</code></pre>
+        return backend.trace_particle_radial_derivs(position, velocity, charge_over_mass, self.bounds, atol, self.field.z, elec, mag)</code></pre>
 </details>
 <h3>Ancestors</h3>
 <ul class="hlist">
@@ -395,26 +404,27 @@ The last three elements in <code>positions[i]</code> contain the vx,vy,vz veloci
 <span>(</span><span>field, bounds)</span>
 </code></dt>
 <dd>
-<div class="desc"><p>General electron tracer class. Can trace electrons given any field class from <code><a title="traceon.solver" href="solver.html">traceon.solver</a></code>.</p>
+<div class="desc"><p>General tracer class for charged particles. Can trace charged particles given any field class from <code><a title="traceon.solver" href="solver.html">traceon.solver</a></code>.</p>
 <h2 id="parameters">Parameters</h2>
 <dl>
 <dt><strong><code>field</code></strong> :&ensp;<code><a title="traceon.solver.Field" href="solver.html#traceon.solver.Field">Field</a> (or any class inheriting Field)</code></dt>
-<dd>The field used to compute the force felt by the electron.</dd>
+<dd>The field used to compute the force felt by the charged particle.</dd>
 <dt><strong><code>bounds</code></strong> :&ensp;<code>(3, 2) np.ndarray</code> of <code>float64</code></dt>
-<dd>Once the electron reaches one of the boundaries the tracing stops. The bounds are of the form ( (xmin, xmax), (ymin, ymax), (zmin, zmax) ).</dd>
+<dd>Once the particle reaches one of the boundaries the tracing stops. The bounds are of the form ( (xmin, xmax), (ymin, ymax), (zmin, zmax) ).</dd>
 </dl></div>
 <details class="source">
 <summary>
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">class TracerRadialBEM(Tracer):
-    def __call__(self, position, velocity, atol=1e-10):
-        
-        velocity = _convert_velocity_to_SI(velocity)
+    def __call__(self, position, velocity, mass=m_e, charge=-e, atol=1e-10):
+        charge_over_mass = charge / mass
+        velocity = _convert_velocity_to_SI(velocity, mass)
         
         return backend.trace_particle_radial(
                 position,
-                velocity, 
+                velocity,
+                charge_over_mass, 
                 self.bounds,
                 atol, 
                 self.field.electrostatic_point_charges,

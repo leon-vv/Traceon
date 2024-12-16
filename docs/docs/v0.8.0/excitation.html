@@ -177,7 +177,7 @@ created with the <code><a title="traceon.geometry" href="geometry.html">traceon.
             assert name in self.electrodes, f&#39;Cannot add {name} to excitation, since it\&#39;s not present in the mesh&#39;
             self.excitation_types[name] = (ExcitationType.DIELECTRIC, permittivity)
 
-    def add_electrostatic_boundary(self, *args):
+    def add_electrostatic_boundary(self, *args, ensure_inward_normals=True):
         &#34;&#34;&#34;
         Specify geometry elements as electrostatic boundary elements. At the boundary we require E·n = 0 at every point on the boundary. This
         is equivalent to stating that the directional derivative of the electrostatic potential through the boundary is zero. Placing boundaries between
@@ -189,9 +189,13 @@ created with the <code><a title="traceon.geometry" href="geometry.html">traceon.
         *args: list of str
             The geometry names that should be considered a boundary.
         &#34;&#34;&#34;
+        if ensure_inward_normals:
+            for electrode in args:
+                self.mesh.ensure_inward_normals(electrode)
+        
         self.add_dielectric(**{a:0 for a in args})
     
-    def add_magnetostatic_boundary(self, *args):
+    def add_magnetostatic_boundary(self, *args, ensure_inward_normals=True):
         &#34;&#34;&#34;
         Specify geometry elements as magnetostatic boundary elements. At the boundary we require H·n = 0 at every point on the boundary. This
         is equivalent to stating that the directional derivative of the magnetostatic potential through the boundary is zero. Placing boundaries between
@@ -203,7 +207,11 @@ created with the <code><a title="traceon.geometry" href="geometry.html">traceon.
         *args: list of str
             The geometry names that should be considered a boundary.
         &#34;&#34;&#34;
-
+        if ensure_inward_normals:
+            for electrode in args:
+                print(&#39;flipping normals&#39;, electrode)
+                self.mesh.ensure_inward_normals(electrode)
+        
         self.add_magnetizable(**{a:0 for a in args})
     
     def _split_for_superposition(self):
@@ -325,7 +333,7 @@ calling the function as <code>add_dielectric(spacer=2)</code> assign the relativ
 </dl></div>
 </dd>
 <dt id="traceon.excitation.Excitation.add_electrostatic_boundary"><code class="name flex">
-<span>def <span class="ident">add_electrostatic_boundary</span></span>(<span>self, *args)</span>
+<span>def <span class="ident">add_electrostatic_boundary</span></span>(<span>self, *args, ensure_inward_normals=True)</span>
 </code></dt>
 <dd>
 <div class="desc"><p>Specify geometry elements as electrostatic boundary elements. At the boundary we require E·n = 0 at every point on the boundary. This
@@ -351,7 +359,7 @@ calling the function as <code>add_dielectric(spacer=2)</code> assign the relativ
 </dl></div>
 </dd>
 <dt id="traceon.excitation.Excitation.add_magnetostatic_boundary"><code class="name flex">
-<span>def <span class="ident">add_magnetostatic_boundary</span></span>(<span>self, *args)</span>
+<span>def <span class="ident">add_magnetostatic_boundary</span></span>(<span>self, *args, ensure_inward_normals=True)</span>
 </code></dt>
 <dd>
 <div class="desc"><p>Specify geometry elements as magnetostatic boundary elements. At the boundary we require H·n = 0 at every point on the boundary. This

@@ -182,8 +182,8 @@ class TestRadial(unittest.TestCase):
      
     def test_mag_pot_derivatives(self):
         boundary = G.Path.line([0., 0., 5.], [5., 0., 5.])\
-            .line_to([5., 0., -5.])\
-            .line_to([0., 0., -5.])
+            .extend_with_line([5., 0., -5.])\
+            .extend_with_line([0., 0., -5.])
         
         r1 = G.Path.rectangle_xz(1, 2, 2, 3)
         r2 = G.Path.rectangle_xz(1, 2, -3, -2)
@@ -247,10 +247,10 @@ class TestSimpleMagneticLens(unittest.TestCase):
         coil.name = 'coil'
 
         pole = G.Path.line([1, 0, 0], [4, 0, 0])\
-            .line_to([4, 0, 1])\
-            .line_to([2, 0, 1])\
-            .line_to([2, 0, 3])\
-            .line_to([1, 0, 3])\
+            .extend_with_line([4, 0, 1])\
+            .extend_with_line([2, 0, 1])\
+            .extend_with_line([2, 0, 3])\
+            .extend_with_line([1, 0, 3])\
             .close()
         pole.name = 'pole'
         
@@ -302,7 +302,7 @@ class TestFlatEinzelLens(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         boundary = G.Path.line([0.1, 0.0, 1.0], [1.0, 0.0, 1.0])\
-            .line_to([1.0, 0.0, -1.0]).line_to([0.1, 0.0, -1.0])
+            .extend_with_line([1.0, 0.0, -1.0]).extend_with_line([0.1, 0.0, -1.0])
         
         ground_top = G.Path.line([0.25, 0.0, 0.5], [0.75, 0.0, 0.5])
         lens = G.Path.line([0.25, 0.0, 0.0], [0.75, 0.0, 0.0])

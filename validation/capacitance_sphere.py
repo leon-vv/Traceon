@@ -27,7 +27,7 @@ class CapacitanceSphere(Validation):
     def create_mesh(self, MSF, symmetry, higher_order):
          
         def add_shell(radius, name, reverse=False):
-            arc = G.Path.arc([0., 0., 0.], [0, 0, -radius], [radius, 0, 0.]).arc_to([0., 0., 0.], [0., 0., radius])
+            arc = G.Path.arc([0., 0., 0.], [0, 0, -radius], [radius, 0, 0.]).extend_with_arc([0., 0., 0.], [0., 0., radius])
             arc.name = name
 
             if symmetry.is_3d():

@@ -31,6 +31,31 @@ class TestUtilities2D(unittest.TestCase):
         _, pos = B.position_and_jacobian_radial(1, *line)
         assert np.all(np.isclose(pos, line[3, :2]))
     
+    def test_delta_position_and_jacobian_radial(self):
+        line = np.array([
+            [0.0, 0.0, 0.0],
+            [0.25, 0.0, 0.0],
+            [0.5, 0.0, 0.0],
+            [1.0, 0.0, 0.0]])
+
+        _, mid = B.position_and_jacobian_radial(0., *line)
+        
+        _, pos = B.position_and_jacobian_radial(-1.0, *line)
+        _, delta = B.delta_position_and_jacobian_radial(-1.0, *line)
+        assert np.allclose(pos, line[0, :2]) and np.allclose(pos-mid, delta)
+        
+        _, pos = B.position_and_jacobian_radial(-1.0 + 2/3, *line)
+        _, delta = B.delta_position_and_jacobian_radial(-1.0 + 2/3, *line)
+        assert np.allclose(pos, line[1, :2]) and np.allclose(pos-mid, delta)
+        
+        _, pos = B.position_and_jacobian_radial(-1.0 + 4/3, *line)
+        _, delta = B.delta_position_and_jacobian_radial(-1.0 + 4/3, *line)
+        assert np.allclose(pos, line[2, :2]) and np.allclose(pos-mid, delta)
+     
+        _, pos = B.position_and_jacobian_radial(1.0, *line)
+        _, delta = B.delta_position_and_jacobian_radial(1.0, *line)
+        assert np.allclose(pos, line[3, :2]) and np.allclose(pos-mid, delta)
+
     def test_position_and_jacobian_radial_length(self):
         line = np.array([
             [0.0, 0.0, 0.0],
@@ -65,8 +90,8 @@ class TestUtilities2D(unittest.TestCase):
             jac, pos = B.position_and_jacobian_radial(x, *line)
             
             field = np.array([
-                -B.dr1_potential_radial_ring(middle[0], middle[2], pos[0], pos[1]),
-                -B.dz1_potential_radial_ring(middle[0], middle[2], pos[0], pos[1]),
+                -B.dr1_potential_radial_ring(middle[0], middle[2], pos[0]-middle[0], pos[1]-middle[2]),
+                -B.dz1_potential_radial_ring(middle[0], middle[2], pos[0]-middle[0], pos[1]-middle[2]),
                 0.0])
 
             return jac * np.dot(normal, field)

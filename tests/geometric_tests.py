@@ -140,11 +140,43 @@ class PathTests(unittest.TestCase):
         p = Path.arc(center, [0., 0., 0.], [0., r, -r], reverse=True)
         assert np.isclose(p.path_length, 3/4* 2*pi*r)
         assert np.allclose(p(1/2 * 3/4*2*pi*r), center + np.array([0., r/sqrt(2), r/sqrt(2)]))
-         
-         
 
+    def test_polar_arc(self):
+        r = 1.0
+        angle = pi/2
+        p = Path.polar_arc(r, angle, start=[0,0,1], plane_normal=[0,1,0], direction=[1,0,0])
+        
+        expected_length = r* angle
+        self.assertTrue(isclose(p.path_length, expected_length, rel_tol=1e-7))
+        
+        start_point = p(0.)
+        end_point = p(p.path_length)
 
-      
+        assert np.allclose(start_point, [0., 0., 1.], atol=1e-7)
+        assert np.allclose(end_point, [1., 0., 0.], atol=1e-7)
+
+    def test_extend_with_polar_arc(self):
+        base_path = Path.line([0.,0.,0.], [1.,0.,0.])
+        extended_path = base_path.extend_with_polar_arc(radius=1.0, angle=pi/2, plane_normal=[0,1,0])
+
+        expected_length = 1.0 + (pi/2)
+        assert np.isclose(extended_path.path_length, expected_length)
+        
+        end_point = extended_path(extended_path.path_length)
+        assert np.allclose(end_point, [2.,0.,-1.], atol=1e-7) # should with right hand rule around y
+
+    def test_velocity_vector(self):
+        circle = Path.circle_xy(x0=0.0, y0=0., radius=1., angle=2*pi)
+
+        t_start = circle.velocity_vector(0.)
+        t_start_norm = t_start / np.linalg.norm(t_start)
+        assert np.allclose(t_start_norm, [0.,1.,0.], atol=1e-7)
+
+        half_length = circle.path_length/2
+        t_half = circle.velocity_vector(half_length)
+        t_half_norm = t_half / np.linalg.norm(t_half)
+        assert np.allclose(t_half_norm, [0.,-1.,0.], atol=1e-7)
+        
 class SurfaceTests(unittest.TestCase):
     
     def test_spanned_by_paths(self):
@@ -169,7 +201,7 @@ class SurfaceTests(unittest.TestCase):
             [0, 0, 15]]
         
         inner = Path.line(points[0], points[1])\
-            .line_to(points[2]).line_to(points[3]).revolve_z()
+            .extend_with_line(points[2]).extend_with_line(points[3]).revolve_z()
         
         inner.name = 'test'
         mesh = inner.mesh(mesh_size=10/2)

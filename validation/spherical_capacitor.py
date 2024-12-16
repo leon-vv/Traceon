@@ -32,7 +32,7 @@ class SphericalCapacitor(Validation):
         1999.
         """
         def add_shell(radius, name):
-            arc = G.Path.arc([0., 0., 0.], [0, 0, -radius], [radius, 0, 0.]).arc_to([0., 0., 0.], [0., 0., radius])
+            arc = G.Path.arc([0., 0., 0.], [0, 0, -radius], [radius, 0, 0.]).extend_with_arc([0., 0., 0.], [0., 0., radius])
             arc.name = name
 
             if symmetry.is_3d():

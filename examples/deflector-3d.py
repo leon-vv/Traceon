@@ -24,8 +24,8 @@ z0 = -THICKNESS - SPACING - THICKNESS/2
 def round_electrode(z0, name):
     
     path = G.Path.line([RADIUS, 0.0, z0], [RADIUS, 0.0, z0+THICKNESS])\
-        .line_to([RADIUS+ELECTRODE_WIDTH, 0.0, z0+THICKNESS])\
-        .line_to([RADIUS+ELECTRODE_WIDTH, 0.0, z0])\
+        .extend_with_line([RADIUS+ELECTRODE_WIDTH, 0.0, z0+THICKNESS])\
+        .extend_with_line([RADIUS+ELECTRODE_WIDTH, 0.0, z0])\
         .close()
 
     surf = path.revolve_z()

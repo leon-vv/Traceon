@@ -69,7 +69,6 @@ subclass of <code><a title="traceon.mesher.GeometricObject" href="mesher.html#tr
         # and returns the point on the path
         self.fun = fun
         self.path_length = path_length
-        assert self.path_length &gt; 0
         self.breakpoints = breakpoints
         self.name = name
     
@@ -304,7 +303,7 @@ subclass of <code><a title="traceon.mesher.GeometricObject" href="mesher.html#tr
         x0: float
             x-coordinate of the center of the circle
         z0: float
-            z-coordiante of the center of the circle
+            z-coordinate of the center of the circle
         radius: float
             radius of the circle
         angle: float
@@ -327,7 +326,7 @@ subclass of <code><a title="traceon.mesher.GeometricObject" href="mesher.html#tr
         y0: float
             x-coordinate of the center of the circle
         z0: float
-            z-coordiante of the center of the circle
+            z-coordinate of the center of the circle
         radius: float
             radius of the circle
         angle: float
@@ -347,10 +346,10 @@ subclass of <code><a title="traceon.mesher.GeometricObject" href="mesher.html#tr
         
         Parameters
         --------------------------------
-        y0: float
+        x0: float
             x-coordinate of the center of the circle
         y0: float
-            y-coordiante of the center of the circle
+            y-coordinate of the center of the circle
         radius: float
             radius of the circle
         angle: float
@@ -455,7 +454,6 @@ subclass of <code><a title="traceon.mesher.GeometricObject" href="mesher.html#tr
         -----------------------
         Surface&#34;&#34;&#34;
         
-        pstart, pmiddle, pend = self.starting_point(), self.middle_point(), self.endpoint()
         r_avg = self.average(lambda p: sqrt(p[1]**2 + p[2]**2))
         length2 = 2*pi*r_avg
          
@@ -479,7 +477,6 @@ subclass of <code><a title="traceon.mesher.GeometricObject" href="mesher.html#tr
         -----------------------
         Surface&#34;&#34;&#34;
 
-        pstart, pend = self.starting_point(), self.endpoint()
         r_avg = self.average(lambda p: sqrt(p[0]**2 + p[2]**2))
         length2 = 2*pi*r_avg
          
@@ -503,7 +500,6 @@ subclass of <code><a title="traceon.mesher.GeometricObject" href="mesher.html#tr
         -----------------------
         Surface&#34;&#34;&#34;
 
-        pstart, pend = self.starting_point(), self.endpoint()
         r_avg = self.average(lambda p: sqrt(p[0]**2 + p[1]**2))
         length2 = 2*pi*r_avg
         
@@ -821,6 +817,7 @@ subclass of <code><a title="traceon.mesher.GeometricObject" href="mesher.html#tr
         assert len(samples_on_path), &#34;Please supply a point that lies on the path&#34;
         return CubicSpline(samples_on_path, [self(s) for s in samples_on_path])(t, nu=1)
     
+   
     def __add__(self, other):
         &#34;&#34;&#34;Add two paths to create a PathCollection. Note that a PathCollection supports
         a subset of the methods of Path (for example, movement, rotation and meshing). Use
@@ -830,15 +827,15 @@ subclass of <code><a title="traceon.mesher.GeometricObject" href="mesher.html#tr
         -------------------------
         PathCollection&#34;&#34;&#34;
          
-        if not isinstance(other, Path) and not isinstance(other, PathCollection):
-            return NotImplemented
-        
         if isinstance(other, Path):
             return PathCollection([self, other])
-        elif isinstance(other, PathCollection):
+        
+        if isinstance(other, PathCollection):
             return PathCollection([self] + [other.paths])
+
+        return NotImplemented
      
-    def mesh(self, mesh_size=None, mesh_size_factor=None, higher_order=False, name=None):
+    def mesh(self, mesh_size=None, mesh_size_factor=None, higher_order=False, name=None, ensure_outward_normals=True):
         &#34;&#34;&#34;Mesh the path, so it can be used in the BEM solver. The result of meshing a path
         are (possibly curved) line elements.
 
@@ -890,7 +887,7 @@ subclass of <code><a title="traceon.mesher.GeometricObject" href="mesher.html#tr
         else:
             physical_to_lines = {}
         
-        return Mesh(points=points, lines=lines, physical_to_lines=physical_to_lines)
+        return Mesh(points=points, lines=lines, physical_to_lines=physical_to_lines, ensure_outward_normals=ensure_outward_normals)
 
     def __str__(self):
         return f&#34;&lt;Path name:{self.name}, length:{self.path_length:.1e}, number of breakpoints:{len(self.breakpoints)}&gt;&#34;</code></pre>
@@ -954,10 +951,10 @@ This is the most basic model of an aperture.</p>
 <div class="desc"><p>Returns (part of) a circle in the XY plane around the z-axis. Starting on the positive X-axis.</p>
 <h2 id="parameters">Parameters</h2>
 <dl>
-<dt><strong><code>y0</code></strong> :&ensp;<code>float</code></dt>
+<dt><strong><code>x0</code></strong> :&ensp;<code>float</code></dt>
 <dd>x-coordinate of the center of the circle</dd>
 <dt><strong><code>y0</code></strong> :&ensp;<code>float</code></dt>
-<dd>y-coordiante of the center of the circle</dd>
+<dd>y-coordinate of the center of the circle</dd>
 <dt><strong><code>radius</code></strong> :&ensp;<code>float</code></dt>
 <dd>radius of the circle</dd>
 <dt><strong><code>angle</code></strong> :&ensp;<code>float</code></dt>
@@ -979,7 +976,7 @@ This is the most basic model of an aperture.</p>
 <dt><strong><code>x0</code></strong> :&ensp;<code>float</code></dt>
 <dd>x-coordinate of the center of the circle</dd>
 <dt><strong><code>z0</code></strong> :&ensp;<code>float</code></dt>
-<dd>z-coordiante of the center of the circle</dd>
+<dd>z-coordinate of the center of the circle</dd>
 <dt><strong><code>radius</code></strong> :&ensp;<code>float</code></dt>
 <dd>radius of the circle</dd>
 <dt><strong><code>angle</code></strong> :&ensp;<code>float</code></dt>
@@ -1001,7 +998,7 @@ This is the most basic model of an aperture.</p>
 <dt><strong><code>y0</code></strong> :&ensp;<code>float</code></dt>
 <dd>x-coordinate of the center of the circle</dd>
 <dt><strong><code>z0</code></strong> :&ensp;<code>float</code></dt>
-<dd>z-coordiante of the center of the circle</dd>
+<dd>z-coordinate of the center of the circle</dd>
 <dt><strong><code>radius</code></strong> :&ensp;<code>float</code></dt>
 <dd>radius of the circle</dd>
 <dt><strong><code>angle</code></strong> :&ensp;<code>float</code></dt>
@@ -1417,7 +1414,7 @@ The path length is assumed to stay the same after this operation.</p>
 <p>Path</p></div>
 </dd>
 <dt id="traceon.geometry.Path.mesh"><code class="name flex">
-<span>def <span class="ident">mesh</span></span>(<span>self, mesh_size=None, mesh_size_factor=None, higher_order=False, name=None)</span>
+<span>def <span class="ident">mesh</span></span>(<span>self, mesh_size=None, mesh_size_factor=None, higher_order=False, name=None, ensure_outward_normals=True)</span>
 </code></dt>
 <dd>
 <div class="desc"><p>Mesh the path, so it can be used in the BEM solver. The result of meshing a path
@@ -1585,14 +1582,15 @@ Note that <code><a title="traceon.geometry.PathCollection" href="#traceon.geomet
     def map_points(self, fun):
         return PathCollection([p.map_points(fun) for p in self.paths])
      
-    def mesh(self, mesh_size=None, mesh_size_factor=None, higher_order=False, name=None):
+    def mesh(self, mesh_size=None, mesh_size_factor=None, higher_order=False, name=None, ensure_outward_normals=True):
         &#34;&#34;&#34;See `Path.mesh`&#34;&#34;&#34;
         mesh = Mesh()
         
         name = self.name if name is None else name
         
         for p in self.paths:
-            mesh = mesh + p.mesh(mesh_size=mesh_size, mesh_size_factor=mesh_size_factor, higher_order=higher_order, name=name)
+            mesh = mesh + p.mesh(mesh_size=mesh_size, mesh_size_factor=mesh_size_factor,
+                                higher_order=higher_order, name=name, ensure_outward_normals=ensure_outward_normals)
 
         return mesh
 
@@ -1606,13 +1604,13 @@ Note that <code><a title="traceon.geometry.PathCollection" href="#traceon.geomet
     
     def __add__(self, other):
         &#34;&#34;&#34;Allows you to combine paths and path collection using the + operator (path1 + path2).&#34;&#34;&#34;
-        if not isinstance(other, Path) and not isinstance(other, PathCollection):
-            return NotImplemented
-        
         if isinstance(other, Path):
             return PathCollection(self.paths+[other])
-        else:
+        
+        if isinstance(other, PathCollection):
             return PathCollection(self.paths+other.paths)
+
+        return NotImplemented
       
     def __iadd__(self, other):
         &#34;&#34;&#34;Allows you to add paths to the collection using the += operator.&#34;&#34;&#34;
@@ -1684,7 +1682,7 @@ def name(self):
 <div class="desc"></div>
 </dd>
 <dt id="traceon.geometry.PathCollection.mesh"><code class="name flex">
-<span>def <span class="ident">mesh</span></span>(<span>self, mesh_size=None, mesh_size_factor=None, higher_order=False, name=None)</span>
+<span>def <span class="ident">mesh</span></span>(<span>self, mesh_size=None, mesh_size_factor=None, higher_order=False, name=None, ensure_outward_normals=True)</span>
 </code></dt>
 <dd>
 <div class="desc"><p>See <code><a title="traceon.geometry.Path.mesh" href="#traceon.geometry.Path.mesh">Path.mesh()</a></code></p></div>
@@ -1741,7 +1739,6 @@ Note that <code><a title="traceon.geometry.Surface" href="#traceon.geometry.Surf
         self.fun = fun
         self.path_length1 = path_length1
         self.path_length2 = path_length2
-        assert self.path_length1 &gt; 0 and self.path_length2 &gt; 0
         self.breakpoints1 = breakpoints1
         self.breakpoints2 = breakpoints2
         self.name = name
@@ -1775,7 +1772,7 @@ Note that <code><a title="traceon.geometry.Surface" href="#traceon.geometry.Surf
         return Surface(lambda u, v: fun(self(u, v)),
             self.path_length1, self.path_length2,
             self.breakpoints1, self.breakpoints2, name=self.name)
-     
+    
     @staticmethod
     def spanned_by_paths(path1, path2):
         &#34;&#34;&#34;Create a surface by considering the area between two paths. Imagine two points
@@ -2041,18 +2038,161 @@ Note that <code><a title="traceon.geometry.Surface" href="#traceon.geometry.Surf
     @staticmethod
     def aperture(height, radius, extent, z=0.):
         return Path.aperture(height, radius, extent, z=z).revolve_z()
-     
+    
+    def get_boundary_paths(self):
+        &#34;&#34;&#34;Get the boundary paths of the surface.
+        Computes the boundary paths (edges) of the surface and combines them into a `PathCollection`.
+        Non-closed paths get filtered out when closed paths are present, as only closed paths 
+        represent true boundaries in this case.
+        Note that this function might behave unexpectedly for surfaces without any boundaries (e.g a sphere).
+
+        Returns
+        ----------------------------
+        PathCollection representing the boundary paths of the surface&#34;&#34;&#34;
+        
+        b1 = Path(lambda u: self(u, 0.), self.path_length1, self.breakpoints1, self.name)
+        b2 = Path(lambda u: self(u, self.path_length2), self.path_length1, self.breakpoints1, self.name)
+        b3 = Path(lambda v: self(0., v), self.path_length2, self.breakpoints2, self.name)
+        b4 = Path(lambda v: self(self.path_length1, v), self.path_length2, self.breakpoints2, self.name)
+        
+        boundary = b1 + b2 + b3 + b4
+
+        if any([b.is_closed() for b in boundary.paths]):
+            boundary = PathCollection([b for b in boundary.paths if b.is_closed()])
+        
+        return boundary
+
+    def extrude_boundary(self, vector, enclose=True):
+        &#34;&#34;&#34;
+        Extrude the boundary paths of the surface along a vector. The vector gives both
+        the length and the direction of the extrusion.
+
+        Parameters
+        -------------------------
+        vector: (3,) float
+            The direction and length (norm of the vector) to extrude by.
+        enclose: bool
+            Whether enclose the extrusion by adding a copy of the original surface 
+            moved by the extrusion vector to the resulting SurfaceCollection.
+
+        Returns
+        -------------------------
+        SurfaceCollection&#34;&#34;&#34;
+
+        boundary = self.get_boundary_paths()
+        extruded_boundary = boundary.extrude(vector)
+
+        if enclose:
+            return self + extruded_boundary + self.move(*vector) 
+        else:
+            return self + extruded_boundary
+    
+    def extrude_boundary_by_path(self, path, enclose=True):
+        &#34;&#34;&#34;Extrude the boundary paths of a surface along a path. The path 
+        does not need to start at the surface. Imagine the  extrusion surface 
+        created by moving the boundary paths along the path.
+
+        Parameters
+        -------------------------
+        path: Path
+            The path defining the extrusion.
+        enclose: bool
+            Whether to enclose the extrusion by adding a copy of the original surface 
+            moved by the extrusion vector to the resulting SurfaceCollection.
+            
+        Returns
+        ------------------------
+        SurfaceCollection&#34;&#34;&#34;
+        
+        boundary = self.get_boundary_paths()
+        extruded_boundary = boundary.extrude(path)
+
+        if enclose:
+            path_vector = path.endpoint() - path.starting_point()
+            return self + extruded_boundary + self.move(*path_vector) 
+        else:
+            return self + extruded_boundary
+    
+    def revolve_boundary_x(self, angle=2*pi, enclose=True):
+        &#34;&#34;&#34;Revolve the boundary paths of the surface anti-clockwise around the x-axis.
+        
+        Parameters
+        -----------------------
+        angle: float
+            The angle by which to revolve. THe default 2*pi gives a full revolution.
+        enclose: bool
+            Whether enclose the revolution by adding a copy of the original surface 
+            rotated over the angle to the resulting SurfaceCollection.
+
+        Returns
+        -----------------------
+        SurfaceCollection&#34;&#34;&#34;
+
+        boundary = self.get_boundary_paths()
+        revolved_boundary = boundary.revolve_x(angle)
+
+        if enclose and not np.isclose(angle, 2*pi, atol=1e-8):
+            return self + revolved_boundary + self.rotate(Rx=angle)
+        else:
+            return self + revolved_boundary
+        
+    def revolve_boundary_y(self, angle=2*pi, enclose=True):
+        &#34;&#34;&#34;Revolve the boundary paths of the surface anti-clockwise around the y-axis.
+        
+        Parameters
+        -----------------------
+        angle: float
+            The angle by which to revolve. THe default 2*pi gives a full revolution.
+        cap_extension: bool
+            Whether to enclose the revolution by adding a copy of the original surface 
+            rotated over the angle to the resulting SurfaceCollection.
+
+        Returns
+        -----------------------
+        SurfaceCollection&#34;&#34;&#34;
+
+        boundary = self.get_boundary_paths()
+        revolved_boundary = boundary.revolve_y(angle)
+
+        if enclose and not np.isclose(angle, 2*pi, atol=1e-8):
+            return self + revolved_boundary + self.rotate(Ry=angle)
+        else:
+            return self + revolved_boundary
+    
+    def revolve_boundary_z(self, angle=2*pi, enclose=True):
+        &#34;&#34;&#34;Revolve the boundary paths of the surface anti-clockwise around the z-axis.
+        
+        Parameters
+        -----------------------
+        angle: float
+            The angle by which to revolve. THe default 2*pi gives a full revolution.
+        cap_extension: bool
+            Whether to enclose the revolution by adding a copy of the original surface 
+            rotated over the angle to the resulting SurfaceCollection.
+
+        Returns
+        -----------------------
+        SurfaceCollection&#34;&#34;&#34;
+
+        boundary = self.get_boundary_paths()
+        revolved_boundary = boundary.revolve_z(angle)
+        
+        if enclose and not np.isclose(angle, 2*pi, atol=1e-8):
+            return self + revolved_boundary + self.rotate(Rz=angle)
+        else:
+            return self + revolved_boundary
+
     def __add__(self, other):
         &#34;&#34;&#34;Allows you to combine surfaces into a `SurfaceCollection` using the + operator (surface1 + surface2).&#34;&#34;&#34;
-        if not isinstance(other, Surface) and not isinstance(other, SurfaceCollection):
-            return NotImplemented
-
         if isinstance(other, Surface):
             return SurfaceCollection([self, other])
-        else:
+        
+        if isinstance(other, SurfaceCollection):
             return SurfaceCollection([self] + other.surfaces)
+
+        return NotImplemented
      
-    def mesh(self, mesh_size=None, mesh_size_factor=None, name=None):
+    def mesh(self, mesh_size=None, mesh_size_factor=None, name=None, ensure_outward_normals=True):
         &#34;&#34;&#34;Mesh the surface, so it can be used in the BEM solver. The result of meshing
         a surface are triangles.
 
@@ -2081,7 +2221,7 @@ Note that <code><a title="traceon.geometry.Surface" href="#traceon.geometry.Surf
                 mesh_size /= sqrt(mesh_size_factor)
 
         name = self.name if name is None else name
-        return _mesh(self, mesh_size, name=name)
+        return _mesh(self, mesh_size, name=name, ensure_outward_normals=ensure_outward_normals)
     
     def __str__(self):
         return f&#34;&lt;Surface with name: {self.name}&gt;&#34;</code></pre>
@@ -2331,8 +2471,65 @@ at the origin, but can easily be moved by using the <code>mesher.GeometricObject
 <h2 id="returns">Returns</h2>
 <p>(3,) np.ndarray of double</p></div>
 </dd>
+<dt id="traceon.geometry.Surface.extrude_boundary"><code class="name flex">
+<span>def <span class="ident">extrude_boundary</span></span>(<span>self, vector, enclose=True)</span>
+</code></dt>
+<dd>
+<div class="desc"><p>Extrude the boundary paths of the surface along a vector. The vector gives both
+the length and the direction of the extrusion.</p>
+<h2 id="parameters">Parameters</h2>
+<dl>
+<dt><strong><code>vector</code></strong> :&ensp;<code>(3,) float</code></dt>
+<dd>The direction and length (norm of the vector) to extrude by.</dd>
+<dt><strong><code>enclose</code></strong> :&ensp;<code>bool</code></dt>
+<dd>Whether enclose the extrusion by adding a copy of the original surface
+moved by the extrusion vector to the resulting SurfaceCollection.</dd>
+</dl>
+<h2 id="returns">Returns</h2>
+<dl>
+<dt><code><a title="traceon.geometry.SurfaceCollection" href="#traceon.geometry.SurfaceCollection">SurfaceCollection</a></code></dt>
+<dd>&nbsp;</dd>
+</dl></div>
+</dd>
+<dt id="traceon.geometry.Surface.extrude_boundary_by_path"><code class="name flex">
+<span>def <span class="ident">extrude_boundary_by_path</span></span>(<span>self, path, enclose=True)</span>
+</code></dt>
+<dd>
+<div class="desc"><p>Extrude the boundary paths of a surface along a path. The path
+does not need to start at the surface. Imagine the
+extrusion surface
+created by moving the boundary paths along the path.</p>
+<h2 id="parameters">Parameters</h2>
+<dl>
+<dt><strong><code>path</code></strong> :&ensp;<code><a title="traceon.geometry.Path" href="#traceon.geometry.Path">Path</a></code></dt>
+<dd>The path defining the extrusion.</dd>
+<dt><strong><code>enclose</code></strong> :&ensp;<code>bool</code></dt>
+<dd>Whether to enclose the extrusion by adding a copy of the original surface
+moved by the extrusion vector to the resulting SurfaceCollection.</dd>
+</dl>
+<h2 id="returns">Returns</h2>
+<dl>
+<dt><code><a title="traceon.geometry.SurfaceCollection" href="#traceon.geometry.SurfaceCollection">SurfaceCollection</a></code></dt>
+<dd>&nbsp;</dd>
+</dl></div>
+</dd>
+<dt id="traceon.geometry.Surface.get_boundary_paths"><code class="name flex">
+<span>def <span class="ident">get_boundary_paths</span></span>(<span>self)</span>
+</code></dt>
+<dd>
+<div class="desc"><p>Get the boundary paths of the surface.
+Computes the boundary paths (edges) of the surface and combines them into a <code><a title="traceon.geometry.PathCollection" href="#traceon.geometry.PathCollection">PathCollection</a></code>.
+Non-closed paths get filtered out when closed paths are present, as only closed paths
+represent true boundaries in this case.
+Note that this function might behave unexpectedly for surfaces without any boundaries (e.g a sphere).</p>
+<h2 id="returns">Returns</h2>
+<dl>
+<dt><code><a title="traceon.geometry.PathCollection" href="#traceon.geometry.PathCollection">PathCollection</a> representing the boundary paths</code> of <code>the surface</code></dt>
+<dd>&nbsp;</dd>
+</dl></div>
+</dd>
 <dt id="traceon.geometry.Surface.mesh"><code class="name flex">
-<span>def <span class="ident">mesh</span></span>(<span>self, mesh_size=None, mesh_size_factor=None, name=None)</span>
+<span>def <span class="ident">mesh</span></span>(<span>self, mesh_size=None, mesh_size_factor=None, name=None, ensure_outward_normals=True)</span>
 </code></dt>
 <dd>
 <div class="desc"><p>Mesh the surface, so it can be used in the BEM solver. The result of meshing
@@ -2351,6 +2548,63 @@ easily translates between different geometries.</dd>
 </dl>
 <h2 id="returns">Returns</h2>
 <p><code><a title="traceon.mesher.Mesh" href="mesher.html#traceon.mesher.Mesh">Mesh</a></code></p></div>
+</dd>
+<dt id="traceon.geometry.Surface.revolve_boundary_x"><code class="name flex">
+<span>def <span class="ident">revolve_boundary_x</span></span>(<span>self, angle=6.283185307179586, enclose=True)</span>
+</code></dt>
+<dd>
+<div class="desc"><p>Revolve the boundary paths of the surface anti-clockwise around the x-axis.</p>
+<h2 id="parameters">Parameters</h2>
+<dl>
+<dt><strong><code>angle</code></strong> :&ensp;<code>float</code></dt>
+<dd>The angle by which to revolve. THe default 2*pi gives a full revolution.</dd>
+<dt><strong><code>enclose</code></strong> :&ensp;<code>bool</code></dt>
+<dd>Whether enclose the revolution by adding a copy of the original surface
+rotated over the angle to the resulting SurfaceCollection.</dd>
+</dl>
+<h2 id="returns">Returns</h2>
+<dl>
+<dt><code><a title="traceon.geometry.SurfaceCollection" href="#traceon.geometry.SurfaceCollection">SurfaceCollection</a></code></dt>
+<dd>&nbsp;</dd>
+</dl></div>
+</dd>
+<dt id="traceon.geometry.Surface.revolve_boundary_y"><code class="name flex">
+<span>def <span class="ident">revolve_boundary_y</span></span>(<span>self, angle=6.283185307179586, enclose=True)</span>
+</code></dt>
+<dd>
+<div class="desc"><p>Revolve the boundary paths of the surface anti-clockwise around the y-axis.</p>
+<h2 id="parameters">Parameters</h2>
+<dl>
+<dt><strong><code>angle</code></strong> :&ensp;<code>float</code></dt>
+<dd>The angle by which to revolve. THe default 2*pi gives a full revolution.</dd>
+<dt><strong><code>cap_extension</code></strong> :&ensp;<code>bool</code></dt>
+<dd>Whether to enclose the revolution by adding a copy of the original surface
+rotated over the angle to the resulting SurfaceCollection.</dd>
+</dl>
+<h2 id="returns">Returns</h2>
+<dl>
+<dt><code><a title="traceon.geometry.SurfaceCollection" href="#traceon.geometry.SurfaceCollection">SurfaceCollection</a></code></dt>
+<dd>&nbsp;</dd>
+</dl></div>
+</dd>
+<dt id="traceon.geometry.Surface.revolve_boundary_z"><code class="name flex">
+<span>def <span class="ident">revolve_boundary_z</span></span>(<span>self, angle=6.283185307179586, enclose=True)</span>
+</code></dt>
+<dd>
+<div class="desc"><p>Revolve the boundary paths of the surface anti-clockwise around the z-axis.</p>
+<h2 id="parameters">Parameters</h2>
+<dl>
+<dt><strong><code>angle</code></strong> :&ensp;<code>float</code></dt>
+<dd>The angle by which to revolve. THe default 2*pi gives a full revolution.</dd>
+<dt><strong><code>cap_extension</code></strong> :&ensp;<code>bool</code></dt>
+<dd>Whether to enclose the revolution by adding a copy of the original surface
+rotated over the angle to the resulting SurfaceCollection.</dd>
+</dl>
+<h2 id="returns">Returns</h2>
+<dl>
+<dt><code><a title="traceon.geometry.SurfaceCollection" href="#traceon.geometry.SurfaceCollection">SurfaceCollection</a></code></dt>
+<dd>&nbsp;</dd>
+</dl></div>
 </dd>
 </dl>
 <h3>Inherited members</h3>
@@ -2401,26 +2655,26 @@ Note that <code><a title="traceon.geometry.SurfaceCollection" href="#traceon.geo
     def map_points(self, fun):
         return SurfaceCollection([s.map_points(fun) for s in self.surfaces])
      
-    def mesh(self, mesh_size=None, mesh_size_factor=None, name=None):
+    def mesh(self, mesh_size=None, mesh_size_factor=None, name=None, ensure_outward_normals=True):
         &#34;&#34;&#34;See `Surface.mesh`&#34;&#34;&#34;
         mesh = Mesh()
         
         name = self.name if name is None else name
         
         for s in self.surfaces:
-            mesh = mesh + s.mesh(mesh_size=mesh_size, mesh_size_factor=mesh_size_factor, name=name)
+            mesh = mesh + s.mesh(mesh_size=mesh_size, mesh_size_factor=mesh_size_factor, name=name, ensure_outward_normals=ensure_outward_normals)
          
         return mesh
      
     def __add__(self, other):
         &#34;&#34;&#34;Allows you to combine surfaces into a `SurfaceCollection` using the + operator (surface1 + surface2).&#34;&#34;&#34;
-        if not isinstance(other, Surface) and not isinstance(other, SurfaceCollection):
-            return NotImplemented
-              
         if isinstance(other, Surface):
             return SurfaceCollection(self.surfaces+[other])
-        else:
+
+        if isinstance(other, SurfaceCollection):
             return SurfaceCollection(self.surfaces+other.surfaces)
+
+        return NotImplemented
      
     def __iadd__(self, other):
         &#34;&#34;&#34;Allows you to add surfaces to the collection using the += operator.&#34;&#34;&#34;
@@ -2469,7 +2723,7 @@ def name(self):
 <div class="desc"><p>Allows you to add surfaces to the collection using the += operator.</p></div>
 </dd>
 <dt id="traceon.geometry.SurfaceCollection.mesh"><code class="name flex">
-<span>def <span class="ident">mesh</span></span>(<span>self, mesh_size=None, mesh_size_factor=None, name=None)</span>
+<span>def <span class="ident">mesh</span></span>(<span>self, mesh_size=None, mesh_size_factor=None, name=None, ensure_outward_normals=True)</span>
 </code></dt>
 <dd>
 <div class="desc"><p>See <code><a title="traceon.geometry.Surface.mesh" href="#traceon.geometry.Surface.mesh">Surface.mesh()</a></code></p></div>
@@ -2561,7 +2815,7 @@ def name(self):
 </li>
 <li>
 <h4><code><a title="traceon.geometry.Surface" href="#traceon.geometry.Surface">Surface</a></code></h4>
-<ul class="two-column">
+<ul class="">
 <li><code><a title="traceon.geometry.Surface.__add__" href="#traceon.geometry.Surface.__add__">__add__</a></code></li>
 <li><code><a title="traceon.geometry.Surface.__call__" href="#traceon.geometry.Surface.__call__">__call__</a></code></li>
 <li><code><a title="traceon.geometry.Surface.aperture" href="#traceon.geometry.Surface.aperture">aperture</a></code></li>
@@ -2569,11 +2823,17 @@ def name(self):
 <li><code><a title="traceon.geometry.Surface.disk_xy" href="#traceon.geometry.Surface.disk_xy">disk_xy</a></code></li>
 <li><code><a title="traceon.geometry.Surface.disk_xz" href="#traceon.geometry.Surface.disk_xz">disk_xz</a></code></li>
 <li><code><a title="traceon.geometry.Surface.disk_yz" href="#traceon.geometry.Surface.disk_yz">disk_yz</a></code></li>
+<li><code><a title="traceon.geometry.Surface.extrude_boundary" href="#traceon.geometry.Surface.extrude_boundary">extrude_boundary</a></code></li>
+<li><code><a title="traceon.geometry.Surface.extrude_boundary_by_path" href="#traceon.geometry.Surface.extrude_boundary_by_path">extrude_boundary_by_path</a></code></li>
 <li><code><a title="traceon.geometry.Surface.from_boundary_paths" href="#traceon.geometry.Surface.from_boundary_paths">from_boundary_paths</a></code></li>
+<li><code><a title="traceon.geometry.Surface.get_boundary_paths" href="#traceon.geometry.Surface.get_boundary_paths">get_boundary_paths</a></code></li>
 <li><code><a title="traceon.geometry.Surface.mesh" href="#traceon.geometry.Surface.mesh">mesh</a></code></li>
 <li><code><a title="traceon.geometry.Surface.rectangle_xy" href="#traceon.geometry.Surface.rectangle_xy">rectangle_xy</a></code></li>
 <li><code><a title="traceon.geometry.Surface.rectangle_xz" href="#traceon.geometry.Surface.rectangle_xz">rectangle_xz</a></code></li>
 <li><code><a title="traceon.geometry.Surface.rectangle_yz" href="#traceon.geometry.Surface.rectangle_yz">rectangle_yz</a></code></li>
+<li><code><a title="traceon.geometry.Surface.revolve_boundary_x" href="#traceon.geometry.Surface.revolve_boundary_x">revolve_boundary_x</a></code></li>
+<li><code><a title="traceon.geometry.Surface.revolve_boundary_y" href="#traceon.geometry.Surface.revolve_boundary_y">revolve_boundary_y</a></code></li>
+<li><code><a title="traceon.geometry.Surface.revolve_boundary_z" href="#traceon.geometry.Surface.revolve_boundary_z">revolve_boundary_z</a></code></li>
 <li><code><a title="traceon.geometry.Surface.spanned_by_paths" href="#traceon.geometry.Surface.spanned_by_paths">spanned_by_paths</a></code></li>
 <li><code><a title="traceon.geometry.Surface.sphere" href="#traceon.geometry.Surface.sphere">sphere</a></code></li>
 </ul>
