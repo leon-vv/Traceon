@@ -147,23 +147,6 @@ field_radial_traceable(double point[6], double result[3], void *args_p) {
 }
 
 
-
-EXPORT size_t
-trace_particle_radial(double *times_array, double *pos_array, double charge_over_mass, double tracer_bounds[3][2], double atol, double *field_bounds,
-		struct effective_point_charges_2d eff_elec,
-		struct effective_point_charges_2d eff_mag,
-		struct effective_point_charges_3d eff_current) {
-	
-	struct field_evaluation_args args = {
-		.elec_charges = (void*) &eff_elec,
-		.mag_charges = (void*) &eff_mag,
-		.current_charges = (void*) &eff_current,
-		.bounds = field_bounds
-	};
-		
-	return trace_particle(times_array, pos_array, charge_over_mass, field_radial_traceable, tracer_bounds, atol, (void*) &args);
-}
-
 EXPORT void
 field_radial_derivs_traceable(double point[6], double field[3], void *args_p) {
 	struct field_derivs_args *args = (struct field_derivs_args*) args_p;
@@ -176,15 +159,6 @@ field_radial_derivs_traceable(double point[6], double field[3], void *args_p) {
 
 	double curr_field[3] = {0., 0., 0.};
 	combine_elec_magnetic_field(point + 3, elec_field, mag_field, curr_field, field);
-}
-
-EXPORT size_t
-trace_particle_radial_derivs(double *times_array, double *pos_array, double charge_over_mass, double bounds[3][2], double atol,
-	double *z_interpolation, double *electrostatic_coeffs, double *magnetostatic_coeffs, size_t N_z) {
-
-	struct field_derivs_args args = { z_interpolation, electrostatic_coeffs, magnetostatic_coeffs, N_z };
-		
-	return trace_particle(times_array, pos_array, charge_over_mass, field_radial_derivs_traceable, bounds, atol, (void*) &args);
 }
 
 EXPORT void
@@ -214,16 +188,6 @@ field_3d_traceable(double point[6], double result[3], void *args_p) {
 	}
 }
 
-EXPORT size_t
-trace_particle_3d(double *times_array, double *pos_array, double charge_over_mass, double tracer_bounds[3][2], double atol,
-		struct effective_point_charges_3d eff_elec, struct effective_point_charges_3d eff_mag, double *field_bounds) {
-	
-	struct field_evaluation_args args = {.elec_charges = (void*) &eff_elec, .mag_charges = (void*) &eff_mag, .bounds = field_bounds};
-	
-	return trace_particle(times_array, pos_array, charge_over_mass, field_3d_traceable, tracer_bounds, atol, (void*) &args);
-}
-
-
 
 void
 field_3d_derivs_traceable(double point[6], double field[3], void *args_p) {
@@ -238,16 +202,6 @@ field_3d_derivs_traceable(double point[6], double field[3], void *args_p) {
 	double curr_field[3] = {0., 0., 0.};
 	combine_elec_magnetic_field(point + 3, elec_field, mag_field, curr_field, field);
 }
-
-EXPORT size_t
-trace_particle_3d_derivs(double *times_array, double *pos_array, double charge_over_mass, double bounds[3][2], double atol,
-	double *z_interpolation, double *electrostatic_coeffs, double *magnetostatic_coeffs, size_t N_z) {
-
-	struct field_derivs_args args = { z_interpolation, electrostatic_coeffs, magnetostatic_coeffs, N_z };
-	
-	return trace_particle(times_array, pos_array, charge_over_mass, field_3d_derivs_traceable, bounds, atol, (void*) &args);
-}
-
 
 EXPORT void fill_jacobian_buffer_3d(
 	jacobian_buffer_3d jacobian_buffer,

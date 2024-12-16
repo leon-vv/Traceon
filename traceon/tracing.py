@@ -170,29 +170,6 @@ class Tracer:
                 self.low_level_trace_args)
 
 
-class TracerRadialAxial(Tracer):
-    def __call__(self, position, velocity, mass=m_e, charge=-e, atol=1e-10):
-        charge_over_mass = charge / mass
-        velocity = _convert_velocity_to_SI(velocity, mass)
-        
-        elec, mag = self.field.electrostatic_coeffs, self.field.magnetostatic_coeffs
-        
-        return backend.trace_particle_radial_derivs(position, velocity, charge_over_mass, self.bounds, atol, self.field.z, elec, mag)
-
-class Tracer3D_BEM(Tracer):
-    def __call__(self, position, velocity, mass=m_e, charge=-e, atol=1e-10):
-        charge_over_mass = charge / mass
-        velocity = _convert_velocity_to_SI(velocity, mass)
-        elec, mag = self.field.electrostatic_point_charges, self.field.magnetostatic_point_charges
-        return backend.trace_particle_3d(position, velocity, charge_over_mass, self.bounds, atol, elec, mag, field_bounds=self.field.field_bounds)
-
-class Tracer3DAxial(Tracer):
-    def __call__(self, position, velocity, mass=m_e, charge=-e, atol=1e-10):
-        charge_over_mass = charge / mass
-        velocity = _convert_velocity_to_SI(velocity, mass)
-        return backend.trace_particle_3d_derivs(position, velocity, charge_over_mass, self.bounds, atol,
-            self.field.z, self.field.electrostatic_coeffs, self.field.magnetostatic_coeffs)
-
 def plane_intersection(positions, p0, normal):
     """Compute the intersection of a trajectory with a general plane in 3D. The plane is specified
     by a point (p0) in the plane and a normal vector (normal) to the plane. The intersection
