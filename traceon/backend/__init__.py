@@ -79,7 +79,7 @@ vp = C.c_void_p
 sz = C.c_size_t
 
 integration_cb_1d = C.CFUNCTYPE(dbl, dbl, vp)
-field_fun = C.CFUNCTYPE(None, C.POINTER(dbl), C.POINTER(dbl), vp);
+field_fun = C.CFUNCTYPE(None, C.POINTER(dbl), C.POINTER(dbl), C.POINTER(dbl), vp);
 
 vertices = arr(ndim=3)
 lines = arr(ndim=3)
@@ -405,14 +405,14 @@ def delta_position_and_jacobian_radial(alpha: float, v1: np.ndarray, v2: np.ndar
     return jac.value, pos
 
 def wrap_field_fun(ff: Callable) -> Callable:
-    def wrapper(y, result, _):
-        field = ff(y[0], y[1], y[2], y[3], y[4], y[5])
-        assert field.shape == (3,)
-        result[0] = field[0]
-        result[1] = field[1]
-        result[2] = field[2]
+    def field_fun_wrapper(pos, vel, result, _):
+        acceleration = ff(np.array([pos[0], pos[1], pos[2]]), np.array([vel[0], vel[1], vel[2]]))
+        assert acceleration.shape == (3,)
+        result[0] = acceleration[0]
+        result[1] = acceleration[1]
+        result[2] = acceleration[2]
     
-    return field_fun(wrapper)
+    return field_fun(field_fun_wrapper)
 
 def trace_particle(position: np.ndarray, velocity: np.ndarray, charge_over_mass: float, field, bounds: np.ndarray, atol: float, args: C.c_void_p=None) -> Tuple[np.ndarray, np.ndarray]:
     bounds = np.array(bounds)

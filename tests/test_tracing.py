@@ -42,7 +42,8 @@ class TestTracing(unittest.TestCase):
             B = np.array([0, 0, 1])
             return np.hstack( (v, np.cross(v, B)) )
          
-        def traceon_acc(*y):
+        def traceon_acc(pos, vel):
+            y = np.concatenate( (pos, vel) )
             return acceleration(0., y)[3:] / EM
         
         p0 = np.zeros(3)
@@ -195,7 +196,9 @@ class TestTracing(unittest.TestCase):
         v0 = np.array([0., 1., 0.])
         bounds = ((-2., 2.), (0., 2.), (-2., 2.))
          
-        def field(x, y, z, vx, vy, vz):
+        def field(pos, vel):
+            x, y, z = pos
+            vx, vy, vz = vel
             p, v = np.array([x,y,z]), np.array([vx, vy, vz])
             mag_field = np.array([0, 0, -1.])
             return np.cross(v, mag_field) / EM # Return acceleration
