@@ -14,7 +14,8 @@ from enum import Enum
 
 import numpy as np
 import scipy
-from scipy.constants import m_e, e
+from scipy.constants import m_e, e, mu_0
+    
 
 from . import backend
 from . import logging
@@ -117,14 +118,9 @@ class Tracer:
         assert bounds.shape == (3,2)
         self.bounds = bounds
 
-        fun = field.get_low_level_trace_function()
+        self.trace_fun, args = field.get_low_level_trace_function()
 
-        if fun is None:
-            self.low_level_trace_function = None
-            self.low_level_trace_args = None
-        else:
-            self.low_level_trace_function, args = fun
-            self.low_level_trace_args = ctypes.cast(ctypes.pointer(args), ctypes.c_void_p)
+        self.trace_args = args if args is None else ctypes.cast(ctypes.pointer(args), ctypes.c_void_p)
      
     def __str__(self):
         field_name = self.field.__class__.__name__
@@ -164,10 +160,10 @@ class Tracer:
                 position,
                 velocity,
                 charge_over_mass, 
-                self.low_level_trace_function,
+                self.trace_fun,
                 self.bounds,
                 atol,
-                self.low_level_trace_args)
+                self.trace_args)
 
 
 def plane_intersection(positions, p0, normal):

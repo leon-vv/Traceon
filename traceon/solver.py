@@ -54,6 +54,7 @@ from typing import Dict, Tuple
 
 import numpy as np
 from scipy.special import legendre
+from scipy.constants import e, mu_0, m_e
 
 from . import geometry as G
 from . import excitation as E
@@ -521,10 +522,6 @@ class Field(ABC):
         ...
     
     @abstractmethod
-    def magnetostatic_potential_at_point(self, point):
-        ...
-    
-    @abstractmethod
     def electrostatic_potential_at_point(self, point):
         ...
     
@@ -535,11 +532,16 @@ class Field(ABC):
     @abstractmethod
     def electrostatic_field_at_point(self, point):
         ...
-
-
-
     
-    
+    # Following function can be implemented to
+    # get a speedup while tracing. Return a 
+    # field function implemented in C and a ctypes
+    # argument needed. See the field_fun variable in backend/__init__.py 
+    # Note that by default it gives back a Python function, which gives no speedup
+    def get_low_level_trace_function(self):
+        fun = lambda pos, vel: (self.electrostatic_field_at_point(pos), self.magnetostatic_field_at_point(pos))
+        return backend.wrap_field_fun(fun), None
+ 
 class FieldBEM(Field, ABC):
     """An electrostatic field (resulting from surface charges) as computed from the Boundary Element Method. You should
     not initialize this class yourself, but it is used as a base class for the fields returned by the `solve_direct` function. 
