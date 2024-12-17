@@ -40,10 +40,3 @@ class TestUtilities3D(unittest.TestCase):
         _, pos = B.position_and_jacobian_3d(alpha, beta, tri)
         
         assert np.allclose(pos, v0 + vec1*alpha + beta*vec2)
-     
-    def test_combine_elec_magnetic(self):
-        
-        for i in range(20):
-            vel, elec, mag, current = np.random.rand(4, 3)
-            result = B.combine_elec_magnetic_field(vel, elec, mag, current)
-            assert np.allclose(result, elec + mu_0*np.cross(vel, mag + current))

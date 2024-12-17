@@ -7,14 +7,15 @@ compute intersections of the computed traces with various planes.
 [1] Erwin Fehlberg. Low-Order Classical Runge-Kutta Formulas With Stepsize Control and their Application to Some Heat
 Transfer Problems. 1969. National Aeronautics and Space Administration."""
 
-
+import ctypes
 from math import sqrt, cos, sin, atan2
 import time
 from enum import Enum
 
 import numpy as np
 import scipy
-from scipy.constants import m_e, e
+from scipy.constants import m_e, e, mu_0
+    
 
 from . import backend
 from . import logging
@@ -116,7 +117,11 @@ class Tracer:
         bounds = np.array(bounds).astype(np.float64)
         assert bounds.shape == (3,2)
         self.bounds = bounds
-    
+
+        self.trace_fun, args = field.get_low_level_trace_function()
+
+        self.trace_args = args if args is None else ctypes.cast(ctypes.pointer(args), ctypes.c_void_p)
+     
     def __str__(self):
         field_name = self.field.__class__.__name__
         bounds_str = ' '.join([f'({bmin:.2f}, {bmax:.2f})' for bmin, bmax in self.bounds])
@@ -148,46 +153,18 @@ class Tracer:
         The first three elements in the `positions[i]` array contain the x,y,z positions.
         The last three elements in `positions[i]` contain the vx,vy,vz velocities.
         """
-        raise RuntimeError('Please use the field.get_tracer(...) method to get the appropriate Tracer instance')
-
-class TracerRadialBEM(Tracer):
-    def __call__(self, position, velocity, mass=m_e, charge=-e, atol=1e-10):
         charge_over_mass = charge / mass
         velocity = _convert_velocity_to_SI(velocity, mass)
-        
-        return backend.trace_particle_radial(
+
+        return backend.trace_particle(
                 position,
                 velocity,
                 charge_over_mass, 
+                self.trace_fun,
                 self.bounds,
-                atol, 
-                self.field.electrostatic_point_charges,
-                self.field.magnetostatic_point_charges,
-                self.field.current_point_charges,
-                field_bounds=self.field.field_bounds)
+                atol,
+                self.trace_args)
 
-class TracerRadialAxial(Tracer):
-    def __call__(self, position, velocity, mass=m_e, charge=-e, atol=1e-10):
-        charge_over_mass = charge / mass
-        velocity = _convert_velocity_to_SI(velocity, mass)
-        
-        elec, mag = self.field.electrostatic_coeffs, self.field.magnetostatic_coeffs
-        
-        return backend.trace_particle_radial_derivs(position, velocity, charge_over_mass, self.bounds, atol, self.field.z, elec, mag)
-
-class Tracer3D_BEM(Tracer):
-    def __call__(self, position, velocity, mass=m_e, charge=-e, atol=1e-10):
-        charge_over_mass = charge / mass
-        velocity = _convert_velocity_to_SI(velocity, mass)
-        elec, mag = self.field.electrostatic_point_charges, self.field.magnetostatic_point_charges
-        return backend.trace_particle_3d(position, velocity, charge_over_mass, self.bounds, atol, elec, mag, field_bounds=self.field.field_bounds)
-
-class Tracer3DAxial(Tracer):
-    def __call__(self, position, velocity, mass=m_e, charge=-e, atol=1e-10):
-        charge_over_mass = charge / mass
-        velocity = _convert_velocity_to_SI(velocity, mass)
-        return backend.trace_particle_3d_derivs(position, velocity, charge_over_mass, self.bounds, atol,
-            self.field.z, self.field.electrostatic_coeffs, self.field.magnetostatic_coeffs)
 
 def plane_intersection(positions, p0, normal):
     """Compute the intersection of a trajectory with a general plane in 3D. The plane is specified

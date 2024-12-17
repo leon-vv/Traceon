@@ -25,10 +25,10 @@ class TestTracing(unittest.TestCase):
 
         def field(*_):
             acceleration_x = 3 # mm/ns
-            return acceleration() / EM
+            return acceleration() / EM, np.zeros(3)
 
         bounds = ((-2.0, 2.0), (-2.0, 2.0), (-2.0, np.sqrt(12)+1))
-        times, positions = B.trace_particle(np.zeros( (3,) ), np.array([0., 0., 3.]), EM, field, bounds, 1e-10)
+        times, positions = B.trace_particle(np.zeros( (3,) ), np.array([0., 0., 3.]), EM, B.wrap_field_fun(field), bounds, 1e-10)
 
         correct_x = 3/2*times**2
         correct_z = 3*times
@@ -42,20 +42,58 @@ class TestTracing(unittest.TestCase):
             B = np.array([0, 0, 1])
             return np.hstack( (v, np.cross(v, B)) )
          
-        def traceon_acc(*y):
-            return acceleration(0., y)[3:] / EM
-        
+        def traceon_acc(pos, vel):
+            return np.zeros(3), np.array([0, 0, 1])/(mu_0*EM)
+         
         p0 = np.zeros(3)
         v0 = np.array([0., 1, -1.])
         
         bounds = ((-5.0, 5.0), (-5.0, 5.0), (-40.0, 10.0))
-        times, positions = B.trace_particle(p0, v0, EM, traceon_acc, bounds, 1e-10)
+        times, positions = B.trace_particle(p0, v0, EM, B.wrap_field_fun(traceon_acc), bounds, 1e-10)
         
         sol = solve_ivp(acceleration, (0, 30), np.hstack( (p0, v0) ), method='DOP853', rtol=1e-10, atol=1e-10)
 
         interp = CubicSpline(positions[::-1, 2], np.array([positions[::-1, 0], positions[::-1, 1]]).T)
 
         assert np.allclose(interp(sol.y[2]), np.array([sol.y[0], sol.y[1]]).T)
+    
+    def test_tracing_helix_against_scipy_custom_field(self):
+        def acceleration(_, y):
+            v = y[3:]
+            B = np.array([0, 0, 1])
+            return np.hstack( (v, np.cross(v, B)) )
+
+        class CustomField(S.Field):
+            def magnetostatic_field_at_point(self, point):
+                return np.array([0, 0, 1])/(mu_0*EM)
+            
+            def electrostatic_field_at_point(self, point):
+                return np.array([0, 0, 0])
+
+            def electrostatic_potential_at_point(self):
+                return 0.0
+
+            def is_magnetostatic(self):
+                return True
+
+            def is_electrostatic(self):
+                return False
+
+        p0 = np.zeros(3)
+        v0 = np.array([0., 1, -1.])
+        
+        bounds = ((-5.0, 5.0), (-5.0, 5.0), (-40.0, 10.0))
+        tracer = T.Tracer(CustomField(), bounds)
+        
+        # Note that we transform velocity to eV, since it's being converted back to m/s in the Tracer.__call__ function
+        times, positions = tracer(p0, v0*4.020347574230144e-12, atol=1e-10)
+         
+        sol = solve_ivp(acceleration, (0, 30), np.hstack( (p0, v0) ), method='DOP853', rtol=1e-10, atol=1e-10)
+
+        interp = CubicSpline(positions[::-1, 2], np.array([positions[::-1, 0], positions[::-1, 1]]).T)
+        
+        assert np.allclose(interp(sol.y[2]), np.array([sol.y[0], sol.y[1]]).T)
+
     
     def test_tracing_against_scipy_current_loop(self):
         # Constants
@@ -195,12 +233,10 @@ class TestTracing(unittest.TestCase):
         v0 = np.array([0., 1., 0.])
         bounds = ((-2., 2.), (0., 2.), (-2., 2.))
          
-        def field(x, y, z, vx, vy, vz):
-            p, v = np.array([x,y,z]), np.array([vx, vy, vz])
-            mag_field = np.array([0, 0, -1.])
-            return np.cross(v, mag_field) / EM # Return acceleration
+        def field(pos, vel):
+            return np.zeros(3), np.array([0, 0, -1.])/(EM*mu_0)
         
-        times, positions = B.trace_particle(x0, v0, EM, field, bounds, 1e-10)
+        times, positions = B.trace_particle(x0, v0, EM, B.wrap_field_fun(field), bounds, 1e-10)
 
         # Map y-position to state
         interp = CubicSpline(positions[-10:, 1][::-1], positions[-10:][::-1])
