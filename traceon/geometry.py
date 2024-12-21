@@ -964,7 +964,20 @@ class PathCollection(GeometricObject):
             self.paths.append(other)
         else:
             self.paths.extend(other.paths)
-       
+    
+    def __getitem__(self, index):
+        selection = np.array(self.paths, dtype=object).__getitem__(index)
+        if isinstance(selection, np.ndarray):
+            return PathCollection(selection.tolist())
+        else:
+            return selection
+    
+    def __len__(self):
+        return len(self.paths)
+
+    def __iter__(self):
+        return iter(self.paths)
+    
     def revolve_x(self, angle=2*pi):
         return self._map_to_surfaces(Path.revolve_x, angle=angle)
     def revolve_y(self, angle=2*pi):
@@ -977,7 +990,7 @@ class PathCollection(GeometricObject):
         return self._map_to_surfaces(Path.extrude_by_path, p2)
     
     def __str__(self):
-        return f"<PathCollection with {len(self.paths)} surfaces, name: {self.name}>"
+        return f"<PathCollection with {len(self.paths)} paths, name: {self.name}>"
 
 
 class Surface(GeometricObject):
@@ -1528,6 +1541,19 @@ class SurfaceCollection(GeometricObject):
             self.surfaces.append(other)
         else:
             self.surfaces.extend(other.surfaces)
+        
+    def __getitem__(self, index):
+        selection = np.array(self.surfaces, dtype=object).__getitem__(index)
+        if isinstance(selection, np.ndarray):
+            return SurfaceCollection(selection.tolist())
+        else:
+            return selection
+    
+    def __len__(self):
+        return len(self.surfaces)
+
+    def __iter__(self):
+        return iter(self.surfaces)
 
     def __str__(self):
         return f"<SurfaceCollection with {len(self.surfaces)} surfaces, name: {self.name}>"
