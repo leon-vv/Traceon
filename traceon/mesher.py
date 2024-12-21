@@ -64,7 +64,7 @@ class GeometricObject(ABC):
         return self.map_points(lambda p: p + np.array([dx, dy, dz]))
      
     def rotate(self, Rx=0., Ry=0., Rz=0., origin=[0., 0., 0.]):
-        """Rotate counter clockwise around the x, y or z axis. Only one axis supported at the same time
+        """Rotate counterclockwise around the x, y or z axis. Only one axis supported at the same time
         (rotations do not commute).
 
         Parameters
@@ -85,23 +85,55 @@ class GeometricObject(ABC):
         This function returns the same type as the object on which this method was called."""
         
         assert sum([Rx==0., Ry==0., Rz==0.]) >= 2, "Only supply one axis of rotation"
-        origin = np.array(origin)
-        assert origin.shape == (3,), "Please supply a 3D point for origin"
-         
-        if Rx != 0.:
-            matrix = np.array([[1, 0, 0],
-                [0, np.cos(Rx), -np.sin(Rx)],
-                [0, np.sin(Rx), np.cos(Rx)]])
-        elif Ry != 0.:
-            matrix = np.array([[np.cos(Ry), 0, np.sin(Ry)],
-                [0, 1, 0],
-                [-np.sin(Ry), 0, np.cos(Ry)]])
-        elif Rz != 0.:
-            matrix = np.array([[np.cos(Rz), -np.sin(Rz), 0],
-                [np.sin(Rz), np.cos(Rz), 0],
-                [0, 0, 1]])
 
-        return self.map_points(lambda p: origin + matrix @ (p - origin))
+        if Rx !=0.:
+            return self.rotate_around_axis([1,0,0], angle=Rx, origin=origin)
+        if Ry !=0.:
+            return self.rotate_around_axis([0,1,0], angle=Ry, origin=origin)
+        if Rz !=0.:
+            return self.rotate_around_axis([0,0,1], angle=Rz, origin=origin)
+        
+
+    
+    def rotate_around_axis(self, axis=[0., 0, 1.], angle=0., origin=[0., 0., 0.]):
+        """
+        Rotate  counterclockwise around a general axis defined by a vector.
+        If the normal points away, it rotates clockwise.
+        
+        Parameters
+        ------------------------------------
+        axis: (3,) float
+            Vector defining the axis of rotation. Must be non-zero.
+        angle: float
+            Amount to rotate around the axis (radians).
+        origin: (3,) float
+            Point around which to rotate, which is the origin by default.
+
+        Returns
+        --------------------------------------
+        GeometricObject
+        
+        This function returns the same type as the object on which this method was called.
+        """
+        origin = np.array(origin, dtype=float)
+        assert origin.shape == (3,), "Please supply a 3D point for origin"
+        axis = np.array(axis, dtype=float)
+        assert axis.shape == (3,), "Please supply a 3D vector for axis"
+        axis = axis / np.linalg.norm(axis)
+
+        if angle == 0:
+            return self
+        
+        K = np.array([
+            [0, -axis[2], axis[1]],
+            [axis[2], 0, -axis[0]],
+            [-axis[1], axis[0], 0]])
+        
+        K2 = K @ K
+        I = np.eye(3)
+        R = I + np.sin(angle) * K + (1 - np.cos(angle)) * K2
+
+        return self.map_points(lambda p: origin + R @ (p - origin))
 
     def mirror_xz(self):
         """Mirror object in the XZ plane.
