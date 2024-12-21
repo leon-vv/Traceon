@@ -54,6 +54,7 @@ from typing import Dict, Tuple
 
 import numpy as np
 from scipy.special import legendre
+from scipy.constants import e, mu_0, m_e
 
 from . import geometry as G
 from . import excitation as E
@@ -507,7 +508,7 @@ class Field(ABC):
         if elec and not mag:
             return self.electrostatic_potential_at_point(point)
         elif not elec and mag:
-            return self.magnetostatic_potential_at_point(point)
+            return self.magnetostatic_potential_at_point(point) # type: ignore
          
         raise RuntimeError("Cannot use potential_at_point when both electric and magnetic fields are present, " \
             "use electrostatic_potential_at_point or magnetostatic_potential_at_point")
@@ -521,10 +522,6 @@ class Field(ABC):
         ...
     
     @abstractmethod
-    def magnetostatic_potential_at_point(self, point):
-        ...
-    
-    @abstractmethod
     def electrostatic_potential_at_point(self, point):
         ...
     
@@ -535,11 +532,16 @@ class Field(ABC):
     @abstractmethod
     def electrostatic_field_at_point(self, point):
         ...
-
-
-
     
-    
+    # Following function can be implemented to
+    # get a speedup while tracing. Return a 
+    # field function implemented in C and a ctypes
+    # argument needed. See the field_fun variable in backend/__init__.py 
+    # Note that by default it gives back a Python function, which gives no speedup
+    def get_low_level_trace_function(self):
+        fun = lambda pos, vel: (self.electrostatic_field_at_point(pos), self.magnetostatic_field_at_point(pos))
+        return backend.wrap_field_fun(fun), None
+ 
 class FieldBEM(Field, ABC):
     """An electrostatic field (resulting from surface charges) as computed from the Boundary Element Method. You should
     not initialize this class yourself, but it is used as a base class for the fields returned by the `solve_direct` function. 
@@ -837,7 +839,12 @@ class FieldRadialBEM(FieldBEM):
         return 2*np.pi*np.sum(jacobians[i] * positions[i, :, 0])
     
     def get_tracer(self, bounds):
-        return T.TracerRadialBEM(self, bounds)
+        return T.Tracer(self, bounds)
+    
+    def get_low_level_trace_function(self):
+        args = backend.FieldEvaluationArgsRadial(self.electrostatic_point_charges, self.magnetostatic_point_charges, self.current_point_charges, self.field_bounds)
+        return backend.field_fun(("field_radial_traceable", backend.backend_lib)), args
+        
     
     
 class Field3D_BEM(FieldBEM):
@@ -946,7 +953,12 @@ class Field3D_BEM(FieldBEM):
         return np.sum(jacobians[i])
     
     def get_tracer(self, bounds):
-        return T.Tracer3D_BEM(self, bounds)
+        return T.Tracer(self, bounds)
+    
+    def get_low_level_trace_function(self):
+        args = backend.FieldEvaluationArgs3D(self.electrostatic_point_charges, self.magnetostatic_point_charges, self.field_bounds)
+        return backend.field_fun(("field_3d_traceable", backend.backend_lib)), args
+ 
      
 
 class FieldAxial(Field):
@@ -1085,6 +1097,5 @@ class FieldRadialAxial(FieldAxial):
         return backend.potential_radial_derivs(point, self.z, self.magnetostatic_coeffs)
     
     def get_tracer(self, bounds):
-        return T.TracerRadialAxial(self, bounds)
-
-
+        return T.Tracer(self, bounds)
+    
