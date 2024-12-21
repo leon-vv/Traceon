@@ -7,6 +7,8 @@ import traceon.mesher as M
 from traceon.geometry import *
 import traceon.plotting as P
 
+
+
 class MeshTests(unittest.TestCase):
 
     def test_loading_mesh(self):
@@ -94,6 +96,33 @@ class PathTests(unittest.TestCase):
         assert np.allclose(y(sqrt(0)), origin)
         assert np.allclose(y(sqrt(2)), origin + np.array([0., 1., 1.]))
     
+    def test_rotate_around_axis(self):
+        
+        p = Path.line([0,0,0], [1,1,1])
+        origin=[0,0,0]
+        angle = pi/2
+        p_rot_par = p.rotate_around_axis([1,1,1], angle, origin)
+        assert np.allclose(p_rot_par.starting_point(), origin)
+        assert np.allclose(p_rot_par.endpoint(), np.array([1,1,1]))
+
+        p_rot_ort = p.rotate_around_axis([0,1,-1], angle, origin)
+        assert np.allclose(p_rot_ort.starting_point(), origin)
+        assert np.allclose(p_rot_ort.endpoint(), np.array([sqrt(2), -1/sqrt(2), -1/sqrt(2)]))
+
+        # general example calculated by hand using Rodrigues' formula as follows:
+        # Translate v to v' = v - origin. 
+        # Rotate around [0,0,0] using v_rot' = v'cos(theta) + (k \cross v')sin(theta) + (k(k\dot v))(1-cos(theta))
+        # Translate back to v_rot using v_rot = origin + v_rot'
+        origin = [2,1,-1]
+        p_rot_gen = p.rotate_around_axis([1,1,0], -pi/2, [2,1,-1])
+        assert np.allclose(p_rot_gen.starting_point(), np.array([-0.207107,0.207107,-1.707107]))
+        assert np.allclose(p_rot_gen.endpoint(), np.array([0.085786, 1.914214, -1.707107]))
+
+        # 2pi rotation should map object to itself
+        p_rot_2pi = p.rotate_around_axis([1,1,0], 2*pi, [2,1,-1])
+        assert np.allclose(p.starting_point(), p_rot_2pi.starting_point())
+        assert np.allclose(p.endpoint(), p_rot_2pi.endpoint())
+
     def test_discretize_path(self):
         path_length = 10 
         breakpoints = [3.33, 5., 9.]
