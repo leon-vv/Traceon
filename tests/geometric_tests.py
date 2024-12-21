@@ -7,6 +7,7 @@ import traceon.mesher as M
 from traceon.geometry import *
 import traceon.plotting as P
 
+
 class MeshTests(unittest.TestCase):
 
     def test_loading_mesh(self):
@@ -94,6 +95,23 @@ class PathTests(unittest.TestCase):
         assert np.allclose(y(sqrt(0)), origin)
         assert np.allclose(y(sqrt(2)), origin + np.array([0., 1., 1.]))
     
+    def test_rotate_around_axis(self):
+        p = Path.line([0,0,0], [1,1,1])
+        origin=[0,0,0]
+        angle = pi/2
+        p_rot_par = p.rotate_around_axis([1,1,1], angle, origin)
+        assert np.allclose(p_rot_par.starting_point(), origin)
+        assert np.allclose(p_rot_par.endpoint(), np.array([1,1,1]))
+        p_rot_ort = p.rotate_around_axis([0,1,-1], angle, origin)
+        assert np.allclose(p_rot_ort.starting_point(), origin)
+        assert np.allclose(p_rot_ort.endpoint(), np.array([sqrt(2), -1/sqrt(2), -1/sqrt(2)]))
+
+        origin = [2,1,-1]
+        p_rot_gen = p.rotate_around_axis([1,1,0], -np.pi/2, [2,1,-1])
+        print(p_rot_gen.starting_point())
+        assert np.allclose(p_rot_gen.starting_point(), np.array([-0.207107,0.207107,-1.707107]))
+        assert np.allclose(p_rot_gen.endpoint(), np.array([0.085786,1.914214,-1.707107]))
+
     def test_discretize_path(self):
         path_length = 10 
         breakpoints = [3.33, 5., 9.]
