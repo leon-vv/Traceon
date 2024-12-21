@@ -98,7 +98,6 @@ class GeometricObject(ABC):
     def rotate_around_axis(self, axis=[0., 0, 1.], angle=0., origin=[0., 0., 0.]):
         """
         Rotate  counterclockwise around a general axis defined by a vector.
-        If the normal points away, it rotates clockwise.
         
         Parameters
         ------------------------------------
@@ -122,14 +121,16 @@ class GeometricObject(ABC):
         axis = axis / np.linalg.norm(axis)
 
         if angle == 0:
-            return self
+            return self.map_points(lambda x: x)
         
+        # Rotation is implemented using Rodrigues' rotation formula
+        # See: https://en.wikipedia.org/wiki/Rodrigues%27_rotation_formula
         K = np.array([
             [0, -axis[2], axis[1]],
             [axis[2], 0, -axis[0]],
             [-axis[1], axis[0], 0]])
         
-        K2 = K @ K
+        K2 = K @ K # Transformation matrix that maps a vector to its cross product with the rotation axis
         I = np.eye(3)
         R = I + np.sin(angle) * K + (1 - np.cos(angle)) * K2
 
