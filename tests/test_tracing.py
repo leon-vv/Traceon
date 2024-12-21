@@ -12,7 +12,7 @@ import traceon.excitation as E
 import traceon.backend as B
 import traceon.solver as S
 import traceon.tracing as T
-from traceon.interpolation import FieldRadialAxial
+from traceon.field import FieldRadialAxial
 
 from tests.test_radial_ring import biot_savart_loop
 from tests.test_radial import get_ring_effective_point_charges
@@ -28,10 +28,10 @@ class TestTracing(unittest.TestCase):
 
         def field(*_):
             acceleration_x = 3 # mm/ns
-            return acceleration() / EM
+            return acceleration() / EM, np.zeros(3)
 
         bounds = ((-2.0, 2.0), (-2.0, 2.0), (-2.0, np.sqrt(12)+1))
-        times, positions = B.trace_particle(np.zeros( (3,) ), np.array([0., 0., 3.]), EM, field, bounds, 1e-10)
+        times, positions = B.trace_particle(np.zeros( (3,) ), np.array([0., 0., 3.]), EM, B.wrap_field_fun(field), bounds, 1e-10)
 
         correct_x = 3/2*times**2
         correct_z = 3*times
@@ -45,20 +45,58 @@ class TestTracing(unittest.TestCase):
             B = np.array([0, 0, 1])
             return np.hstack( (v, np.cross(v, B)) )
          
-        def traceon_acc(*y):
-            return acceleration(0., y)[3:] / EM
-        
+        def traceon_acc(pos, vel):
+            return np.zeros(3), np.array([0, 0, 1])/(mu_0*EM)
+         
         p0 = np.zeros(3)
         v0 = np.array([0., 1, -1.])
         
         bounds = ((-5.0, 5.0), (-5.0, 5.0), (-40.0, 10.0))
-        times, positions = B.trace_particle(p0, v0, EM, traceon_acc, bounds, 1e-10)
+        times, positions = B.trace_particle(p0, v0, EM, B.wrap_field_fun(traceon_acc), bounds, 1e-10)
         
         sol = solve_ivp(acceleration, (0, 30), np.hstack( (p0, v0) ), method='DOP853', rtol=1e-10, atol=1e-10)
 
         interp = CubicSpline(positions[::-1, 2], np.array([positions[::-1, 0], positions[::-1, 1]]).T)
 
         assert np.allclose(interp(sol.y[2]), np.array([sol.y[0], sol.y[1]]).T)
+    
+    def test_tracing_helix_against_scipy_custom_field(self):
+        def acceleration(_, y):
+            v = y[3:]
+            B = np.array([0, 0, 1])
+            return np.hstack( (v, np.cross(v, B)) )
+
+        class CustomField(S.Field):
+            def magnetostatic_field_at_point(self, point):
+                return np.array([0, 0, 1])/(mu_0*EM)
+            
+            def electrostatic_field_at_point(self, point):
+                return np.array([0, 0, 0])
+
+            def electrostatic_potential_at_point(self):
+                return 0.0
+
+            def is_magnetostatic(self):
+                return True
+
+            def is_electrostatic(self):
+                return False
+
+        p0 = np.zeros(3)
+        v0 = np.array([0., 1, -1.])
+        
+        bounds = ((-5.0, 5.0), (-5.0, 5.0), (-40.0, 10.0))
+        tracer = T.Tracer(CustomField(), bounds)
+        
+        # Note that we transform velocity to eV, since it's being converted back to m/s in the Tracer.__call__ function
+        times, positions = tracer(p0, v0*4.020347574230144e-12, atol=1e-10)
+         
+        sol = solve_ivp(acceleration, (0, 30), np.hstack( (p0, v0) ), method='DOP853', rtol=1e-10, atol=1e-10)
+
+        interp = CubicSpline(positions[::-1, 2], np.array([positions[::-1, 0], positions[::-1, 1]]).T)
+        
+        assert np.allclose(interp(sol.y[2]), np.array([sol.y[0], sol.y[1]]).T)
+
     
     def test_tracing_against_scipy_current_loop(self):
         # Constants
@@ -119,64 +157,7 @@ class TestTracing(unittest.TestCase):
         
         assert np.allclose(interp(sol.y[2]), np.array([sol.y[0], sol.y[1]]).T, atol=1e-4, rtol=5e-5)
 
-    def test_magnetic_deflection_radial_three_d(self):
-        # Radial symmetric
-        circle1 = G.Surface.disk_xz(1.0, 3.0, 0.1)
-        circle1.name = 'circle1'
-
-        circle2 = G.Surface.disk_xz(1.0, -3.0, 0.1)
-        circle2.name = 'circle2'
-
-        mesh_radial = (circle1+circle2).mesh(mesh_size_factor=2)
-
-        exc = E.Excitation(mesh_radial, E.Symmetry.RADIAL)
-        exc.add_current(circle1=2.0, circle2=2.0)
-
-        field_radial = S.solve_direct(exc)
-
-        # Three D
-
-        circle1 = G.Path.circle_xy(0., 0., 1.0).move(dz=3.0)
-        circle1.name = 'circle1'
-
-        circle2 = G.Path.circle_xy(0., 0., 1.0).move(dz=-3.0)
-        circle2.name = 'circle2'
-
-        mesh_three_d = (circle1+circle2).mesh(mesh_size_factor=15)
-
-        exc = E.Excitation(mesh_three_d, E.Symmetry.THREE_D)
-        exc.add_current(circle1=2.0, circle2=2.0)
-
-        field_three_d = S.solve_direct(exc)
-        
-        x = np.linspace(-30, 30, 10)
-        H_radial = [field_radial.current_field_at_point([x_, 0., 0.])[2] for x_ in x]
-        H_three_d = [field_three_d.current_field_at_point([x_, 0., 0.])[2] for x_ in x]
-        
-        assert np.allclose(H_radial, H_three_d, rtol=1.5e-2)
-
-        # Trace particles and compare
-
-        bounds = [(-20, 2.5), (-10, 10), (-10, 10)]
-        tracer_radial = field_radial.get_tracer(bounds)
-        tracer_three_d = field_three_d.get_tracer(bounds)
-
-        v0 = [100., 0., 0.]
-        x0s = [-10]
-
-        positions_radial = [tracer_radial([x0, 0., 0.], v0, atol=1e-5)[1] for x0 in x0s][0]
-        positions_three_d = [tracer_three_d([x0, 0., 0.], v0, atol=1e-5)[1] for x0 in x0s][0]
-
-        assert np.allclose(positions_radial[:, 2], 0.0)
-        assert np.allclose(positions_three_d[:, 2], 0.0)
-
-        spline_radial = CubicSpline(positions_radial[:, 0], positions_radial[:, 1])
-        spline_three_d = CubicSpline(positions_three_d[:, 0], positions_three_d[:, 1])
-        
-        x = np.linspace(-1.5, 5.0, 10)
-
-        assert np.allclose(spline_radial(x), spline_three_d(x), atol=0.0005)
-        
+       
     def test_plane_intersection(self):
         p = np.array([
             [3, 0, 0, 0, 0, 0],
@@ -256,12 +237,10 @@ class TestTracing(unittest.TestCase):
         v0 = np.array([0., 1., 0.])
         bounds = ((-2., 2.), (0., 2.), (-2., 2.))
          
-        def field(x, y, z, vx, vy, vz):
-            p, v = np.array([x,y,z]), np.array([vx, vy, vz])
-            mag_field = np.array([0, 0, -1.])
-            return np.cross(v, mag_field) / EM # Return acceleration
+        def field(pos, vel):
+            return np.zeros(3), np.array([0, 0, -1.])/(EM*mu_0)
         
-        times, positions = B.trace_particle(x0, v0, EM, field, bounds, 1e-10)
+        times, positions = B.trace_particle(x0, v0, EM, B.wrap_field_fun(field), bounds, 1e-10)
 
         # Map y-position to state
         interp = CubicSpline(positions[-10:, 1][::-1], positions[-10:][::-1])

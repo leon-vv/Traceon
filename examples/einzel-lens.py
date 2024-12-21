@@ -6,7 +6,7 @@ import traceon.solver as S
 import traceon.excitation as E
 import traceon.plotting as P
 import traceon.tracing as T
-from traceon.interpolation import FieldRadialAxial
+from traceon.field import FieldRadialAxial
 
 # Dimensions of the einzel lens.
 THICKNESS = 0.5
@@ -18,7 +18,7 @@ RADIUS = 0.15
 z0 = -THICKNESS - SPACING - THICKNESS/2
 
 boundary = G.Path.line([0., 0., 1.75],  [2.0, 0., 1.75])\
-    .line_to([2.0, 0., -1.75]).line_to([0., 0., -1.75])
+    .extend_with_line([2.0, 0., -1.75]).extend_with_line([0., 0., -1.75])
 
 
 margin_right = 0.1

@@ -7,12 +7,12 @@ import traceon.geometry as G
 import traceon.excitation as E
 import traceon.tracing as T
 import traceon.solver as S
-from traceon.interpolation import FieldRadialAxial
+from traceon.field import FieldRadialAxial
 
 from validation import Validation
 
 try:
-    from traceon_pro.interpolation import Field3DAxial
+    from traceon_pro.field import Field3DAxial
 except ImportError:
     Field3DAxial = None
 
@@ -30,7 +30,7 @@ class SimpleMirror(Validation):
             return [4, 8, 16, 32]
     
     def create_mesh(self, MSF, symmetry, higher_order):
-        boundary = G.Path.line([0, 0, -1], [2, 0, -1]).line_to([2, 0, 1]).line_to([0.3, 0., 1])
+        boundary = G.Path.line([0, 0, -1], [2, 0, -1]).extend_with_line([2, 0, 1]).extend_with_line([0.3, 0., 1])
         mirror = G.Path.line([0., 0., 0.], [1., 0., 0.])
 
         boundary.name = 'boundary'

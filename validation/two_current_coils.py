@@ -17,7 +17,7 @@ class TwoCurrentCoils(Validation):
         self.plot_colors = dict(coil1='blue', coil2='red', block='orange')
     
     def create_mesh(self, MSF, symmetry, higher_order):
-        boundary = G.Path.line([0., 0., 50e-3], [100e-3, 0., 50e-3]).line_to([100e-3, 0., -50e-3]).line_to([0., 0., -50e-3])
+        boundary = G.Path.line([0., 0., 50e-3], [100e-3, 0., 50e-3]).extend_with_line([100e-3, 0., -50e-3]).extend_with_line([0., 0., -50e-3])
         boundary.name = 'boundary'
 
         coil1 = G.Surface.disk_xz(10e-3, 5e-3, 1e-3) 

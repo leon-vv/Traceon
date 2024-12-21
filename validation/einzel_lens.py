@@ -4,13 +4,13 @@ import traceon.geometry as G
 import traceon.solver as S
 import traceon.excitation as E
 import traceon.plotting as P
-from traceon.interpolation import FieldRadialAxial
+from traceon.field import FieldRadialAxial
 import traceon.tracing as T
 
 from validation import Validation
 
 try:
-    from traceon_pro.interpolation import Field3DAxial
+    from traceon_pro.field import Field3DAxial
 except ImportError:
     Field3DAxial = None
 
@@ -28,7 +28,7 @@ class EinzelLens(Validation):
     def create_mesh(self, MSF, symmetry, higher_order):
         
         boundary = G.Path.line([0., 0., 1.75],  [2.0, 0., 1.75])\
-            .line_to([2.0, 0., -1.75]).line_to([0., 0., -1.75])
+            .extend_with_line([2.0, 0., -1.75]).extend_with_line([0., 0., -1.75])
 
 
         margin_right = 0.1
