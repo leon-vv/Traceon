@@ -7,12 +7,12 @@ import traceon.solver as S
 import traceon.excitation as E
 import traceon.plotting as P
 import traceon.tracing as T
-from traceon.interpolation import FieldRadialAxial
+from traceon.field import FieldRadialAxial
 
 from validation import Validation
 
 try:
-    from traceon_pro.interpolation import Field3DAxial
+    from traceon_pro.field import Field3DAxial
 except ImportError:
     Field3DAxial = None
 

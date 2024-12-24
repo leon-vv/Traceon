@@ -13,7 +13,7 @@ import traceon.excitation as E
 import traceon.tracing as T
 import traceon.backend as B
 import traceon.logging as logging
-from traceon.interpolation import FieldRadialAxial
+from traceon.field import FieldRadialAxial
 
 from tests.test_radial_ring import potential_of_ring_arbitrary, biot_savart_loop, magnetic_field_of_loop
 
@@ -118,7 +118,7 @@ class TestRadial(unittest.TestCase):
         eff = get_ring_effective_point_charges(current, 1)
          
         for p in np.random.rand(10, 3):
-            field = mu_0 * B.current_field(p, eff.charges, eff.jacobians, eff.positions)
+            field = mu_0 * B.current_field_radial(p, eff.charges, eff.jacobians, eff.positions)
             correct = biot_savart_loop(current, p)
             assert np.allclose(field, correct)
     

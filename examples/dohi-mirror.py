@@ -8,7 +8,7 @@ import traceon.tracing as T
 import traceon.solver as S
 import traceon.plotting as P
 import traceon.focus as F
-from traceon.interpolation import FieldRadialAxial
+from traceon.field import FieldRadialAxial
 
 
 
