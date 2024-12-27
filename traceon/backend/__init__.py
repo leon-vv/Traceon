@@ -263,11 +263,9 @@ backend_functions = {
     'dx1_potential_3d_point': (dbl, dbl, dbl, dbl, dbl, dbl, dbl, vp),
     'dy1_potential_3d_point': (dbl, dbl, dbl, dbl, dbl, dbl, dbl, vp),
     'dz1_potential_3d_point': (dbl, dbl, dbl, dbl, dbl, dbl, dbl, vp),
-    'potential_3d_point': (dbl, dbl, dbl, dbl, dbl, dbl, dbl, vp),
     'axial_coefficients_3d': (None, charges_3d, jac_buffer_3d, pos_buffer_3d, arr(ndim=3), arr(ndim=3), sz, z_values, arr(ndim=4), sz),
     'fill_jacobian_buffer_current_three_d': (None, lines, jac_buffer_3d, pos_buffer_3d, arr(ndim=3), sz),
     'current_field_3d': (None, v3, EffectivePointCurrents3D, v3),
-    'potential_3d': (dbl, v3, charges_3d, jac_buffer_3d, pos_buffer_3d, sz),
     'potential_3d_derivs': (dbl, v3, z_values, arr(ndim=5), sz),
     'field_3d': (None, v3, v3, charges_3d, jac_buffer_3d, pos_buffer_3d, sz),
     'field_3d_derivs': (None, v3, v3, z_values, arr(ndim=5), sz),
@@ -525,9 +523,6 @@ def dy1_potential_3d_point(x0: float, y0: float, z0: float, x1: float, y1: float
 def dz1_potential_3d_point(x0: float, y0: float, z0: float, x1: float, y1: float, z1: float) -> float:
     return backend_lib.dz1_potential_3d_point(x0, y0, z0, x1, y1, z1, None)
 
-def potential_3d_point(x0: float, y0: float, z0: float, x1: float, y1: float, z1: float) -> float:
-    return backend_lib.potential_3d_point(x0, y0, z0, x1, y1, z1, None)
-
 def flux_density_to_charge_factor(K: float) -> float:
     return backend_lib.flux_density_to_charge_factor(K)
 
@@ -564,15 +559,6 @@ def current_field_3d(point, eff):
     result = np.zeros(3)
     backend_lib.current_field_3d(point, eff, result)
     return result
-
-def potential_3d(point: np.ndarray, charges: np.ndarray, jac_buffer: np.ndarray, pos_buffer: np.ndarray) -> float:
-    assert point.shape == (3,)
-    N = len(charges)
-    assert charges.shape == (N,)
-    assert jac_buffer.shape == (N, N_TRIANGLE_QUAD)
-    assert pos_buffer.shape == (N, N_TRIANGLE_QUAD, 3)
-    
-    return backend_lib.potential_3d(point.astype(np.float64), charges, jac_buffer, pos_buffer, N)
 
 def potential_3d_derivs(point: np.ndarray, z: np.ndarray, coeffs: np.ndarray) -> float:
     assert coeffs.shape == (len(z)-1, 2, NU_MAX, M_MAX, 4)

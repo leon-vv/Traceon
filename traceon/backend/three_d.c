@@ -100,35 +100,6 @@ current_field_3d(double point[3], struct effective_point_currents_3d epc, double
 }
 
 
-EXPORT double  
-potential_3d(double point[3], double *charges, jacobian_buffer_3d jacobian_buffer, position_buffer_3d position_buffer, size_t N_vertices) {  
-	
-	double sum_ = 0.0;  
-	
-	for(int i = 0; i < N_vertices; i++) {  
-		for(int k = 0; k < N_TRIANGLE_QUAD; k++) {
-			double *pos = &position_buffer[i][k][0];
-			double potential = potential_3d_point(point[0], point[1], point[2], pos[0], pos[1], pos[2], NULL);
-			
-			sum_ += charges[i] * jacobian_buffer[i][k] * potential;
-		}
-	}  
-	
-	return sum_;
-}  
-
-double
-field_dot_normal_3d(double x0, double y0, double z0, double x, double y, double z, void* normal_p) {
-	
-	double Ex = -dx1_potential_3d_point(x0, y0, z0, x, y, z, NULL);
-	double Ey = -dy1_potential_3d_point(x0, y0, z0, x, y, z, NULL);
-	double Ez = -dz1_potential_3d_point(x0, y0, z0, x, y, z, NULL);
-	
-	double *normal = (double *)normal_p;
-	
-    return normal[0]*Ex + normal[1]*Ey + normal[2]*Ez;
-}
-
 EXPORT void
 field_3d(double point[3], double result[3], double *charges,
 	jacobian_buffer_3d jacobian_buffer, position_buffer_3d position_buffer, size_t N_vertices) {
