@@ -62,7 +62,7 @@ from . import logging
 from . import backend
 from . import util
 from . import tracing as T
-
+from .mesher import GeometricObject
 
 class Solver(ABC):
     
@@ -466,7 +466,33 @@ def solve_direct(excitation):
 
 
 
-class Field(ABC):
+class Field(GeometricObject, ABC):
+    def __init__(self):
+        self.origin = np.array([0,0,0], dtype=np.float64)
+        self.basis = np.array([[1,0,0],
+                               [0,1,0]])
+
+        self.inverse_transformation_matrix = self._compute_inverse_transformation_matrix()
+    
+    def map_points(self, fun):
+        self.origin = fun(self.origin)
+        self.basis = np.array([fun(b) for b in self.basis])
+        assert np.linalg.det(self.basis) != 0, "The applied transformation is not invertible."
+        
+        self.inverse_transformation_matrix = self._compute_inverse_transformation_matrix()
+    
+    def map_points_to_local(self, point):
+        global_point_homogeneous = np.array([*point,1], dtype=np.float64)
+        local_point_homogeneous = self.inverse_transformation_matrix @ global_point_homogeneous
+        return local_point_homogeneous[:3] /local_point_homogeneous[3]
+    
+    def _compute_inverse_transformation_matrix(self):
+        transformation_matrix = np.eye(4)
+        transformation_matrix[:3, :3] = self.basis
+        transformation_matrix[:3, 3] = self.origin
+
+        return np.linalg.inv(transformation_matrix)
+
     def field_at_point(self, point):
         """Convenience function for getting the field in the case that the field is purely electrostatic
         or magneotstatic. Automatically picks one of `electrostatic_field_at_point` or `magnetostatic_field_at_point`.
@@ -673,11 +699,12 @@ class FieldRadialBEM(FieldBEM):
     def current_field_at_point(self, point_):
         point = np.array(point_)
         assert point.shape == (3,), "Please supply a three dimensional point"
-            
+        
+        local_point = self.map_points_to_local(point)
         currents = self.current_point_charges.charges
         jacobians = self.current_point_charges.jacobians
         positions = self.current_point_charges.positions
-        return backend.current_field(point, currents, jacobians, positions)
+        return backend.current_field(local_point, currents, jacobians, positions)
      
     def electrostatic_field_at_point(self, point_):
         """
@@ -694,11 +721,12 @@ class FieldRadialBEM(FieldBEM):
         """
         point = np.array(point_)
         assert point.shape == (3,), "Please supply a three dimensional point"
-          
+        
+        local_point = self.map_points_to_local(point)
         charges = self.electrostatic_point_charges.charges
         jacobians = self.electrostatic_point_charges.jacobians
         positions = self.electrostatic_point_charges.positions
-        return backend.field_radial(point, charges, jacobians, positions)
+        return backend.field_radial(local_point, charges, jacobians, positions)
      
     def electrostatic_potential_at_point(self, point_):
         """
@@ -715,10 +743,12 @@ class FieldRadialBEM(FieldBEM):
         """
         point = np.array(point_)
         assert point.shape == (3,), "Please supply a three dimensional point"
+        
+        local_point = self.map_points_to_local(point)
         charges = self.electrostatic_point_charges.charges
         jacobians = self.electrostatic_point_charges.jacobians
         positions = self.electrostatic_point_charges.positions
-        return backend.potential_radial(point, charges, jacobians, positions)
+        return backend.potential_radial(local_point, charges, jacobians, positions)
     
     def magnetostatic_field_at_point(self, point_):
         """
@@ -735,13 +765,14 @@ class FieldRadialBEM(FieldBEM):
         """
         point = np.array(point_)
         assert point.shape == (3,), "Please supply a three dimensional point"
-        current_field = self.current_field_at_point(point)
+        local_point = self.map_points_to_local(point)
+        current_field = self.current_field_at_point(local_point)
         
         charges = self.magnetostatic_point_charges.charges
         jacobians = self.magnetostatic_point_charges.jacobians
         positions = self.magnetostatic_point_charges.positions
         
-        mag_field = backend.field_radial(point, charges, jacobians, positions)
+        mag_field = backend.field_radial(local_point, charges, jacobians, positions)
 
         return current_field + mag_field
 
@@ -760,10 +791,12 @@ class FieldRadialBEM(FieldBEM):
         """
         point = np.array(point_)
         assert point.shape == (3,), "Please supply a three dimensional point"
+        
+        local_point = self.map_points_to_local(point)
         charges = self.magnetostatic_point_charges.charges
         jacobians = self.magnetostatic_point_charges.jacobians
         positions = self.magnetostatic_point_charges.positions
-        return backend.potential_radial(point, charges, jacobians, positions)
+        return backend.potential_radial(local_point, charges, jacobians, positions)
     
     def current_potential_axial(self, z):
         assert isinstance(z, float)
@@ -883,10 +916,12 @@ class Field3D_BEM(FieldBEM):
         """
         point = np.array(point_)
         assert point.shape == (3,), "Please supply a three dimensional point"
+
+        local_point = self.map_points_to_local(point)
         charges = self.electrostatic_point_charges.charges
         jacobians = self.electrostatic_point_charges.jacobians
         positions = self.electrostatic_point_charges.positions
-        return backend.field_3d(point, charges, jacobians, positions)
+        return backend.field_3d(local_point, charges, jacobians, positions)
      
     def electrostatic_potential_at_point(self, point_):
         """
@@ -903,10 +938,12 @@ class Field3D_BEM(FieldBEM):
         """
         point = np.array(point_)
         assert point.shape == (3,), "Please supply a three dimensional point"
+
+        local_point = self.map_points_to_local(point)
         charges = self.electrostatic_point_charges.charges
         jacobians = self.electrostatic_point_charges.jacobians
         positions = self.electrostatic_point_charges.positions
-        return backend.potential_3d(point, charges, jacobians, positions)
+        return backend.potential_3d(local_point, charges, jacobians, positions)
      
     def magnetostatic_field_at_point(self, point_):
         """
@@ -923,10 +960,12 @@ class Field3D_BEM(FieldBEM):
         """
         point = np.array(point_)
         assert point.shape == (3,), "Please supply a three dimensional point"
+
+        local_point = self.map_points_to_local(point)
         charges = self.magnetostatic_point_charges.charges
         jacobians = self.magnetostatic_point_charges.jacobians
         positions = self.magnetostatic_point_charges.positions
-        return backend.field_3d(point, charges, jacobians, positions)
+        return backend.field_3d(local_point, charges, jacobians, positions)
      
     def magnetostatic_potential_at_point(self, point_):
         """
@@ -943,10 +982,12 @@ class Field3D_BEM(FieldBEM):
         """
         point = np.array(point_)
         assert point.shape == (3,), "Please supply a three dimensional point"
+
+        local_point = self.map_points_to_local(point)
         charges = self.magnetostatic_point_charges.charges
         jacobians = self.magnetostatic_point_charges.jacobians
         positions = self.magnetostatic_point_charges.positions
-        return backend.potential_3d(point, charges, jacobians, positions)
+        return backend.potential_3d(local_point, charges, jacobians, positions)
      
     def area_of_element(self, i):
         jacobians = self.electrostatic_point_charges.jacobians
@@ -1060,7 +1101,9 @@ class FieldRadialAxial(FieldAxial):
         """
         point = np.array(point_)
         assert point.shape == (3,), "Please supply a three dimensional point"
-        return backend.field_radial_derivs(point, self.z, self.magnetostatic_coeffs)
+
+        local_point = self.map_points_to_local(point)
+        return backend.field_radial_derivs(local_point, self.z, self.magnetostatic_coeffs)
      
     def electrostatic_potential_at_point(self, point_):
         """
@@ -1077,7 +1120,9 @@ class FieldRadialAxial(FieldAxial):
         """
         point = np.array(point_)
         assert point.shape == (3,), "Please supply a three dimensional point"
-        return backend.potential_radial_derivs(point, self.z, self.electrostatic_coeffs)
+        
+        local_point = self.map_points_to_local(point)
+        return backend.potential_radial_derivs(local_point, self.z, self.electrostatic_coeffs)
     
     def magnetostatic_potential_at_point(self, point_):
         """
@@ -1094,7 +1139,9 @@ class FieldRadialAxial(FieldAxial):
         """
         point = np.array(point_)
         assert point.shape == (3,), "Please supply a three dimensional point"
-        return backend.potential_radial_derivs(point, self.z, self.magnetostatic_coeffs)
+
+        local_point = self.map_points_to_local(point)
+        return backend.potential_radial_derivs(local_point, self.z, self.magnetostatic_coeffs)
     
     def get_tracer(self, bounds):
         return T.Tracer(self, bounds)
