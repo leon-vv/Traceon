@@ -89,7 +89,7 @@ for i, (x, y) in enumerate(zip(x_start, y_start)):
     start_point = np.array([x, y, z_start])
 
     _, e_trace = tracer(start_point, e_start_velocity) # electrons are default
-    _, p_trace = tracer(start_point, a_start_velocity, mass=4*m_p, charge=2*e) # alpha-oarticle = two protons + two neutrons
+    _, p_trace = tracer(start_point, a_start_velocity, mass=4*m_p, charge=2*e) # alpha-particle = two protons + two neutrons
 
     e_trajectories.append(e_trace)
     a_trajectories.append(p_trace)
