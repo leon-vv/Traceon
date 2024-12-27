@@ -165,7 +165,6 @@ class Tracer:
                 atol,
                 self.trace_args)
 
-
 def plane_intersection(positions, p0, normal):
     """Compute the intersection of a trajectory with a general plane in 3D. The plane is specified
     by a point (p0) in the plane and a normal vector (normal) to the plane. The intersection

@@ -128,12 +128,16 @@ class Excitation:
             The keys of the dictionary are the geometry names, while the values are the currents in units of Ampere. For example,
             calling the function as `add_current(coild=10)` assigns a 10A value to the geometry elements part of the 'coil' physical group.
         """
-
-        assert self.symmetry == Symmetry.RADIAL, "Currently magnetostatics are only supported for radially symmetric meshes"
-         
-        for name, current in kwargs.items():
-            assert name in self.mesh.physical_to_triangles.keys(), "Current can only be applied to a triangle electrode"
-            self.excitation_types[name] = (ExcitationType.CURRENT, current)
+        if self.symmetry == Symmetry.RADIAL:
+            for name, current in kwargs.items():
+                assert name in self.mesh.physical_to_triangles.keys(), "Current should be applied to triangles in radial symmetry"
+                self.excitation_types[name] = (ExcitationType.CURRENT, current)
+        elif self.symmetry == Symmetry.THREE_D:
+            for name, current in kwargs.items():
+                assert name in self.mesh.physical_to_lines.keys(), "Current should be applied to lines in 3D symmetry"
+                self.excitation_types[name] = (ExcitationType.CURRENT, current)
+        else:
+            raise ValueError('Symmetry should be one of RADIAL or THREE_D')
 
     def has_current(self):
         """Check whether a current is applied in this excitation."""

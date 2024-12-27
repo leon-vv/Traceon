@@ -6,7 +6,7 @@ import traceon.solver as S
 import traceon.excitation as E
 import traceon.plotting as P
 import traceon.tracing as T
-from traceon.interpolation import FieldRadialAxial
+from traceon.field import FieldRadialAxial
 
 # Dimensions of the einzel lens.
 THICKNESS = 0.5

@@ -129,7 +129,7 @@ field_radial_traceable(double position[3], double velocity[3], void *args_p, dou
 
 	struct effective_point_charges_2d *elec_charges = (struct effective_point_charges_2d*) args->elec_charges;
 	struct effective_point_charges_2d *mag_charges = (struct effective_point_charges_2d*) args->mag_charges;
-	struct effective_point_charges_3d *current_charges = (struct effective_point_charges_3d*) args->current_charges;
+	struct effective_point_charges_3d *current_charges = (struct effective_point_charges_3d*) args->currents;
 	
 	double (*bounds)[2] = (double (*)[2]) args->bounds;
 	
@@ -145,7 +145,7 @@ field_radial_traceable(double position[3], double velocity[3], void *args_p, dou
 			
 		double curr_field[3] = {0.};
 		
-		current_field(position, curr_field,
+		current_field_radial(position, curr_field,
 			current_charges->charges, current_charges->jacobians, current_charges->positions, current_charges->N);
 		
 		mag_out[0] += curr_field[0];
@@ -178,6 +178,7 @@ field_3d_traceable(double position[3], double velocity[3], void *args_p, double 
 	struct field_evaluation_args *args = (struct field_evaluation_args*)args_p;
 	struct effective_point_charges_3d *elec_charges = (struct effective_point_charges_3d*) args->elec_charges;
 	struct effective_point_charges_3d *mag_charges = (struct effective_point_charges_3d*) args->mag_charges;
+	struct effective_point_currents_3d *currents = (struct effective_point_currents_3d*) args->currents;
 	
 	double (*bounds)[2] = (double (*)[2]) args->bounds;
 	
@@ -187,6 +188,13 @@ field_3d_traceable(double position[3], double velocity[3], void *args_p, double 
 
 		field_3d(position, elec_out, elec_charges->charges, elec_charges->jacobians, elec_charges->positions, elec_charges->N);
 		field_3d(position, mag_out, mag_charges->charges, mag_charges->jacobians, mag_charges->positions, mag_charges->N);
+		
+		double curr_field[3] = {0.};
+		current_field_3d(position, *currents, curr_field);
+
+		mag_out[0] += curr_field[0];
+		mag_out[1] += curr_field[1];
+		mag_out[2] += curr_field[2];
 	}
 	else {
 		elec_out[0] = 0.0;
@@ -198,7 +206,6 @@ field_3d_traceable(double position[3], double velocity[3], void *args_p, double 
 		mag_out[2] = 0.0;
 	}
 }
-
 
 void
 field_3d_derivs_traceable(double position[3], double velocity[3], void *args_p, double elec_out[3], double mag_out[3]) {
@@ -237,95 +244,6 @@ EXPORT void fill_jacobian_buffer_3d(
         }
     }
 }
-
-EXPORT void fill_matrix_3d(double *restrict matrix, 
-                    vertices_3d triangle_points, 
-                    uint8_t *excitation_types, 
-                    double *excitation_values, 
-					jacobian_buffer_3d jacobian_buffer,
-					position_buffer_3d pos_buffer,
-					size_t N_lines,
-					size_t N_matrix,
-                    int lines_range_start, 
-                    int lines_range_end) {
-	
-	assert(lines_range_start < N_lines && lines_range_end < N_lines);
-		
-    for (int i = lines_range_start; i <= lines_range_end; i++) {
-		double target[3], jac;
-		position_and_jacobian_3d(1/3., 1/3., &triangle_points[i][0], target, &jac);
-			
-        enum ExcitationType type_ = excitation_types[i];
-		 
-        if (type_ == VOLTAGE_FIXED || type_ == VOLTAGE_FUN || type_ == MAGNETOSTATIC_POT) {
-            for (int j = 0; j < N_lines; j++) {
-
-				// Position of first integration point. Check if 
-				// close to the target triangle.
-				double distance = distance_3d(triangle_points[j][0], target);
-				double characteristic_length = distance_3d(triangle_points[j][0], triangle_points[j][1]);
-				
-				if(i == j) {
-					matrix[i*N_matrix + j] = self_potential_triangle(&triangle_points[j][0][0], &triangle_points[j][1][0], &triangle_points[j][2][0], target);
-				}
-				if(i != j && distance > 5*characteristic_length) {
-					for(int k = 0; k < N_TRIANGLE_QUAD; k++) {
-							
-						double *pos = pos_buffer[j][k];
-						double jac = jacobian_buffer[j][k];
-						matrix[i*N_matrix + j] += jac * potential_3d_point(target[0], target[1], target[2], pos[0], pos[1], pos[2], NULL);
-					}
-					
-				}
-				else {
-					matrix[i*N_matrix + j] = potential_triangle(triangle_points[j][0], triangle_points[j][1], triangle_points[j][2], target) / (4*M_PI);
-				}
-				
-            }
-        } 
-		else if (type_ == DIELECTRIC || type_ == MAGNETIZABLE) {  
-			
-			double normal[3];  
-			normal_3d(&triangle_points[i][0], normal);
-			double K = excitation_values[i];  
-			
-			// This factor is hard to derive. It takes into account that the field
-			// calculated at the edge of the dielectric is basically the average of the
-			// field at either side of the surface of the dielecric (the field makes a jump).
-			double factor = flux_density_to_charge_factor(K);
-				
-			for (int j = 0; j < N_lines; j++) {  
-					
-				double distance = distance_3d(triangle_points[j][0], target);
-				double characteristic_length = distance_3d(triangle_points[j][0], triangle_points[j][1]);
-
-				if(i == j) {
-					matrix[i*N_matrix + j] = -1.0;
-				}
-				else if(distance > 5*characteristic_length) {
-					for(int k = 0; k < N_TRIANGLE_QUAD; k++) {
-						double *pos = pos_buffer[j][k];  
-						double jac = jacobian_buffer[j][k];  
-						
-						matrix[i*N_matrix + j] += factor * jac * field_dot_normal_3d(target[0], target[1], target[2], pos[0], pos[1], pos[2], normal);  
-					}
-				}
-				else {
-					double a = triangle_area(triangle_points[j][0], triangle_points[j][1], triangle_points[j][2]);
-					matrix[i*N_matrix + j] = factor * flux_triangle(triangle_points[j][0], triangle_points[j][1], triangle_points[j][2], target, normal) / (4*M_PI);
-				}
-			}  
-		}  
-        else {
-            printf("ExcitationType unknown\n");
-            exit(1);
-        }
-    }
-}
-
-
-
-
 
 EXPORT bool
 plane_intersection(double p0[3], double normal[3], positions_3d positions, size_t N_p, double result[6]) {
