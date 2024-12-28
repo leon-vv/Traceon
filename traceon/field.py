@@ -1,5 +1,6 @@
 import time
 from abc import ABC, abstractmethod
+import copy
 
 import numpy as np
 from scipy.interpolate import CubicSpline, BPoly, PPoly
@@ -9,6 +10,7 @@ from . import excitation as E
 from . import util
 from . import logging
 from . import backend
+from .mesher import GeometricObject
 
 class EffectivePointCharges:
     def __init__(self, charges, jacobians, positions, directions=None):
@@ -76,7 +78,56 @@ class EffectivePointCharges:
                f'\tPositions shape: {self.positions.shape}>'
 
 
-class Field(ABC):
+class Field(GeometricObject,ABC):
+    def __init__(self):
+        self._origin = np.array([0,0,0], dtype=np.float64)
+        self._basis = np.eye(3, dtype=np.float64)
+        self._update_inverse_transformation_matrix()
+
+    @property
+    def origin(self):
+        return self._origin
+
+    @property
+    def basis(self):
+        return self._basis
+    
+    @origin.setter
+    def origin(self, origin_):
+        origin = np.array(origin_, dtype=np.float64)
+        assert origin.shape == (3,), "Please supply a three dimensional point as origin"
+        
+        self._origin = origin
+        self._update_inverse_transformation_matrix()
+    
+    @basis.setter
+    def basis(self, basis_):
+        basis = np.array(basis_, dtype=np.float64)
+        assert basis.shape == (3,3), "Please supply basis as a (3,3) array"
+        assert np.linalg.det(basis) != 0, "Please supply a non-singular basis"
+        self._basis = basis
+        self._update_inverse_transformation_matrix()
+
+    def _update_inverse_transformation_matrix(self):
+        transformation_matrix = np.eye(4)
+        transformation_matrix[:3, :3] = self._basis
+        transformation_matrix[:3, 3] = self._origin
+        self.inverse_transformation_matrix = np.linalg.inv(transformation_matrix)
+
+    def copy(self):
+        return copy.copy(self)
+    
+    def map_points(self, fun):
+        field_copy = self.copy()
+        field_copy.origin = fun(self.origin)
+        field_copy.basis = np.array([fun(b) for b in self.basis])
+        return field_copy
+
+    def map_points_to_local(self, point):
+        global_point_homogeneous = np.array([*point, 1], dtype=np.float64)
+        local_point_homogeneous = self.inverse_transformation_matrix @ global_point_homogeneous
+        return local_point_homogeneous[:3] / local_point_homogeneous[3]
+
     def field_at_point(self, point):
         """Convenience function for getting the field in the case that the field is purely electrostatic
         or magneotstatic. Automatically picks one of `electrostatic_field_at_point` or `magnetostatic_field_at_point`.
@@ -118,10 +169,26 @@ class Field(ABC):
         if elec and not mag:
             return self.electrostatic_potential_at_point(point)
         elif not elec and mag:
-            return self.magnetostatic_potential_at_point(point) # type: ignore
+            return self.magnetostatic_potential_at_point(point)
          
         raise RuntimeError("Cannot use potential_at_point when both electric and magnetic fields are present, " \
             "use electrostatic_potential_at_point or magnetostatic_potential_at_point")
+
+    def electrostatic_field_at_point(self, point):
+        local_point = self.map_points_to_local(point)
+        self.electrostatic_field_at_local_point(local_point)
+    
+    def magnetostatic_field_at_point(self, point):
+        local_point = self.map_points_to_local(point)
+        self.magnetostatic_field_at_local_point(local_point)
+    
+    def electrostatic_potential_at_point(self, point):
+        local_point = self.map_points_to_local(point)
+        self.electrostatic_potential_at_local_point(local_point)
+
+    def magnetostatic_potential_at_point(self, point):
+        local_point = self.map_points_to_local(point)
+        self.magnetostatic_potential_at_local_point(local_point)
 
     @abstractmethod
     def is_electrostatic(self):
@@ -132,32 +199,37 @@ class Field(ABC):
         ...
     
     @abstractmethod
-    def electrostatic_potential_at_point(self, point):
+    def electrostatic_field_at_local_point(self, point):
+        ...
+
+    @abstractmethod
+    def magnetostatic_field_at_local_point(self, point):
         ...
     
     @abstractmethod
-    def magnetostatic_field_at_point(self, point):
+    def electrostatic_potential_at_local_point(self, point):
         ...
     
     @abstractmethod
-    def electrostatic_field_at_point(self, point):
+    def magnetostatic_potential_at_local_point(self, point):
         ...
     
-    # Following function can be implemented to
-    # get a speedup while tracing. Return a 
-    # field function implemented in C and a ctypes
-    # argument needed. See the field_fun variable in backend/__init__.py 
-    # Note that by default it gives back a Python function, which gives no speedup
+    # Following function can be implemented to get a speedup while tracing. 
+    # Return a field function implemented in C and a ctypes argument needed. 
+    # See the field_fun variable in backend/__init__.py.
+    # Note that by default it gives back a Python function, which gives no speedup.
     def get_low_level_trace_function(self):
         fun = lambda pos, vel: (self.electrostatic_field_at_point(pos), self.magnetostatic_field_at_point(pos))
         return backend.wrap_field_fun(fun), None
  
+
 class FieldBEM(Field, ABC):
     """An electrostatic field (resulting from surface charges) as computed from the Boundary Element Method. You should
     not initialize this class yourself, but it is used as a base class for the fields returned by the `solve_direct` function. 
     This base class overloads the +,*,- operators so it is very easy to take a superposition of different fields."""
     
     def __init__(self, electrostatic_point_charges, magnetostatic_point_charges, current_point_charges):
+        super().__init__()
         assert all([isinstance(eff, EffectivePointCharges) for eff in [electrostatic_point_charges,
                                                                        magnetostatic_point_charges,
                                                                        current_point_charges]])
@@ -165,7 +237,7 @@ class FieldBEM(Field, ABC):
         self.magnetostatic_point_charges = magnetostatic_point_charges
         self.current_point_charges = current_point_charges
         self.field_bounds = None
-     
+        
     def set_bounds(self, bounds):
         """Set the field bounds. Outside the field bounds the field always returns zero (i.e. no field). Note
         that even in 2D the field bounds needs to be specified for x,y and z axis. The trajectories in the presence
@@ -264,8 +336,12 @@ class FieldBEM(Field, ABC):
             f'\tNumber of magnetizable points: {len(self.magnetostatic_point_charges)}\n' \
             f'\tNumber of current rings: {len(self.current_point_charges)}>'
     
+    def current_field_at_point(self, point):
+        local_point = self.map_points_to_local(point)
+        self.current_field_at_local_point(local_point)
+
     @abstractmethod
-    def current_field_at_point(self, point_):
+    def current_field_at_local_point(self, point_):
         ...
 
 
@@ -284,7 +360,7 @@ class FieldRadialBEM(FieldBEM):
         self.symmetry = E.Symmetry.RADIAL
         super().__init__(electrostatic_point_charges, magnetostatic_point_charges, current_point_charges)
          
-    def current_field_at_point(self, point_):
+    def current_field_at_local_point(self, point_):
         point = np.array(point_, dtype=np.double)
         assert point.shape == (3,), "Please supply a three dimensional point"
             
@@ -293,14 +369,14 @@ class FieldRadialBEM(FieldBEM):
         positions = self.current_point_charges.positions
         return backend.current_field_radial(point, currents, jacobians, positions)
      
-    def electrostatic_field_at_point(self, point_):
+    def electrostatic_field_at_local_point(self, point_):
         """
         Compute the electric field, \\( \\vec{E} = -\\nabla \\phi \\)
         
         Parameters
         ----------
         point: (3,) array of float64
-            Position at which to compute the field.
+            Position in local coordinate system at which to compute the field.
         
         Returns
         -------
@@ -314,14 +390,14 @@ class FieldRadialBEM(FieldBEM):
         positions = self.electrostatic_point_charges.positions
         return backend.field_radial(point, charges, jacobians, positions)
      
-    def electrostatic_potential_at_point(self, point_):
+    def electrostatic_potential_at_local_point(self, point_):
         """
         Compute the electrostatic potential.
         
         Parameters
         ----------
         point: (3,) array of float64
-            Position at which to compute the field.
+            Position in local coordinate system at which to compute the field.
         
         Returns
         -------
@@ -334,14 +410,14 @@ class FieldRadialBEM(FieldBEM):
         positions = self.electrostatic_point_charges.positions
         return backend.potential_radial(point, charges, jacobians, positions)
     
-    def magnetostatic_field_at_point(self, point_):
+    def magnetostatic_field_at_local_point(self, point_):
         """
         Compute the magnetic field \\( \\vec{H} \\)
         
         Parameters
         ----------
         point: (3,) array of float64
-            Position at which to compute the field.
+            Position in local coordinate system at which to compute the field.
              
         Returns
         -------
@@ -359,14 +435,14 @@ class FieldRadialBEM(FieldBEM):
 
         return current_field + mag_field
 
-    def magnetostatic_potential_at_point(self, point_):
+    def magnetostatic_potential_at_local_point(self, point_):
         """
         Compute the magnetostatic scalar potential (satisfying \\(\\vec{H} = -\\nabla \\phi \\))
         
         Parameters
         ----------
         point: (3,) array of float64
-            Position at which to compute the field.
+            Position in local coordinate system in local coordinate system at which to compute the field.
         
         Returns
         -------
@@ -468,6 +544,7 @@ class FieldAxial(Field, ABC):
     This base class overloads the +,*,- operators so it is very easy to take a superposition of different fields."""
     
     def __init__(self, z, electrostatic_coeffs=None, magnetostatic_coeffs=None):
+        super().__init__()
         N = len(z)
         assert z.shape == (N,)
         assert electrostatic_coeffs is None or len(electrostatic_coeffs)== N-1
@@ -586,8 +663,8 @@ class FieldRadialAxial(FieldAxial):
         
         Parameters
         ----------
-        point: (2,) array of float64
-            Position at which to compute the field.
+        point: (3,) array of float64
+            Position in local coordinate system at which to compute the field.
              
         Returns
         -------
@@ -597,30 +674,30 @@ class FieldRadialAxial(FieldAxial):
         assert point.shape == (3,), "Please supply a three dimensional point"
         return backend.field_radial_derivs(point, self.z, self.electrostatic_coeffs)
     
-    def magnetostatic_field_at_point(self, point_):
+    def magnetostatic_field_at_local_point(self, point_):
         """
         Compute the magnetic field \\( \\vec{H} \\)
         
         Parameters
         ----------
-        point: (2,) array of float64
-            Position at which to compute the field.
+        point: (3,) array of float64
+            Position in local coordinate system at which to compute the field.
              
         Returns
         -------
-        (2,) np.ndarray of float64 containing the field strength (in units of A/m) in the x, y and z directions.
+        (3,) np.ndarray of float64 containing the field strength (in units of A/m) in the x, y and z directions.
         """
         point = np.array(point_)
         assert point.shape == (3,), "Please supply a three dimensional point"
         return backend.field_radial_derivs(point, self.z, self.magnetostatic_coeffs)
      
-    def electrostatic_potential_at_point(self, point_):
+    def electrostatic_potential_at_local_point(self, point_):
         """
         Compute the electrostatic potential (close to the axis).
 
         Parameters
         ----------
-        point: (2,) array of float64
+        point: (3,) array of float64
             Position at which to compute the potential.
         
         Returns
@@ -631,14 +708,14 @@ class FieldRadialAxial(FieldAxial):
         assert point.shape == (3,), "Please supply a three dimensional point"
         return backend.potential_radial_derivs(point, self.z, self.electrostatic_coeffs)
     
-    def magnetostatic_potential_at_point(self, point_):
+    def magnetostatic_potential_at_local_point(self, point_):
         """
         Compute the magnetostatic scalar potential (satisfying \\(\\vec{H} = -\\nabla \\phi \\)) close to the axis
         
         Parameters
         ----------
-        point: (2,) array of float64
-            Position at which to compute the field.
+        point: (3,) array of float64
+            Position in local coordinate system at which to compute the potential.
         
         Returns
         -------
