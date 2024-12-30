@@ -319,7 +319,9 @@
 	<li><h3><a href="#header-submodules">Traceon Pro</a></h3>
       <ul>
       % for m in traceon_pro_module.submodules():
-        <li><code ${"class='selected'" if m == module else ""}>${link(m)}</code></li>
+		% if m.name != 'traceon_pro.traceon_pro':
+			<li><code ${"class='selected'" if m == module else ""}>${link(m)}</code></li>
+		% endif
       % endfor
       </ul>
     </li>
