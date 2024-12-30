@@ -134,7 +134,8 @@ field_radial_traceable(double position[3], double velocity[3], void *args_p, dou
 	double (*bounds)[2] = (double (*)[2]) args->bounds;
 	
 	if(args->bounds == NULL || ((bounds[0][0] < position[0]) && (position[0] < bounds[0][1])
-						 && (bounds[1][0] < position[1]) && (position[1] < bounds[1][1]))) {
+						        && (bounds[1][0] < position[1]) && (position[1] < bounds[1][1])
+						        && (bounds[2][0] < position[2]) && (position[2] < bounds[2][1]))) {
 		
 		
 		field_radial(position, elec_out,
