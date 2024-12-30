@@ -309,7 +309,8 @@
 <%def name="desktop()" filter="minify_css">
   @media screen and (min-width: 700px) {
     #sidebar {
-      width: 25%;
+      width: 29%;
+	  min-width:525px;
       height: 100vh;
       overflow: auto;
       position: sticky;
