@@ -5,11 +5,12 @@ import matplotlib.pyplot as plt
 
 import traceon.geometry as G
 import traceon.excitation as E
-import traceon.solver as S
+from traceon.solver import solve_direct
 import traceon.plotting as P
 
 try:
     import traceon_pro.solver
+    from traceon_pro.solver import solve_direct
 except ImportError:
     traceon_pro = None
 
@@ -159,7 +160,7 @@ class Validation:
             assert traceon_pro is not None, "traceon_pro should be installed to use fast multipole method"
             return exc, traceon_pro.solver.solve_fmm(exc, l_max=self.args.fmm_precision)
         else:
-            return exc, S.solve_direct(exc)
+            return exc, solve_direct(exc)
      
     def compute_value_of_interest(self, geometry, field):
         pass

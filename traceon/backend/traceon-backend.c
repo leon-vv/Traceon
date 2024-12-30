@@ -13,7 +13,6 @@
 #include "utilities_3d.c"
 #include "triangle.c"
 
-#include "three_d_point.c"
 #include "three_d.c"
 
 #include "radial_ring.c"
