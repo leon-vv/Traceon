@@ -23,7 +23,7 @@ __pdoc__['Mesh.__add__'] = True
 
 class GeometricObject(ABC):
     """The Mesh class (and the classes defined in `traceon.geometry`) are subclasses
-    of GeometricObject. This means that they all can be moved, rotated, mirrored."""
+    of `traceon.mesher.GeometricObject`. This means that they all can be moved, rotated, mirrored."""
     
     @abstractmethod
     def map_points(self, fun: Callable[[np.ndarray], np.ndarray]) -> Any:
