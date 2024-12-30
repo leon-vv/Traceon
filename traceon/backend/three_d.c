@@ -22,15 +22,6 @@ struct effective_point_charges_3d {
 	size_t N;
 };
 
-struct effective_point_currents_3d {
-	double *currents;
-	double (*jacobians)[N_QUAD_2D];
-	double (*positions)[N_QUAD_2D][3];
-	double (*directions)[N_QUAD_2D][3];
-	size_t N;
-};
-
-
 
 struct field_derivs_args {
 	double *z_interpolation;
@@ -38,6 +29,38 @@ struct field_derivs_args {
 	double *magnetostatic_axial_coeffs;
 	size_t N_z;
 };
+
+
+EXPORT void fill_jacobian_buffer_3d(
+	jacobian_buffer_3d jacobian_buffer,
+	position_buffer_3d pos_buffer,
+    vertices_3d t,
+    size_t N_triangles) {
+		
+    for(int i = 0; i < N_triangles; i++) {  
+		
+		double x1 = t[i][0][0], y1 = t[i][0][1], z1 = t[i][0][2];
+		double x2 = t[i][1][0], y2 = t[i][1][1], z2 = t[i][1][2];
+		double x3 = t[i][2][0], y3 = t[i][2][1], z3 = t[i][2][2];
+				
+		double area = 0.5*sqrt(
+			pow((y2-y1)*(z3-z1)-(y3-y1)*(z2-z1), 2) +
+			pow((x3-x1)*(z2-z1)-(x2-x1)*(z3-z1), 2) +
+			pow((x2-x1)*(y3-y1)-(x3-x1)*(y2-y1), 2));
+		
+        for (int k=0; k < N_TRIANGLE_QUAD; k++) {  
+            double b1_ = QUAD_B1[k];  
+            double b2_ = QUAD_B2[k];  
+            double w = QUAD_WEIGHTS[k];  
+			
+            jacobian_buffer[i][k] = 2 * w * area;
+            pos_buffer[i][k][0] = x1 + b1_*(x2 - x1) + b2_*(x3 - x1);
+            pos_buffer[i][k][1] = y1 + b1_*(y2 - y1) + b2_*(y3 - y1);
+            pos_buffer[i][k][2] = z1 + b1_*(z2 - z1) + b2_*(z3 - z1);
+        }
+    }
+}
+
 
 EXPORT void
 fill_jacobian_buffer_current_three_d(
@@ -68,63 +91,6 @@ fill_jacobian_buffer_current_three_d(
 		}
 	}
 }
-
-EXPORT void
-current_field_3d(double point[3], struct effective_point_currents_3d epc, double field_out[3]) {
-	// Use Biot-Savart law
-	
-    double field_sum[3] = {0.0, 0.0, 0.0};
-    
-    for (size_t i = 0; i < epc.N; i++)
-	for (int k = 0; k < N_QUAD_2D; k++) {
-		double r_prime[3];
-		r_prime[0] = point[0] - epc.positions[i][k][0];
-		r_prime[1] = point[1] - epc.positions[i][k][1];
-		r_prime[2] = point[2] - epc.positions[i][k][2];
-
-		double r_norm = norm_3d(r_prime[0], r_prime[1], r_prime[2]);
-
-		double cross[3];
-		cross_product_3d(epc.directions[i][k], r_prime, cross);
-
-		double factor = (epc.currents[i] * epc.jacobians[i][k]) / (4.0 * M_PI * (r_norm * r_norm * r_norm));
-
-		field_sum[0] += factor * cross[0];
-		field_sum[1] += factor * cross[1];
-		field_sum[2] += factor * cross[2];
-    }
-
-    field_out[0] = field_sum[0];
-    field_out[1] = field_sum[1];
-    field_out[2] = field_sum[2];
-}
-
-
-EXPORT void
-field_3d(double point[3], double result[3], double *charges,
-	jacobian_buffer_3d jacobian_buffer, position_buffer_3d position_buffer, size_t N_vertices) {
-
-	double Ex = 0.0, Ey = 0.0, Ez = 0.0;
-
-	for(int i = 0; i < N_vertices; i++) {
-		for(int k = 0; k < N_TRIANGLE_QUAD; k++) {
-			double *pos = &position_buffer[i][k][0];
-			double field_x = dx1_potential_3d_point(point[0], point[1], point[2], pos[0], pos[1], pos[2], NULL);
-			double field_y = dy1_potential_3d_point(point[0], point[1], point[2], pos[0], pos[1], pos[2], NULL);
-			double field_z = dz1_potential_3d_point(point[0], point[1], point[2], pos[0], pos[1], pos[2], NULL);
-		
-			Ex -= charges[i] * jacobian_buffer[i][k] * field_x;
-			Ey -= charges[i] * jacobian_buffer[i][k] * field_y;
-			Ez -= charges[i] * jacobian_buffer[i][k] * field_z;
-		}
-	}
-		
-	result[0] = Ex;
-	result[1] = Ey;
-	result[2] = Ez;
-}
-
-
 
 EXPORT void
 axial_coefficients_3d(double *restrict charges,

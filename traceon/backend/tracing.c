@@ -172,77 +172,12 @@ field_radial_derivs_traceable(double position[3], double velocity[3], void *args
 	field_radial_derivs(position, mag_out, args->z_interpolation, args->magnetostatic_axial_coeffs, args->N_z);
 }
 
-EXPORT void
-field_3d_traceable(double position[3], double velocity[3], void *args_p, double elec_out[3], double mag_out[3]) {
-
-	struct field_evaluation_args *args = (struct field_evaluation_args*)args_p;
-	struct effective_point_charges_3d *elec_charges = (struct effective_point_charges_3d*) args->elec_charges;
-	struct effective_point_charges_3d *mag_charges = (struct effective_point_charges_3d*) args->mag_charges;
-	struct effective_point_currents_3d *currents = (struct effective_point_currents_3d*) args->currents;
-	
-	double (*bounds)[2] = (double (*)[2]) args->bounds;
-	
-	if(	bounds == NULL || ((bounds[0][0] < position[0]) && (position[0] < bounds[0][1])
-		&& (bounds[1][0] < position[1]) && (position[1] < bounds[1][1])
-		&& (bounds[2][0] < position[2]) && (position[2] < bounds[2][1])) ) {
-
-		field_3d(position, elec_out, elec_charges->charges, elec_charges->jacobians, elec_charges->positions, elec_charges->N);
-		field_3d(position, mag_out, mag_charges->charges, mag_charges->jacobians, mag_charges->positions, mag_charges->N);
-		
-		double curr_field[3] = {0.};
-		current_field_3d(position, *currents, curr_field);
-
-		mag_out[0] += curr_field[0];
-		mag_out[1] += curr_field[1];
-		mag_out[2] += curr_field[2];
-	}
-	else {
-		elec_out[0] = 0.0;
-		elec_out[1] = 0.0;
-		elec_out[2] = 0.0;
-		
-		mag_out[0] = 0.0;
-		mag_out[1] = 0.0;
-		mag_out[2] = 0.0;
-	}
-}
-
 void
 field_3d_derivs_traceable(double position[3], double velocity[3], void *args_p, double elec_out[3], double mag_out[3]) {
 	struct field_derivs_args *args = (struct field_derivs_args*) args_p;
 	
 	field_3d_derivs(position, elec_out, args->z_interpolation, args->electrostatic_axial_coeffs, args->N_z);
 	field_3d_derivs(position, mag_out, args->z_interpolation, args->magnetostatic_axial_coeffs, args->N_z);
-}
-
-EXPORT void fill_jacobian_buffer_3d(
-	jacobian_buffer_3d jacobian_buffer,
-	position_buffer_3d pos_buffer,
-    vertices_3d t,
-    size_t N_triangles) {
-		
-    for(int i = 0; i < N_triangles; i++) {  
-		
-		double x1 = t[i][0][0], y1 = t[i][0][1], z1 = t[i][0][2];
-		double x2 = t[i][1][0], y2 = t[i][1][1], z2 = t[i][1][2];
-		double x3 = t[i][2][0], y3 = t[i][2][1], z3 = t[i][2][2];
-				
-		double area = 0.5*sqrt(
-			pow((y2-y1)*(z3-z1)-(y3-y1)*(z2-z1), 2) +
-			pow((x3-x1)*(z2-z1)-(x2-x1)*(z3-z1), 2) +
-			pow((x2-x1)*(y3-y1)-(x3-x1)*(y2-y1), 2));
-		
-        for (int k=0; k < N_TRIANGLE_QUAD; k++) {  
-            double b1_ = QUAD_B1[k];  
-            double b2_ = QUAD_B2[k];  
-            double w = QUAD_WEIGHTS[k];  
-			
-            jacobian_buffer[i][k] = 2 * w * area;
-            pos_buffer[i][k][0] = x1 + b1_*(x2 - x1) + b2_*(x3 - x1);
-            pos_buffer[i][k][1] = y1 + b1_*(y2 - y1) + b2_*(y3 - y1);
-            pos_buffer[i][k][2] = z1 + b1_*(z2 - z1) + b2_*(z3 - z1);
-        }
-    }
 }
 
 EXPORT bool

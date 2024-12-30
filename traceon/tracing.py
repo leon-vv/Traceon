@@ -118,9 +118,19 @@ class Tracer:
         assert bounds.shape == (3,2)
         self.bounds = bounds
 
-        self.trace_fun, args = field.get_low_level_trace_function()
+        self.trace_fun, self.low_level_args, *keep_alive = field.get_low_level_trace_function()
+        
+        # Allow functions to optionally return references to objects that need
+        # to be kept alive as long as the tracer is kept alive. This prevents
+        # memory from being reclaimed while the C backend is still working with it.
+        self.keep_alive = keep_alive
 
-        self.trace_args = args if args is None else ctypes.cast(ctypes.pointer(args), ctypes.c_void_p)
+        if self.low_level_args is None:
+            self.trace_args = None
+        elif isinstance(self.low_level_args, int): # Interpret as literal memory address
+            self.trace_args = ctypes.c_void_p(self.low_level_args)
+        else: # Interpret as anything ctypes can make sense of
+            self.trace_args = ctypes.cast(ctypes.pointer(self.low_level_args), ctypes.c_void_p)
      
     def __str__(self):
         field_name = self.field.__class__.__name__
