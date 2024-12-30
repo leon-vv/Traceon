@@ -1,0 +1,283 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, minimum-scale=1">
+  <meta name="generator" content="pdoc3 0.11.5">
+
+
+
+    <title>traceon.solver API documentation</title>
+    <meta name="description" content="The solver module uses the Boundary Element Method (BEM) to compute the surface charge distribution of a given
+geometry and excitation. Once the …">
+
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/10up-sanitize.css/13.0.0/sanitize.min.css" integrity="sha512-y1dtMcuvtTMJc1yPgEqF0ZjQbhnc/bFhyvIyVNb9Zk5mIGtqVaAB1Ttl28su8AvFMOY0EwRbAe+HCLqj6W7/KA==" crossorigin>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/10up-sanitize.css/13.0.0/typography.min.css" integrity="sha512-Y1DYSb995BAfxobCkKepB1BqJJTPrOp3zPL74AWFugHHmmdcvO+C48WLrUOlhGMc0QG7AE3f7gmvvcrmX2fDoA==" crossorigin>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/default.min.css" crossorigin>
+
+  
+  <style>:root{--highlight-color:#fe9}.flex{display:flex !important}body{line-height:1.5em}#content{padding:20px}#content .doc-image{padding:0px;display:block;margin:0px auto}#sidebar{padding:1.5em;padding-left:2.5em;overflow:hidden}#sidebar > *:last-child{margin-bottom:2cm}#sidebar .title{font-weight:bold}.http-server-breadcrumbs{font-size:130%;margin:0 0 15px 0}#footer{font-size:.75em;padding:5px 30px;border-top:1px solid #ddd;text-align:right}#footer p{margin:0 0 0 1em;display:inline-block}#footer p:last-child{margin-right:30px}h1,h2,h3,h4,h5{font-weight:300}h1{font-size:2.5em;line-height:1.1em}h2{font-size:1.75em;margin:2em 0 .50em 0}h3{font-size:1.4em;margin:1.6em 0 .7em 0}h4{margin:0;font-size:105%}h1:target,h2:target,h3:target,h4:target,h5:target,h6:target{background:var(--highlight-color);padding:.2em 0}a{color:#058;text-decoration:none;transition:color .2s ease-in-out}a:visited{color:#503}a:hover{color:#b62}.title code{font-weight:bold}h2[id^="header-"]{margin-top:2em}.ident{color:#900;font-weight:bold}pre code{font-size:.8em;line-height:1.4em;padding:1em;display:block}code{background:#f3f3f3;font-family:"DejaVu Sans Mono",monospace;padding:1px 4px;overflow-wrap:break-word}h1 code{background:transparent}pre{border-top:1px solid #ccc;border-bottom:1px solid #ccc;margin:1em 0}#http-server-module-list{display:flex;flex-flow:column}#http-server-module-list div{display:flex}#http-server-module-list dt{min-width:10%}#http-server-module-list p{margin-top:0}.toc ul,#index{list-style-type:none;margin:0;padding:0}#index code{background:transparent}#index .selected{background:transparent;font-weight:bold}#index a{color:#058}#index h3{border-bottom:1px solid #ddd}#index ul{padding:0}#index h4{margin-top:.6em;font-weight:bold}@media (min-width:200ex){#index .two-column{column-count:2}}@media (min-width:300ex){#index .two-column{column-count:3}}dl{margin-bottom:2em}dl dl:last-child{margin-bottom:4em}dd{margin:0 0 1em 3em}#header-classes + dl > dd{margin-bottom:3em}dd dd{margin-left:2em}dd p{margin:10px 0}.name{background:#eee;font-size:.85em;padding:5px 10px;display:inline-block;min-width:40%}.name:hover{background:#e0e0e0}dt:target .name{background:var(--highlight-color)}.name > span:first-child{white-space:nowrap}.name.class > span:nth-child(2){margin-left:.4em}.inherited{color:#999;border-left:5px solid #eee;padding-left:1em}.inheritance em{font-style:normal;font-weight:bold}.desc h2{font-weight:400;font-size:1.25em}.desc h3{font-size:1em}.desc dt code{background:inherit}.source > summary,.git-link-div{color:#666;text-align:right;font-weight:400;font-size:.8em;text-transform:uppercase}.source summary > *{white-space:nowrap;cursor:pointer}.git-link{color:inherit;margin-left:1em}.source pre{max-height:500px;overflow:auto;margin:0}.source pre code{font-size:12px;overflow:visible;min-width:max-content}.hlist{list-style:none}.hlist li{display:inline}.hlist li:after{content:',\2002'}.hlist li:last-child:after{content:none}.hlist .hlist{display:inline;padding-left:1em}img{max-width:100%}td{padding:0 .5em}.admonition{padding:.1em 1em;margin:1em 0}.admonition-title{font-weight:bold}.admonition.note,.admonition.info,.admonition.important{background:#aef}.admonition.todo,.admonition.versionadded,.admonition.tip,.admonition.hint{background:#dfd}.admonition.warning,.admonition.versionchanged,.admonition.deprecated{background:#fd4}.admonition.error,.admonition.danger,.admonition.caution{background:lightpink}</style>
+  <style media="screen and (min-width: 700px)">@media screen and (min-width:700px){#sidebar{width:29%;min-width:525px;height:100vh;overflow:auto;position:sticky;top:0}#content{width:80%;max-width:110ch;padding:3em 6em;border-left:1px solid #ddd}pre code{font-size:1em}.name{font-size:1em}main{display:flex;flex-direction:row-reverse;justify-content:flex-end}.toc ul ul,#index ul ul{padding-left:1em}.toc > ul > li{margin-top:.5em}}</style>
+  <style media="print">@media print{#sidebar h1{page-break-before:always}.source{display:none}}@media print{*{background:transparent !important;color:#000 !important;box-shadow:none !important;text-shadow:none !important}a[href]:after{content:" (" attr(href) ")";font-size:90%}a[href][title]:after{content:none}abbr[title]:after{content:" (" attr(title) ")"}.ir a:after,a[href^="javascript:"]:after,a[href^="#"]:after{content:""}pre,blockquote{border:1px solid #999;page-break-inside:avoid}thead{display:table-header-group}tr,img{page-break-inside:avoid}img{max-width:100% !important}@page{margin:0.5cm}p,h2,h3{orphans:3;widows:3}h1,h2,h3,h4,h5,h6{page-break-after:avoid}}</style>
+
+
+
+    <script type="text/x-mathjax-config">MathJax.Hub.Config({ tex2jax: { inlineMath: [ ['$','$'], ["\\(","\\)"] ], processEscapes: true } });</script>
+    <script async src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.7/latest.js?config=TeX-AMS_CHTML" integrity="sha256-kZafAc6mZvK3W3v1pHOcUix30OHQN6pU/NO2oFkqZVw=" crossorigin></script>
+
+    <script defer src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js" integrity="sha512-D9gUyxqja7hBtkWpPWGt9wfbfaMGVt9gnyCvYa+jojwwPHLCzUm5i8rpk7vD7wNee9bA35eYIjobYPaQuKS1MQ==" crossorigin></script>
+    <script>window.addEventListener('DOMContentLoaded', () => {
+        hljs.configure({languages: ['bash', 'css', 'diff', 'graphql', 'ini', 'javascript', 'json', 'plaintext', 'python', 'python-repl', 'rust', 'shell', 'sql', 'typescript', 'xml', 'yaml']});
+        hljs.highlightAll();
+        /* Collapse source docstrings */
+        setTimeout(() => {
+            [...document.querySelectorAll('.hljs.language-python > .hljs-string')]
+                .filter(el => el.innerHTML.length > 200 && ['"""', "'''"].includes(el.innerHTML.substring(0, 3)))
+                .forEach(el => {
+                    let d = document.createElement('details');
+                    d.classList.add('hljs-string');
+                    d.innerHTML = '<summary>"""</summary>' + el.innerHTML.substring(3);
+                    el.replaceWith(d);
+                });
+        }, 100);
+    })</script>
+
+  
+</head>
+<body>
+<main>
+    <article id="content">
+      
+  
+
+  
+
+  <header>
+  <h1 class="title">Module <code>traceon.solver</code></h1>
+  </header>
+
+  <section id="section-intro">
+  <p>The solver module uses the Boundary Element Method (BEM) to compute the surface charge distribution of a given
+geometry and excitation. Once the surface charge distribution is known, the field at any arbitrary position in space
+can be calculated by integration over the charged boundary. However, doing a field evaluation in this manner is very slow
+as for every field evaluation an iteration needs to be done over all elements in the mesh. Especially for particle tracing it
+is crucial that the field evaluation can be done faster. To achieve this, interpolation techniques can be used. </p>
+<p>The solver package offers interpolation in the form of <em>radial series expansions</em> to drastically increase the speed of ray tracing. For
+this consider the <code>axial_derivative_interpolation</code> methods documented below.</p>
+<h2 id="radial-series-expansion-in-cylindrical-symmetry">Radial series expansion in cylindrical symmetry</h2>
+<p>Let <span><span class="MathJax_Preview"> \phi_0(z) </span><script type="math/tex"> \phi_0(z) </script></span> be the potential along the optical axis. We can express the potential around the optical axis as:</p>
+<p><span><span class="MathJax_Preview">
+\phi = \phi_0(z_0) - \frac{r^2}{4} \frac{\partial \phi_0^2}{\partial z^2} + \frac{r^4}{64} \frac{\partial^4 \phi_0}{\partial z^4} - \frac{r^6}{2304} \frac{\partial \phi_0^6}{\partial z^6} + \cdots
+</span><script type="math/tex; mode=display">
+\phi = \phi_0(z_0) - \frac{r^2}{4} \frac{\partial \phi_0^2}{\partial z^2} + \frac{r^4}{64} \frac{\partial^4 \phi_0}{\partial z^4} - \frac{r^6}{2304} \frac{\partial \phi_0^6}{\partial z^6} + \cdots
+</script></span></p>
+<p>Therefore, if we can efficiently compute the axial potential derivatives <span><span class="MathJax_Preview"> \frac{\partial \phi_0^n}{\partial z^n} </span><script type="math/tex"> \frac{\partial \phi_0^n}{\partial z^n} </script></span> we can compute the potential and therefore the fields around the optical axis.
+For the derivatives of <span><span class="MathJax_Preview"> \phi_0(z) </span><script type="math/tex"> \phi_0(z) </script></span> closed form formulas exist in the case of radially symmetric geometries, see for example formula 13.16a in [1]. Traceon uses a recursive version of these formulas to
+very efficiently compute the axial derivatives of the potential.</p>
+<h2 id="radial-series-expansion-in-3d">Radial series expansion in 3D</h2>
+<p>In a general three dimensional geometry the potential will be dependent not only on the distance from the optical axis but also on the angle <span><span class="MathJax_Preview"> \theta </span><script type="math/tex"> \theta </script></span> around the optical axis
+at which the potential is sampled. It turns out (equation (35, 24) in [2]) the potential can be written as follows:</p>
+<p><span><span class="MathJax_Preview">
+\phi = \sum_{\nu=0}^\infty \sum_{m=0}^\infty r^{2\nu + m} \left( A^\nu_m \cos(m\theta) + B^\nu_m \sin(m\theta) \right)
+</span><script type="math/tex; mode=display">
+\phi = \sum_{\nu=0}^\infty \sum_{m=0}^\infty r^{2\nu + m} \left( A^\nu_m \cos(m\theta) + B^\nu_m \sin(m\theta) \right)
+</script></span></p>
+<p>The <span><span class="MathJax_Preview">A^\nu_m</span><script type="math/tex">A^\nu_m</script></span> and <span><span class="MathJax_Preview">B^\nu_m</span><script type="math/tex">B^\nu_m</script></span> coefficients can be expressed in <em>directional derivatives</em> perpendicular to the optical axis, analogous to the radial symmetric case. The 
+mathematics of calculating these coefficients quickly and accurately gets quite involved, but all details have been abstracted away from the user.</p>
+<h3 id="references">References</h3>
+<p>[1] P. Hawkes, E. Kasper. Principles of Electron Optics. Volume one: Basic Geometrical Optics. 2018.</p>
+<p>[2] W. Glaser. Grundlagen der Elektronenoptik. 1952.</p>
+  </section>
+
+  <section>
+  </section>
+	
+  <section>
+  </section>
+
+  <section>
+    <h2 class="section-title" id="header-functions">Functions</h2>
+    <dl>
+      
+    <dt id="traceon.solver.solve_direct"><code class="name flex">
+        
+        <span>def <span class="ident">solve_direct</span></span>(<span>excitation)</span>
+    </code></dt>
+    <dd>
+  
+  
+    
+      <details class="source">
+        <summary>
+            <span>Expand source code</span>
+        </summary>
+        <pre><code class="python">def solve_direct(excitation):
+    &#34;&#34;&#34;
+    Solve for the charges on the surface of the geometry by using a direct method and taking
+    into account the specified `excitation`. 
+
+    Parameters
+    ----------
+    excitation : traceon.excitation.Excitation
+        The excitation that produces the resulting field.
+     
+    Returns
+    -------
+    `FieldRadialBEM`
+    &#34;&#34;&#34;
+    if excitation.mesh.is_2d() and not excitation.mesh.is_higher_order():
+        excitation = _excitation_to_higher_order(excitation)
+    
+    mag, elec = excitation.is_magnetostatic(), excitation.is_electrostatic()
+
+    assert mag or elec, &#34;Solving for an empty excitation&#34;
+
+    if mag and elec:
+        elec_field = ElectrostaticSolverRadial(excitation).solve_matrix()[0]
+        mag_field = MagnetostaticSolverRadial(excitation).solve_matrix()[0]
+        return elec_field + mag_field # type: ignore
+    elif elec and not mag:
+        return ElectrostaticSolverRadial(excitation).solve_matrix()[0]
+    elif mag and not elec:
+        return MagnetostaticSolverRadial(excitation).solve_matrix()[0]</code></pre>
+      </details>
+
+  <div class="desc"><p>Solve for the charges on the surface of the geometry by using a direct method and taking
+into account the specified <code>excitation</code>. </p>
+<h2 id="parameters">Parameters</h2>
+<dl>
+<dt><strong><code>excitation</code></strong> :&ensp;<code><a title="traceon.excitation.Excitation" href="excitation.html#traceon.excitation.Excitation">Excitation</a></code></dt>
+<dd>The excitation that produces the resulting field.</dd>
+</dl>
+<h2 id="returns">Returns</h2>
+<p><code>FieldRadialBEM</code></p></div>
+</dd>
+  
+      
+    <dt id="traceon.solver.solve_direct_superposition"><code class="name flex">
+        
+        <span>def <span class="ident">solve_direct_superposition</span></span>(<span>excitation)</span>
+    </code></dt>
+    <dd>
+  
+  
+    
+      <details class="source">
+        <summary>
+            <span>Expand source code</span>
+        </summary>
+        <pre><code class="python">def solve_direct_superposition(excitation):
+    &#34;&#34;&#34;
+    When using superposition multiple fields are computed at once. Each field corresponds with a unity excitation (1V)
+    of an electrode that was assigned a non-zero fixed voltage value. This is useful when a geometry needs
+    to be analyzed for many different voltage settings. In this case taking a linear superposition of the returned fields
+    allows to select a different voltage &#39;setting&#39; without inducing any computational cost. There is no computational cost
+    involved in using `superposition=True` since a direct solver is used which easily allows for multiple right hand sides (the
+    matrix does not have to be inverted multiple times). However, voltage functions are invalid in the superposition process (position dependent voltages).
+    
+    Returns
+    ---------------------------
+    dict of `traceon.field.Field`
+        Each key is the name of an electrode on which a voltage (or current) was applied, the corresponding values are the fields.
+    &#34;&#34;&#34;
+    if excitation.mesh.is_2d() and not excitation.mesh.is_higher_order():
+        excitation = _excitation_to_higher_order(excitation)
+    
+    # Speedup: invert matrix only once, when using superposition
+    excitations = excitation._split_for_superposition()
+    
+    # Solve for elec fields
+    elec_names = [n for n, v in excitations.items() if v.is_electrostatic()]
+    right_hand_sides = np.array([ElectrostaticSolverRadial(excitations[n]).get_right_hand_side() for n in elec_names])
+    solutions = ElectrostaticSolverRadial(excitation).solve_matrix(right_hand_sides)
+    elec_dict = {n:s for n, s in zip(elec_names, solutions)}
+    
+    # Solve for mag fields 
+    mag_names = [n for n, v in excitations.items() if v.is_magnetostatic()]
+    right_hand_sides = np.array([MagnetostaticSolverRadial(excitations[n]).get_right_hand_side() for n in mag_names])
+    solutions = MagnetostaticSolverRadial(excitation).solve_matrix(right_hand_sides)
+    mag_dict = {n:s for n, s in zip(mag_names, solutions)}
+        
+    return {**elec_dict, **mag_dict}</code></pre>
+      </details>
+
+  <div class="desc"><p>When using superposition multiple fields are computed at once. Each field corresponds with a unity excitation (1V)
+of an electrode that was assigned a non-zero fixed voltage value. This is useful when a geometry needs
+to be analyzed for many different voltage settings. In this case taking a linear superposition of the returned fields
+allows to select a different voltage 'setting' without inducing any computational cost. There is no computational cost
+involved in using <code>superposition=True</code> since a direct solver is used which easily allows for multiple right hand sides (the
+matrix does not have to be inverted multiple times). However, voltage functions are invalid in the superposition process (position dependent voltages).</p>
+<h2 id="returns">Returns</h2>
+<p>dict of <code><a title="traceon.field.Field" href="field.html#traceon.field.Field">Field</a></code>
+    Each key is the name of an electrode on which a voltage (or current) was applied, the corresponding values are the fields.</p></div>
+</dd>
+  
+    </dl>
+  </section>
+
+  <section>
+  </section>
+
+    </article>
+    
+  
+  <nav id="sidebar">
+
+    
+
+	<h1 class='title'><a href='index.html' style='color:black'>Traceon</a></h1>
+	
+    <ul id="index">
+	
+	<li><h3><a href="#header-submodules">Examples</a></h3>
+      <ul>
+			<li><code><a href="../traceon/einzel-lens.html">Einzel lens</a></code></li>
+      </ul>
+    </li>
+		
+    <li><h3><a href="#header-submodules">Traceon</a></h3>
+      <ul>
+        <li><code ><a title="traceon.excitation" href="excitation.html">traceon.excitation</a></code></li>
+        <li><code ><a title="traceon.field" href="field.html">traceon.field</a></code></li>
+        <li><code ><a title="traceon.focus" href="focus.html">traceon.focus</a></code></li>
+        <li><code ><a title="traceon.geometry" href="geometry.html">traceon.geometry</a></code></li>
+        <li><code ><a title="traceon.logging" href="logging.html">traceon.logging</a></code></li>
+        <li><code ><a title="traceon.mesher" href="mesher.html">traceon.mesher</a></code></li>
+        <li><code ><a title="traceon.plotting" href="plotting.html">traceon.plotting</a></code></li>
+        <li><code class='selected'><a title="traceon.solver" href="#traceon.solver">traceon.solver</a></code></li>
+        <li><code ><a title="traceon.tracing" href="tracing.html">traceon.tracing</a></code></li>
+      </ul>
+    </li>
+		
+	<li><h3><a href="#header-submodules">Traceon Pro</a></h3>
+      <ul>
+			<li><code ><a title="traceon_pro.field" href="../traceon_pro/field.html">traceon_pro.field</a></code></li>
+			<li><code ><a title="traceon_pro.solver" href="../traceon_pro/solver.html">traceon_pro.solver</a></code></li>
+      </ul>
+    </li>
+
+
+
+    <li><h3><a href="#header-functions">Functions</a></h3>
+      
+  
+  <ul class="">
+    <li><code><a title="traceon.solver.solve_direct" href="#traceon.solver.solve_direct">solve_direct</a></code></li>
+    <li><code><a title="traceon.solver.solve_direct_superposition" href="#traceon.solver.solve_direct_superposition">solve_direct_superposition</a></code></li>
+  </ul>
+
+    </li>
+
+
+    </ul>
+  </nav>
+
+</main>
+
+<footer id="footer">
+    
+    <p>Generated by <a href="https://pdoc3.github.io/pdoc" title="pdoc: Python API documentation generator"><cite>pdoc</cite> 0.11.5</a>.</p>
+</footer>
+
+</body>
+</html>

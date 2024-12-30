@@ -1,0 +1,1240 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, minimum-scale=1">
+  <meta name="generator" content="pdoc3 0.11.5">
+
+
+
+    <title>traceon.excitation API documentation</title>
+    <meta name="description" content="The excitation module allows to specify the excitation (or element types) of the different physical groups (electrodes)
+created with the …">
+
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/10up-sanitize.css/13.0.0/sanitize.min.css" integrity="sha512-y1dtMcuvtTMJc1yPgEqF0ZjQbhnc/bFhyvIyVNb9Zk5mIGtqVaAB1Ttl28su8AvFMOY0EwRbAe+HCLqj6W7/KA==" crossorigin>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/10up-sanitize.css/13.0.0/typography.min.css" integrity="sha512-Y1DYSb995BAfxobCkKepB1BqJJTPrOp3zPL74AWFugHHmmdcvO+C48WLrUOlhGMc0QG7AE3f7gmvvcrmX2fDoA==" crossorigin>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/default.min.css" crossorigin>
+
+  
+  <style>:root{--highlight-color:#fe9}.flex{display:flex !important}body{line-height:1.5em}#content{padding:20px}#content .doc-image{padding:0px;display:block;margin:0px auto}#sidebar{padding:1.5em;padding-left:2.5em;overflow:hidden}#sidebar > *:last-child{margin-bottom:2cm}#sidebar .title{font-weight:bold}.http-server-breadcrumbs{font-size:130%;margin:0 0 15px 0}#footer{font-size:.75em;padding:5px 30px;border-top:1px solid #ddd;text-align:right}#footer p{margin:0 0 0 1em;display:inline-block}#footer p:last-child{margin-right:30px}h1,h2,h3,h4,h5{font-weight:300}h1{font-size:2.5em;line-height:1.1em}h2{font-size:1.75em;margin:2em 0 .50em 0}h3{font-size:1.4em;margin:1.6em 0 .7em 0}h4{margin:0;font-size:105%}h1:target,h2:target,h3:target,h4:target,h5:target,h6:target{background:var(--highlight-color);padding:.2em 0}a{color:#058;text-decoration:none;transition:color .2s ease-in-out}a:visited{color:#503}a:hover{color:#b62}.title code{font-weight:bold}h2[id^="header-"]{margin-top:2em}.ident{color:#900;font-weight:bold}pre code{font-size:.8em;line-height:1.4em;padding:1em;display:block}code{background:#f3f3f3;font-family:"DejaVu Sans Mono",monospace;padding:1px 4px;overflow-wrap:break-word}h1 code{background:transparent}pre{border-top:1px solid #ccc;border-bottom:1px solid #ccc;margin:1em 0}#http-server-module-list{display:flex;flex-flow:column}#http-server-module-list div{display:flex}#http-server-module-list dt{min-width:10%}#http-server-module-list p{margin-top:0}.toc ul,#index{list-style-type:none;margin:0;padding:0}#index code{background:transparent}#index .selected{background:transparent;font-weight:bold}#index a{color:#058}#index h3{border-bottom:1px solid #ddd}#index ul{padding:0}#index h4{margin-top:.6em;font-weight:bold}@media (min-width:200ex){#index .two-column{column-count:2}}@media (min-width:300ex){#index .two-column{column-count:3}}dl{margin-bottom:2em}dl dl:last-child{margin-bottom:4em}dd{margin:0 0 1em 3em}#header-classes + dl > dd{margin-bottom:3em}dd dd{margin-left:2em}dd p{margin:10px 0}.name{background:#eee;font-size:.85em;padding:5px 10px;display:inline-block;min-width:40%}.name:hover{background:#e0e0e0}dt:target .name{background:var(--highlight-color)}.name > span:first-child{white-space:nowrap}.name.class > span:nth-child(2){margin-left:.4em}.inherited{color:#999;border-left:5px solid #eee;padding-left:1em}.inheritance em{font-style:normal;font-weight:bold}.desc h2{font-weight:400;font-size:1.25em}.desc h3{font-size:1em}.desc dt code{background:inherit}.source > summary,.git-link-div{color:#666;text-align:right;font-weight:400;font-size:.8em;text-transform:uppercase}.source summary > *{white-space:nowrap;cursor:pointer}.git-link{color:inherit;margin-left:1em}.source pre{max-height:500px;overflow:auto;margin:0}.source pre code{font-size:12px;overflow:visible;min-width:max-content}.hlist{list-style:none}.hlist li{display:inline}.hlist li:after{content:',\2002'}.hlist li:last-child:after{content:none}.hlist .hlist{display:inline;padding-left:1em}img{max-width:100%}td{padding:0 .5em}.admonition{padding:.1em 1em;margin:1em 0}.admonition-title{font-weight:bold}.admonition.note,.admonition.info,.admonition.important{background:#aef}.admonition.todo,.admonition.versionadded,.admonition.tip,.admonition.hint{background:#dfd}.admonition.warning,.admonition.versionchanged,.admonition.deprecated{background:#fd4}.admonition.error,.admonition.danger,.admonition.caution{background:lightpink}</style>
+  <style media="screen and (min-width: 700px)">@media screen and (min-width:700px){#sidebar{width:29%;min-width:525px;height:100vh;overflow:auto;position:sticky;top:0}#content{width:80%;max-width:110ch;padding:3em 6em;border-left:1px solid #ddd}pre code{font-size:1em}.name{font-size:1em}main{display:flex;flex-direction:row-reverse;justify-content:flex-end}.toc ul ul,#index ul ul{padding-left:1em}.toc > ul > li{margin-top:.5em}}</style>
+  <style media="print">@media print{#sidebar h1{page-break-before:always}.source{display:none}}@media print{*{background:transparent !important;color:#000 !important;box-shadow:none !important;text-shadow:none !important}a[href]:after{content:" (" attr(href) ")";font-size:90%}a[href][title]:after{content:none}abbr[title]:after{content:" (" attr(title) ")"}.ir a:after,a[href^="javascript:"]:after,a[href^="#"]:after{content:""}pre,blockquote{border:1px solid #999;page-break-inside:avoid}thead{display:table-header-group}tr,img{page-break-inside:avoid}img{max-width:100% !important}@page{margin:0.5cm}p,h2,h3{orphans:3;widows:3}h1,h2,h3,h4,h5,h6{page-break-after:avoid}}</style>
+
+
+
+    <script type="text/x-mathjax-config">MathJax.Hub.Config({ tex2jax: { inlineMath: [ ['$','$'], ["\\(","\\)"] ], processEscapes: true } });</script>
+    <script async src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.7/latest.js?config=TeX-AMS_CHTML" integrity="sha256-kZafAc6mZvK3W3v1pHOcUix30OHQN6pU/NO2oFkqZVw=" crossorigin></script>
+
+    <script defer src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js" integrity="sha512-D9gUyxqja7hBtkWpPWGt9wfbfaMGVt9gnyCvYa+jojwwPHLCzUm5i8rpk7vD7wNee9bA35eYIjobYPaQuKS1MQ==" crossorigin></script>
+    <script>window.addEventListener('DOMContentLoaded', () => {
+        hljs.configure({languages: ['bash', 'css', 'diff', 'graphql', 'ini', 'javascript', 'json', 'plaintext', 'python', 'python-repl', 'rust', 'shell', 'sql', 'typescript', 'xml', 'yaml']});
+        hljs.highlightAll();
+        /* Collapse source docstrings */
+        setTimeout(() => {
+            [...document.querySelectorAll('.hljs.language-python > .hljs-string')]
+                .filter(el => el.innerHTML.length > 200 && ['"""', "'''"].includes(el.innerHTML.substring(0, 3)))
+                .forEach(el => {
+                    let d = document.createElement('details');
+                    d.classList.add('hljs-string');
+                    d.innerHTML = '<summary>"""</summary>' + el.innerHTML.substring(3);
+                    el.replaceWith(d);
+                });
+        }, 100);
+    })</script>
+
+  
+</head>
+<body>
+<main>
+    <article id="content">
+      
+  
+
+  
+
+  <header>
+  <h1 class="title">Module <code>traceon.excitation</code></h1>
+  </header>
+
+  <section id="section-intro">
+  <p>The excitation module allows to specify the excitation (or element types) of the different physical groups (electrodes)
+created with the <code><a title="traceon.geometry" href="geometry.html">traceon.geometry</a></code> module. </p>
+<p>The possible excitations are as follows:</p>
+<ul>
+<li>Voltage (either fixed or as a function of position)</li>
+<li>Dielectric, with arbitrary electric permittivity</li>
+<li>Current coil (radial symmetric geometry)</li>
+<li>Current lines (3D geometry)</li>
+<li>Magnetostatic scalar potential</li>
+<li>Magnetizable material, with arbitrary magnetic permeability</li>
+</ul>
+<p>Once the excitation is specified, it can be passed to <code><a title="traceon.solver.solve_direct" href="solver.html#traceon.solver.solve_direct">solve_direct()</a></code> to compute the resulting field.</p>
+  </section>
+
+  <section>
+  </section>
+	
+  <section>
+  </section>
+
+  <section>
+  </section>
+
+  <section>
+    <h2 class="section-title" id="header-classes">Classes</h2>
+    <dl>
+      
+      <dt id="traceon.excitation.Excitation"><code class="flex name class">
+          <span>class <span class="ident">Excitation</span></span>
+              <span>(</span><span>mesh, symmetry)</span>
+      </code></dt>
+
+      <dd>
+  
+  
+    
+      <details class="source">
+        <summary>
+            <span>Expand source code</span>
+        </summary>
+        <pre><code class="python">class Excitation:
+    &#34;&#34;&#34; &#34;&#34;&#34;
+     
+    def __init__(self, mesh, symmetry):
+        self.mesh = mesh
+        self.electrodes = mesh.get_electrodes()
+        self.excitation_types = {}
+        self.symmetry = symmetry
+         
+        if symmetry == Symmetry.RADIAL:
+            assert self.mesh.points.shape[1] == 2 or np.all(self.mesh.points[:, 1] == 0.), \
+                &#34;When symmetry is RADIAL, the geometry should lie in the XZ plane&#34;
+    
+    def __str__(self):
+        return f&#39;&lt;Traceon Excitation,\n\t&#39; \
+            + &#39;\n\t&#39;.join([f&#39;{n}={v} ({t})&#39; for n, (t, v) in self.excitation_types.items()]) \
+            + &#39;&gt;&#39;
+
+    def _ensure_electrode_is_lines(self, excitation_type, name):
+        assert name in self.electrodes, f&#34;Electrode &#39;{name}&#39; is not present in the mesh&#34;
+        assert name in self.mesh.physical_to_lines, f&#34;Adding {excitation_type} excitation in {self.symmetry} symmetry is only supported if electrode &#39;{name}&#39; consists of lines&#34;
+    
+    def _ensure_electrode_is_triangles(self, excitation_type, name):
+        assert name in self.electrodes, f&#34;Electrode &#39;{name}&#39; is not present in the mesh&#34;
+        assert name in self.mesh.physical_to_triangles, f&#34;Adding {excitation_type} excitation in {self.symmetry} symmetry is only supported if electrode &#39;{name}&#39; consists of triangles&#34;
+     
+    def add_voltage(self, **kwargs):
+        &#34;&#34;&#34;
+        Apply a fixed voltage to the geometries assigned the given name.
+        
+        Parameters
+        ----------
+        **kwargs : dict
+            The keys of the dictionary are the geometry names, while the values are the voltages in units of Volt. For example,
+            calling the function as `add_voltage(lens=50)` assigns a 50V value to the geometry elements part of the &#39;lens&#39; physical group.
+            Alternatively, the value can be a function, which takes x, y, z coordinates as argument and returns the voltage at that position.
+            Note that in 2D symmetries (such as radial symmetry) the z value for this function will always be zero.
+        
+        &#34;&#34;&#34;
+        for name, voltage in kwargs.items():
+             
+            if self.symmetry == E.Symmetry.RADIAL:
+                self._ensure_electrode_is_lines(&#39;voltage&#39;, name)
+            elif self.symmetry == E.Symmetry.THREE_D:
+                self._ensure_electrode_is_triangles(&#39;voltage&#39;, name)
+            
+            if isinstance(voltage, int) or isinstance(voltage, float):
+                self.excitation_types[name] = (ExcitationType.VOLTAGE_FIXED, voltage)
+            elif callable(voltage):
+                self.excitation_types[name] = (ExcitationType.VOLTAGE_FUN, voltage)
+            else:
+                raise NotImplementedError(&#39;Unrecognized voltage value&#39;)
+
+    def add_current(self, **kwargs):
+        &#34;&#34;&#34;
+        Apply a fixed total current to the geometries assigned the given name. Note that a coil is assumed,
+        which implies that the current density is constant as a function of (r, z). In a solid piece of conducting material the current density would
+        be higher at small r (as the &#39;loop&#39; around the axis is shorter and therefore the resistance is lower).
+        
+        Parameters
+        ----------
+        **kwargs : dict
+            The keys of the dictionary are the geometry names, while the values are the currents in units of Ampere. For example,
+            calling the function as `add_current(coild=10)` assigns a 10A value to the geometry elements part of the &#39;coil&#39; physical group.
+        &#34;&#34;&#34;
+        if self.symmetry == Symmetry.RADIAL:
+            for name, current in kwargs.items():
+                self._ensure_electrode_is_triangles(&#34;current&#34;, name)
+                self.excitation_types[name] = (ExcitationType.CURRENT, current)
+        elif self.symmetry == Symmetry.THREE_D:
+            for name, current in kwargs.items():
+                self._ensure_electrode_is_lines(&#34;current&#34;, name)
+                self.excitation_types[name] = (ExcitationType.CURRENT, current)
+        else:
+            raise ValueError(&#39;Symmetry should be one of RADIAL or THREE_D&#39;)
+
+    def has_current(self):
+        &#34;&#34;&#34;Check whether a current is applied in this excitation.&#34;&#34;&#34;
+        return any([t == ExcitationType.CURRENT for t, _ in self.excitation_types.values()])
+    
+    def is_electrostatic(self):
+        &#34;&#34;&#34;Check whether the excitation contains electrostatic fields.&#34;&#34;&#34;
+        return any([t in [ExcitationType.VOLTAGE_FIXED, ExcitationType.VOLTAGE_FUN] for t, _ in self.excitation_types.values()])
+     
+    def is_magnetostatic(self):
+        &#34;&#34;&#34;Check whether the excitation contains magnetostatic fields.&#34;&#34;&#34;
+        return any([t in [ExcitationType.MAGNETOSTATIC_POT, ExcitationType.CURRENT] for t, _ in self.excitation_types.values()])
+     
+    def add_magnetostatic_potential(self, **kwargs):
+        &#34;&#34;&#34;
+        Apply a fixed magnetostatic potential to the geometries assigned the given name.
+        
+        Parameters
+        ----------
+        **kwargs : dict
+            The keys of the dictionary are the geometry names, while the values are the voltages in units of Ampere. For example,
+            calling the function as `add_magnetostatic_potential(lens=50)` assigns a 50A value to the geometry elements part of the &#39;lens&#39; physical group.
+        &#34;&#34;&#34;
+        for name, pot in kwargs.items():
+            if self.symmetry == E.Symmetry.RADIAL:
+                self._ensure_electrode_is_lines(&#39;magnetostatic potential&#39;, name)
+            elif self.symmetry == E.Symmetry.THREE_D:
+                self._ensure_electrode_is_triangles(&#39;magnetostatic potential&#39;, name)
+             
+            self.excitation_types[name] = (ExcitationType.MAGNETOSTATIC_POT, pot)
+
+    def add_magnetizable(self, **kwargs):
+        &#34;&#34;&#34;
+        Assign a relative magnetic permeability to the geometries assigned the given name.
+        
+        Parameters
+        ----------
+        **kwargs : dict
+            The keys of the dictionary are the geometry names, while the values are the relative dielectric constants. For example,
+            calling the function as `add_dielectric(spacer=2)` assign the relative dielectric constant of 2 to the `spacer` physical group.
+         
+        &#34;&#34;&#34;
+
+        for name, permeability in kwargs.items():
+            if self.symmetry == E.Symmetry.RADIAL:
+                self._ensure_electrode_is_lines(&#39;magnetizable&#39;, name)
+            elif self.symmetry == E.Symmetry.THREE_D:
+                self._ensure_electrode_is_triangles(&#39;magnetizable&#39;, name)
+
+            self.excitation_types[name] = (ExcitationType.MAGNETIZABLE, permeability)
+     
+    def add_dielectric(self, **kwargs):
+        &#34;&#34;&#34;
+        Assign a dielectric constant to the geometries assigned the given name.
+        
+        Parameters
+        ----------
+        **kwargs : dict
+            The keys of the dictionary are the geometry names, while the values are the relative dielectric constants. For example,
+            calling the function as `add_dielectric(spacer=2)` assign the relative dielectric constant of 2 to the `spacer` physical group.
+         
+        &#34;&#34;&#34;
+        for name, permittivity in kwargs.items():
+            if self.symmetry == E.Symmetry.RADIAL:
+                self._ensure_electrode_is_lines(&#39;dielectric&#39;, name)
+            elif self.symmetry == E.Symmetry.THREE_D:
+                self._ensure_electrode_is_triangles(&#39;dielectric&#39;, name)
+
+            self.excitation_types[name] = (ExcitationType.DIELECTRIC, permittivity)
+
+    def add_electrostatic_boundary(self, *args, ensure_inward_normals=True):
+        &#34;&#34;&#34;
+        Specify geometry elements as electrostatic boundary elements. At the boundary we require E·n = 0 at every point on the boundary. This
+        is equivalent to stating that the directional derivative of the electrostatic potential through the boundary is zero. Placing boundaries between
+        the spaces of electrodes usually helps convergence tremendously. Note that a boundary is equivalent to a dielectric with a dielectric
+        constant of zero. This is how a boundary is actually implemented internally.
+        
+        Parameters
+        ----------
+        *args: list of str
+            The geometry names that should be considered a boundary.
+        &#34;&#34;&#34;
+        if ensure_inward_normals:
+            for electrode in args:
+                self.mesh.ensure_inward_normals(electrode)
+        
+        for name in args:
+            if self.symmetry == E.Symmetry.RADIAL:
+                self._ensure_electrode_is_lines(&#39;electrostatic boundary&#39;, name)
+            elif self.symmetry == E.Symmetry.THREE_D:
+                self._ensure_electrode_is_triangles(&#39;electrostatic boundary&#39;, name)
+
+        self.add_dielectric(**{a:0 for a in args})
+    
+    def add_magnetostatic_boundary(self, *args, ensure_inward_normals=True):
+        &#34;&#34;&#34;
+        Specify geometry elements as magnetostatic boundary elements. At the boundary we require H·n = 0 at every point on the boundary. This
+        is equivalent to stating that the directional derivative of the magnetostatic potential through the boundary is zero. Placing boundaries between
+        the spaces of electrodes usually helps convergence tremendously. Note that a boundary is equivalent to a magnetic material with a magnetic 
+        permeability of zero. This is how a boundary is actually implemented internally.
+        
+        Parameters
+        ----------
+        *args: list of str
+            The geometry names that should be considered a boundary.
+        &#34;&#34;&#34;
+        if ensure_inward_normals:
+            for electrode in args:
+                print(&#39;flipping normals&#39;, electrode)
+                self.mesh.ensure_inward_normals(electrode)
+         
+        for name in args:
+            if self.symmetry == E.Symmetry.RADIAL:
+                self._ensure_electrode_is_lines(&#39;magnetostatic boundary&#39;, name)
+            elif self.symmetry == E.Symmetry.THREE_D:
+                self._ensure_electrode_is_triangles(&#39;magnetostatic boundary&#39;, name)
+         
+        self.add_magnetizable(**{a:0 for a in args})
+    
+    def _split_for_superposition(self):
+        
+        # Names that have a fixed voltage excitation, not equal to 0.0
+        types = self.excitation_types
+        non_zero_fixed = [n for n, (t, v) in types.items() if t in [ExcitationType.VOLTAGE_FIXED,
+                                                                    ExcitationType.CURRENT] and v != 0.0]
+        
+        excitations = []
+         
+        for name in non_zero_fixed:
+             
+            new_types_dict = {}
+             
+            for n, (t, v) in types.items():
+                assert t != ExcitationType.VOLTAGE_FUN, &#34;VOLTAGE_FUN excitation not supported for superposition.&#34;
+                 
+                if n == name:
+                    new_types_dict[n] = (t, 1.0)
+                elif t == ExcitationType.VOLTAGE_FIXED:
+                    new_types_dict[n] = (t, 0.0)
+                elif t == ExcitationType.CURRENT:
+                    new_types_dict[n] = (t, 0.0)
+                else:
+                    new_types_dict[n] = (t, v)
+            
+            exc = Excitation(self.mesh, self.symmetry)
+            exc.excitation_types = new_types_dict
+            excitations.append(exc)
+
+        assert len(non_zero_fixed) == len(excitations)
+        return {n:e for (n,e) in zip(non_zero_fixed, excitations)}
+
+    def _get_active_elements(self, type_):
+        assert type_ in [&#39;electrostatic&#39;, &#39;magnetostatic&#39;]
+        
+        if self.symmetry == Symmetry.RADIAL:
+            elements = self.mesh.lines
+            physicals = self.mesh.physical_to_lines
+        else:
+            elements = self.mesh.triangles
+            physicals = self.mesh.physical_to_triangles
+
+        def type_check(excitation_type):
+            if type_ == &#39;electrostatic&#39;:
+                return excitation_type.is_electrostatic()
+            else:
+                return excitation_type in [ExcitationType.MAGNETIZABLE, ExcitationType.MAGNETOSTATIC_POT]
+        
+        inactive = np.full(len(elements), True)
+        for name, value in self.excitation_types.items():
+            if type_check(value[0]):
+                inactive[ physicals[name] ] = False
+         
+        map_index = np.arange(len(elements)) - np.cumsum(inactive)
+        names = {n:map_index[i] for n, i in physicals.items() \
+                    if n in self.excitation_types and type_check(self.excitation_types[n][0])}
+         
+        return self.mesh.points[ elements[~inactive] ], names
+     
+    def get_electrostatic_active_elements(self):
+        &#34;&#34;&#34;Get elements in the mesh that have an electrostatic excitation
+        applied to them. 
+         
+        Returns
+        --------
+        A tuple of two elements: (points, names). points is a Numpy array of shape (N, 4, 3) in the case of 2D and (N, 3, 3) in the case of 3D. \
+        This array contains the vertices of the line elements or the triangles. \
+        Multiple points per line elements are used in the case of 2D since higher order BEM is employed, in which the true position on the line \
+        element is given by a polynomial interpolation of the points. \
+        names is a dictionary, the keys being the names of the physical groups mentioned by this excitation, \
+        while the values are Numpy arrays of indices that can be used to index the points array.
+        &#34;&#34;&#34;
+        return self._get_active_elements(&#39;electrostatic&#39;)
+    
+    def get_magnetostatic_active_elements(self):
+        &#34;&#34;&#34;Get elements in the mesh that have an magnetostatic excitation
+        applied to them. This does not include current excitation, as these are not part of the matrix.
+    
+        Returns
+        --------
+        A tuple of two elements: (points, names). points is a Numpy array of shape (N, 4, 3) in the case of 2D and (N, 3, 3) in the case of 3D. \
+        This array contains the vertices of the line elements or the triangles. \
+        Multiple points per line elements are used in the case of 2D since higher order BEM is employed, in which the true position on the line \
+        element is given by a polynomial interpolation of the points. \
+        names is a dictionary, the keys being the names of the physical groups mentioned by this excitation, \
+        while the values are Numpy arrays of indices that can be used to index the points array.
+        &#34;&#34;&#34;
+
+        return self._get_active_elements(&#39;magnetostatic&#39;)</code></pre>
+      </details>
+
+  <div class="desc"></div>
+
+
+
+          <h3>Methods</h3>
+          <dl>
+              
+    <dt id="traceon.excitation.Excitation.add_current"><code class="name flex">
+        
+        <span>def <span class="ident">add_current</span></span>(<span>self, **kwargs)</span>
+    </code></dt>
+    <dd>
+  
+  
+    
+      <details class="source">
+        <summary>
+            <span>Expand source code</span>
+        </summary>
+        <pre><code class="python">def add_current(self, **kwargs):
+    &#34;&#34;&#34;
+    Apply a fixed total current to the geometries assigned the given name. Note that a coil is assumed,
+    which implies that the current density is constant as a function of (r, z). In a solid piece of conducting material the current density would
+    be higher at small r (as the &#39;loop&#39; around the axis is shorter and therefore the resistance is lower).
+    
+    Parameters
+    ----------
+    **kwargs : dict
+        The keys of the dictionary are the geometry names, while the values are the currents in units of Ampere. For example,
+        calling the function as `add_current(coild=10)` assigns a 10A value to the geometry elements part of the &#39;coil&#39; physical group.
+    &#34;&#34;&#34;
+    if self.symmetry == Symmetry.RADIAL:
+        for name, current in kwargs.items():
+            self._ensure_electrode_is_triangles(&#34;current&#34;, name)
+            self.excitation_types[name] = (ExcitationType.CURRENT, current)
+    elif self.symmetry == Symmetry.THREE_D:
+        for name, current in kwargs.items():
+            self._ensure_electrode_is_lines(&#34;current&#34;, name)
+            self.excitation_types[name] = (ExcitationType.CURRENT, current)
+    else:
+        raise ValueError(&#39;Symmetry should be one of RADIAL or THREE_D&#39;)</code></pre>
+      </details>
+
+  <div class="desc"><p>Apply a fixed total current to the geometries assigned the given name. Note that a coil is assumed,
+which implies that the current density is constant as a function of (r, z). In a solid piece of conducting material the current density would
+be higher at small r (as the 'loop' around the axis is shorter and therefore the resistance is lower).</p>
+<h2 id="parameters">Parameters</h2>
+<dl>
+<dt><strong><code>**kwargs</code></strong> :&ensp;<code>dict</code></dt>
+<dd>The keys of the dictionary are the geometry names, while the values are the currents in units of Ampere. For example,
+calling the function as <code>add_current(coild=10)</code> assigns a 10A value to the geometry elements part of the 'coil' physical group.</dd>
+</dl></div>
+</dd>
+  
+              
+    <dt id="traceon.excitation.Excitation.add_dielectric"><code class="name flex">
+        
+        <span>def <span class="ident">add_dielectric</span></span>(<span>self, **kwargs)</span>
+    </code></dt>
+    <dd>
+  
+  
+    
+      <details class="source">
+        <summary>
+            <span>Expand source code</span>
+        </summary>
+        <pre><code class="python">def add_dielectric(self, **kwargs):
+    &#34;&#34;&#34;
+    Assign a dielectric constant to the geometries assigned the given name.
+    
+    Parameters
+    ----------
+    **kwargs : dict
+        The keys of the dictionary are the geometry names, while the values are the relative dielectric constants. For example,
+        calling the function as `add_dielectric(spacer=2)` assign the relative dielectric constant of 2 to the `spacer` physical group.
+     
+    &#34;&#34;&#34;
+    for name, permittivity in kwargs.items():
+        if self.symmetry == E.Symmetry.RADIAL:
+            self._ensure_electrode_is_lines(&#39;dielectric&#39;, name)
+        elif self.symmetry == E.Symmetry.THREE_D:
+            self._ensure_electrode_is_triangles(&#39;dielectric&#39;, name)
+
+        self.excitation_types[name] = (ExcitationType.DIELECTRIC, permittivity)</code></pre>
+      </details>
+
+  <div class="desc"><p>Assign a dielectric constant to the geometries assigned the given name.</p>
+<h2 id="parameters">Parameters</h2>
+<dl>
+<dt><strong><code>**kwargs</code></strong> :&ensp;<code>dict</code></dt>
+<dd>The keys of the dictionary are the geometry names, while the values are the relative dielectric constants. For example,
+calling the function as <code>add_dielectric(spacer=2)</code> assign the relative dielectric constant of 2 to the <code>spacer</code> physical group.</dd>
+</dl></div>
+</dd>
+  
+              
+    <dt id="traceon.excitation.Excitation.add_electrostatic_boundary"><code class="name flex">
+        
+        <span>def <span class="ident">add_electrostatic_boundary</span></span>(<span>self, *args, ensure_inward_normals=True)</span>
+    </code></dt>
+    <dd>
+  
+  
+    
+      <details class="source">
+        <summary>
+            <span>Expand source code</span>
+        </summary>
+        <pre><code class="python">def add_electrostatic_boundary(self, *args, ensure_inward_normals=True):
+    &#34;&#34;&#34;
+    Specify geometry elements as electrostatic boundary elements. At the boundary we require E·n = 0 at every point on the boundary. This
+    is equivalent to stating that the directional derivative of the electrostatic potential through the boundary is zero. Placing boundaries between
+    the spaces of electrodes usually helps convergence tremendously. Note that a boundary is equivalent to a dielectric with a dielectric
+    constant of zero. This is how a boundary is actually implemented internally.
+    
+    Parameters
+    ----------
+    *args: list of str
+        The geometry names that should be considered a boundary.
+    &#34;&#34;&#34;
+    if ensure_inward_normals:
+        for electrode in args:
+            self.mesh.ensure_inward_normals(electrode)
+    
+    for name in args:
+        if self.symmetry == E.Symmetry.RADIAL:
+            self._ensure_electrode_is_lines(&#39;electrostatic boundary&#39;, name)
+        elif self.symmetry == E.Symmetry.THREE_D:
+            self._ensure_electrode_is_triangles(&#39;electrostatic boundary&#39;, name)
+
+    self.add_dielectric(**{a:0 for a in args})</code></pre>
+      </details>
+
+  <div class="desc"><p>Specify geometry elements as electrostatic boundary elements. At the boundary we require E·n = 0 at every point on the boundary. This
+is equivalent to stating that the directional derivative of the electrostatic potential through the boundary is zero. Placing boundaries between
+the spaces of electrodes usually helps convergence tremendously. Note that a boundary is equivalent to a dielectric with a dielectric
+constant of zero. This is how a boundary is actually implemented internally.</p>
+<h2 id="parameters">Parameters</h2>
+<dl>
+<dt><strong><code>*args</code></strong> :&ensp;<code>list</code> of <code>str</code></dt>
+<dd>The geometry names that should be considered a boundary.</dd>
+</dl></div>
+</dd>
+  
+              
+    <dt id="traceon.excitation.Excitation.add_magnetizable"><code class="name flex">
+        
+        <span>def <span class="ident">add_magnetizable</span></span>(<span>self, **kwargs)</span>
+    </code></dt>
+    <dd>
+  
+  
+    
+      <details class="source">
+        <summary>
+            <span>Expand source code</span>
+        </summary>
+        <pre><code class="python">def add_magnetizable(self, **kwargs):
+    &#34;&#34;&#34;
+    Assign a relative magnetic permeability to the geometries assigned the given name.
+    
+    Parameters
+    ----------
+    **kwargs : dict
+        The keys of the dictionary are the geometry names, while the values are the relative dielectric constants. For example,
+        calling the function as `add_dielectric(spacer=2)` assign the relative dielectric constant of 2 to the `spacer` physical group.
+     
+    &#34;&#34;&#34;
+
+    for name, permeability in kwargs.items():
+        if self.symmetry == E.Symmetry.RADIAL:
+            self._ensure_electrode_is_lines(&#39;magnetizable&#39;, name)
+        elif self.symmetry == E.Symmetry.THREE_D:
+            self._ensure_electrode_is_triangles(&#39;magnetizable&#39;, name)
+
+        self.excitation_types[name] = (ExcitationType.MAGNETIZABLE, permeability)</code></pre>
+      </details>
+
+  <div class="desc"><p>Assign a relative magnetic permeability to the geometries assigned the given name.</p>
+<h2 id="parameters">Parameters</h2>
+<dl>
+<dt><strong><code>**kwargs</code></strong> :&ensp;<code>dict</code></dt>
+<dd>The keys of the dictionary are the geometry names, while the values are the relative dielectric constants. For example,
+calling the function as <code>add_dielectric(spacer=2)</code> assign the relative dielectric constant of 2 to the <code>spacer</code> physical group.</dd>
+</dl></div>
+</dd>
+  
+              
+    <dt id="traceon.excitation.Excitation.add_magnetostatic_boundary"><code class="name flex">
+        
+        <span>def <span class="ident">add_magnetostatic_boundary</span></span>(<span>self, *args, ensure_inward_normals=True)</span>
+    </code></dt>
+    <dd>
+  
+  
+    
+      <details class="source">
+        <summary>
+            <span>Expand source code</span>
+        </summary>
+        <pre><code class="python">def add_magnetostatic_boundary(self, *args, ensure_inward_normals=True):
+    &#34;&#34;&#34;
+    Specify geometry elements as magnetostatic boundary elements. At the boundary we require H·n = 0 at every point on the boundary. This
+    is equivalent to stating that the directional derivative of the magnetostatic potential through the boundary is zero. Placing boundaries between
+    the spaces of electrodes usually helps convergence tremendously. Note that a boundary is equivalent to a magnetic material with a magnetic 
+    permeability of zero. This is how a boundary is actually implemented internally.
+    
+    Parameters
+    ----------
+    *args: list of str
+        The geometry names that should be considered a boundary.
+    &#34;&#34;&#34;
+    if ensure_inward_normals:
+        for electrode in args:
+            print(&#39;flipping normals&#39;, electrode)
+            self.mesh.ensure_inward_normals(electrode)
+     
+    for name in args:
+        if self.symmetry == E.Symmetry.RADIAL:
+            self._ensure_electrode_is_lines(&#39;magnetostatic boundary&#39;, name)
+        elif self.symmetry == E.Symmetry.THREE_D:
+            self._ensure_electrode_is_triangles(&#39;magnetostatic boundary&#39;, name)
+     
+    self.add_magnetizable(**{a:0 for a in args})</code></pre>
+      </details>
+
+  <div class="desc"><p>Specify geometry elements as magnetostatic boundary elements. At the boundary we require H·n = 0 at every point on the boundary. This
+is equivalent to stating that the directional derivative of the magnetostatic potential through the boundary is zero. Placing boundaries between
+the spaces of electrodes usually helps convergence tremendously. Note that a boundary is equivalent to a magnetic material with a magnetic 
+permeability of zero. This is how a boundary is actually implemented internally.</p>
+<h2 id="parameters">Parameters</h2>
+<dl>
+<dt><strong><code>*args</code></strong> :&ensp;<code>list</code> of <code>str</code></dt>
+<dd>The geometry names that should be considered a boundary.</dd>
+</dl></div>
+</dd>
+  
+              
+    <dt id="traceon.excitation.Excitation.add_magnetostatic_potential"><code class="name flex">
+        
+        <span>def <span class="ident">add_magnetostatic_potential</span></span>(<span>self, **kwargs)</span>
+    </code></dt>
+    <dd>
+  
+  
+    
+      <details class="source">
+        <summary>
+            <span>Expand source code</span>
+        </summary>
+        <pre><code class="python">def add_magnetostatic_potential(self, **kwargs):
+    &#34;&#34;&#34;
+    Apply a fixed magnetostatic potential to the geometries assigned the given name.
+    
+    Parameters
+    ----------
+    **kwargs : dict
+        The keys of the dictionary are the geometry names, while the values are the voltages in units of Ampere. For example,
+        calling the function as `add_magnetostatic_potential(lens=50)` assigns a 50A value to the geometry elements part of the &#39;lens&#39; physical group.
+    &#34;&#34;&#34;
+    for name, pot in kwargs.items():
+        if self.symmetry == E.Symmetry.RADIAL:
+            self._ensure_electrode_is_lines(&#39;magnetostatic potential&#39;, name)
+        elif self.symmetry == E.Symmetry.THREE_D:
+            self._ensure_electrode_is_triangles(&#39;magnetostatic potential&#39;, name)
+         
+        self.excitation_types[name] = (ExcitationType.MAGNETOSTATIC_POT, pot)</code></pre>
+      </details>
+
+  <div class="desc"><p>Apply a fixed magnetostatic potential to the geometries assigned the given name.</p>
+<h2 id="parameters">Parameters</h2>
+<dl>
+<dt><strong><code>**kwargs</code></strong> :&ensp;<code>dict</code></dt>
+<dd>The keys of the dictionary are the geometry names, while the values are the voltages in units of Ampere. For example,
+calling the function as <code>add_magnetostatic_potential(lens=50)</code> assigns a 50A value to the geometry elements part of the 'lens' physical group.</dd>
+</dl></div>
+</dd>
+  
+              
+    <dt id="traceon.excitation.Excitation.add_voltage"><code class="name flex">
+        
+        <span>def <span class="ident">add_voltage</span></span>(<span>self, **kwargs)</span>
+    </code></dt>
+    <dd>
+  
+  
+    
+      <details class="source">
+        <summary>
+            <span>Expand source code</span>
+        </summary>
+        <pre><code class="python">def add_voltage(self, **kwargs):
+    &#34;&#34;&#34;
+    Apply a fixed voltage to the geometries assigned the given name.
+    
+    Parameters
+    ----------
+    **kwargs : dict
+        The keys of the dictionary are the geometry names, while the values are the voltages in units of Volt. For example,
+        calling the function as `add_voltage(lens=50)` assigns a 50V value to the geometry elements part of the &#39;lens&#39; physical group.
+        Alternatively, the value can be a function, which takes x, y, z coordinates as argument and returns the voltage at that position.
+        Note that in 2D symmetries (such as radial symmetry) the z value for this function will always be zero.
+    
+    &#34;&#34;&#34;
+    for name, voltage in kwargs.items():
+         
+        if self.symmetry == E.Symmetry.RADIAL:
+            self._ensure_electrode_is_lines(&#39;voltage&#39;, name)
+        elif self.symmetry == E.Symmetry.THREE_D:
+            self._ensure_electrode_is_triangles(&#39;voltage&#39;, name)
+        
+        if isinstance(voltage, int) or isinstance(voltage, float):
+            self.excitation_types[name] = (ExcitationType.VOLTAGE_FIXED, voltage)
+        elif callable(voltage):
+            self.excitation_types[name] = (ExcitationType.VOLTAGE_FUN, voltage)
+        else:
+            raise NotImplementedError(&#39;Unrecognized voltage value&#39;)</code></pre>
+      </details>
+
+  <div class="desc"><p>Apply a fixed voltage to the geometries assigned the given name.</p>
+<h2 id="parameters">Parameters</h2>
+<dl>
+<dt><strong><code>**kwargs</code></strong> :&ensp;<code>dict</code></dt>
+<dd>The keys of the dictionary are the geometry names, while the values are the voltages in units of Volt. For example,
+calling the function as <code>add_voltage(lens=50)</code> assigns a 50V value to the geometry elements part of the 'lens' physical group.
+Alternatively, the value can be a function, which takes x, y, z coordinates as argument and returns the voltage at that position.
+Note that in 2D symmetries (such as radial symmetry) the z value for this function will always be zero.</dd>
+</dl></div>
+</dd>
+  
+              
+    <dt id="traceon.excitation.Excitation.get_electrostatic_active_elements"><code class="name flex">
+        
+        <span>def <span class="ident">get_electrostatic_active_elements</span></span>(<span>self)</span>
+    </code></dt>
+    <dd>
+  
+  
+    
+      <details class="source">
+        <summary>
+            <span>Expand source code</span>
+        </summary>
+        <pre><code class="python">def get_electrostatic_active_elements(self):
+    &#34;&#34;&#34;Get elements in the mesh that have an electrostatic excitation
+    applied to them. 
+     
+    Returns
+    --------
+    A tuple of two elements: (points, names). points is a Numpy array of shape (N, 4, 3) in the case of 2D and (N, 3, 3) in the case of 3D. \
+    This array contains the vertices of the line elements or the triangles. \
+    Multiple points per line elements are used in the case of 2D since higher order BEM is employed, in which the true position on the line \
+    element is given by a polynomial interpolation of the points. \
+    names is a dictionary, the keys being the names of the physical groups mentioned by this excitation, \
+    while the values are Numpy arrays of indices that can be used to index the points array.
+    &#34;&#34;&#34;
+    return self._get_active_elements(&#39;electrostatic&#39;)</code></pre>
+      </details>
+
+  <div class="desc"><p>Get elements in the mesh that have an electrostatic excitation
+applied to them. </p>
+<h2 id="returns">Returns</h2>
+<p>A tuple of two elements: (points, names). points is a Numpy array of shape (N, 4, 3) in the case of 2D and (N, 3, 3) in the case of 3D.         This array contains the vertices of the line elements or the triangles.         Multiple points per line elements are used in the case of 2D since higher order BEM is employed, in which the true position on the line         element is given by a polynomial interpolation of the points.         names is a dictionary, the keys being the names of the physical groups mentioned by this excitation,         while the values are Numpy arrays of indices that can be used to index the points array.</p></div>
+</dd>
+  
+              
+    <dt id="traceon.excitation.Excitation.get_magnetostatic_active_elements"><code class="name flex">
+        
+        <span>def <span class="ident">get_magnetostatic_active_elements</span></span>(<span>self)</span>
+    </code></dt>
+    <dd>
+  
+  
+    
+      <details class="source">
+        <summary>
+            <span>Expand source code</span>
+        </summary>
+        <pre><code class="python">def get_magnetostatic_active_elements(self):
+    &#34;&#34;&#34;Get elements in the mesh that have an magnetostatic excitation
+    applied to them. This does not include current excitation, as these are not part of the matrix.
+
+    Returns
+    --------
+    A tuple of two elements: (points, names). points is a Numpy array of shape (N, 4, 3) in the case of 2D and (N, 3, 3) in the case of 3D. \
+    This array contains the vertices of the line elements or the triangles. \
+    Multiple points per line elements are used in the case of 2D since higher order BEM is employed, in which the true position on the line \
+    element is given by a polynomial interpolation of the points. \
+    names is a dictionary, the keys being the names of the physical groups mentioned by this excitation, \
+    while the values are Numpy arrays of indices that can be used to index the points array.
+    &#34;&#34;&#34;
+
+    return self._get_active_elements(&#39;magnetostatic&#39;)</code></pre>
+      </details>
+
+  <div class="desc"><p>Get elements in the mesh that have an magnetostatic excitation
+applied to them. This does not include current excitation, as these are not part of the matrix.</p>
+<h2 id="returns">Returns</h2>
+<p>A tuple of two elements: (points, names). points is a Numpy array of shape (N, 4, 3) in the case of 2D and (N, 3, 3) in the case of 3D.         This array contains the vertices of the line elements or the triangles.         Multiple points per line elements are used in the case of 2D since higher order BEM is employed, in which the true position on the line         element is given by a polynomial interpolation of the points.         names is a dictionary, the keys being the names of the physical groups mentioned by this excitation,         while the values are Numpy arrays of indices that can be used to index the points array.</p></div>
+</dd>
+  
+              
+    <dt id="traceon.excitation.Excitation.has_current"><code class="name flex">
+        
+        <span>def <span class="ident">has_current</span></span>(<span>self)</span>
+    </code></dt>
+    <dd>
+  
+  
+    
+      <details class="source">
+        <summary>
+            <span>Expand source code</span>
+        </summary>
+        <pre><code class="python">def has_current(self):
+    &#34;&#34;&#34;Check whether a current is applied in this excitation.&#34;&#34;&#34;
+    return any([t == ExcitationType.CURRENT for t, _ in self.excitation_types.values()])</code></pre>
+      </details>
+
+  <div class="desc"><p>Check whether a current is applied in this excitation.</p></div>
+</dd>
+  
+              
+    <dt id="traceon.excitation.Excitation.is_electrostatic"><code class="name flex">
+        
+        <span>def <span class="ident">is_electrostatic</span></span>(<span>self)</span>
+    </code></dt>
+    <dd>
+  
+  
+    
+      <details class="source">
+        <summary>
+            <span>Expand source code</span>
+        </summary>
+        <pre><code class="python">def is_electrostatic(self):
+    &#34;&#34;&#34;Check whether the excitation contains electrostatic fields.&#34;&#34;&#34;
+    return any([t in [ExcitationType.VOLTAGE_FIXED, ExcitationType.VOLTAGE_FUN] for t, _ in self.excitation_types.values()])</code></pre>
+      </details>
+
+  <div class="desc"><p>Check whether the excitation contains electrostatic fields.</p></div>
+</dd>
+  
+              
+    <dt id="traceon.excitation.Excitation.is_magnetostatic"><code class="name flex">
+        
+        <span>def <span class="ident">is_magnetostatic</span></span>(<span>self)</span>
+    </code></dt>
+    <dd>
+  
+  
+    
+      <details class="source">
+        <summary>
+            <span>Expand source code</span>
+        </summary>
+        <pre><code class="python">def is_magnetostatic(self):
+    &#34;&#34;&#34;Check whether the excitation contains magnetostatic fields.&#34;&#34;&#34;
+    return any([t in [ExcitationType.MAGNETOSTATIC_POT, ExcitationType.CURRENT] for t, _ in self.excitation_types.values()])</code></pre>
+      </details>
+
+  <div class="desc"><p>Check whether the excitation contains magnetostatic fields.</p></div>
+</dd>
+  
+          </dl>
+
+          
+
+      </dd>
+      
+      <dt id="traceon.excitation.ExcitationType"><code class="flex name class">
+          <span>class <span class="ident">ExcitationType</span></span>
+              <span>(</span><span>value, names=None, *, module=None, qualname=None, type=None, start=1)</span>
+      </code></dt>
+
+      <dd>
+  
+  
+    
+      <details class="source">
+        <summary>
+            <span>Expand source code</span>
+        </summary>
+        <pre><code class="python">class ExcitationType(IntEnum):
+    &#34;&#34;&#34;Possible excitation that can be applied to elements of the geometry. See the methods of `Excitation` for documentation.&#34;&#34;&#34;
+    VOLTAGE_FIXED = 1
+    VOLTAGE_FUN = 2
+    DIELECTRIC = 3
+     
+    CURRENT = 4
+    MAGNETOSTATIC_POT = 5
+    MAGNETIZABLE = 6
+     
+    def is_electrostatic(self):
+        return self in [ExcitationType.VOLTAGE_FIXED,
+                        ExcitationType.VOLTAGE_FUN,
+                        ExcitationType.DIELECTRIC]
+
+    def is_magnetostatic(self):
+        return self in [ExcitationType.MAGNETOSTATIC_POT,
+                        ExcitationType.MAGNETIZABLE,
+                        ExcitationType.CURRENT]
+     
+    def __str__(self):
+        if self == ExcitationType.VOLTAGE_FIXED:
+            return &#39;voltage fixed&#39;
+        elif self == ExcitationType.VOLTAGE_FUN:
+            return &#39;voltage function&#39;
+        elif self == ExcitationType.DIELECTRIC:
+            return &#39;dielectric&#39;
+        elif self == ExcitationType.CURRENT:
+            return &#39;current&#39;
+        elif self == ExcitationType.MAGNETOSTATIC_POT:
+            return &#39;magnetostatic potential&#39;
+        elif self == ExcitationType.MAGNETIZABLE:
+            return &#39;magnetizable&#39;
+         
+        raise RuntimeError(&#39;ExcitationType not understood in __str__ method&#39;)</code></pre>
+      </details>
+
+  <div class="desc"><p>Possible excitation that can be applied to elements of the geometry. See the methods of <code><a title="traceon.excitation.Excitation" href="#traceon.excitation.Excitation">Excitation</a></code> for documentation.</p></div>
+
+
+          <h3>Ancestors</h3>
+          <ul class="hlist">
+              <li>enum.IntEnum</li>
+              <li>builtins.int</li>
+              <li>enum.Enum</li>
+          </ul>
+
+          <h3>Class variables</h3>
+          <dl>
+              
+              <dt id="traceon.excitation.ExcitationType.CURRENT"><code class="name">var <span class="ident">CURRENT</span></code></dt>
+              <dd>
+  
+  
+
+  <div class="desc"></div>
+</dd>
+              
+              <dt id="traceon.excitation.ExcitationType.DIELECTRIC"><code class="name">var <span class="ident">DIELECTRIC</span></code></dt>
+              <dd>
+  
+  
+
+  <div class="desc"></div>
+</dd>
+              
+              <dt id="traceon.excitation.ExcitationType.MAGNETIZABLE"><code class="name">var <span class="ident">MAGNETIZABLE</span></code></dt>
+              <dd>
+  
+  
+
+  <div class="desc"></div>
+</dd>
+              
+              <dt id="traceon.excitation.ExcitationType.MAGNETOSTATIC_POT"><code class="name">var <span class="ident">MAGNETOSTATIC_POT</span></code></dt>
+              <dd>
+  
+  
+
+  <div class="desc"></div>
+</dd>
+              
+              <dt id="traceon.excitation.ExcitationType.VOLTAGE_FIXED"><code class="name">var <span class="ident">VOLTAGE_FIXED</span></code></dt>
+              <dd>
+  
+  
+
+  <div class="desc"></div>
+</dd>
+              
+              <dt id="traceon.excitation.ExcitationType.VOLTAGE_FUN"><code class="name">var <span class="ident">VOLTAGE_FUN</span></code></dt>
+              <dd>
+  
+  
+
+  <div class="desc"></div>
+</dd>
+          </dl>
+          <h3>Methods</h3>
+          <dl>
+              
+    <dt id="traceon.excitation.ExcitationType.is_electrostatic"><code class="name flex">
+        
+        <span>def <span class="ident">is_electrostatic</span></span>(<span>self)</span>
+    </code></dt>
+    <dd>
+  
+  
+    
+      <details class="source">
+        <summary>
+            <span>Expand source code</span>
+        </summary>
+        <pre><code class="python">def is_electrostatic(self):
+    return self in [ExcitationType.VOLTAGE_FIXED,
+                    ExcitationType.VOLTAGE_FUN,
+                    ExcitationType.DIELECTRIC]</code></pre>
+      </details>
+
+  <div class="desc"></div>
+</dd>
+  
+              
+    <dt id="traceon.excitation.ExcitationType.is_magnetostatic"><code class="name flex">
+        
+        <span>def <span class="ident">is_magnetostatic</span></span>(<span>self)</span>
+    </code></dt>
+    <dd>
+  
+  
+    
+      <details class="source">
+        <summary>
+            <span>Expand source code</span>
+        </summary>
+        <pre><code class="python">def is_magnetostatic(self):
+    return self in [ExcitationType.MAGNETOSTATIC_POT,
+                    ExcitationType.MAGNETIZABLE,
+                    ExcitationType.CURRENT]</code></pre>
+      </details>
+
+  <div class="desc"></div>
+</dd>
+  
+          </dl>
+
+          
+
+      </dd>
+      
+      <dt id="traceon.excitation.Symmetry"><code class="flex name class">
+          <span>class <span class="ident">Symmetry</span></span>
+              <span>(</span><span>value, names=None, *, module=None, qualname=None, type=None, start=1)</span>
+      </code></dt>
+
+      <dd>
+  
+  
+    
+      <details class="source">
+        <summary>
+            <span>Expand source code</span>
+        </summary>
+        <pre><code class="python">class Symmetry(IntEnum):
+    &#34;&#34;&#34;Symmetry to be used for solver. Used when deciding which formulas to use in the Boundary Element Method. The currently
+    supported symmetries are radial symmetry (also called cylindrical symmetry) and general 3D geometries.
+    &#34;&#34;&#34;
+    RADIAL = 0
+    THREE_D = 2
+    
+    def __str__(self):
+        if self == Symmetry.RADIAL:
+            return &#39;radial&#39;
+        elif self == Symmetry.THREE_D:
+            return &#39;3d&#39; 
+    
+    def is_2d(self):
+        return self == Symmetry.RADIAL
+        
+    def is_3d(self):
+        return self == Symmetry.THREE_D</code></pre>
+      </details>
+
+  <div class="desc"><p>Symmetry to be used for solver. Used when deciding which formulas to use in the Boundary Element Method. The currently
+supported symmetries are radial symmetry (also called cylindrical symmetry) and general 3D geometries.</p></div>
+
+
+          <h3>Ancestors</h3>
+          <ul class="hlist">
+              <li>enum.IntEnum</li>
+              <li>builtins.int</li>
+              <li>enum.Enum</li>
+          </ul>
+
+          <h3>Class variables</h3>
+          <dl>
+              
+              <dt id="traceon.excitation.Symmetry.RADIAL"><code class="name">var <span class="ident">RADIAL</span></code></dt>
+              <dd>
+  
+  
+
+  <div class="desc"></div>
+</dd>
+              
+              <dt id="traceon.excitation.Symmetry.THREE_D"><code class="name">var <span class="ident">THREE_D</span></code></dt>
+              <dd>
+  
+  
+
+  <div class="desc"></div>
+</dd>
+          </dl>
+          <h3>Methods</h3>
+          <dl>
+              
+    <dt id="traceon.excitation.Symmetry.is_2d"><code class="name flex">
+        
+        <span>def <span class="ident">is_2d</span></span>(<span>self)</span>
+    </code></dt>
+    <dd>
+  
+  
+    
+      <details class="source">
+        <summary>
+            <span>Expand source code</span>
+        </summary>
+        <pre><code class="python">def is_2d(self):
+    return self == Symmetry.RADIAL</code></pre>
+      </details>
+
+  <div class="desc"></div>
+</dd>
+  
+              
+    <dt id="traceon.excitation.Symmetry.is_3d"><code class="name flex">
+        
+        <span>def <span class="ident">is_3d</span></span>(<span>self)</span>
+    </code></dt>
+    <dd>
+  
+  
+    
+      <details class="source">
+        <summary>
+            <span>Expand source code</span>
+        </summary>
+        <pre><code class="python">def is_3d(self):
+    return self == Symmetry.THREE_D</code></pre>
+      </details>
+
+  <div class="desc"></div>
+</dd>
+  
+          </dl>
+
+          
+
+      </dd>
+    </dl>
+  </section>
+
+    </article>
+    
+  
+  <nav id="sidebar">
+
+    
+
+	<h1 class='title'><a href='index.html' style='color:black'>Traceon</a></h1>
+	
+    <ul id="index">
+	
+	<li><h3><a href="#header-submodules">Examples</a></h3>
+      <ul>
+			<li><code><a href="../traceon/einzel-lens.html">Einzel lens</a></code></li>
+      </ul>
+    </li>
+		
+    <li><h3><a href="#header-submodules">Traceon</a></h3>
+      <ul>
+        <li><code class='selected'><a title="traceon.excitation" href="#traceon.excitation">traceon.excitation</a></code></li>
+        <li><code ><a title="traceon.field" href="field.html">traceon.field</a></code></li>
+        <li><code ><a title="traceon.focus" href="focus.html">traceon.focus</a></code></li>
+        <li><code ><a title="traceon.geometry" href="geometry.html">traceon.geometry</a></code></li>
+        <li><code ><a title="traceon.logging" href="logging.html">traceon.logging</a></code></li>
+        <li><code ><a title="traceon.mesher" href="mesher.html">traceon.mesher</a></code></li>
+        <li><code ><a title="traceon.plotting" href="plotting.html">traceon.plotting</a></code></li>
+        <li><code ><a title="traceon.solver" href="solver.html">traceon.solver</a></code></li>
+        <li><code ><a title="traceon.tracing" href="tracing.html">traceon.tracing</a></code></li>
+      </ul>
+    </li>
+		
+	<li><h3><a href="#header-submodules">Traceon Pro</a></h3>
+      <ul>
+			<li><code ><a title="traceon_pro.field" href="../traceon_pro/field.html">traceon_pro.field</a></code></li>
+			<li><code ><a title="traceon_pro.solver" href="../traceon_pro/solver.html">traceon_pro.solver</a></code></li>
+      </ul>
+    </li>
+
+
+
+
+    <li><h3><a href="#header-classes">Classes</a></h3>
+      <ul>
+        <li>
+        <h4><code><a title="traceon.excitation.Excitation" href="#traceon.excitation.Excitation">Excitation</a></code></h4>
+        
+          
+  
+  <ul class="">
+    <li><code><a title="traceon.excitation.Excitation.add_current" href="#traceon.excitation.Excitation.add_current">add_current</a></code></li>
+    <li><code><a title="traceon.excitation.Excitation.add_dielectric" href="#traceon.excitation.Excitation.add_dielectric">add_dielectric</a></code></li>
+    <li><code><a title="traceon.excitation.Excitation.add_electrostatic_boundary" href="#traceon.excitation.Excitation.add_electrostatic_boundary">add_electrostatic_boundary</a></code></li>
+    <li><code><a title="traceon.excitation.Excitation.add_magnetizable" href="#traceon.excitation.Excitation.add_magnetizable">add_magnetizable</a></code></li>
+    <li><code><a title="traceon.excitation.Excitation.add_magnetostatic_boundary" href="#traceon.excitation.Excitation.add_magnetostatic_boundary">add_magnetostatic_boundary</a></code></li>
+    <li><code><a title="traceon.excitation.Excitation.add_magnetostatic_potential" href="#traceon.excitation.Excitation.add_magnetostatic_potential">add_magnetostatic_potential</a></code></li>
+    <li><code><a title="traceon.excitation.Excitation.add_voltage" href="#traceon.excitation.Excitation.add_voltage">add_voltage</a></code></li>
+    <li><code><a title="traceon.excitation.Excitation.get_electrostatic_active_elements" href="#traceon.excitation.Excitation.get_electrostatic_active_elements">get_electrostatic_active_elements</a></code></li>
+    <li><code><a title="traceon.excitation.Excitation.get_magnetostatic_active_elements" href="#traceon.excitation.Excitation.get_magnetostatic_active_elements">get_magnetostatic_active_elements</a></code></li>
+    <li><code><a title="traceon.excitation.Excitation.has_current" href="#traceon.excitation.Excitation.has_current">has_current</a></code></li>
+    <li><code><a title="traceon.excitation.Excitation.is_electrostatic" href="#traceon.excitation.Excitation.is_electrostatic">is_electrostatic</a></code></li>
+    <li><code><a title="traceon.excitation.Excitation.is_magnetostatic" href="#traceon.excitation.Excitation.is_magnetostatic">is_magnetostatic</a></code></li>
+  </ul>
+
+        </li>
+        <li>
+        <h4><code><a title="traceon.excitation.ExcitationType" href="#traceon.excitation.ExcitationType">ExcitationType</a></code></h4>
+        
+          
+  
+  <ul class="two-column">
+    <li><code><a title="traceon.excitation.ExcitationType.CURRENT" href="#traceon.excitation.ExcitationType.CURRENT">CURRENT</a></code></li>
+    <li><code><a title="traceon.excitation.ExcitationType.DIELECTRIC" href="#traceon.excitation.ExcitationType.DIELECTRIC">DIELECTRIC</a></code></li>
+    <li><code><a title="traceon.excitation.ExcitationType.MAGNETIZABLE" href="#traceon.excitation.ExcitationType.MAGNETIZABLE">MAGNETIZABLE</a></code></li>
+    <li><code><a title="traceon.excitation.ExcitationType.MAGNETOSTATIC_POT" href="#traceon.excitation.ExcitationType.MAGNETOSTATIC_POT">MAGNETOSTATIC_POT</a></code></li>
+    <li><code><a title="traceon.excitation.ExcitationType.VOLTAGE_FIXED" href="#traceon.excitation.ExcitationType.VOLTAGE_FIXED">VOLTAGE_FIXED</a></code></li>
+    <li><code><a title="traceon.excitation.ExcitationType.VOLTAGE_FUN" href="#traceon.excitation.ExcitationType.VOLTAGE_FUN">VOLTAGE_FUN</a></code></li>
+    <li><code><a title="traceon.excitation.ExcitationType.is_electrostatic" href="#traceon.excitation.ExcitationType.is_electrostatic">is_electrostatic</a></code></li>
+    <li><code><a title="traceon.excitation.ExcitationType.is_magnetostatic" href="#traceon.excitation.ExcitationType.is_magnetostatic">is_magnetostatic</a></code></li>
+  </ul>
+
+        </li>
+        <li>
+        <h4><code><a title="traceon.excitation.Symmetry" href="#traceon.excitation.Symmetry">Symmetry</a></code></h4>
+        
+          
+  
+  <ul class="">
+    <li><code><a title="traceon.excitation.Symmetry.RADIAL" href="#traceon.excitation.Symmetry.RADIAL">RADIAL</a></code></li>
+    <li><code><a title="traceon.excitation.Symmetry.THREE_D" href="#traceon.excitation.Symmetry.THREE_D">THREE_D</a></code></li>
+    <li><code><a title="traceon.excitation.Symmetry.is_2d" href="#traceon.excitation.Symmetry.is_2d">is_2d</a></code></li>
+    <li><code><a title="traceon.excitation.Symmetry.is_3d" href="#traceon.excitation.Symmetry.is_3d">is_3d</a></code></li>
+  </ul>
+
+        </li>
+      </ul>
+    </li>
+
+    </ul>
+  </nav>
+
+</main>
+
+<footer id="footer">
+    
+    <p>Generated by <a href="https://pdoc3.github.io/pdoc" title="pdoc: Python API documentation generator"><cite>pdoc</cite> 0.11.5</a>.</p>
+</footer>
+
+</body>
+</html>

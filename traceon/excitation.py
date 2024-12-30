@@ -3,14 +3,12 @@ created with the `traceon.geometry` module.
 
 The possible excitations are as follows:
 
-- Fixed voltage (electrode connect to a power supply)
-- Voltage function (a generic Python function specifies the voltage as a function of position)
+- Voltage (either fixed or as a function of position)
 - Dielectric, with arbitrary electric permittivity
-- Current coil, with fixed total amount of current (only in radial symmetry)
+- Current coil (radial symmetric geometry)
+- Current lines (3D geometry)
 - Magnetostatic scalar potential
 - Magnetizable material, with arbitrary magnetic permeability
-
-Currently current excitations are not supported in 3D. But magnetostatic fields can still be computed using the magnetostatic scalar potential.
 
 Once the excitation is specified, it can be passed to `traceon.solver.solve_direct` to compute the resulting field.
 """

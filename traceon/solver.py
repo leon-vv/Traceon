@@ -41,7 +41,10 @@ mathematics of calculating these coefficients quickly and accurately gets quite 
 __pdoc__ = {}
 __pdoc__['EffectivePointCharges'] = False
 __pdoc__['ElectrostaticSolver'] = False
+__pdoc__['ElectrostaticSolverRadial'] = False
 __pdoc__['MagnetostaticSolver'] = False
+__pdoc__['MagnetostaticSolverRadial'] = False
+__pdoc__['SolverRadial'] = False
 __pdoc__['Solver'] = False
 
 import math as m
@@ -352,13 +355,17 @@ def _excitation_to_higher_order(excitation):
 
 def solve_direct_superposition(excitation):
     """
-    superposition : bool
-        When using superposition the function returns multiple fields. Each field corresponds with a unity excitation (1V)
-        of a physical group that was previously assigned a non-zero fixed voltage value. This is useful when a geometry needs
-        to be analyzed for many different voltage settings. In this case taking a linear superposition of the returned fields
-        allows to select a different voltage 'setting' without inducing any computational cost. There is no computational cost
-        involved in using `superposition=True` since a direct solver is used which easily allows for multiple right hand sides (the
-        matrix does not have to be inverted multiple times). However, voltage functions are invalid in the superposition process (position dependent voltages).
+    When using superposition multiple fields are computed at once. Each field corresponds with a unity excitation (1V)
+    of an electrode that was assigned a non-zero fixed voltage value. This is useful when a geometry needs
+    to be analyzed for many different voltage settings. In this case taking a linear superposition of the returned fields
+    allows to select a different voltage 'setting' without inducing any computational cost. There is no computational cost
+    involved in using `superposition=True` since a direct solver is used which easily allows for multiple right hand sides (the
+    matrix does not have to be inverted multiple times). However, voltage functions are invalid in the superposition process (position dependent voltages).
+    
+    Returns
+    ---------------------------
+    dict of `traceon.field.Field`
+        Each key is the name of an electrode on which a voltage (or current) was applied, the corresponding values are the fields.
     """
     if excitation.mesh.is_2d() and not excitation.mesh.is_higher_order():
         excitation = _excitation_to_higher_order(excitation)

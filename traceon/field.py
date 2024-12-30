@@ -10,6 +10,12 @@ from . import util
 from . import logging
 from . import backend
 
+__pdoc__ = {}
+__pdoc__['EffectivePointCharges'] = False
+__pdoc__['Field.get_low_level_trace_function'] = False
+__pdoc__['FieldRadialBEM.get_low_level_trace_function'] = False
+__pdoc__['FieldRadialAxial.get_low_level_trace_function'] = False
+
 class EffectivePointCharges:
     def __init__(self, charges, jacobians, positions, directions=None):
         self.charges = np.array(charges, dtype=np.float64)
@@ -77,6 +83,9 @@ class EffectivePointCharges:
 
 
 class Field(ABC):
+    """The abstract `Field` class provides the method definitions that all field classes should implement. Note that
+    any child clas of the `Field` class can be passed to `traceon.tracing.Tracer` to trace particles through the field."""
+
     def field_at_point(self, point):
         """Convenience function for getting the field in the case that the field is purely electrostatic
         or magneotstatic. Automatically picks one of `electrostatic_field_at_point` or `magnetostatic_field_at_point`.
