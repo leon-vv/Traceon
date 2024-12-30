@@ -176,7 +176,7 @@ class FieldBEM(Field, ABC):
         bounds: (3, 2) np.ndarray of float64
             The min, max value of x, y, z respectively within the field is still computed.
         """
-        self.field_bounds = np.array(bounds)
+        self.field_bounds = np.array(bounds, dtype=np.float64)
         assert self.field_bounds.shape == (3,2)
     
     def is_electrostatic(self):
