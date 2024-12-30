@@ -2,10 +2,14 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 import traceon.geometry as G
-import traceon.solver as S
 import traceon.excitation as E
 import traceon.plotting as P
 import traceon.tracing as T
+
+try:
+    import traceon_pro.solver as S
+except ImportError:
+    S = None
 
 # Dimensions used for the deflector.
 THICKNESS = 0.5
@@ -67,6 +71,9 @@ excitation.add_voltage(ground=0.0, deflector_positive=5, deflector_negative=-5)
 
 # Use the Boundary Element Method (BEM) to calculate the surface charges,
 # the surface charges gives rise to a electrostatic field.
+assert S is not None, ("The 'traceon_pro' package is not installed or not found. "
+        "Traceon Pro is required to solve 3D geometries.\n"
+        "For more information, visit: https://www.traceon.org")
 field = S.solve_direct(excitation)
 
 # An instance of the tracer class allows us to easily find the trajectories of 
