@@ -30,6 +30,38 @@ struct field_derivs_args {
 	size_t N_z;
 };
 
+
+EXPORT void fill_jacobian_buffer_3d(
+	jacobian_buffer_3d jacobian_buffer,
+	position_buffer_3d pos_buffer,
+    vertices_3d t,
+    size_t N_triangles) {
+		
+    for(int i = 0; i < N_triangles; i++) {  
+		
+		double x1 = t[i][0][0], y1 = t[i][0][1], z1 = t[i][0][2];
+		double x2 = t[i][1][0], y2 = t[i][1][1], z2 = t[i][1][2];
+		double x3 = t[i][2][0], y3 = t[i][2][1], z3 = t[i][2][2];
+				
+		double area = 0.5*sqrt(
+			pow((y2-y1)*(z3-z1)-(y3-y1)*(z2-z1), 2) +
+			pow((x3-x1)*(z2-z1)-(x2-x1)*(z3-z1), 2) +
+			pow((x2-x1)*(y3-y1)-(x3-x1)*(y2-y1), 2));
+		
+        for (int k=0; k < N_TRIANGLE_QUAD; k++) {  
+            double b1_ = QUAD_B1[k];  
+            double b2_ = QUAD_B2[k];  
+            double w = QUAD_WEIGHTS[k];  
+			
+            jacobian_buffer[i][k] = 2 * w * area;
+            pos_buffer[i][k][0] = x1 + b1_*(x2 - x1) + b2_*(x3 - x1);
+            pos_buffer[i][k][1] = y1 + b1_*(y2 - y1) + b2_*(y3 - y1);
+            pos_buffer[i][k][2] = z1 + b1_*(z2 - z1) + b2_*(z3 - z1);
+        }
+    }
+}
+
+
 EXPORT void
 fill_jacobian_buffer_current_three_d(
 	double (*line_points)[2][3],
