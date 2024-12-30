@@ -549,6 +549,9 @@ def flux_density_to_charge_factor(K: float) -> float:
     return backend_lib.flux_density_to_charge_factor(K)
 
 def axial_coefficients_3d(charges: np.ndarray, jacobian_buffer: np.ndarray, pos_buffer: np.ndarray, z: np.ndarray) -> np.ndarray:
+    if len(charges) == 0:
+        return np.zeros( (len(z), 2, NU_MAX, M_MAX) )
+     
     assert jacobian_buffer.shape == (len(charges), N_TRIANGLE_QUAD)
     assert pos_buffer.shape == (len(charges), N_TRIANGLE_QUAD, 3)
     
