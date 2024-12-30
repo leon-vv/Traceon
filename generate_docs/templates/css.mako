@@ -18,6 +18,12 @@
     padding: 20px;
   }
 
+  #content .doc-image {
+	padding:0px;
+	display:block;
+	margin: 0px auto;
+  }
+
   #sidebar {
     padding: 1.5em;
 	padding-left:2.5em;
