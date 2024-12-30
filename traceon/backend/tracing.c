@@ -172,41 +172,6 @@ field_radial_derivs_traceable(double position[3], double velocity[3], void *args
 	field_radial_derivs(position, mag_out, args->z_interpolation, args->magnetostatic_axial_coeffs, args->N_z);
 }
 
-EXPORT void
-field_3d_traceable(double position[3], double velocity[3], void *args_p, double elec_out[3], double mag_out[3]) {
-
-	struct field_evaluation_args *args = (struct field_evaluation_args*)args_p;
-	struct effective_point_charges_3d *elec_charges = (struct effective_point_charges_3d*) args->elec_charges;
-	struct effective_point_charges_3d *mag_charges = (struct effective_point_charges_3d*) args->mag_charges;
-	struct effective_point_currents_3d *currents = (struct effective_point_currents_3d*) args->currents;
-	
-	double (*bounds)[2] = (double (*)[2]) args->bounds;
-	
-	if(	bounds == NULL || ((bounds[0][0] < position[0]) && (position[0] < bounds[0][1])
-		&& (bounds[1][0] < position[1]) && (position[1] < bounds[1][1])
-		&& (bounds[2][0] < position[2]) && (position[2] < bounds[2][1])) ) {
-
-		field_3d(position, elec_out, elec_charges->charges, elec_charges->jacobians, elec_charges->positions, elec_charges->N);
-		field_3d(position, mag_out, mag_charges->charges, mag_charges->jacobians, mag_charges->positions, mag_charges->N);
-		
-		double curr_field[3] = {0.};
-		current_field_3d(position, *currents, curr_field);
-
-		mag_out[0] += curr_field[0];
-		mag_out[1] += curr_field[1];
-		mag_out[2] += curr_field[2];
-	}
-	else {
-		elec_out[0] = 0.0;
-		elec_out[1] = 0.0;
-		elec_out[2] = 0.0;
-		
-		mag_out[0] = 0.0;
-		mag_out[1] = 0.0;
-		mag_out[2] = 0.0;
-	}
-}
-
 void
 field_3d_derivs_traceable(double position[3], double velocity[3], void *args_p, double elec_out[3], double mag_out[3]) {
 	struct field_derivs_args *args = (struct field_derivs_args*) args_p;
