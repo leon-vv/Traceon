@@ -1,8 +1,25 @@
 # Traceon
+Traceon is a Python library designed for the modeling of electron microscopes.
 
-Traceon is a general software package used for numerical electron optics. Its main feature is the implementation of the Boundary Element Method (BEM) to quickly calculate the surface charge distribution. The program supports both radial symmetry and general three-dimensional geometries. Electron tracing can be done very quickly using accurate radial series interpolation in both geometries. The electron trajectories obtained can help determine the aberrations of the optical components under study.
+Traceon features a Boundary Element Method (BEM) solver that computes electrostatic and magnetostatic fields for accurate particle tracing. By relying on the BEM rather than FEM, Traceon offers notable improvements in speed and accuracy compared to most commercial alternatives. It supports both radially symmetric and fully 3D geometries, while leveraging advanced axial field interpolations to greatly speed up the particle tracing.
 
-The core of Traceon is completely free to use and open source. There is a commerical upgrade with more capabilities. The source code in this repository is distributed under the `MPL 2.0` license.
+### Wait, is this commercial?
+
+The core of Traceon is completely free to use and open source, and distributed under the `MPL 2.0` license. The software downloaded when using `pip install traceon` does not include any closed source software. There is a commercial package called `traceon_pro` which builds on the `traceon` package to provide a more capable library.
+
+| Feature | Traceon | Traceon Pro |
+| --- | :---: | :---: |
+| Parametric mesher  | ✅ | ✅|    
+| Plot module | ✅ | ✅ |
+| Radial symmetric solver (electrostatic, magnetostatic) | ✅ | ✅ |
+| Radial symmetric particle tracer | ✅ | ✅ |
+| Radial symmetric axial interpolation (fast tracing) | ✅ | ✅|
+| 3D direct solver (electrostatic, magnetostatic) | | ✅|
+| 3D solver using fast multipole method  | | ✅|
+| 3D particle tracing | | ✅|
+| 3D axial interpolation (fast tracing) | | ✅|
+
+
 
 ## Documentation
 
