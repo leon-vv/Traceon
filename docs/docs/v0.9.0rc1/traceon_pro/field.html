@@ -8,7 +8,7 @@
 
 
     <title>traceon_pro.field API documentation</title>
-    <meta name="description" content="">
+    <meta name="description" content="Radial series expansion in 3D …">
 
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/10up-sanitize.css/13.0.0/sanitize.min.css" integrity="sha512-y1dtMcuvtTMJc1yPgEqF0ZjQbhnc/bFhyvIyVNb9Zk5mIGtqVaAB1Ttl28su8AvFMOY0EwRbAe+HCLqj6W7/KA==" crossorigin>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/10up-sanitize.css/13.0.0/typography.min.css" integrity="sha512-Y1DYSb995BAfxobCkKepB1BqJJTPrOp3zPL74AWFugHHmmdcvO+C48WLrUOlhGMc0QG7AE3f7gmvvcrmX2fDoA==" crossorigin>
@@ -56,7 +56,17 @@
   </header>
 
   <section id="section-intro">
-  
+  <h2 id="radial-series-expansion-in-3d">Radial series expansion in 3D</h2>
+<p>In a general three dimensional geometry the potential will be dependent not only on the distance from the optical axis but also on the angle <span><span class="MathJax_Preview"> \theta </span><script type="math/tex"> \theta </script></span> around the optical axis
+at which the potential is sampled. It turns out (equation (35, 24) in [1]) the potential can be written as follows:</p>
+<p><span><span class="MathJax_Preview">
+\phi = \sum_{\nu=0}^\infty \sum_{m=0}^\infty r^{2\nu + m} \left( A^\nu_m \cos(m\theta) + B^\nu_m \sin(m\theta) \right)
+</span><script type="math/tex; mode=display">
+\phi = \sum_{\nu=0}^\infty \sum_{m=0}^\infty r^{2\nu + m} \left( A^\nu_m \cos(m\theta) + B^\nu_m \sin(m\theta) \right)
+</script></span></p>
+<p>The <span><span class="MathJax_Preview">A^\nu_m</span><script type="math/tex">A^\nu_m</script></span> and <span><span class="MathJax_Preview">B^\nu_m</span><script type="math/tex">B^\nu_m</script></span> coefficients can be expressed in <em>directional derivatives</em> perpendicular to the optical axis, analogous to the radial symmetric case. The 
+mathematics of calculating these coefficients quickly and accurately gets quite involved, but all details have been abstracted away from the user.</p>
+<p>[1] W. Glaser. Grundlagen der Elektronenoptik. 1952.</p>
   </section>
 
   <section>
@@ -81,12 +91,13 @@
   
   
 
-  <div class="desc"><p>Field computed using a radial series expansion around the optical axis (z-axis). See comments at the start of this page.</p>
-<p>Use a radial series expansion around the optical axis to allow for very fast field
+  <div class="desc"><p>Use a radial series expansion around the optical axis to allow for very fast field
 evaluations. Constructing the radial series expansion in 3D is much more complicated
 than the radial symmetric case, but all details have been abstracted away from the user.</p>
 <h2 id="parameters">Parameters</h2>
 <dl>
+<dt><strong><code>field</code></strong> :&ensp;<code><a title="traceon_pro.field.Field3D_BEM" href="#traceon_pro.field.Field3D_BEM">Field3D_BEM</a></code></dt>
+<dd>The field which to approximate along the z-axis</dd>
 <dt><strong><code>zmin</code></strong> :&ensp;<code>float</code></dt>
 <dd>Location on the optical axis where to start sampling the radial expansion coefficients.</dd>
 <dt><strong><code>zmax</code></strong> :&ensp;<code>float</code></dt>
@@ -148,18 +159,6 @@ is determined by taking into account the number of elements in the mesh.</dd>
 </dd>
   
               
-    <dt id="traceon_pro.field.Field3DAxial.get_low_level_trace_function"><code class="name flex">
-        
-        <span>def <span class="ident">get_low_level_trace_function</span></span>(<span>self)</span>
-    </code></dt>
-    <dd>
-  
-  
-
-  <div class="desc"></div>
-</dd>
-  
-              
     <dt id="traceon_pro.field.Field3DAxial.get_tracer"><code class="name flex">
         
         <span>def <span class="ident">get_tracer</span></span>(<span>self, bounds)</span>
@@ -168,7 +167,9 @@ is determined by taking into account the number of elements in the mesh.</dd>
   
   
 
-  <div class="desc"></div>
+  <div class="desc"><p>Get a <code><a title="traceon.tracing.Tracer" href="../traceon/tracing.html#traceon.tracing.Tracer">Tracer</a></code> class capable of tracing particle through this field.</p>
+<h2 id="returns">Returns</h2>
+<p><code><a title="traceon.tracing.Tracer" href="../traceon/tracing.html#traceon.tracing.Tracer">Tracer</a></code></p></div>
 </dd>
   
               
@@ -235,7 +236,7 @@ is determined by taking into account the number of elements in the mesh.</dd>
   
 
   <div class="desc"><p>An electrostatic field resulting from a general 3D geometry. The field is a result of the surface charges as computed by the
-<code>solve_direct</code> function. See the comments in <code>FieldBEM</code>.</p></div>
+<code><a title="traceon_pro.solver.solve_direct" href="solver.html#traceon_pro.solver.solve_direct">solve_direct()</a></code> function. See also the comments in <code><a title="traceon.field.FieldBEM" href="../traceon/field.html#traceon.field.FieldBEM">FieldBEM</a></code>.</p></div>
 
 
           <h3>Ancestors</h3>
@@ -256,7 +257,17 @@ is determined by taking into account the number of elements in the mesh.</dd>
   
   
 
-  <div class="desc"></div>
+  <div class="desc"><p>Compute the area of a specific triangle which makes up the field.</p>
+<h2 id="parameters">Parameters</h2>
+<dl>
+<dt><strong><code>i</code></strong> :&ensp;<code>int</code></dt>
+<dd>Index of the triangle for which to compute the area</dd>
+</dl>
+<h2 id="returns">Returns</h2>
+<dl>
+<dt><code>float</code></dt>
+<dd>Area of the triangle (in meter^2).</dd>
+</dl></div>
 </dd>
   
               
@@ -268,7 +279,17 @@ is determined by taking into account the number of elements in the mesh.</dd>
   
   
 
-  <div class="desc"></div>
+  <div class="desc"><p>Compute the magnetic field \vec{H} resulting from the current
+excitation by using the Biot-Savart law. Note that the magnetic field
+does not include the field induced by the magnetizable material (for this,
+see the <code>traceon.field.Field3D_BEM.magnetostatic_field_at_point</code> method).</p>
+<h2 id="parameters">Parameters</h2>
+<dl>
+<dt><strong><code>point</code></strong> :&ensp;<code>(3,) array</code> of <code>float64</code></dt>
+<dd>Position at which to compute the field.</dd>
+</dl>
+<h2 id="returns">Returns</h2>
+<p>(3,) array of float64 representing the magnetic field</p></div>
 </dd>
   
               
@@ -310,18 +331,6 @@ is determined by taking into account the number of elements in the mesh.</dd>
 </dd>
   
               
-    <dt id="traceon_pro.field.Field3D_BEM.get_low_level_trace_function"><code class="name flex">
-        
-        <span>def <span class="ident">get_low_level_trace_function</span></span>(<span>self)</span>
-    </code></dt>
-    <dd>
-  
-  
-
-  <div class="desc"></div>
-</dd>
-  
-              
     <dt id="traceon_pro.field.Field3D_BEM.get_tracer"><code class="name flex">
         
         <span>def <span class="ident">get_tracer</span></span>(<span>self, bounds)</span>
@@ -330,7 +339,9 @@ is determined by taking into account the number of elements in the mesh.</dd>
   
   
 
-  <div class="desc"></div>
+  <div class="desc"><p>Get a <code><a title="traceon.tracing.Tracer" href="../traceon/tracing.html#traceon.tracing.Tracer">Tracer</a></code> class capable of tracing particle through this field.</p>
+<h2 id="returns">Returns</h2>
+<p><code><a title="traceon.tracing.Tracer" href="../traceon/tracing.html#traceon.tracing.Tracer">Tracer</a></code></p></div>
 </dd>
   
               
@@ -443,7 +454,6 @@ is determined by taking into account the number of elements in the mesh.</dd>
   <ul class="">
     <li><code><a title="traceon_pro.field.Field3DAxial.electrostatic_field_at_point" href="#traceon_pro.field.Field3DAxial.electrostatic_field_at_point">electrostatic_field_at_point</a></code></li>
     <li><code><a title="traceon_pro.field.Field3DAxial.electrostatic_potential_at_point" href="#traceon_pro.field.Field3DAxial.electrostatic_potential_at_point">electrostatic_potential_at_point</a></code></li>
-    <li><code><a title="traceon_pro.field.Field3DAxial.get_low_level_trace_function" href="#traceon_pro.field.Field3DAxial.get_low_level_trace_function">get_low_level_trace_function</a></code></li>
     <li><code><a title="traceon_pro.field.Field3DAxial.get_tracer" href="#traceon_pro.field.Field3DAxial.get_tracer">get_tracer</a></code></li>
     <li><code><a title="traceon_pro.field.Field3DAxial.magnetostatic_field_at_point" href="#traceon_pro.field.Field3DAxial.magnetostatic_field_at_point">magnetostatic_field_at_point</a></code></li>
     <li><code><a title="traceon_pro.field.Field3DAxial.magnetostatic_potential_at_point" href="#traceon_pro.field.Field3DAxial.magnetostatic_potential_at_point">magnetostatic_potential_at_point</a></code></li>
@@ -460,7 +470,6 @@ is determined by taking into account the number of elements in the mesh.</dd>
     <li><code><a title="traceon_pro.field.Field3D_BEM.current_field_at_point" href="#traceon_pro.field.Field3D_BEM.current_field_at_point">current_field_at_point</a></code></li>
     <li><code><a title="traceon_pro.field.Field3D_BEM.electrostatic_field_at_point" href="#traceon_pro.field.Field3D_BEM.electrostatic_field_at_point">electrostatic_field_at_point</a></code></li>
     <li><code><a title="traceon_pro.field.Field3D_BEM.electrostatic_potential_at_point" href="#traceon_pro.field.Field3D_BEM.electrostatic_potential_at_point">electrostatic_potential_at_point</a></code></li>
-    <li><code><a title="traceon_pro.field.Field3D_BEM.get_low_level_trace_function" href="#traceon_pro.field.Field3D_BEM.get_low_level_trace_function">get_low_level_trace_function</a></code></li>
     <li><code><a title="traceon_pro.field.Field3D_BEM.get_tracer" href="#traceon_pro.field.Field3D_BEM.get_tracer">get_tracer</a></code></li>
     <li><code><a title="traceon_pro.field.Field3D_BEM.magnetostatic_field_at_point" href="#traceon_pro.field.Field3D_BEM.magnetostatic_field_at_point">magnetostatic_field_at_point</a></code></li>
     <li><code><a title="traceon_pro.field.Field3D_BEM.magnetostatic_potential_at_point" href="#traceon_pro.field.Field3D_BEM.magnetostatic_potential_at_point">magnetostatic_potential_at_point</a></code></li>

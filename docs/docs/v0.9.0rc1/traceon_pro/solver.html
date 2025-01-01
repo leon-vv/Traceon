@@ -78,14 +78,14 @@
   
 
   <div class="desc"><p>Solve for the charges on the surface of the geometry by using a direct method and taking
-into account the specified <code>excitation</code>. </p>
+into account the specified excitation.</p>
 <h2 id="parameters">Parameters</h2>
 <dl>
 <dt><strong><code>excitation</code></strong> :&ensp;<code><a title="traceon.excitation.Excitation" href="../traceon/excitation.html#traceon.excitation.Excitation">Excitation</a></code></dt>
 <dd>The excitation that produces the resulting field.</dd>
 </dl>
 <h2 id="returns">Returns</h2>
-<p><code>traceon.field.Field3D_BEM</code></p></div>
+<p><code><a title="traceon_pro.field.Field3D_BEM" href="field.html#traceon_pro.field.Field3D_BEM">Field3D_BEM</a></code> or <code><a title="traceon.field.FieldRadialBEM" href="../traceon/field.html#traceon.field.FieldRadialBEM">FieldRadialBEM</a></code></p></div>
 </dd>
   
       
@@ -97,13 +97,20 @@ into account the specified <code>excitation</code>. </p>
   
   
 
-  <div class="desc"><p>superposition : bool
-    When using superposition the function returns multiple fields. Each field corresponds with a unity excitation (1V)
-    of a physical group that was previously assigned a non-zero fixed voltage value. This is useful when a geometry needs
-    to be analyzed for many different voltage settings. In this case taking a linear superposition of the returned fields
-    allows to select a different voltage 'setting' without inducing any computational cost. There is no computational cost
-    involved in using <code>superposition=True</code> since a direct solver is used which easily allows for multiple right hand sides (the
-    matrix does not have to be inverted multiple times). However, voltage functions are invalid in the superposition process (position dependent voltages).</p></div>
+  <div class="desc"><p>When using superposition multiple fields are computed at once. Each field corresponds with a unity excitation (1V or 1A)
+of an electrode that was assigned a non-zero fixed voltage (or current) value. This is useful when a geometry needs
+to be analyzed for many different voltage (or current) settings. In this case taking a linear superposition of the returned fields
+allows to select a different voltage 'setting' without inducing any computational cost. There is no computational cost
+involved in using <code>superposition=True</code> since a direct solver is used which easily allows for multiple right hand sides (the
+matrix does not have to be inverted multiple times). However, position dependent voltages are invalid in the superposition process.</p>
+<h2 id="parameters">Parameters</h2>
+<dl>
+<dt><strong><code>excitation</code></strong> :&ensp;<code><a title="traceon.excitation.Excitation" href="../traceon/excitation.html#traceon.excitation.Excitation">Excitation</a></code></dt>
+<dd>The excitation that produces the resulting field.</dd>
+</dl>
+<h2 id="returns">Returns</h2>
+<p>Dictionary of str to <code><a title="traceon.field.Field" href="../traceon/field.html#traceon.field.Field">Field</a></code>.
+    Each key is the name of an electrode on which a voltage (or current) was applied, the corresponding values are the fields.</p></div>
 </dd>
   
       
@@ -115,7 +122,22 @@ into account the specified <code>excitation</code>. </p>
   
   
 
-  <div class="desc"></div>
+  <div class="desc"><p>Solve for the charges on the surface of the geometry by using a fast multipole method (FMM) and taking
+into account the specified excitation. The FMM works by diving the geometry up into boxes, and using approximation
+formulas to compute the potential interaction of elements that are 'far apart'. </p>
+<h2 id="parameters">Parameters</h2>
+<dl>
+<dt><strong><code>excitation</code></strong> :&ensp;<code><a title="traceon.excitation.Excitation" href="../traceon/excitation.html#traceon.excitation.Excitation">Excitation</a></code></dt>
+<dd>The excitation that produces the resulting field.</dd>
+<dt><strong><code>N_max</code></strong> :&ensp;<code>int</code></dt>
+<dd>The maximum number of triangles to put into every box when dividing up the geometry. A larger number usually 
+improves accuracy (and sometimes performance) but increases memory usage.</dd>
+<dt><strong><code>l_max</code></strong> :&ensp;<code>int</code></dt>
+<dd>The order of the multipole expansions used to compute the far-away interactions. A larger number improves 
+accuracy but increases the solve time.</dd>
+</dl>
+<h2 id="returns">Returns</h2>
+<p><code><a title="traceon_pro.field.Field3D_BEM" href="field.html#traceon_pro.field.Field3D_BEM">Field3D_BEM</a></code></p></div>
 </dd>
   
       
@@ -127,327 +149,31 @@ into account the specified <code>excitation</code>. </p>
   
   
 
-  <div class="desc"></div>
+  <div class="desc"><p>When using superposition multiple fields are computed. Each field corresponds with a unity excitation (1V or 1A)
+of an electrode that was assigned a non-zero fixed voltage (or current) value. This is useful when a geometry needs
+to be analyzed for many different voltage (or current) settings. In this case taking a linear superposition of the returned fields
+allows to select a different voltage 'setting' without inducing any computational cost. Note that unlike the direct method the
+fast multipole method (FMM) uses an iterative solver and therefore needs to redo the entire solve step for every unity excitation.</p>
+<h2 id="parameters">Parameters</h2>
+<dl>
+<dt><strong><code>excitation</code></strong> :&ensp;<code><a title="traceon.excitation.Excitation" href="../traceon/excitation.html#traceon.excitation.Excitation">Excitation</a></code></dt>
+<dd>The excitation that produces the resulting field.</dd>
+<dt><strong><code>N_max</code></strong> :&ensp;<code>int</code></dt>
+<dd>The maximum number of triangles to put into every box when dividing up the geometry. A larger number usually 
+improves accuracy (and sometimes performance) but increases memory usage.</dd>
+<dt><strong><code>l_max</code></strong> :&ensp;<code>int</code></dt>
+<dd>The order of the multipole expansions used to compute the far-away interactions. A larger number improves 
+accuracy but increases the solve time.</dd>
+</dl>
+<h2 id="returns">Returns</h2>
+<p>Dictionary of str to <code><a title="traceon.field.Field" href="../traceon/field.html#traceon.field.Field">Field</a></code>.
+    Each key is the name of an electrode on which a voltage (or current) was applied, the corresponding values are the fields.</p></div>
 </dd>
   
     </dl>
   </section>
 
   <section>
-    <h2 class="section-title" id="header-classes">Classes</h2>
-    <dl>
-      
-      <dt id="traceon_pro.solver.ElectrostaticSolver3D"><code class="flex name class">
-          <span>class <span class="ident">ElectrostaticSolver3D</span></span>
-              <span>(</span><span>*args, **kwargs)</span>
-      </code></dt>
-
-      <dd>
-  
-  
-
-  <div class="desc"><p>Helper class that provides a standard way to create an ABC using
-inheritance.</p></div>
-
-
-          <h3>Ancestors</h3>
-          <ul class="hlist">
-              <li><a title="traceon_pro.solver.Solver3D" href="#traceon_pro.solver.Solver3D">Solver3D</a></li>
-              <li>traceon.solver.Solver</li>
-              <li>abc.ABC</li>
-          </ul>
-
-          <h3>Subclasses</h3>
-          <ul class="hlist">
-              <li><a title="traceon_pro.solver.ElectrostaticSolverFMM" href="#traceon_pro.solver.ElectrostaticSolverFMM">ElectrostaticSolverFMM</a></li>
-          </ul>
-          <h3>Methods</h3>
-          <dl>
-              
-    <dt id="traceon_pro.solver.ElectrostaticSolver3D.charges_to_field"><code class="name flex">
-        
-        <span>def <span class="ident">charges_to_field</span></span>(<span>self, charges)</span>
-    </code></dt>
-    <dd>
-  
-  
-
-  <div class="desc"></div>
-</dd>
-  
-              
-    <dt id="traceon_pro.solver.ElectrostaticSolver3D.get_active_elements"><code class="name flex">
-        
-        <span>def <span class="ident">get_active_elements</span></span>(<span>self)</span>
-    </code></dt>
-    <dd>
-  
-  
-
-  <div class="desc"></div>
-</dd>
-  
-              
-    <dt id="traceon_pro.solver.ElectrostaticSolver3D.get_preexisting_field"><code class="name flex">
-        
-        <span>def <span class="ident">get_preexisting_field</span></span>(<span>self, point)</span>
-    </code></dt>
-    <dd>
-  
-  
-
-  <div class="desc"><p>Get a field that exists even if all the charges are zero. This field
-is currently always a result of currents, but can in the future be extended
-to for example support permanent magnets.</p></div>
-</dd>
-  
-          </dl>
-
-          
-
-      </dd>
-      
-      <dt id="traceon_pro.solver.ElectrostaticSolverFMM"><code class="flex name class">
-          <span>class <span class="ident">ElectrostaticSolverFMM</span></span>
-              <span>(</span><span>*args, **kwargs)</span>
-      </code></dt>
-
-      <dd>
-  
-  
-
-  <div class="desc"><p>Helper class that provides a standard way to create an ABC using
-inheritance.</p></div>
-
-
-          <h3>Ancestors</h3>
-          <ul class="hlist">
-              <li><a title="traceon_pro.solver.ElectrostaticSolver3D" href="#traceon_pro.solver.ElectrostaticSolver3D">ElectrostaticSolver3D</a></li>
-              <li><a title="traceon_pro.solver.Solver3D" href="#traceon_pro.solver.Solver3D">Solver3D</a></li>
-              <li>traceon.solver.Solver</li>
-              <li>abc.ABC</li>
-          </ul>
-
-          <h3>Methods</h3>
-          <dl>
-              
-    <dt id="traceon_pro.solver.ElectrostaticSolverFMM.solve_fmm"><code class="name flex">
-        
-        <span>def <span class="ident">solve_fmm</span></span>(<span>self, N_max=256, l_max=12)</span>
-    </code></dt>
-    <dd>
-  
-  
-
-  <div class="desc"></div>
-</dd>
-  
-          </dl>
-
-          
-              <h3>Inherited members</h3>
-              <ul class="hlist">
-                  <li><code><b><a title="traceon_pro.solver.ElectrostaticSolver3D" href="#traceon_pro.solver.ElectrostaticSolver3D">ElectrostaticSolver3D</a></b></code>:
-                      <ul class="hlist">
-                              <li><code><a title="traceon_pro.solver.ElectrostaticSolver3D.get_preexisting_field" href="#traceon_pro.solver.ElectrostaticSolver3D.get_preexisting_field">get_preexisting_field</a></code></li>
-                      </ul>
-
-                  </li>
-              </ul>
-
-      </dd>
-      
-      <dt id="traceon_pro.solver.MagnetostaticSolver3D"><code class="flex name class">
-          <span>class <span class="ident">MagnetostaticSolver3D</span></span>
-              <span>(</span><span>*args, **kwargs)</span>
-      </code></dt>
-
-      <dd>
-  
-  
-
-  <div class="desc"><p>Helper class that provides a standard way to create an ABC using
-inheritance.</p></div>
-
-
-          <h3>Ancestors</h3>
-          <ul class="hlist">
-              <li><a title="traceon_pro.solver.Solver3D" href="#traceon_pro.solver.Solver3D">Solver3D</a></li>
-              <li>traceon.solver.Solver</li>
-              <li>abc.ABC</li>
-          </ul>
-
-          <h3>Methods</h3>
-          <dl>
-              
-    <dt id="traceon_pro.solver.MagnetostaticSolver3D.charges_to_field"><code class="name flex">
-        
-        <span>def <span class="ident">charges_to_field</span></span>(<span>self, charges)</span>
-    </code></dt>
-    <dd>
-  
-  
-
-  <div class="desc"></div>
-</dd>
-  
-              
-    <dt id="traceon_pro.solver.MagnetostaticSolver3D.get_active_elements"><code class="name flex">
-        
-        <span>def <span class="ident">get_active_elements</span></span>(<span>self)</span>
-    </code></dt>
-    <dd>
-  
-  
-
-  <div class="desc"></div>
-</dd>
-  
-              
-    <dt id="traceon_pro.solver.MagnetostaticSolver3D.get_current_field"><code class="name flex">
-        
-        <span>def <span class="ident">get_current_field</span></span>(<span>self) ‑> <a title="traceon.field.FieldBEM" href="../traceon/field.html#traceon.field.FieldBEM">FieldBEM</a></span>
-    </code></dt>
-    <dd>
-  
-  
-
-  <div class="desc"></div>
-</dd>
-  
-              
-    <dt id="traceon_pro.solver.MagnetostaticSolver3D.get_preexisting_field"><code class="name flex">
-        
-        <span>def <span class="ident">get_preexisting_field</span></span>(<span>self, point)</span>
-    </code></dt>
-    <dd>
-  
-  
-
-  <div class="desc"><p>Get a field that exists even if all the charges are zero. This field
-is currently always a result of currents, but can in the future be extended
-to for example support permanent magnets.</p></div>
-</dd>
-  
-          </dl>
-
-          
-
-      </dd>
-      
-      <dt id="traceon_pro.solver.ProgressPrinter"><code class="flex name class">
-          <span>class <span class="ident">ProgressPrinter</span></span>
-              <span>(</span><span>target_value)</span>
-      </code></dt>
-
-      <dd>
-  
-  
-
-  <div class="desc"></div>
-
-
-
-          <h3>Methods</h3>
-          <dl>
-              
-    <dt id="traceon_pro.solver.ProgressPrinter.print_end"><code class="name flex">
-        
-        <span>def <span class="ident">print_end</span></span>(<span>self)</span>
-    </code></dt>
-    <dd>
-  
-  
-
-  <div class="desc"></div>
-</dd>
-  
-              
-    <dt id="traceon_pro.solver.ProgressPrinter.print_progress"><code class="name flex">
-        
-        <span>def <span class="ident">print_progress</span></span>(<span>self, current_value, iterations)</span>
-    </code></dt>
-    <dd>
-  
-  
-
-  <div class="desc"></div>
-</dd>
-  
-          </dl>
-
-          
-
-      </dd>
-      
-      <dt id="traceon_pro.solver.Solver3D"><code class="flex name class">
-          <span>class <span class="ident">Solver3D</span></span>
-              <span>(</span><span>*args, **kwargs)</span>
-      </code></dt>
-
-      <dd>
-  
-  
-
-  <div class="desc"><p>Helper class that provides a standard way to create an ABC using
-inheritance.</p></div>
-
-
-          <h3>Ancestors</h3>
-          <ul class="hlist">
-              <li>traceon.solver.Solver</li>
-              <li>abc.ABC</li>
-          </ul>
-
-          <h3>Subclasses</h3>
-          <ul class="hlist">
-              <li><a title="traceon_pro.solver.ElectrostaticSolver3D" href="#traceon_pro.solver.ElectrostaticSolver3D">ElectrostaticSolver3D</a></li>
-              <li><a title="traceon_pro.solver.MagnetostaticSolver3D" href="#traceon_pro.solver.MagnetostaticSolver3D">MagnetostaticSolver3D</a></li>
-          </ul>
-          <h3>Methods</h3>
-          <dl>
-              
-    <dt id="traceon_pro.solver.Solver3D.get_jacobians_and_positions"><code class="name flex">
-        
-        <span>def <span class="ident">get_jacobians_and_positions</span></span>(<span>self, vertices: numpy.ndarray) ‑> Tuple[numpy.ndarray, numpy.ndarray]</span>
-    </code></dt>
-    <dd>
-  
-  
-
-  <div class="desc"></div>
-</dd>
-  
-              
-    <dt id="traceon_pro.solver.Solver3D.get_matrix"><code class="name flex">
-        
-        <span>def <span class="ident">get_matrix</span></span>(<span>self)</span>
-    </code></dt>
-    <dd>
-  
-  
-
-  <div class="desc"></div>
-</dd>
-  
-              
-    <dt id="traceon_pro.solver.Solver3D.get_normal_vectors"><code class="name flex">
-        
-        <span>def <span class="ident">get_normal_vectors</span></span>(<span>self)</span>
-    </code></dt>
-    <dd>
-  
-  
-
-  <div class="desc"></div>
-</dd>
-  
-          </dl>
-
-          
-
-      </dd>
-    </dl>
   </section>
 
     </article>
@@ -502,68 +228,6 @@ inheritance.</p></div>
 
     </li>
 
-    <li><h3><a href="#header-classes">Classes</a></h3>
-      <ul>
-        <li>
-        <h4><code><a title="traceon_pro.solver.ElectrostaticSolver3D" href="#traceon_pro.solver.ElectrostaticSolver3D">ElectrostaticSolver3D</a></code></h4>
-        
-          
-  
-  <ul class="">
-    <li><code><a title="traceon_pro.solver.ElectrostaticSolver3D.charges_to_field" href="#traceon_pro.solver.ElectrostaticSolver3D.charges_to_field">charges_to_field</a></code></li>
-    <li><code><a title="traceon_pro.solver.ElectrostaticSolver3D.get_active_elements" href="#traceon_pro.solver.ElectrostaticSolver3D.get_active_elements">get_active_elements</a></code></li>
-    <li><code><a title="traceon_pro.solver.ElectrostaticSolver3D.get_preexisting_field" href="#traceon_pro.solver.ElectrostaticSolver3D.get_preexisting_field">get_preexisting_field</a></code></li>
-  </ul>
-
-        </li>
-        <li>
-        <h4><code><a title="traceon_pro.solver.ElectrostaticSolverFMM" href="#traceon_pro.solver.ElectrostaticSolverFMM">ElectrostaticSolverFMM</a></code></h4>
-        
-          
-  
-  <ul class="">
-    <li><code><a title="traceon_pro.solver.ElectrostaticSolverFMM.solve_fmm" href="#traceon_pro.solver.ElectrostaticSolverFMM.solve_fmm">solve_fmm</a></code></li>
-  </ul>
-
-        </li>
-        <li>
-        <h4><code><a title="traceon_pro.solver.MagnetostaticSolver3D" href="#traceon_pro.solver.MagnetostaticSolver3D">MagnetostaticSolver3D</a></code></h4>
-        
-          
-  
-  <ul class="">
-    <li><code><a title="traceon_pro.solver.MagnetostaticSolver3D.charges_to_field" href="#traceon_pro.solver.MagnetostaticSolver3D.charges_to_field">charges_to_field</a></code></li>
-    <li><code><a title="traceon_pro.solver.MagnetostaticSolver3D.get_active_elements" href="#traceon_pro.solver.MagnetostaticSolver3D.get_active_elements">get_active_elements</a></code></li>
-    <li><code><a title="traceon_pro.solver.MagnetostaticSolver3D.get_current_field" href="#traceon_pro.solver.MagnetostaticSolver3D.get_current_field">get_current_field</a></code></li>
-    <li><code><a title="traceon_pro.solver.MagnetostaticSolver3D.get_preexisting_field" href="#traceon_pro.solver.MagnetostaticSolver3D.get_preexisting_field">get_preexisting_field</a></code></li>
-  </ul>
-
-        </li>
-        <li>
-        <h4><code><a title="traceon_pro.solver.ProgressPrinter" href="#traceon_pro.solver.ProgressPrinter">ProgressPrinter</a></code></h4>
-        
-          
-  
-  <ul class="">
-    <li><code><a title="traceon_pro.solver.ProgressPrinter.print_end" href="#traceon_pro.solver.ProgressPrinter.print_end">print_end</a></code></li>
-    <li><code><a title="traceon_pro.solver.ProgressPrinter.print_progress" href="#traceon_pro.solver.ProgressPrinter.print_progress">print_progress</a></code></li>
-  </ul>
-
-        </li>
-        <li>
-        <h4><code><a title="traceon_pro.solver.Solver3D" href="#traceon_pro.solver.Solver3D">Solver3D</a></code></h4>
-        
-          
-  
-  <ul class="">
-    <li><code><a title="traceon_pro.solver.Solver3D.get_jacobians_and_positions" href="#traceon_pro.solver.Solver3D.get_jacobians_and_positions">get_jacobians_and_positions</a></code></li>
-    <li><code><a title="traceon_pro.solver.Solver3D.get_matrix" href="#traceon_pro.solver.Solver3D.get_matrix">get_matrix</a></code></li>
-    <li><code><a title="traceon_pro.solver.Solver3D.get_normal_vectors" href="#traceon_pro.solver.Solver3D.get_normal_vectors">get_normal_vectors</a></code></li>
-  </ul>
-
-        </li>
-      </ul>
-    </li>
 
     </ul>
   </nav>
