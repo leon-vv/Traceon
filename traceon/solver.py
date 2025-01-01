@@ -2,40 +2,8 @@
 geometry and excitation. Once the surface charge distribution is known, the field at any arbitrary position in space
 can be calculated by integration over the charged boundary. However, doing a field evaluation in this manner is very slow
 as for every field evaluation an iteration needs to be done over all elements in the mesh. Especially for particle tracing it
-is crucial that the field evaluation can be done faster. To achieve this, interpolation techniques can be used. 
-
-The solver package offers interpolation in the form of _radial series expansions_ to drastically increase the speed of ray tracing. For
-this consider the `axial_derivative_interpolation` methods documented below.
-
-## Radial series expansion in cylindrical symmetry
-
-Let \\( \\phi_0(z) \\) be the potential along the optical axis. We can express the potential around the optical axis as:
-
-$$
-\\phi = \\phi_0(z_0) - \\frac{r^2}{4} \\frac{\\partial \\phi_0^2}{\\partial z^2} + \\frac{r^4}{64} \\frac{\\partial^4 \\phi_0}{\\partial z^4} - \\frac{r^6}{2304} \\frac{\\partial \\phi_0^6}{\\partial z^6} + \\cdots
-$$
-
-Therefore, if we can efficiently compute the axial potential derivatives \\( \\frac{\\partial \\phi_0^n}{\\partial z^n} \\) we can compute the potential and therefore the fields around the optical axis.
-For the derivatives of \\( \\phi_0(z) \\) closed form formulas exist in the case of radially symmetric geometries, see for example formula 13.16a in [1]. Traceon uses a recursive version of these formulas to
-very efficiently compute the axial derivatives of the potential.
-
-## Radial series expansion in 3D
-
-In a general three dimensional geometry the potential will be dependent not only on the distance from the optical axis but also on the angle \\( \\theta \\) around the optical axis
-at which the potential is sampled. It turns out (equation (35, 24) in [2]) the potential can be written as follows:
-
-$$
-\\phi = \\sum_{\\nu=0}^\\infty \\sum_{m=0}^\\infty r^{2\\nu + m} \\left( A^\\nu_m \\cos(m\\theta) + B^\\nu_m \\sin(m\\theta) \\right)
-$$
-
-The \\(A^\\nu_m\\) and \\(B^\\nu_m\\) coefficients can be expressed in _directional derivatives_ perpendicular to the optical axis, analogous to the radial symmetric case. The 
-mathematics of calculating these coefficients quickly and accurately gets quite involved, but all details have been abstracted away from the user.
-
-### References
-[1] P. Hawkes, E. Kasper. Principles of Electron Optics. Volume one: Basic Geometrical Optics. 2018.
-
-[2] W. Glaser. Grundlagen der Elektronenoptik. 1952.
-
+is crucial that the field evaluation can be done faster. To achieve this, interpolation techniques can be used, see `traceon.field.FieldRadialAxial`,
+and `traceon_pro.field.Field3DAxial`.
 """
 
 __pdoc__ = {}
@@ -361,11 +329,15 @@ def solve_direct_superposition(excitation):
     allows to select a different voltage 'setting' without inducing any computational cost. There is no computational cost
     involved in using `superposition=True` since a direct solver is used which easily allows for multiple right hand sides (the
     matrix does not have to be inverted multiple times). However, voltage functions are invalid in the superposition process (position dependent voltages).
+
+    Parameters
+    ---------------------
+    excitation: `traceon.excitation.Excitation`
+        The excitation that produces the resulting field.
     
     Returns
     ---------------------------
-    dict of `traceon.field.Field`
-        Each key is the name of an electrode on which a voltage (or current) was applied, the corresponding values are the fields.
+    Dictionary from str to `traceon.field.Field`. Each key is the name of an electrode on which a voltage (or current) was applied, the corresponding values are the fields.
     """
     if excitation.mesh.is_2d() and not excitation.mesh.is_higher_order():
         excitation = _excitation_to_higher_order(excitation)
