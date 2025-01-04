@@ -48,6 +48,7 @@ class ExcitationType(IntEnum):
     CURRENT = 4
     MAGNETOSTATIC_POT = 5
     MAGNETIZABLE = 6
+    PERMANENT_MAGNET = 7
      
     def is_electrostatic(self):
         return self in [ExcitationType.VOLTAGE_FIXED,
@@ -57,7 +58,8 @@ class ExcitationType(IntEnum):
     def is_magnetostatic(self):
         return self in [ExcitationType.MAGNETOSTATIC_POT,
                         ExcitationType.MAGNETIZABLE,
-                        ExcitationType.CURRENT]
+                        ExcitationType.CURRENT,
+                        ExcitationType.PERMANENT_MAGNET]
      
     def __str__(self):
         if self == ExcitationType.VOLTAGE_FIXED:
@@ -72,6 +74,8 @@ class ExcitationType(IntEnum):
             return 'magnetostatic potential'
         elif self == ExcitationType.MAGNETIZABLE:
             return 'magnetizable'
+        elif self == ExcitationType.PERMANENT_MAGNET:
+            return 'permanent magnet'
          
         raise RuntimeError('ExcitationType not understood in __str__ method')
      
@@ -201,6 +205,25 @@ class Excitation:
                 self._ensure_electrode_is_triangles('magnetizable', name)
 
             self.excitation_types[name] = (ExcitationType.MAGNETIZABLE, permeability)
+    
+    def add_permanent_magnet(self, **kwargs):
+        """
+        Assign a magnetization vector to a permanent magnet.
+        
+        Parameters
+        ----------
+        **kwargs : dict
+            The keys of the dictionary are the geometry names, while the values are the magnetization vectors M.
+        """
+        for name, vector in kwargs.items():
+            if self.symmetry == E.Symmetry.RADIAL:
+                self._ensure_electrode_is_lines('magnetizable', name)
+                assert vector.shape == (3,) and vector[1] == 0.0, "In radial symmetry the magnetization vector must lie in the XZ plane."
+            elif self.symmetry == E.Symmetry.THREE_D:
+                self._ensure_electrode_is_triangles('magnetizable', name)
+                assert vector.shape == (3,), "The magnetization vector must be a 3D vector."
+
+            self.excitation_types[name] = (ExcitationType.PERMANENT_MAGNET, vector)
      
     def add_dielectric(self, **kwargs):
         """
