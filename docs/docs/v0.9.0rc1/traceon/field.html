@@ -8,7 +8,7 @@
 
 
     <title>traceon.field API documentation</title>
-    <meta name="description" content="">
+    <meta name="description" content="Radial series expansion in cylindrical symmetry …">
 
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/10up-sanitize.css/13.0.0/sanitize.min.css" integrity="sha512-y1dtMcuvtTMJc1yPgEqF0ZjQbhnc/bFhyvIyVNb9Zk5mIGtqVaAB1Ttl28su8AvFMOY0EwRbAe+HCLqj6W7/KA==" crossorigin>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/10up-sanitize.css/13.0.0/typography.min.css" integrity="sha512-Y1DYSb995BAfxobCkKepB1BqJJTPrOp3zPL74AWFugHHmmdcvO+C48WLrUOlhGMc0QG7AE3f7gmvvcrmX2fDoA==" crossorigin>
@@ -56,7 +56,17 @@
   </header>
 
   <section id="section-intro">
-  
+  <h2 id="radial-series-expansion-in-cylindrical-symmetry">Radial series expansion in cylindrical symmetry</h2>
+<p>Let <span><span class="MathJax_Preview"> \phi_0(z) </span><script type="math/tex"> \phi_0(z) </script></span> be the potential along the optical axis. We can express the potential around the optical axis as:</p>
+<p><span><span class="MathJax_Preview">
+\phi = \phi_0(z_0) - \frac{r^2}{4} \frac{\partial \phi_0^2}{\partial z^2} + \frac{r^4}{64} \frac{\partial^4 \phi_0}{\partial z^4} - \frac{r^6}{2304} \frac{\partial \phi_0^6}{\partial z^6} + \cdots
+</span><script type="math/tex; mode=display">
+\phi = \phi_0(z_0) - \frac{r^2}{4} \frac{\partial \phi_0^2}{\partial z^2} + \frac{r^4}{64} \frac{\partial^4 \phi_0}{\partial z^4} - \frac{r^6}{2304} \frac{\partial \phi_0^6}{\partial z^6} + \cdots
+</script></span></p>
+<p>Therefore, if we can efficiently compute the axial potential derivatives <span><span class="MathJax_Preview"> \frac{\partial \phi_0^n}{\partial z^n} </span><script type="math/tex"> \frac{\partial \phi_0^n}{\partial z^n} </script></span> we can compute the potential and therefore the fields around the optical axis.
+For the derivatives of <span><span class="MathJax_Preview"> \phi_0(z) </span><script type="math/tex"> \phi_0(z) </script></span> closed form formulas exist in the case of radially symmetric geometries, see for example formula 13.16a in [1]. Traceon uses a recursive version of these formulas to
+very efficiently compute the axial derivatives of the potential.</p>
+<p>[1] P. Hawkes, E. Kasper. Principles of Electron Optics. Volume one: Basic Geometrical Optics. 2018.</p>
   </section>
 
   <section>
@@ -575,7 +585,7 @@ This base class overloads the +,*,- operators so it is very easy to take a super
         bounds: (3, 2) np.ndarray of float64
             The min, max value of x, y, z respectively within the field is still computed.
         &#34;&#34;&#34;
-        self.field_bounds = np.array(bounds)
+        self.field_bounds = np.array(bounds, dtype=np.float64)
         assert self.field_bounds.shape == (3,2)
     
     def is_electrostatic(self):
@@ -890,7 +900,7 @@ def current_field_at_point(self, point_):
     bounds: (3, 2) np.ndarray of float64
         The min, max value of x, y, z respectively within the field is still computed.
     &#34;&#34;&#34;
-    self.field_bounds = np.array(bounds)
+    self.field_bounds = np.array(bounds, dtype=np.float64)
     assert self.field_bounds.shape == (3,2)</code></pre>
       </details>
 
@@ -934,8 +944,24 @@ of magnetostatic field are in general 3D even in radial symmetric geometries.</p
             <span>Expand source code</span>
         </summary>
         <pre><code class="python">class FieldRadialAxial(FieldAxial):
-    &#34;&#34;&#34; &#34;&#34;&#34;
     def __init__(self, field, zmin, zmax, N=None):
+        &#34;&#34;&#34;
+        Produces a field which uses an axial interpolation to very quickly compute the field around the z-axis.
+        Note that the approximation degrades as the point at which the field is computed is further from the z-axis.
+
+        Parameters
+        -----------------------
+        field: `traceon.field.FieldRadialBEM`
+            Field for which to compute the axial interpolation
+        zmin : float
+            Location on the optical axis where to start sampling the radial expansion coefficients.
+        zmax : float
+            Location on the optical axis where to stop sampling the radial expansion coefficients. Any field
+            evaluation outside [zmin, zmax] will return a zero field strength.
+        N: int, optional
+            Number of samples to take on the optical axis, if N=None the amount of samples
+            is determined by taking into account the number of elements in the mesh.
+        &#34;&#34;&#34;
         assert isinstance(field, FieldRadialBEM)
 
         z, electrostatic_coeffs, magnetostatic_coeffs = FieldRadialAxial._get_interpolation_coefficients(field, zmin, zmax, N=N)
@@ -1040,7 +1066,24 @@ of magnetostatic field are in general 3D even in radial symmetric geometries.</p
         return backend.field_fun((&#34;field_radial_derivs_traceable&#34;, backend.backend_lib)), args</code></pre>
       </details>
 
-  <div class="desc"></div>
+  <div class="desc"><p>An electrostatic field resulting from a radial series expansion around the optical axis. You should
+not initialize this class yourself, but it is used as a base class for the fields returned by the <code>axial_derivative_interpolation</code> methods. 
+This base class overloads the +,*,- operators so it is very easy to take a superposition of different fields.</p>
+<p>Produces a field which uses an axial interpolation to very quickly compute the field around the z-axis.
+Note that the approximation degrades as the point at which the field is computed is further from the z-axis.</p>
+<h2 id="parameters">Parameters</h2>
+<dl>
+<dt><strong><code>field</code></strong> :&ensp;<code><a title="traceon.field.FieldRadialBEM" href="#traceon.field.FieldRadialBEM">FieldRadialBEM</a></code></dt>
+<dd>Field for which to compute the axial interpolation</dd>
+<dt><strong><code>zmin</code></strong> :&ensp;<code>float</code></dt>
+<dd>Location on the optical axis where to start sampling the radial expansion coefficients.</dd>
+<dt><strong><code>zmax</code></strong> :&ensp;<code>float</code></dt>
+<dd>Location on the optical axis where to stop sampling the radial expansion coefficients. Any field
+evaluation outside [zmin, zmax] will return a zero field strength.</dd>
+<dt><strong><code>N</code></strong> :&ensp;<code>int</code>, optional</dt>
+<dd>Number of samples to take on the optical axis, if N=None the amount of samples
+is determined by taking into account the number of elements in the mesh.</dd>
+</dl></div>
 
 
           <h3>Ancestors</h3>

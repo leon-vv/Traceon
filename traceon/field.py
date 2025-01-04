@@ -1,3 +1,19 @@
+"""
+## Radial series expansion in cylindrical symmetry
+
+Let \\( \\phi_0(z) \\) be the potential along the optical axis. We can express the potential around the optical axis as:
+
+$$
+\\phi = \\phi_0(z_0) - \\frac{r^2}{4} \\frac{\\partial \\phi_0^2}{\\partial z^2} + \\frac{r^4}{64} \\frac{\\partial^4 \\phi_0}{\\partial z^4} - \\frac{r^6}{2304} \\frac{\\partial \\phi_0^6}{\\partial z^6} + \\cdots
+$$
+
+Therefore, if we can efficiently compute the axial potential derivatives \\( \\frac{\\partial \\phi_0^n}{\\partial z^n} \\) we can compute the potential and therefore the fields around the optical axis.
+For the derivatives of \\( \\phi_0(z) \\) closed form formulas exist in the case of radially symmetric geometries, see for example formula 13.16a in [1]. Traceon uses a recursive version of these formulas to
+very efficiently compute the axial derivatives of the potential.
+
+[1] P. Hawkes, E. Kasper. Principles of Electron Optics. Volume one: Basic Geometrical Optics. 2018.
+"""
+
 import time
 from abc import ABC, abstractmethod
 
@@ -559,8 +575,24 @@ def _quintic_spline_coefficients(z, derivs):
 
 
 class FieldRadialAxial(FieldAxial):
-    """ """
     def __init__(self, field, zmin, zmax, N=None):
+        """
+        Produces a field which uses an axial interpolation to very quickly compute the field around the z-axis.
+        Note that the approximation degrades as the point at which the field is computed is further from the z-axis.
+
+        Parameters
+        -----------------------
+        field: `traceon.field.FieldRadialBEM`
+            Field for which to compute the axial interpolation
+        zmin : float
+            Location on the optical axis where to start sampling the radial expansion coefficients.
+        zmax : float
+            Location on the optical axis where to stop sampling the radial expansion coefficients. Any field
+            evaluation outside [zmin, zmax] will return a zero field strength.
+        N: int, optional
+            Number of samples to take on the optical axis, if N=None the amount of samples
+            is determined by taking into account the number of elements in the mesh.
+        """
         assert isinstance(field, FieldRadialBEM)
 
         z, electrostatic_coeffs, magnetostatic_coeffs = FieldRadialAxial._get_interpolation_coefficients(field, zmin, zmax, N=N)

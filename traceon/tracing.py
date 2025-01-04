@@ -1,5 +1,5 @@
 """The tracing module allows to trace charged particles within any field type returned by the `traceon.solver` module. The tracing algorithm
-used is RK45 with adaptive step size control [1]. The tracing code is implemented in C (see `traceon.backend`) and has therefore
+used is RK45 with adaptive step size control [1]. The tracing code is implemented in C and has therefore
 excellent performance. The module also provides various helper functions to define appropriate initial velocity vectors and to
 compute intersections of the computed traces with various planes.
 
@@ -105,8 +105,8 @@ class Tracer:
 
     Parameters
     ----------
-    field: traceon.solver.Field (or any class inheriting Field)
-        The field used to compute the force felt by the charged particle.
+    field: `traceon.field.Field`
+        The field used to compute the force felt by the charged particle. Note that any child class of `traceon.field.Field` can be used.
     bounds: (3, 2) np.ndarray of float64
         Once the particle reaches one of the boundaries the tracing stops. The bounds are of the form ( (xmin, xmax), (ymin, ymax), (zmin, zmax) ).
     """
