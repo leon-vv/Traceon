@@ -280,7 +280,7 @@ backend_functions = {
     'ellipem1' : (dbl, dbl),
     'ellipe': (dbl, dbl),
     'normal_2d': (None, v2, v2, v2),
-    'higher_order_normal_radial': (None, dbl, v2, v2, v2, v2, v2),
+    'higher_order_normal_radial': (None, dbl, v3, v3, v3, v3, v2),
     'normal_3d': (None, arr(shape=(3,3)), v3),
     'position_and_jacobian_3d': (None, dbl, dbl, arr(ndim=2), v3, dbl_p),
     'position_and_jacobian_radial': (None, dbl, v2, v2, v2, v2, v2, dbl_p),
@@ -350,8 +350,9 @@ def kronrod_adaptive(fun: Callable[[float], float], a: float, b: float,
     return backend_lib.kronrod_adaptive(callback, a, b, vp(None), epsabs, epsrel)
 
 def higher_order_normal_radial(alpha: float, vertices: np.ndarray) -> np.ndarray:
+    assert vertices.shape == (4,3) 
     normal = np.zeros(2)
-    backend_lib.higher_order_normal_radial(alpha, vertices[0, :2], vertices[2, :2], vertices[3, :2], vertices[1, :2], normal)
+    backend_lib.higher_order_normal_radial(alpha, vertices[0], vertices[2], vertices[3], vertices[1], normal)
     assert np.isclose(np.linalg.norm(normal), 1.0)
     return normal
     

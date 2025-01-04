@@ -225,7 +225,7 @@ class SolverRadial(Solver):
             if not self.is_higher_order():
                 normals[i] = backend.normal_2d(v[0], v[1])
             else:
-                normals[i] = backend.higher_order_normal_radial(0.0, v[:, :2])
+                normals[i] = backend.higher_order_normal_radial(0.0, v)
          
         self.normals = normals
     
