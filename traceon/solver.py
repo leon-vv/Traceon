@@ -299,15 +299,14 @@ class ElectrostaticSolverRadial(SolverRadial):
 class MagnetostaticSolverRadial(SolverRadial):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        
-        self.current_field = self.get_current_field()
+        self.preexisting_field = self.get_current_field() + self.get_permanent_magnet_field()
 
     def get_active_elements(self):
         return self.excitation.get_magnetostatic_active_elements()
     
     def get_preexisting_field(self, point):
-        return self.current_field.current_field_at_point(point)
-    
+        return self.preexisting_field.magnetostatic_field_at_point(point)
+     
     def get_permanent_magnet_field(self) -> FieldBEM:
         charges: list[np.ndarray] = []
         jacobians = []
@@ -380,7 +379,9 @@ class MagnetostaticSolverRadial(SolverRadial):
         return FieldRadialBEM(current_point_charges=EffectivePointCharges(np.array(currents), np.array(jacobians), np.array(positions)))
     
     def charges_to_field(self, charges):
-        return FieldRadialBEM(magnetostatic_point_charges=charges, current_point_charges=self.current_field.current_point_charges)
+        return FieldRadialBEM(
+            magnetostatic_point_charges=self.preexisting_field.magnetostatic_point_charges + charges,
+            current_point_charges=self.preexisting_field.current_point_charges)
 
      
 def _excitation_to_higher_order(excitation):
