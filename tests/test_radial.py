@@ -299,10 +299,44 @@ class TestRadialPermanentMagnet(unittest.TestCase):
             Hz = field.magnetostatic_field_at_point([0., 0., L+dz])[2]
             assert np.isclose(correct, Hz)
 
+    def test_magnet_with_magnetizable_material(self):
+        magnet = G.Path.circle_xz(3, -2, 1)
+        magnet.name = 'magnet'
 
+        magnetizable = G.Path.circle_xz(3, 2, 1)
+        magnetizable.name = 'circle'
 
+        mesh = (magnet + magnetizable).mesh(mesh_size_factor=40, higher_order=True)
 
-            
+        exc = E.Excitation(mesh, E.Symmetry.RADIAL)
+        exc.add_permanent_magnet(magnet=[0, 0, 2.])
+        exc.add_magnetizable(circle=5)
+
+        field = S.solve_direct(exc)
+
+        points = np.array([
+            [3, -4],
+            [3, -2],
+            [3, -0.5],
+            [3, 0.5],
+            [3, 2],
+            [3, 4]])
+
+        # From a FEM package
+        comparison = np.array([
+            [-0.080149, 0.25363],
+            [-0.003367, -1.0145],
+            [0.085632, 0.45160],
+            [0.046463, 0.19612],
+            [0.012013, 0.023293],
+            [0.015441, 0.042159]])
+
+        for (c, (r, z)) in zip(comparison, points):
+            Hr, _, Hz = field.magnetostatic_field_at_point([r, 0., z])
+            assert np.isclose(c[0], mu_0*Hr, rtol=1e-4, atol=0.0002)
+            assert np.isclose(c[1], mu_0*Hz, rtol=1e-4, atol=0.0002)
+ 
+
 
 class TestSimpleMagneticLens(unittest.TestCase):
 
