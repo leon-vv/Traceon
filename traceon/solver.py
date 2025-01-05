@@ -316,7 +316,7 @@ class MagnetostaticSolverRadial(SolverRadial):
         mesh = self.excitation.mesh
         
         if not len(mesh.lines) or not self.excitation.has_permanent_magnet():
-            return FieldRadialBEM(magnetostatic_point_charges=EffectivePointCharges.empty_3d())
+            return FieldRadialBEM(magnetostatic_point_charges=EffectivePointCharges.empty_2d())
         
         all_vertices = mesh.points[mesh.lines]
         jac, pos = backend.fill_jacobian_buffer_radial(all_vertices)
@@ -342,7 +342,7 @@ class MagnetostaticSolverRadial(SolverRadial):
             positions.extend(pos[indices])
         
         if not len(charges):
-            return FieldRadialBEM(magnetostatic_point_charges=EffectivePointCharges.empty_3d())
+            return FieldRadialBEM(magnetostatic_point_charges=EffectivePointCharges.empty_2d())
         
         return FieldRadialBEM(magnetostatic_point_charges=EffectivePointCharges(np.array(charges), np.array(jacobians), np.array(positions)))
      
