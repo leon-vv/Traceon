@@ -171,7 +171,7 @@ class Excitation:
      
     def is_magnetostatic(self):
         """Check whether the excitation contains magnetostatic fields."""
-        return any([t in [ExcitationType.MAGNETOSTATIC_POT, ExcitationType.CURRENT] for t, _ in self.excitation_types.values()])
+        return any([t in [ExcitationType.MAGNETOSTATIC_POT, ExcitationType.PERMANENT_MAGNET, ExcitationType.CURRENT] for t, _ in self.excitation_types.values()])
      
     def add_magnetostatic_potential(self, **kwargs):
         """
