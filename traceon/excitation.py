@@ -15,6 +15,7 @@ Once the excitation is specified, it can be passed to `traceon.solver.solve_dire
 from enum import IntEnum
 
 import numpy as np
+from scipy.constants import mu_0
 
 from .backend import N_QUAD_2D
 from .logging import log_error
@@ -48,6 +49,7 @@ class ExcitationType(IntEnum):
     CURRENT = 4
     MAGNETOSTATIC_POT = 5
     MAGNETIZABLE = 6
+    PERMANENT_MAGNET = 7
      
     def is_electrostatic(self):
         return self in [ExcitationType.VOLTAGE_FIXED,
@@ -57,7 +59,8 @@ class ExcitationType(IntEnum):
     def is_magnetostatic(self):
         return self in [ExcitationType.MAGNETOSTATIC_POT,
                         ExcitationType.MAGNETIZABLE,
-                        ExcitationType.CURRENT]
+                        ExcitationType.CURRENT,
+                        ExcitationType.PERMANENT_MAGNET]
      
     def __str__(self):
         if self == ExcitationType.VOLTAGE_FIXED:
@@ -72,6 +75,8 @@ class ExcitationType(IntEnum):
             return 'magnetostatic potential'
         elif self == ExcitationType.MAGNETIZABLE:
             return 'magnetizable'
+        elif self == ExcitationType.PERMANENT_MAGNET:
+            return 'permanent magnet'
          
         raise RuntimeError('ExcitationType not understood in __str__ method')
      
@@ -152,6 +157,10 @@ class Excitation:
         else:
             raise ValueError('Symmetry should be one of RADIAL or THREE_D')
 
+    def has_permanent_magnet(self):
+        """Check whether the excitation contains a permanent magnet."""
+        return any([t == ExcitationType.PERMANENT_MAGNET for t, _ in self.excitation_types.values()])
+    
     def has_current(self):
         """Check whether a current is applied in this excitation."""
         return any([t == ExcitationType.CURRENT for t, _ in self.excitation_types.values()])
@@ -162,7 +171,7 @@ class Excitation:
      
     def is_magnetostatic(self):
         """Check whether the excitation contains magnetostatic fields."""
-        return any([t in [ExcitationType.MAGNETOSTATIC_POT, ExcitationType.CURRENT] for t, _ in self.excitation_types.values()])
+        return any([t in [ExcitationType.MAGNETOSTATIC_POT, ExcitationType.PERMANENT_MAGNET, ExcitationType.CURRENT] for t, _ in self.excitation_types.values()])
      
     def add_magnetostatic_potential(self, **kwargs):
         """
@@ -201,6 +210,31 @@ class Excitation:
                 self._ensure_electrode_is_triangles('magnetizable', name)
 
             self.excitation_types[name] = (ExcitationType.MAGNETIZABLE, permeability)
+    
+    def add_permanent_magnet(self, **kwargs):
+        """
+        Assign a magnetization vector to a permanent magnet. The magnetization is supplied as the residual flux density, which has unit Tesla.
+        
+        Parameters
+        ----------
+        **kwargs : dict
+            The keys of the dictionary are the geometry names, while the values are the magnetization vectors M.
+        """
+        for name, vector in kwargs.items():
+            vector = np.array(vector, dtype=np.float64) / mu_0 # Note that we convert from Tesla to A/m, since the rest of the code works with H fields (which has unit A/m)
+            
+            if self.symmetry == E.Symmetry.RADIAL:
+                self._ensure_electrode_is_lines('permanent magnet', name)
+                assert vector.shape == (3,) and vector[1] == 0.0 and vector[0] == 0.0, \
+                    "Please supply the magnetization vector in radial symmetry as the vector [0, 0, B], with B" +\
+                    " the residual flux density (unit Tesla). Note that a magnetization vector along r (for example [B, 0, 0]) " +\
+                    " would lead to a non-uniform magnetization in radial symmetry, and is currently not supported. "
+
+            elif self.symmetry == E.Symmetry.THREE_D:
+                self._ensure_electrode_is_triangles('permanent magnet', name)
+                assert vector.shape == (3,), "The magnetization vector must be a 3D vector."
+
+            self.excitation_types[name] = (ExcitationType.PERMANENT_MAGNET, vector)
      
     def add_dielectric(self, **kwargs):
         """

@@ -239,6 +239,105 @@ class TestRadial(unittest.TestCase):
 
         assert np.allclose(computed, correct, atol=0.0, rtol=1e-9) 
 
+
+class TestRadialPermanentMagnet(unittest.TestCase):
+    def test_triangular_permanent_magnet(self):
+        triangle = G.Path.line([0.5, 0., -0.25], [0.5, 0., 0.25])\
+            .extend_with_line([1., 0., 0.25]).close()
+        triangle.name = 'triangle'
+        
+        mesh = triangle.mesh(mesh_size_factor=15, higher_order=True)
+        
+        exc = E.Excitation(mesh, E.Symmetry.RADIAL)
+        exc.add_permanent_magnet(triangle=np.array([0., 0., 2.]))
+        
+        solver = S.MagnetostaticSolverRadial(exc)
+        field = solver.get_permanent_magnet_field()
+        
+        evaluation_points = np.array([
+            [0.8, 0.],
+            [1.0, 0.],
+            [0.75, 0.2],
+            [0.75, 0.5]])
+
+        # Taken from a FEM package
+        comparison = np.array([
+            [0.28152, 0.098792, -0.47191, -0.19345],
+            [-1.3549, 0.18957, -0.020779, -0.12875]]).T
+
+        comparison = np.array([
+            [-0.47191, -0.020779],
+            [-0.19345, -0.12875],
+            [0.28152, -1.3549],
+            [0.098792, 0.18957]
+        ])
+
+        for ev, comp in zip(evaluation_points, comparison):
+            Hr, _, Hz = field.magnetostatic_field_at_point([ev[0], 0., ev[1]])
+            assert np.allclose([mu_0*Hr, mu_0*Hz], comp, rtol=1e-5, atol=0.004)
+
+    def test_field_along_axis_of_cylindrical_permanent_magnet(self):
+        R = 1.5 # Radius of magnet
+        Br = 2.0 # Remanent flux of magnet
+        L = 3 # Length of magnet
+
+        rect = G.Path.line([0., 0., 0.], [R, 0., 0.])\
+            .extend_with_line([R, 0., L]).extend_with_line([0., 0., L])  
+        rect.name = 'magnet'
+
+        mesh = rect.mesh(mesh_size_factor=5)
+         
+        e = E.Excitation(mesh, E.Symmetry.RADIAL)
+        e.add_permanent_magnet(magnet=[0., 0., Br])
+        
+        field = S.solve_direct(e)
+         
+        for dz in [0.1, 1, 5, 10]:
+            # See https://e-magnetica.pl/doku.php/calculator/magnet_cylindrical
+            correct = Br / (2*mu_0) * ( (dz+L)/sqrt(R**2 + (dz+L)**2) - dz/sqrt(R**2 + dz**2))
+            
+            Hz = field.magnetostatic_field_at_point([0., 0., L+dz])[2]
+            assert np.isclose(correct, Hz)
+
+    def test_magnet_with_magnetizable_material(self):
+        magnet = G.Path.circle_xz(3, -2, 1)
+        magnet.name = 'magnet'
+
+        magnetizable = G.Path.circle_xz(3, 2, 1)
+        magnetizable.name = 'circle'
+
+        mesh = (magnet + magnetizable).mesh(mesh_size_factor=40, higher_order=True)
+
+        exc = E.Excitation(mesh, E.Symmetry.RADIAL)
+        exc.add_permanent_magnet(magnet=[0, 0, 2.])
+        exc.add_magnetizable(circle=5)
+
+        field = S.solve_direct(exc)
+
+        points = np.array([
+            [3, -4],
+            [3, -2],
+            [3, -0.5],
+            [3, 0.5],
+            [3, 2],
+            [3, 4]])
+
+        # From a FEM package
+        comparison = np.array([
+            [-0.080149, 0.25363],
+            [-0.003367, -1.0145],
+            [0.085632, 0.45160],
+            [0.046463, 0.19612],
+            [0.012013, 0.023293],
+            [0.015441, 0.042159]])
+
+        for (c, (r, z)) in zip(comparison, points):
+            Hr, _, Hz = field.magnetostatic_field_at_point([r, 0., z])
+            assert np.isclose(c[0], mu_0*Hr, rtol=1e-4, atol=0.0002)
+            assert np.isclose(c[1], mu_0*Hz, rtol=1e-4, atol=0.0002)
+ 
+
+
 class TestSimpleMagneticLens(unittest.TestCase):
 
     @classmethod
