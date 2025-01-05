@@ -445,8 +445,6 @@ def solve_direct(excitation):
     
     mag, elec = excitation.is_magnetostatic(), excitation.is_electrostatic()
 
-    assert mag or elec, "Solving for an empty excitation"
-
     if mag and elec:
         elec_field = ElectrostaticSolverRadial(excitation).solve_matrix()[0]
         mag_field = MagnetostaticSolverRadial(excitation).solve_matrix()[0]
@@ -455,6 +453,11 @@ def solve_direct(excitation):
         return ElectrostaticSolverRadial(excitation).solve_matrix()[0]
     elif mag and not elec:
         return MagnetostaticSolverRadial(excitation).solve_matrix()[0]
+    else:
+        # Empty excitation? We still return the preexisting field..
+        return ElectrostaticSolverRadial(excitation).charges_to_field(EffectivePointCharges.empty_2d()) + \
+                MagnetostaticSolverRadial(excitation).charges_to_field(EffectivePointCharges.empty_2d())
+
 
 
 
