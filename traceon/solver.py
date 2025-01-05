@@ -308,6 +308,44 @@ class MagnetostaticSolverRadial(SolverRadial):
     def get_preexisting_field(self, point):
         return self.current_field.current_field_at_point(point)
     
+    def get_permanent_magnet_field(self) -> FieldBEM:
+        charges: list[np.ndarray] = []
+        jacobians = []
+        positions = []
+        
+        mesh = self.excitation.mesh
+        
+        if not len(mesh.lines) or not self.excitation.has_permanent_magnet():
+            return FieldRadialBEM(magnetostatic_point_charges=EffectivePointCharges.empty_3d())
+        
+        all_vertices = mesh.points[mesh.lines]
+        jac, pos = backend.fill_jacobian_buffer_radial(all_vertices)
+        normals = np.array([backend.higher_order_normal_radial(0.0, v) for v in all_vertices])
+        
+        for name, v in self.excitation.excitation_types.items():
+            if not v[0] == E.ExcitationType.PERMANENT_MAGNET or not name in mesh.physical_to_lines:
+                continue
+            
+            indices = mesh.physical_to_lines[name]
+            
+            if not len(indices):
+                continue
+
+            # Magnetic charge is dot product of normal vector and magnetization vector
+            n = normals[indices]
+            assert n.shape == (len(n), 2)
+            vector = v[1]
+            dot_product = n[:, 0]*vector[0] + n[:, 1]*vector[2] # Normal currently has only (r,z) element
+            
+            charges.extend(dot_product)
+            jacobians.extend(jac[indices])
+            positions.extend(pos[indices])
+        
+        if not len(charges):
+            return FieldRadialBEM(magnetostatic_point_charges=EffectivePointCharges.empty_3d())
+        
+        return FieldRadialBEM(magnetostatic_point_charges=EffectivePointCharges(np.array(charges), np.array(jacobians), np.array(positions)))
+     
     def get_current_field(self) -> FieldBEM:
         currents: list[np.ndarray] = []
         jacobians = []
