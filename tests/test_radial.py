@@ -239,6 +239,42 @@ class TestRadial(unittest.TestCase):
 
         assert np.allclose(computed, correct, atol=0.0, rtol=1e-9) 
 
+    def test_triangular_permanent_magnet(self):
+        triangle = G.Path.line([0.5, 0., -0.25], [0.5, 0., 0.25])\
+            .extend_with_line([1., 0., 0.25]).close()
+        triangle.name = 'triangle'
+        
+        mesh = triangle.mesh(mesh_size_factor=15, higher_order=True)
+        
+        exc = E.Excitation(mesh, E.Symmetry.RADIAL)
+        exc.add_permanent_magnet(triangle=np.array([0., 0., 2.]))
+        
+        solver = S.MagnetostaticSolverRadial(exc)
+        field = solver.get_permanent_magnet_field()
+        
+        evaluation_points = np.array([
+            [0.8, 0.],
+            [1.0, 0.],
+            [0.75, 0.2],
+            [0.75, 0.5]])
+
+        # Taken from a FEM package
+        comparison = np.array([
+            [0.28152, 0.098792, -0.47191, -0.19345],
+            [-1.3549, 0.18957, -0.020779, -0.12875]]).T
+
+        comparison = np.array([
+            [-0.47191, -0.020779],
+            [-0.19345, -0.12875],
+            [0.28152, -1.3549],
+            [0.098792, 0.18957]
+        ])
+
+        for ev, comp in zip(evaluation_points, comparison):
+            Hr, _, Hz = field.magnetostatic_field_at_point([ev[0], 0., ev[1]])
+            assert np.allclose([mu_0*Hr, mu_0*Hz], comp, rtol=1e-5, atol=0.004)
+            
+
 class TestSimpleMagneticLens(unittest.TestCase):
 
     @classmethod
