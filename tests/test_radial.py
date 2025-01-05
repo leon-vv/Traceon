@@ -239,6 +239,8 @@ class TestRadial(unittest.TestCase):
 
         assert np.allclose(computed, correct, atol=0.0, rtol=1e-9) 
 
+
+class TestRadialPermanentMagnet(unittest.TestCase):
     def test_triangular_permanent_magnet(self):
         triangle = G.Path.line([0.5, 0., -0.25], [0.5, 0., 0.25])\
             .extend_with_line([1., 0., 0.25]).close()
@@ -273,6 +275,33 @@ class TestRadial(unittest.TestCase):
         for ev, comp in zip(evaluation_points, comparison):
             Hr, _, Hz = field.magnetostatic_field_at_point([ev[0], 0., ev[1]])
             assert np.allclose([mu_0*Hr, mu_0*Hz], comp, rtol=1e-5, atol=0.004)
+
+    def test_field_along_axis_of_cylindrical_permanent_magnet(self):
+        R = 1.5 # Radius of magnet
+        Br = 2.0 # Remanent flux of magnet
+        L = 3 # Length of magnet
+
+        rect = G.Path.line([0., 0., 0.], [R, 0., 0.])\
+            .extend_with_line([R, 0., L]).extend_with_line([0., 0., L])  
+        rect.name = 'magnet'
+
+        mesh = rect.mesh(mesh_size_factor=5)
+         
+        e = E.Excitation(mesh, E.Symmetry.RADIAL)
+        e.add_permanent_magnet(magnet=[0., 0., Br])
+        
+        field = S.solve_direct(e)
+         
+        for dz in [0.1, 1, 5, 10]:
+            # See https://e-magnetica.pl/doku.php/calculator/magnet_cylindrical
+            correct = Br / (2*mu_0) * ( (dz+L)/sqrt(R**2 + (dz+L)**2) - dz/sqrt(R**2 + dz**2))
+            
+            Hz = field.magnetostatic_field_at_point([0., 0., L+dz])[2]
+            assert np.isclose(correct, Hz)
+
+
+
+
             
 
 class TestSimpleMagneticLens(unittest.TestCase):
