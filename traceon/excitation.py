@@ -15,6 +15,7 @@ Once the excitation is specified, it can be passed to `traceon.solver.solve_dire
 from enum import IntEnum
 
 import numpy as np
+from scipy.constants import mu_0
 
 from .backend import N_QUAD_2D
 from .logging import log_error
@@ -212,7 +213,7 @@ class Excitation:
     
     def add_permanent_magnet(self, **kwargs):
         """
-        Assign a magnetization vector to a permanent magnet.
+        Assign a magnetization vector to a permanent magnet. The magnetization is supplied as the residual flux density, which has unit Tesla.
         
         Parameters
         ----------
@@ -220,11 +221,17 @@ class Excitation:
             The keys of the dictionary are the geometry names, while the values are the magnetization vectors M.
         """
         for name, vector in kwargs.items():
+            vector = np.array(vector, dtype=np.float64) / mu_0 # Note that we convert from Tesla to A/m, since the rest of the code works with H fields (which has unit A/m)
+            
             if self.symmetry == E.Symmetry.RADIAL:
-                self._ensure_electrode_is_lines('magnetizable', name)
-                assert vector.shape == (3,) and vector[1] == 0.0, "In radial symmetry the magnetization vector must lie in the XZ plane."
+                self._ensure_electrode_is_lines('permanent magnet', name)
+                assert vector.shape == (3,) and vector[1] == 0.0 and vector[0] == 0.0, \
+                    "Please supply the magnetization vector in radial symmetry as the vector [0, 0, B], with B" +\
+                    " the residual flux density (unit Tesla). Note that a magnetization vector along r (for example [B, 0, 0]) " +\
+                    " would lead to a non-uniform magnetization in radial symmetry, and is currently not supported. "
+
             elif self.symmetry == E.Symmetry.THREE_D:
-                self._ensure_electrode_is_triangles('magnetizable', name)
+                self._ensure_electrode_is_triangles('permanent magnet', name)
                 assert vector.shape == (3,), "The magnetization vector must be a 3D vector."
 
             self.excitation_types[name] = (ExcitationType.PERMANENT_MAGNET, vector)
