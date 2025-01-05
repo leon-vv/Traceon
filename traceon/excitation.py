@@ -156,6 +156,10 @@ class Excitation:
         else:
             raise ValueError('Symmetry should be one of RADIAL or THREE_D')
 
+    def has_permanent_magnet(self):
+        """Check whether the excitation contains a permanent magnet."""
+        return any([t == ExcitationType.PERMANENT_MAGNET for t, _ in self.excitation_types.values()])
+    
     def has_current(self):
         """Check whether a current is applied in this excitation."""
         return any([t == ExcitationType.CURRENT for t, _ in self.excitation_types.values()])
