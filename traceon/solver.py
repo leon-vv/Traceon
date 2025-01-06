@@ -2,46 +2,17 @@
 geometry and excitation. Once the surface charge distribution is known, the field at any arbitrary position in space
 can be calculated by integration over the charged boundary. However, doing a field evaluation in this manner is very slow
 as for every field evaluation an iteration needs to be done over all elements in the mesh. Especially for particle tracing it
-is crucial that the field evaluation can be done faster. To achieve this, interpolation techniques can be used. 
-
-The solver package offers interpolation in the form of _radial series expansions_ to drastically increase the speed of ray tracing. For
-this consider the `axial_derivative_interpolation` methods documented below.
-
-## Radial series expansion in cylindrical symmetry
-
-Let \\( \\phi_0(z) \\) be the potential along the optical axis. We can express the potential around the optical axis as:
-
-$$
-\\phi = \\phi_0(z_0) - \\frac{r^2}{4} \\frac{\\partial \\phi_0^2}{\\partial z^2} + \\frac{r^4}{64} \\frac{\\partial^4 \\phi_0}{\\partial z^4} - \\frac{r^6}{2304} \\frac{\\partial \\phi_0^6}{\\partial z^6} + \\cdots
-$$
-
-Therefore, if we can efficiently compute the axial potential derivatives \\( \\frac{\\partial \\phi_0^n}{\\partial z^n} \\) we can compute the potential and therefore the fields around the optical axis.
-For the derivatives of \\( \\phi_0(z) \\) closed form formulas exist in the case of radially symmetric geometries, see for example formula 13.16a in [1]. Traceon uses a recursive version of these formulas to
-very efficiently compute the axial derivatives of the potential.
-
-## Radial series expansion in 3D
-
-In a general three dimensional geometry the potential will be dependent not only on the distance from the optical axis but also on the angle \\( \\theta \\) around the optical axis
-at which the potential is sampled. It turns out (equation (35, 24) in [2]) the potential can be written as follows:
-
-$$
-\\phi = \\sum_{\\nu=0}^\\infty \\sum_{m=0}^\\infty r^{2\\nu + m} \\left( A^\\nu_m \\cos(m\\theta) + B^\\nu_m \\sin(m\\theta) \\right)
-$$
-
-The \\(A^\\nu_m\\) and \\(B^\\nu_m\\) coefficients can be expressed in _directional derivatives_ perpendicular to the optical axis, analogous to the radial symmetric case. The 
-mathematics of calculating these coefficients quickly and accurately gets quite involved, but all details have been abstracted away from the user.
-
-### References
-[1] P. Hawkes, E. Kasper. Principles of Electron Optics. Volume one: Basic Geometrical Optics. 2018.
-
-[2] W. Glaser. Grundlagen der Elektronenoptik. 1952.
-
+is crucial that the field evaluation can be done faster. To achieve this, interpolation techniques can be used, see `traceon.field.FieldRadialAxial`,
+and `traceon_pro.field.Field3DAxial`.
 """
 
 __pdoc__ = {}
 __pdoc__['EffectivePointCharges'] = False
 __pdoc__['ElectrostaticSolver'] = False
+__pdoc__['ElectrostaticSolverRadial'] = False
 __pdoc__['MagnetostaticSolver'] = False
+__pdoc__['MagnetostaticSolverRadial'] = False
+__pdoc__['SolverRadial'] = False
 __pdoc__['Solver'] = False
 
 import math as m
@@ -222,7 +193,7 @@ class SolverRadial(Solver):
             if not self.is_higher_order():
                 normals[i] = backend.normal_2d(v[0], v[1])
             else:
-                normals[i] = backend.higher_order_normal_radial(0.0, v[:, :2])
+                normals[i] = backend.higher_order_normal_radial(0.0, v)
          
         self.normals = normals
     
@@ -296,15 +267,52 @@ class ElectrostaticSolverRadial(SolverRadial):
 class MagnetostaticSolverRadial(SolverRadial):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        
-        self.current_field = self.get_current_field()
+        self.preexisting_field = self.get_current_field() + self.get_permanent_magnet_field()
 
     def get_active_elements(self):
         return self.excitation.get_magnetostatic_active_elements()
     
     def get_preexisting_field(self, point):
-        return self.current_field.current_field_at_point(point)
-    
+        return self.preexisting_field.magnetostatic_field_at_point(point)
+     
+    def get_permanent_magnet_field(self) -> FieldBEM:
+        charges: list[np.ndarray] = []
+        jacobians = []
+        positions = []
+        
+        mesh = self.excitation.mesh
+        
+        if not len(mesh.lines) or not self.excitation.has_permanent_magnet():
+            return FieldRadialBEM(magnetostatic_point_charges=EffectivePointCharges.empty_2d())
+        
+        all_vertices = mesh.points[mesh.lines]
+        jac, pos = backend.fill_jacobian_buffer_radial(all_vertices)
+        normals = np.array([backend.higher_order_normal_radial(0.0, v) for v in all_vertices])
+        
+        for name, v in self.excitation.excitation_types.items():
+            if not v[0] == E.ExcitationType.PERMANENT_MAGNET or not name in mesh.physical_to_lines:
+                continue
+            
+            indices = mesh.physical_to_lines[name]
+            
+            if not len(indices):
+                continue
+
+            # Magnetic charge is dot product of normal vector and magnetization vector
+            n = normals[indices]
+            assert n.shape == (len(n), 2)
+            vector = v[1]
+            dot_product = n[:, 0]*vector[0] + n[:, 1]*vector[2] # Normal currently has only (r,z) element
+            
+            charges.extend(dot_product)
+            jacobians.extend(jac[indices])
+            positions.extend(pos[indices])
+        
+        if not len(charges):
+            return FieldRadialBEM(magnetostatic_point_charges=EffectivePointCharges.empty_2d())
+        
+        return FieldRadialBEM(magnetostatic_point_charges=EffectivePointCharges(np.array(charges), np.array(jacobians), np.array(positions)))
+     
     def get_current_field(self) -> FieldBEM:
         currents: list[np.ndarray] = []
         jacobians = []
@@ -339,7 +347,9 @@ class MagnetostaticSolverRadial(SolverRadial):
         return FieldRadialBEM(current_point_charges=EffectivePointCharges(np.array(currents), np.array(jacobians), np.array(positions)))
     
     def charges_to_field(self, charges):
-        return FieldRadialBEM(magnetostatic_point_charges=charges, current_point_charges=self.current_field.current_point_charges)
+        return FieldRadialBEM(
+            magnetostatic_point_charges=self.preexisting_field.magnetostatic_point_charges + charges,
+            current_point_charges=self.preexisting_field.current_point_charges)
 
      
 def _excitation_to_higher_order(excitation):
@@ -352,29 +362,37 @@ def _excitation_to_higher_order(excitation):
 
 def solve_direct_superposition(excitation):
     """
-    superposition : bool
-        When using superposition the function returns multiple fields. Each field corresponds with a unity excitation (1V)
-        of a physical group that was previously assigned a non-zero fixed voltage value. This is useful when a geometry needs
-        to be analyzed for many different voltage settings. In this case taking a linear superposition of the returned fields
-        allows to select a different voltage 'setting' without inducing any computational cost. There is no computational cost
-        involved in using `superposition=True` since a direct solver is used which easily allows for multiple right hand sides (the
-        matrix does not have to be inverted multiple times). However, voltage functions are invalid in the superposition process (position dependent voltages).
+    When using superposition multiple fields are computed at once. Each field corresponds with a unity excitation (1V)
+    of an electrode that was assigned a non-zero fixed voltage value. This is useful when a geometry needs
+    to be analyzed for many different voltage settings. In this case taking a linear superposition of the returned fields
+    allows to select a different voltage 'setting' without inducing any computational cost. There is no computational cost
+    involved in using `superposition=True` since a direct solver is used which easily allows for multiple right hand sides (the
+    matrix does not have to be inverted multiple times). However, voltage functions are invalid in the superposition process (position dependent voltages).
+
+    Parameters
+    ---------------------
+    excitation: `traceon.excitation.Excitation`
+        The excitation that produces the resulting field.
+    
+    Returns
+    ---------------------------
+    Dictionary from str to `traceon.field.Field`. Each key is the name of an electrode on which a voltage (or current) was applied, the corresponding values are the fields.
     """
     if excitation.mesh.is_2d() and not excitation.mesh.is_higher_order():
         excitation = _excitation_to_higher_order(excitation)
     
     # Speedup: invert matrix only once, when using superposition
-    excitations = excitation._split_for_superposition()
+    electrostatic_excitations, magnetostatic_excitations = excitation._split_for_superposition()
     
     # Solve for elec fields
-    elec_names = [n for n, v in excitations.items() if v.is_electrostatic()]
-    right_hand_sides = np.array([ElectrostaticSolverRadial(excitations[n]).get_right_hand_side() for n in elec_names])
+    elec_names = electrostatic_excitations.keys()
+    right_hand_sides = np.array([ElectrostaticSolverRadial(electrostatic_excitations[n]).get_right_hand_side() for n in elec_names])
     solutions = ElectrostaticSolverRadial(excitation).solve_matrix(right_hand_sides)
     elec_dict = {n:s for n, s in zip(elec_names, solutions)}
     
     # Solve for mag fields 
-    mag_names = [n for n, v in excitations.items() if v.is_magnetostatic()]
-    right_hand_sides = np.array([MagnetostaticSolverRadial(excitations[n]).get_right_hand_side() for n in mag_names])
+    mag_names = magnetostatic_excitations.keys()
+    right_hand_sides = np.array([MagnetostaticSolverRadial(magnetostatic_excitations[n]).get_right_hand_side() for n in mag_names])
     solutions = MagnetostaticSolverRadial(excitation).solve_matrix(right_hand_sides)
     mag_dict = {n:s for n, s in zip(mag_names, solutions)}
         

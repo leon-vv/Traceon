@@ -1,3 +1,19 @@
+"""
+## Radial series expansion in cylindrical symmetry
+
+Let \\( \\phi_0(z) \\) be the potential along the optical axis. We can express the potential around the optical axis as:
+
+$$
+\\phi = \\phi_0(z_0) - \\frac{r^2}{4} \\frac{\\partial \\phi_0^2}{\\partial z^2} + \\frac{r^4}{64} \\frac{\\partial^4 \\phi_0}{\\partial z^4} - \\frac{r^6}{2304} \\frac{\\partial \\phi_0^6}{\\partial z^6} + \\cdots
+$$
+
+Therefore, if we can efficiently compute the axial potential derivatives \\( \\frac{\\partial \\phi_0^n}{\\partial z^n} \\) we can compute the potential and therefore the fields around the optical axis.
+For the derivatives of \\( \\phi_0(z) \\) closed form formulas exist in the case of radially symmetric geometries, see for example formula 13.16a in [1]. Traceon uses a recursive version of these formulas to
+very efficiently compute the axial derivatives of the potential.
+
+[1] P. Hawkes, E. Kasper. Principles of Electron Optics. Volume one: Basic Geometrical Optics. 2018.
+"""
+
 import time
 from abc import ABC, abstractmethod
 import copy
@@ -10,7 +26,16 @@ from . import excitation as E
 from . import util
 from . import logging
 from . import backend
-from .mesher import GeometricObject
+
+__pdoc__ = {}
+__pdoc__['EffectivePointCharges'] = False
+__pdoc__['Field.get_low_level_trace_function'] = False
+__pdoc__['FieldRadialBEM.get_low_level_trace_function'] = False
+__pdoc__['FieldRadialAxial.get_low_level_trace_function'] = False
+
+def _is_numeric(x):
+    if isinstance(x, int) or isinstance(x, float) or isinstance(x, np.generic):
+        return True
 
 class EffectivePointCharges:
     def __init__(self, charges, jacobians, positions, directions=None):
@@ -58,8 +83,11 @@ class EffectivePointCharges:
                 np.concatenate([self.jacobians, other.jacobians]),
                 np.concatenate([self.positions, other.positions]))
     
+    def __radd__(self, other):
+        return self.__add__(other)
+     
     def __mul__(self, other):
-        if isinstance(other, int) or isinstance(other, float):
+        if _is_numeric(other):
             return EffectivePointCharges(other*self.charges, self.jacobians, self.positions)
         
         return NotImplemented
@@ -67,6 +95,9 @@ class EffectivePointCharges:
     def __neg__(self):
         return -1*self
     
+    def __sub__(self, other):
+        return self.__add__(-1*other)
+     
     def __rmul__(self, other):
         return self.__mul__(other)
 
@@ -307,18 +338,10 @@ class FieldBEM(Field, ABC):
         -------------------
         bounds: (3, 2) np.ndarray of float64
             The min, max value of x, y, z respectively within the field is still computed.
-        transform_to_local: bool, optional
-            If True, the bounds are transformed into the local coordinate system.
         """
-        bounds = np.array(bounds)
-        assert bounds.shape == (3,2)
-
-        if transform_to_local:
-            corners = np.array(np.meshgrid(*bounds.T)).T.reshape(-1, 3)
-            local_corners = np.array([self.map_points_to_local(corner) for corner in corners])
-            bounds = np.column_stack([local_corners.min(axis=0), local_corners.max(axis=0)])
-        self.field_bounds = bounds 
-        
+        self.field_bounds = np.array(bounds, dtype=np.float64)
+        assert self.field_bounds.shape == (3,2)
+    
     def is_electrostatic(self):
         return len(self.electrostatic_point_charges) > 0
 
@@ -344,23 +367,23 @@ class FieldBEM(Field, ABC):
             self.current_point_charges.__radd__(other.current_point_charges))
     
     def __mul__(self, other):
+        if not _is_numeric(other):
+            return NotImplemented
+         
         return self.__class__(
-            self.electrostatic_point_charges.__mul__(other.electrostatic_point_charges),
-            self.magnetostatic_point_charges.__mul__(other.magnetostatic_point_charges),
-            self.current_point_charges.__mul__(other.current_point_charges))
+            self.electrostatic_point_charges.__mul__(other),
+            self.magnetostatic_point_charges.__mul__(other),
+            self.current_point_charges.__mul__(other))
     
-    def __neg__(self, other):
+    def __neg__(self):
         return self.__class__(
-            self.electrostatic_point_charges.__neg__(other.electrostatic_point_charges),
-            self.magnetostatic_point_charges.__neg__(other.magnetostatic_point_charges),
-            self.current_point_charges.__neg__(other.current_point_charges))
+            self.electrostatic_point_charges.__neg__(),
+            self.magnetostatic_point_charges.__neg__(),
+            self.current_point_charges.__neg__())
      
     def __rmul__(self, other):
-        return self.__class__(
-            self.electrostatic_point_charges.__rmul__(other.electrostatic_point_charges),
-            self.magnetostatic_point_charges.__rmul__(other.magnetostatic_point_charges),
-            self.current_point_charges.__rmul__(other.current_point_charges))
-     
+        return self.__mul__(other)
+      
     def area_of_elements(self, indices):
         """Compute the total area of the elements at the given indices.
         
@@ -699,8 +722,24 @@ def _quintic_spline_coefficients(z, derivs):
 
 
 class FieldRadialAxial(FieldAxial):
-    """ """
     def __init__(self, field, zmin, zmax, N=None):
+        """
+        Produces a field which uses an axial interpolation to very quickly compute the field around the z-axis.
+        Note that the approximation degrades as the point at which the field is computed is further from the z-axis.
+
+        Parameters
+        -----------------------
+        field: `traceon.field.FieldRadialBEM`
+            Field for which to compute the axial interpolation
+        zmin : float
+            Location on the optical axis where to start sampling the radial expansion coefficients.
+        zmax : float
+            Location on the optical axis where to stop sampling the radial expansion coefficients. Any field
+            evaluation outside [zmin, zmax] will return a zero field strength.
+        N: int, optional
+            Number of samples to take on the optical axis, if N=None the amount of samples
+            is determined by taking into account the number of elements in the mesh.
+        """
         assert isinstance(field, FieldRadialBEM)
 
         z, electrostatic_coeffs, magnetostatic_coeffs = FieldRadialAxial._get_interpolation_coefficients(field, zmin, zmax, N=N)

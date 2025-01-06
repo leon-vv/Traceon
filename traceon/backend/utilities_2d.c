@@ -29,7 +29,7 @@ normal_2d(double *p1, double *p2, double *normal) {
 }
 
 EXPORT void
-higher_order_normal_radial(double alpha, double *v1, double *v2, double *v3, double *v4, double *normal) {
+higher_order_normal_radial(double alpha, double v1[3], double v2[3], double v3[3], double v4[3], double normal[2]) {
 
 	double v1x = v1[0], v1y = v1[2];
 	double v2x = v2[0], v2y = v2[2];

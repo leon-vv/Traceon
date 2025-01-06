@@ -1,0 +1,1864 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, minimum-scale=1">
+  <meta name="generator" content="pdoc3 0.11.5">
+
+
+
+    <title>traceon.mesher API documentation</title>
+    <meta name="description" content="">
+
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/10up-sanitize.css/13.0.0/sanitize.min.css" integrity="sha512-y1dtMcuvtTMJc1yPgEqF0ZjQbhnc/bFhyvIyVNb9Zk5mIGtqVaAB1Ttl28su8AvFMOY0EwRbAe+HCLqj6W7/KA==" crossorigin>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/10up-sanitize.css/13.0.0/typography.min.css" integrity="sha512-Y1DYSb995BAfxobCkKepB1BqJJTPrOp3zPL74AWFugHHmmdcvO+C48WLrUOlhGMc0QG7AE3f7gmvvcrmX2fDoA==" crossorigin>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/default.min.css" crossorigin>
+
+  
+  <style>:root{--highlight-color:#fe9}.flex{display:flex !important}body{line-height:1.5em}#content{padding:20px}#content .doc-image{padding:0px;display:block;margin:0px auto}#sidebar{padding:1.5em;padding-left:2.5em;overflow:hidden}#sidebar > *:last-child{margin-bottom:2cm}#sidebar .title{font-weight:bold}.http-server-breadcrumbs{font-size:130%;margin:0 0 15px 0}#footer{font-size:.75em;padding:5px 30px;border-top:1px solid #ddd;text-align:right}#footer p{margin:0 0 0 1em;display:inline-block}#footer p:last-child{margin-right:30px}h1,h2,h3,h4,h5{font-weight:300}h1{font-size:2.5em;line-height:1.1em}h2{font-size:1.75em;margin:2em 0 .50em 0}h3{font-size:1.4em;margin:1.6em 0 .7em 0}h4{margin:0;font-size:105%}h1:target,h2:target,h3:target,h4:target,h5:target,h6:target{background:var(--highlight-color);padding:.2em 0}a{color:#058;text-decoration:none;transition:color .2s ease-in-out}a:visited{color:#503}a:hover{color:#b62}.title code{font-weight:bold}h2[id^="header-"]{margin-top:2em}.ident{color:#900;font-weight:bold}pre code{font-size:.8em;line-height:1.4em;padding:1em;display:block}code{background:#f3f3f3;font-family:"DejaVu Sans Mono",monospace;padding:1px 4px;overflow-wrap:break-word}h1 code{background:transparent}pre{border-top:1px solid #ccc;border-bottom:1px solid #ccc;margin:1em 0}#http-server-module-list{display:flex;flex-flow:column}#http-server-module-list div{display:flex}#http-server-module-list dt{min-width:10%}#http-server-module-list p{margin-top:0}.toc ul,#index{list-style-type:none;margin:0;padding:0}#index code{background:transparent}#index .selected{background:transparent;font-weight:bold}#index a{color:#058}#index h3{border-bottom:1px solid #ddd}#index ul{padding:0}#index h4{margin-top:.6em;font-weight:bold}@media (min-width:200ex){#index .two-column{column-count:2}}@media (min-width:300ex){#index .two-column{column-count:3}}dl{margin-bottom:2em}dl dl:last-child{margin-bottom:4em}dd{margin:0 0 1em 3em}#header-classes + dl > dd{margin-bottom:3em}dd dd{margin-left:2em}dd p{margin:10px 0}.name{background:#eee;font-size:.85em;padding:5px 10px;display:inline-block;min-width:40%}.name:hover{background:#e0e0e0}dt:target .name{background:var(--highlight-color)}.name > span:first-child{white-space:nowrap}.name.class > span:nth-child(2){margin-left:.4em}.inherited{color:#999;border-left:5px solid #eee;padding-left:1em}.inheritance em{font-style:normal;font-weight:bold}.desc h2{font-weight:400;font-size:1.25em}.desc h3{font-size:1em}.desc dt code{background:inherit}.source > summary,.git-link-div{color:#666;text-align:right;font-weight:400;font-size:.8em;text-transform:uppercase}.source summary > *{white-space:nowrap;cursor:pointer}.git-link{color:inherit;margin-left:1em}.source pre{max-height:500px;overflow:auto;margin:0}.source pre code{font-size:12px;overflow:visible;min-width:max-content}.hlist{list-style:none}.hlist li{display:inline}.hlist li:after{content:',\2002'}.hlist li:last-child:after{content:none}.hlist .hlist{display:inline;padding-left:1em}img{max-width:100%}td{padding:0 .5em}.admonition{padding:.1em 1em;margin:1em 0}.admonition-title{font-weight:bold}.admonition.note,.admonition.info,.admonition.important{background:#aef}.admonition.todo,.admonition.versionadded,.admonition.tip,.admonition.hint{background:#dfd}.admonition.warning,.admonition.versionchanged,.admonition.deprecated{background:#fd4}.admonition.error,.admonition.danger,.admonition.caution{background:lightpink}</style>
+  <style media="screen and (min-width: 700px)">@media screen and (min-width:700px){#sidebar{width:29%;min-width:525px;height:100vh;overflow:auto;position:sticky;top:0}#content{width:80%;max-width:110ch;padding:3em 6em;border-left:1px solid #ddd}pre code{font-size:1em}.name{font-size:1em}main{display:flex;flex-direction:row-reverse;justify-content:flex-end}.toc ul ul,#index ul ul{padding-left:1em}.toc > ul > li{margin-top:.5em}}</style>
+  <style media="print">@media print{#sidebar h1{page-break-before:always}.source{display:none}}@media print{*{background:transparent !important;color:#000 !important;box-shadow:none !important;text-shadow:none !important}a[href]:after{content:" (" attr(href) ")";font-size:90%}a[href][title]:after{content:none}abbr[title]:after{content:" (" attr(title) ")"}.ir a:after,a[href^="javascript:"]:after,a[href^="#"]:after{content:""}pre,blockquote{border:1px solid #999;page-break-inside:avoid}thead{display:table-header-group}tr,img{page-break-inside:avoid}img{max-width:100% !important}@page{margin:0.5cm}p,h2,h3{orphans:3;widows:3}h1,h2,h3,h4,h5,h6{page-break-after:avoid}}</style>
+
+
+
+    <script type="text/x-mathjax-config">MathJax.Hub.Config({ tex2jax: { inlineMath: [ ['$','$'], ["\\(","\\)"] ], processEscapes: true } });</script>
+    <script async src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.7/latest.js?config=TeX-AMS_CHTML" integrity="sha256-kZafAc6mZvK3W3v1pHOcUix30OHQN6pU/NO2oFkqZVw=" crossorigin></script>
+
+    <script defer src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js" integrity="sha512-D9gUyxqja7hBtkWpPWGt9wfbfaMGVt9gnyCvYa+jojwwPHLCzUm5i8rpk7vD7wNee9bA35eYIjobYPaQuKS1MQ==" crossorigin></script>
+    <script>window.addEventListener('DOMContentLoaded', () => {
+        hljs.configure({languages: ['bash', 'css', 'diff', 'graphql', 'ini', 'javascript', 'json', 'plaintext', 'python', 'python-repl', 'rust', 'shell', 'sql', 'typescript', 'xml', 'yaml']});
+        hljs.highlightAll();
+        /* Collapse source docstrings */
+        setTimeout(() => {
+            [...document.querySelectorAll('.hljs.language-python > .hljs-string')]
+                .filter(el => el.innerHTML.length > 200 && ['"""', "'''"].includes(el.innerHTML.substring(0, 3)))
+                .forEach(el => {
+                    let d = document.createElement('details');
+                    d.classList.add('hljs-string');
+                    d.innerHTML = '<summary>"""</summary>' + el.innerHTML.substring(3);
+                    el.replaceWith(d);
+                });
+        }, 100);
+    })</script>
+
+  
+</head>
+<body>
+<main>
+    <article id="content">
+      
+  
+
+  
+
+  <header>
+  <h1 class="title">Module <code>traceon.mesher</code></h1>
+  </header>
+
+  <section id="section-intro">
+  
+  </section>
+
+  <section>
+  </section>
+	
+  <section>
+  </section>
+
+  <section>
+  </section>
+
+  <section>
+    <h2 class="section-title" id="header-classes">Classes</h2>
+    <dl>
+      
+      <dt id="traceon.mesher.GeometricObject"><code class="flex name class">
+          <span>class <span class="ident">GeometricObject</span></span>
+      </code></dt>
+
+      <dd>
+  
+  
+    
+      <details class="source">
+        <summary>
+            <span>Expand source code</span>
+        </summary>
+        <pre><code class="python">class GeometricObject(ABC):
+    &#34;&#34;&#34;The Mesh class (and the classes defined in `traceon.geometry`) are subclasses
+    of `traceon.mesher.GeometricObject`. This means that they all can be moved, rotated, mirrored.&#34;&#34;&#34;
+    
+    @abstractmethod
+    def map_points(self, fun: Callable[[np.ndarray], np.ndarray]) -&gt; Any:
+        &#34;&#34;&#34;Create a new geometric object, by mapping each point by a function.
+        
+        Parameters
+        -------------------------
+        fun: (3,) float -&gt; (3,) float
+            Function taking a three dimensional point and returning a 
+            three dimensional point.
+
+        Returns
+        ------------------------
+        GeometricObject
+
+        This function returns the same type as the object on which this method was called.&#34;&#34;&#34;
+        ...
+    
+    def move(self, dx=0., dy=0., dz=0.):
+        &#34;&#34;&#34;Move along x, y or z axis.
+
+        Parameters
+        ---------------------------
+        dx: float
+            Amount to move along the x-axis.
+        dy: float
+            Amount to move along the y-axis.
+        dz: float
+            Amount to move along the z-axis.
+
+        Returns
+        ---------------------------
+        GeometricObject
+        
+        This function returns the same type as the object on which this method was called.&#34;&#34;&#34;
+    
+        assert all([isinstance(d, float) or isinstance(d, int) for d in [dx, dy, dz]])
+        return self.map_points(lambda p: p + np.array([dx, dy, dz]))
+     
+    def rotate(self, Rx=0., Ry=0., Rz=0., origin=[0., 0., 0.]):
+        &#34;&#34;&#34;Rotate counterclockwise around the x, y or z axis. Only one axis supported at the same time
+        (rotations do not commute).
+
+        Parameters
+        ------------------------------------
+        Rx: float
+            Amount to rotate around the x-axis (radians).
+        Ry: float
+            Amount to rotate around the y-axis (radians).
+        Rz: float
+            Amount to rotate around the z-axis (radians).
+        origin: (3,) float
+            Point around which to rotate, which is the origin by default.
+
+        Returns
+        --------------------------------------
+        GeometricObject
+        
+        This function returns the same type as the object on which this method was called.&#34;&#34;&#34;
+        
+        assert sum([Rx==0., Ry==0., Rz==0.]) &gt;= 2, &#34;Only supply one axis of rotation&#34;
+
+        if Rx !=0.:
+            return self.rotate_around_axis([1,0,0], angle=Rx, origin=origin)
+        if Ry !=0.:
+            return self.rotate_around_axis([0,1,0], angle=Ry, origin=origin)
+        if Rz !=0.:
+            return self.rotate_around_axis([0,0,1], angle=Rz, origin=origin)
+        
+
+    
+    def rotate_around_axis(self, axis=[0., 0, 1.], angle=0., origin=[0., 0., 0.]):
+        &#34;&#34;&#34;
+        Rotate  counterclockwise around a general axis defined by a vector.
+        
+        Parameters
+        ------------------------------------
+        axis: (3,) float
+            Vector defining the axis of rotation. Must be non-zero.
+        angle: float
+            Amount to rotate around the axis (radians).
+        origin: (3,) float
+            Point around which to rotate, which is the origin by default.
+
+        Returns
+        --------------------------------------
+        GeometricObject
+        
+        This function returns the same type as the object on which this method was called.
+        &#34;&#34;&#34;
+        origin = np.array(origin, dtype=float)
+        assert origin.shape == (3,), &#34;Please supply a 3D point for origin&#34;
+        axis = np.array(axis, dtype=float)
+        assert axis.shape == (3,), &#34;Please supply a 3D vector for axis&#34;
+        axis = axis / np.linalg.norm(axis)
+
+        if angle == 0:
+            return self.map_points(lambda x: x)
+        
+        # Rotation is implemented using Rodrigues&#39; rotation formula
+        # See: https://en.wikipedia.org/wiki/Rodrigues%27_rotation_formula
+        K = np.array([
+            [0, -axis[2], axis[1]],
+            [axis[2], 0, -axis[0]],
+            [-axis[1], axis[0], 0]])
+        
+        K2 = K @ K # Transformation matrix that maps a vector to its cross product with the rotation axis
+        I = np.eye(3)
+        R = I + np.sin(angle) * K + (1 - np.cos(angle)) * K2
+
+        return self.map_points(lambda p: origin + R @ (p - origin))
+
+    def mirror_xz(self):
+        &#34;&#34;&#34;Mirror object in the XZ plane.
+
+        Returns
+        --------------------------------------
+        GeometricObject
+        
+        This function returns the same type as the object on which this method was called.&#34;&#34;&#34;
+        return self.map_points(lambda p: np.array([p[0], -p[1], p[2]]))
+     
+    def mirror_yz(self):
+        &#34;&#34;&#34;Mirror object in the YZ plane.
+
+        Returns
+        --------------------------------------
+        GeometricObject
+        This function returns the same type as the object on which this method was called.&#34;&#34;&#34;
+        return self.map_points(lambda p: np.array([-p[0], p[1], p[2]]))
+    
+    def mirror_xy(self):
+        &#34;&#34;&#34;Mirror object in the XY plane.
+
+        Returns
+        --------------------------------------
+        GeometricObject
+        
+        This function returns the same type as the object on which this method was called.&#34;&#34;&#34;
+        return self.map_points(lambda p: np.array([p[0], p[1], -p[2]]))</code></pre>
+      </details>
+
+  <div class="desc"><p>The Mesh class (and the classes defined in <code><a title="traceon.geometry" href="geometry.html">traceon.geometry</a></code>) are subclasses
+of <code><a title="traceon.mesher.GeometricObject" href="#traceon.mesher.GeometricObject">GeometricObject</a></code>. This means that they all can be moved, rotated, mirrored.</p></div>
+
+
+          <h3>Ancestors</h3>
+          <ul class="hlist">
+              <li>abc.ABC</li>
+          </ul>
+
+          <h3>Subclasses</h3>
+          <ul class="hlist">
+              <li><a title="traceon.geometry.Path" href="geometry.html#traceon.geometry.Path">Path</a></li>
+              <li><a title="traceon.geometry.PathCollection" href="geometry.html#traceon.geometry.PathCollection">PathCollection</a></li>
+              <li><a title="traceon.geometry.Surface" href="geometry.html#traceon.geometry.Surface">Surface</a></li>
+              <li><a title="traceon.geometry.SurfaceCollection" href="geometry.html#traceon.geometry.SurfaceCollection">SurfaceCollection</a></li>
+              <li><a title="traceon.mesher.Mesh" href="#traceon.mesher.Mesh">Mesh</a></li>
+          </ul>
+          <h3>Methods</h3>
+          <dl>
+              
+    <dt id="traceon.mesher.GeometricObject.map_points"><code class="name flex">
+        
+        <span>def <span class="ident">map_points</span></span>(<span>self, fun: Callable[[numpy.ndarray], numpy.ndarray]) ‑> Any</span>
+    </code></dt>
+    <dd>
+  
+  
+    
+      <details class="source">
+        <summary>
+            <span>Expand source code</span>
+        </summary>
+        <pre><code class="python">@abstractmethod
+def map_points(self, fun: Callable[[np.ndarray], np.ndarray]) -&gt; Any:
+    &#34;&#34;&#34;Create a new geometric object, by mapping each point by a function.
+    
+    Parameters
+    -------------------------
+    fun: (3,) float -&gt; (3,) float
+        Function taking a three dimensional point and returning a 
+        three dimensional point.
+
+    Returns
+    ------------------------
+    GeometricObject
+
+    This function returns the same type as the object on which this method was called.&#34;&#34;&#34;
+    ...</code></pre>
+      </details>
+
+  <div class="desc"><p>Create a new geometric object, by mapping each point by a function.</p>
+<h2 id="parameters">Parameters</h2>
+<dl>
+<dt><strong><code>fun</code></strong> :&ensp;<code>(3,) float -&gt; (3,) float</code></dt>
+<dd>Function taking a three dimensional point and returning a 
+three dimensional point.</dd>
+</dl>
+<h2 id="returns">Returns</h2>
+<dl>
+<dt><code><a title="traceon.mesher.GeometricObject" href="#traceon.mesher.GeometricObject">GeometricObject</a></code></dt>
+<dd>&nbsp;</dd>
+</dl>
+<p>This function returns the same type as the object on which this method was called.</p></div>
+</dd>
+  
+              
+    <dt id="traceon.mesher.GeometricObject.mirror_xy"><code class="name flex">
+        
+        <span>def <span class="ident">mirror_xy</span></span>(<span>self)</span>
+    </code></dt>
+    <dd>
+  
+  
+    
+      <details class="source">
+        <summary>
+            <span>Expand source code</span>
+        </summary>
+        <pre><code class="python">def mirror_xy(self):
+    &#34;&#34;&#34;Mirror object in the XY plane.
+
+    Returns
+    --------------------------------------
+    GeometricObject
+    
+    This function returns the same type as the object on which this method was called.&#34;&#34;&#34;
+    return self.map_points(lambda p: np.array([p[0], p[1], -p[2]]))</code></pre>
+      </details>
+
+  <div class="desc"><p>Mirror object in the XY plane.</p>
+<h2 id="returns">Returns</h2>
+<dl>
+<dt><code><a title="traceon.mesher.GeometricObject" href="#traceon.mesher.GeometricObject">GeometricObject</a></code></dt>
+<dd>&nbsp;</dd>
+</dl>
+<p>This function returns the same type as the object on which this method was called.</p></div>
+</dd>
+  
+              
+    <dt id="traceon.mesher.GeometricObject.mirror_xz"><code class="name flex">
+        
+        <span>def <span class="ident">mirror_xz</span></span>(<span>self)</span>
+    </code></dt>
+    <dd>
+  
+  
+    
+      <details class="source">
+        <summary>
+            <span>Expand source code</span>
+        </summary>
+        <pre><code class="python">def mirror_xz(self):
+    &#34;&#34;&#34;Mirror object in the XZ plane.
+
+    Returns
+    --------------------------------------
+    GeometricObject
+    
+    This function returns the same type as the object on which this method was called.&#34;&#34;&#34;
+    return self.map_points(lambda p: np.array([p[0], -p[1], p[2]]))</code></pre>
+      </details>
+
+  <div class="desc"><p>Mirror object in the XZ plane.</p>
+<h2 id="returns">Returns</h2>
+<dl>
+<dt><code><a title="traceon.mesher.GeometricObject" href="#traceon.mesher.GeometricObject">GeometricObject</a></code></dt>
+<dd>&nbsp;</dd>
+</dl>
+<p>This function returns the same type as the object on which this method was called.</p></div>
+</dd>
+  
+              
+    <dt id="traceon.mesher.GeometricObject.mirror_yz"><code class="name flex">
+        
+        <span>def <span class="ident">mirror_yz</span></span>(<span>self)</span>
+    </code></dt>
+    <dd>
+  
+  
+    
+      <details class="source">
+        <summary>
+            <span>Expand source code</span>
+        </summary>
+        <pre><code class="python">def mirror_yz(self):
+    &#34;&#34;&#34;Mirror object in the YZ plane.
+
+    Returns
+    --------------------------------------
+    GeometricObject
+    This function returns the same type as the object on which this method was called.&#34;&#34;&#34;
+    return self.map_points(lambda p: np.array([-p[0], p[1], p[2]]))</code></pre>
+      </details>
+
+  <div class="desc"><p>Mirror object in the YZ plane.</p>
+<h2 id="returns">Returns</h2>
+<dl>
+<dt><code><a title="traceon.mesher.GeometricObject" href="#traceon.mesher.GeometricObject">GeometricObject</a></code></dt>
+<dd>&nbsp;</dd>
+</dl>
+<p>This function returns the same type as the object on which this method was called.</p></div>
+</dd>
+  
+              
+    <dt id="traceon.mesher.GeometricObject.move"><code class="name flex">
+        
+        <span>def <span class="ident">move</span></span>(<span>self, dx=0.0, dy=0.0, dz=0.0)</span>
+    </code></dt>
+    <dd>
+  
+  
+    
+      <details class="source">
+        <summary>
+            <span>Expand source code</span>
+        </summary>
+        <pre><code class="python">def move(self, dx=0., dy=0., dz=0.):
+    &#34;&#34;&#34;Move along x, y or z axis.
+
+    Parameters
+    ---------------------------
+    dx: float
+        Amount to move along the x-axis.
+    dy: float
+        Amount to move along the y-axis.
+    dz: float
+        Amount to move along the z-axis.
+
+    Returns
+    ---------------------------
+    GeometricObject
+    
+    This function returns the same type as the object on which this method was called.&#34;&#34;&#34;
+
+    assert all([isinstance(d, float) or isinstance(d, int) for d in [dx, dy, dz]])
+    return self.map_points(lambda p: p + np.array([dx, dy, dz]))</code></pre>
+      </details>
+
+  <div class="desc"><p>Move along x, y or z axis.</p>
+<h2 id="parameters">Parameters</h2>
+<dl>
+<dt><strong><code>dx</code></strong> :&ensp;<code>float</code></dt>
+<dd>Amount to move along the x-axis.</dd>
+<dt><strong><code>dy</code></strong> :&ensp;<code>float</code></dt>
+<dd>Amount to move along the y-axis.</dd>
+<dt><strong><code>dz</code></strong> :&ensp;<code>float</code></dt>
+<dd>Amount to move along the z-axis.</dd>
+</dl>
+<h2 id="returns">Returns</h2>
+<dl>
+<dt><code><a title="traceon.mesher.GeometricObject" href="#traceon.mesher.GeometricObject">GeometricObject</a></code></dt>
+<dd>&nbsp;</dd>
+</dl>
+<p>This function returns the same type as the object on which this method was called.</p></div>
+</dd>
+  
+              
+    <dt id="traceon.mesher.GeometricObject.rotate"><code class="name flex">
+        
+        <span>def <span class="ident">rotate</span></span>(<span>self, Rx=0.0, Ry=0.0, Rz=0.0, origin=[0.0, 0.0, 0.0])</span>
+    </code></dt>
+    <dd>
+  
+  
+    
+      <details class="source">
+        <summary>
+            <span>Expand source code</span>
+        </summary>
+        <pre><code class="python">def rotate(self, Rx=0., Ry=0., Rz=0., origin=[0., 0., 0.]):
+    &#34;&#34;&#34;Rotate counterclockwise around the x, y or z axis. Only one axis supported at the same time
+    (rotations do not commute).
+
+    Parameters
+    ------------------------------------
+    Rx: float
+        Amount to rotate around the x-axis (radians).
+    Ry: float
+        Amount to rotate around the y-axis (radians).
+    Rz: float
+        Amount to rotate around the z-axis (radians).
+    origin: (3,) float
+        Point around which to rotate, which is the origin by default.
+
+    Returns
+    --------------------------------------
+    GeometricObject
+    
+    This function returns the same type as the object on which this method was called.&#34;&#34;&#34;
+    
+    assert sum([Rx==0., Ry==0., Rz==0.]) &gt;= 2, &#34;Only supply one axis of rotation&#34;
+
+    if Rx !=0.:
+        return self.rotate_around_axis([1,0,0], angle=Rx, origin=origin)
+    if Ry !=0.:
+        return self.rotate_around_axis([0,1,0], angle=Ry, origin=origin)
+    if Rz !=0.:
+        return self.rotate_around_axis([0,0,1], angle=Rz, origin=origin)</code></pre>
+      </details>
+
+  <div class="desc"><p>Rotate counterclockwise around the x, y or z axis. Only one axis supported at the same time
+(rotations do not commute).</p>
+<h2 id="parameters">Parameters</h2>
+<dl>
+<dt><strong><code>Rx</code></strong> :&ensp;<code>float</code></dt>
+<dd>Amount to rotate around the x-axis (radians).</dd>
+<dt><strong><code>Ry</code></strong> :&ensp;<code>float</code></dt>
+<dd>Amount to rotate around the y-axis (radians).</dd>
+<dt><strong><code>Rz</code></strong> :&ensp;<code>float</code></dt>
+<dd>Amount to rotate around the z-axis (radians).</dd>
+<dt><strong><code>origin</code></strong> :&ensp;<code>(3,) float</code></dt>
+<dd>Point around which to rotate, which is the origin by default.</dd>
+</dl>
+<h2 id="returns">Returns</h2>
+<dl>
+<dt><code><a title="traceon.mesher.GeometricObject" href="#traceon.mesher.GeometricObject">GeometricObject</a></code></dt>
+<dd>&nbsp;</dd>
+</dl>
+<p>This function returns the same type as the object on which this method was called.</p></div>
+</dd>
+  
+              
+    <dt id="traceon.mesher.GeometricObject.rotate_around_axis"><code class="name flex">
+        
+        <span>def <span class="ident">rotate_around_axis</span></span>(<span>self, axis=[0.0, 0, 1.0], angle=0.0, origin=[0.0, 0.0, 0.0])</span>
+    </code></dt>
+    <dd>
+  
+  
+    
+      <details class="source">
+        <summary>
+            <span>Expand source code</span>
+        </summary>
+        <pre><code class="python">def rotate_around_axis(self, axis=[0., 0, 1.], angle=0., origin=[0., 0., 0.]):
+    &#34;&#34;&#34;
+    Rotate  counterclockwise around a general axis defined by a vector.
+    
+    Parameters
+    ------------------------------------
+    axis: (3,) float
+        Vector defining the axis of rotation. Must be non-zero.
+    angle: float
+        Amount to rotate around the axis (radians).
+    origin: (3,) float
+        Point around which to rotate, which is the origin by default.
+
+    Returns
+    --------------------------------------
+    GeometricObject
+    
+    This function returns the same type as the object on which this method was called.
+    &#34;&#34;&#34;
+    origin = np.array(origin, dtype=float)
+    assert origin.shape == (3,), &#34;Please supply a 3D point for origin&#34;
+    axis = np.array(axis, dtype=float)
+    assert axis.shape == (3,), &#34;Please supply a 3D vector for axis&#34;
+    axis = axis / np.linalg.norm(axis)
+
+    if angle == 0:
+        return self.map_points(lambda x: x)
+    
+    # Rotation is implemented using Rodrigues&#39; rotation formula
+    # See: https://en.wikipedia.org/wiki/Rodrigues%27_rotation_formula
+    K = np.array([
+        [0, -axis[2], axis[1]],
+        [axis[2], 0, -axis[0]],
+        [-axis[1], axis[0], 0]])
+    
+    K2 = K @ K # Transformation matrix that maps a vector to its cross product with the rotation axis
+    I = np.eye(3)
+    R = I + np.sin(angle) * K + (1 - np.cos(angle)) * K2
+
+    return self.map_points(lambda p: origin + R @ (p - origin))</code></pre>
+      </details>
+
+  <div class="desc"><p>Rotate  counterclockwise around a general axis defined by a vector.</p>
+<h2 id="parameters">Parameters</h2>
+<dl>
+<dt><strong><code>axis</code></strong> :&ensp;<code>(3,) float</code></dt>
+<dd>Vector defining the axis of rotation. Must be non-zero.</dd>
+<dt><strong><code>angle</code></strong> :&ensp;<code>float</code></dt>
+<dd>Amount to rotate around the axis (radians).</dd>
+<dt><strong><code>origin</code></strong> :&ensp;<code>(3,) float</code></dt>
+<dd>Point around which to rotate, which is the origin by default.</dd>
+</dl>
+<h2 id="returns">Returns</h2>
+<dl>
+<dt><code><a title="traceon.mesher.GeometricObject" href="#traceon.mesher.GeometricObject">GeometricObject</a></code></dt>
+<dd>&nbsp;</dd>
+</dl>
+<p>This function returns the same type as the object on which this method was called.</p></div>
+</dd>
+  
+          </dl>
+
+          
+
+      </dd>
+      
+      <dt id="traceon.mesher.Mesh"><code class="flex name class">
+          <span>class <span class="ident">Mesh</span></span>
+              <span>(</span><span>points=[],<br>lines=[],<br>triangles=[],<br>physical_to_lines={},<br>physical_to_triangles={},<br>ensure_outward_normals=True)</span>
+      </code></dt>
+
+      <dd>
+  
+  
+    
+      <details class="source">
+        <summary>
+            <span>Expand source code</span>
+        </summary>
+        <pre><code class="python">class Mesh(Saveable, GeometricObject):
+    &#34;&#34;&#34;Mesh containing lines and triangles. Groups of lines or triangles can be named. These
+    names are later used to apply the correct excitation. Line elements can be curved (or &#39;higher order&#39;), 
+    in which case they are represented by four points per element.  Note that `Mesh` is a subclass of
+    `traceon.mesher.GeometricObject`, and therefore can be easily moved and rotated.&#34;&#34;&#34;
+     
+    def __init__(self,
+            points=[],
+            lines=[],
+            triangles=[],
+            physical_to_lines={},
+            physical_to_triangles={},
+            ensure_outward_normals=True):
+        
+        # Ensure the correct shape even if empty arrays
+        if len(points):
+            self.points = np.array(points, dtype=np.float64)
+        else:
+            self.points = np.empty((0,3), dtype=np.float64)
+         
+        if len(lines) or (isinstance(lines, np.ndarray) and len(lines.shape)==2):
+            self.lines = np.array(lines, dtype=np.uint64)
+        else:
+            self.lines = np.empty((0,2), dtype=np.uint64)
+    
+        if len(triangles):
+            self.triangles = np.array(triangles, dtype=np.uint64)
+        else:
+            self.triangles = np.empty((0, 3), dtype=np.uint64)
+         
+        self.physical_to_lines = physical_to_lines.copy()
+        self.physical_to_triangles = physical_to_triangles.copy()
+
+        self._remove_degenerate_triangles()
+        self._deduplicate_points()
+
+        if ensure_outward_normals:
+            for el in self.get_electrodes():
+                self.ensure_outward_normals(el)
+         
+        assert np.all( (0 &lt;= self.lines) &amp; (self.lines &lt; len(self.points)) ), &#34;Lines reference points outside points array&#34;
+        assert np.all( (0 &lt;= self.triangles) &amp; (self.triangles &lt; len(self.points)) ), &#34;Triangles reference points outside points array&#34;
+        assert np.all([np.all( (0 &lt;= group) &amp; (group &lt; len(self.lines)) ) for group in self.physical_to_lines.values()])
+        assert np.all([np.all( (0 &lt;= group) &amp; (group &lt; len(self.triangles)) ) for group in self.physical_to_triangles.values()])
+        assert not len(self.lines) or self.lines.shape[1] in [2,4], &#34;Lines should contain either 2 or 4 points.&#34;
+        assert not len(self.triangles) or self.triangles.shape[1] in [3,6], &#34;Triangles should contain either 3 or 6 points&#34;
+    
+    def is_higher_order(self):
+        &#34;&#34;&#34;Whether the mesh contains higher order elements.
+
+        Returns
+        ----------------------------
+        bool&#34;&#34;&#34;
+        return isinstance(self.lines, np.ndarray) and len(self.lines.shape) == 2 and self.lines.shape[1] == 4
+    
+    def map_points(self, fun):
+        &#34;&#34;&#34;See `GeometricObject`
+
+        &#34;&#34;&#34;
+        new_points = np.empty_like(self.points)
+        for i in range(len(self.points)):
+            new_points[i] = fun(self.points[i])
+        assert new_points.shape == self.points.shape and new_points.dtype == self.points.dtype
+        
+        return Mesh(new_points, self.lines, self.triangles, self.physical_to_lines, self.physical_to_triangles)
+    
+    def _remove_degenerate_triangles(self):
+        areas = triangle_areas(self.points[self.triangles[:,:3]])
+        degenerate = areas &lt; 1e-12
+        map_index = np.arange(len(self.triangles)) - np.cumsum(degenerate)
+         
+        self.triangles = self.triangles[~degenerate]
+        
+        for k in self.physical_to_triangles.keys():
+            v = self.physical_to_triangles[k]
+            self.physical_to_triangles[k] = map_index[v[~degenerate[v]]]
+         
+        if np.any(degenerate):
+            log_debug(f&#39;Removed {sum(degenerate)} degenerate triangles&#39;)
+
+    def _deduplicate_points(self):
+        if not len(self.points):
+            return
+         
+        # Step 1: Make a copy of the points array using np.array
+        points_copy = np.array(self.points, dtype=np.float64)
+
+        # Step 2: Zero the low 16 bits of the mantissa of the X, Y, Z coordinates
+        points_copy.view(np.uint64)[:] &amp;= np.uint64(0xFFFFFFFFFFFF0000)
+
+        # Step 3: Use Numpy lexsort directly on points_copy
+        sorted_indices = np.lexsort(points_copy.T)
+        points_sorted = points_copy[sorted_indices]
+
+        # Step 4: Create a mask to identify unique points
+        equal_to_previous = np.all(points_sorted[1:] == points_sorted[:-1], axis=1)
+        keep_mask = np.concatenate(([True], ~equal_to_previous))
+
+        # Step 5: Compute new indices for the unique points
+        new_indices_in_sorted_order = np.cumsum(keep_mask) - 1
+
+        # Map old indices to new indices
+        old_to_new_indices = np.empty(len(points_copy), dtype=np.uint64)
+        old_to_new_indices[sorted_indices] = new_indices_in_sorted_order
+        
+        # Step 6: Update the points array with unique points
+        self.points = points_sorted[keep_mask]
+
+        # Step 7: Update all indices
+        if len(self.triangles):
+            self.triangles = old_to_new_indices[self.triangles]
+        if len(self.lines):
+            self.lines = old_to_new_indices[self.lines]
+    
+    @staticmethod
+    def _merge_dicts(dict1, dict2):
+        dict_: dict[str, np.ndarray] = {}
+        
+        for (k, v) in chain(dict1.items(), dict2.items()):
+            if k in dict_:
+                dict_[k] = np.concatenate( (dict_[k], v), axis=0)
+            else:
+                dict_[k] = v
+
+        return dict_
+     
+    def __add__(self, other):
+        &#34;&#34;&#34;Add meshes together, using the + operator (mesh1 + mesh2).
+        
+        Returns
+        ------------------------------
+        Mesh
+
+        A new mesh consisting of the elements of the added meshes&#34;&#34;&#34;
+        if not isinstance(other, Mesh):
+            return NotImplemented
+         
+        N_points = len(self.points)
+        N_lines = len(self.lines)
+        N_triangles = len(self.triangles)
+         
+        points = _concat_arrays(self.points, other.points)
+        lines = _concat_arrays(self.lines, other.lines+N_points)
+        triangles = _concat_arrays(self.triangles, other.triangles+N_points)
+
+        other_physical_to_lines = {k:(v+N_lines) for k, v in other.physical_to_lines.items()}
+        other_physical_to_triangles = {k:(v+N_triangles) for k, v in other.physical_to_triangles.items()}
+         
+        physical_lines = Mesh._merge_dicts(self.physical_to_lines, other_physical_to_lines)
+        physical_triangles = Mesh._merge_dicts(self.physical_to_triangles, other_physical_to_triangles)
+         
+        return Mesh(points=points,
+                    lines=lines,
+                    triangles=triangles,
+                    physical_to_lines=physical_lines,
+                    physical_to_triangles=physical_triangles)
+     
+    def extract_physical_group(self, name):
+        &#34;&#34;&#34;Extract a named group from the mesh.
+
+        Parameters
+        ---------------------------
+        name: str
+            Name of the group of elements
+
+        Returns
+        --------------------------
+        Mesh
+
+        Subset of the mesh consisting only of the elements with the given name.&#34;&#34;&#34;
+        assert name in self.physical_to_lines or name in self.physical_to_triangles, &#34;Physical group not in mesh, so cannot extract&#34;
+
+        if name in self.physical_to_lines:
+            elements = self.lines
+            physical = self.physical_to_lines
+        elif name in self.physical_to_triangles:
+            elements = self.triangles
+            physical = self.physical_to_triangles
+         
+        elements_indices = np.unique(physical[name])
+        elements = elements[elements_indices]
+          
+        points_mask = np.full(len(self.points), False)
+        points_mask[elements] = True
+        points = self.points[points_mask]
+          
+        new_index = np.cumsum(points_mask) - 1
+        elements = new_index[elements]
+        physical_to_elements = {name:np.arange(len(elements))}
+         
+        if name in self.physical_to_lines:
+            return Mesh(points=points, lines=elements, physical_to_lines=physical_to_elements)
+        elif name in self.physical_to_triangles:
+            return Mesh(points=points, triangles=elements, physical_to_triangles=physical_to_elements)
+     
+    @staticmethod
+    def read_file(filename,  name=None):
+        &#34;&#34;&#34;Create a mesh from a given file. All formats supported by meshio are accepted.
+
+        Parameters
+        ------------------------------
+        filename: str
+            Path of the file to convert to Mesh
+        name: str
+            (optional) name to assign to all elements readed
+
+        Returns
+        -------------------------------
+        Mesh&#34;&#34;&#34;
+        meshio_obj = meshio.read(filename)
+        mesh = Mesh.from_meshio(meshio_obj)
+         
+        if name is not None:
+            mesh.physical_to_lines[name] = np.arange(len(mesh.lines))
+            mesh.physical_to_triangles[name] = np.arange(len(mesh.triangles))
+         
+        return mesh
+     
+    def write_file(self, filename):
+        &#34;&#34;&#34;Write a mesh to a given file. The format is determined from the file extension.
+        All formats supported by meshio are supported.
+
+        Parameters
+        ----------------------------------
+        filename: str
+            The name of the file to write the mesh to.&#34;&#34;&#34;
+        meshio_obj = self.to_meshio()
+        meshio_obj.write(filename)
+    
+    def write(self, filename):
+        self.write_file(filename)
+        
+     
+    def to_meshio(self):
+        &#34;&#34;&#34;Convert the Mesh to a meshio object.
+
+        Returns
+        ------------------------------------
+        meshio.Mesh&#34;&#34;&#34;
+        to_write = []
+        
+        if len(self.lines):
+            line_type = &#39;line&#39; if self.lines.shape[1] == 2 else &#39;line4&#39;
+            to_write.append( (line_type, self.lines) )
+        
+        if len(self.triangles):
+            triangle_type = &#39;triangle&#39; if self.triangles.shape[1] == 3 else &#39;triangle6&#39;
+            to_write.append( (triangle_type, self.triangles) )
+        
+        return meshio.Mesh(self.points, to_write)
+     
+    @staticmethod
+    def from_meshio(mesh: meshio.Mesh):
+        &#34;&#34;&#34;Create a Traceon mesh from a meshio.Mesh object.
+
+        Parameters
+        --------------------------
+        mesh: meshio.Mesh
+            The mesh to convert to a Traceon mesh
+
+        Returns
+        -------------------------
+        Mesh&#34;&#34;&#34;
+        def extract(type_):
+            elements = mesh.cells_dict[type_]
+            physical = {k:v[type_] for k,v in mesh.cell_sets_dict.items() if type_ in v}
+            return elements, physical
+        
+        lines, physical_lines = [], {}
+        triangles, physical_triangles = [], {}
+        
+        if &#39;line&#39; in mesh.cells_dict:
+            lines, physical_lines = extract(&#39;line&#39;)
+        elif &#39;line4&#39; in mesh.cells_dict:
+            lines, physical_lines = extract(&#39;line4&#39;)
+        
+        if &#39;triangle&#39; in mesh.cells_dict:
+            triangles, physical_triangles = extract(&#39;triangle&#39;)
+        elif &#39;triangle6&#39; in mesh.cells_dict:
+            triangles, physical_triangles = extract(&#39;triangle6&#39;)
+        
+        return Mesh(points=mesh.points,
+            lines=lines, physical_to_lines=physical_lines,
+            triangles=triangles, physical_to_triangles=physical_triangles)
+     
+    def is_3d(self):
+        &#34;&#34;&#34;Check if the mesh is three dimensional by checking whether any z coordinate is non-zero.
+
+        Returns
+        ----------------
+        bool
+
+        Whether the mesh is three dimensional&#34;&#34;&#34;
+        return np.any(self.points[:, 1] != 0.)
+    
+    def is_2d(self):
+        &#34;&#34;&#34;Check if the mesh is two dimensional, by checking that all z coordinates are zero.
+        
+        Returns
+        ----------------
+        bool
+
+        Whether the mesh is two dimensional&#34;&#34;&#34;
+        return np.all(self.points[:, 1] == 0.)
+    
+    def flip_normals(self):
+        &#34;&#34;&#34;Flip the normals in the mesh by inverting the &#39;orientation&#39; of the elements.
+
+        Returns
+        ----------------------------
+        Mesh&#34;&#34;&#34;
+        lines = self.lines
+        triangles = self.triangles
+        
+        # Flip the orientation of the lines
+        if lines.shape[1] == 4:
+            p0, p1, p2, p3 = lines.T
+            lines = np.array([p1, p0, p3, p2]).T
+        else:
+            p0, p1 = lines.T
+            lines = np.array([p1, p0]).T
+          
+        # Flip the orientation of the triangles
+        if triangles.shape[1] == 6:
+            p0, p1, p2, p3, p4, p5 = triangles.T
+            triangles = np.array([p0, p2, p1, p5, p4, p3]).T
+        else:
+            p0, p1, p2 = triangles.T
+            triangles = np.array([p0, p2, p1]).T
+        
+        return Mesh(self.points, lines, triangles,
+            physical_to_lines=self.physical_to_lines,
+            physical_to_triangles=self.physical_to_triangles)
+     
+    def remove_lines(self):
+        &#34;&#34;&#34;Remove all the lines from the mesh.
+
+        Returns
+        -----------------------------
+        Mesh&#34;&#34;&#34;
+        return Mesh(self.points, triangles=self.triangles, physical_to_triangles=self.physical_to_triangles)
+    
+    def remove_triangles(self):
+        &#34;&#34;&#34;Remove all triangles from the mesh.
+
+        Returns
+        -------------------------------------
+        Mesh&#34;&#34;&#34;
+        return Mesh(self.points, lines=self.lines, physical_to_lines=self.physical_to_lines)
+     
+    def get_electrodes(self):
+        &#34;&#34;&#34;Get the names of all the named groups (i.e. electrodes) in the mesh
+         
+        Returns
+        ---------
+        str iterable
+
+        Names
+        &#34;&#34;&#34;
+        return list(self.physical_to_lines.keys()) + list(self.physical_to_triangles.keys())
+     
+    @staticmethod
+    def _lines_to_higher_order(points, elements):
+        N_elements = len(elements)
+        N_points = len(points)
+         
+        v0, v1 = elements.T
+        p2 = points[v0] + (points[v1] - points[v0]) * 1/3
+        p3 = points[v0] + (points[v1] - points[v0]) * 2/3
+         
+        assert all(p.shape == (N_elements, points.shape[1]) for p in [p2, p3])
+         
+        points = np.concatenate( (points, p2, p3), axis=0)
+          
+        elements = np.array([
+            elements[:, 0], elements[:, 1], 
+            np.arange(N_points, N_points + N_elements, dtype=np.uint64),
+            np.arange(N_points + N_elements, N_points + 2*N_elements, dtype=np.uint64)]).T
+         
+        assert np.allclose(p2, points[elements[:, 2]]) and np.allclose(p3, points[elements[:, 3]])
+        return points, elements
+
+
+    def _to_higher_order_mesh(self):
+        # The matrix solver currently only works with higher order meshes.
+        # We can however convert a simple mesh easily to a higher order mesh, and solve that.
+        
+        points, lines, triangles = self.points, self.lines, self.triangles
+
+        if not len(lines):
+            lines = np.empty( (0, 4), dtype=np.float64)
+        elif len(lines) and lines.shape[1] == 2:
+            points, lines = Mesh._lines_to_higher_order(points, lines)
+        
+        assert lines.shape == (len(lines), 4)
+
+        return Mesh(points=points,
+            lines=lines, physical_to_lines=self.physical_to_lines,
+            triangles=triangles, physical_to_triangles=self.physical_to_triangles)
+     
+    def __str__(self):
+        physical_lines = &#39;, &#39;.join(self.physical_to_lines.keys())
+        physical_lines_nums = &#39;, &#39;.join([str(len(self.physical_to_lines[n])) for n in self.physical_to_lines.keys()])
+        physical_triangles = &#39;, &#39;.join(self.physical_to_triangles.keys())
+        physical_triangles_nums = &#39;, &#39;.join([str(len(self.physical_to_triangles[n])) for n in self.physical_to_triangles.keys()])
+        
+        return f&#39;&lt;Traceon Mesh,\n&#39; \
+            f&#39;\tNumber of points: {len(self.points)}\n&#39; \
+            f&#39;\tNumber of lines: {len(self.lines)}\n&#39; \
+            f&#39;\tNumber of triangles: {len(self.triangles)}\n&#39; \
+            f&#39;\tPhysical lines: {physical_lines}\n&#39; \
+            f&#39;\tElements in physical line groups: {physical_lines_nums}\n&#39; \
+            f&#39;\tPhysical triangles: {physical_triangles}\n&#39; \
+            f&#39;\tElements in physical triangle groups: {physical_triangles_nums}&gt;&#39;
+
+    def _ensure_normal_orientation_triangles(self, electrode, outwards):
+        assert electrode in self.physical_to_triangles, &#34;electrode should be part of mesh&#34;
+        
+        triangle_indices = self.physical_to_triangles[electrode]
+        electrode_triangles = self.triangles[triangle_indices]
+          
+        if not len(electrode_triangles):
+            return
+        
+        connected_indices = _get_connected_elements(electrode_triangles)
+        
+        for indices in connected_indices:
+            connected_triangles = electrode_triangles[indices]
+            _ensure_triangle_orientation(connected_triangles, self.points, outwards)
+            electrode_triangles[indices] = connected_triangles
+
+        self.triangles[triangle_indices] = electrode_triangles
+     
+    def _ensure_normal_orientation_lines(self, electrode, outwards):
+        assert electrode in self.physical_to_lines, &#34;electrode should be part of mesh&#34;
+        
+        line_indices = self.physical_to_lines[electrode]
+        electrode_lines = self.lines[line_indices]
+          
+        if not len(electrode_lines):
+            return
+        
+        connected_indices = _get_connected_elements(electrode_lines)
+        
+        for indices in connected_indices:
+            connected_lines = electrode_lines[indices]
+            _ensure_line_orientation(connected_lines, self.points, outwards)
+            electrode_lines[indices] = connected_lines
+
+        self.lines[line_indices] = electrode_lines
+     
+    def ensure_outward_normals(self, electrode):
+        if electrode in self.physical_to_triangles:
+            self._ensure_normal_orientation_triangles(electrode, True)
+        
+        if electrode in self.physical_to_lines:
+            self._ensure_normal_orientation_lines(electrode, True)
+     
+    def ensure_inward_normals(self, electrode):
+        if electrode in self.physical_to_triangles:
+            self._ensure_normal_orientation_triangles(electrode, False)
+         
+        if electrode in self.physical_to_lines:
+            self._ensure_normal_orientation_lines(electrode, False)</code></pre>
+      </details>
+
+  <div class="desc"><p>Mesh containing lines and triangles. Groups of lines or triangles can be named. These
+names are later used to apply the correct excitation. Line elements can be curved (or 'higher order'), 
+in which case they are represented by four points per element.  Note that <code><a title="traceon.mesher.Mesh" href="#traceon.mesher.Mesh">Mesh</a></code> is a subclass of
+<code><a title="traceon.mesher.GeometricObject" href="#traceon.mesher.GeometricObject">GeometricObject</a></code>, and therefore can be easily moved and rotated.</p></div>
+
+
+          <h3>Ancestors</h3>
+          <ul class="hlist">
+              <li>traceon.util.Saveable</li>
+              <li><a title="traceon.mesher.GeometricObject" href="#traceon.mesher.GeometricObject">GeometricObject</a></li>
+              <li>abc.ABC</li>
+          </ul>
+
+          <h3>Static methods</h3>
+          <dl>
+              
+    <dt id="traceon.mesher.Mesh.from_meshio"><code class="name flex">
+        
+        <span>def <span class="ident">from_meshio</span></span>(<span>mesh: meshio._mesh.Mesh)</span>
+    </code></dt>
+    <dd>
+  
+  
+    
+      <details class="source">
+        <summary>
+            <span>Expand source code</span>
+        </summary>
+        <pre><code class="python">@staticmethod
+def from_meshio(mesh: meshio.Mesh):
+    &#34;&#34;&#34;Create a Traceon mesh from a meshio.Mesh object.
+
+    Parameters
+    --------------------------
+    mesh: meshio.Mesh
+        The mesh to convert to a Traceon mesh
+
+    Returns
+    -------------------------
+    Mesh&#34;&#34;&#34;
+    def extract(type_):
+        elements = mesh.cells_dict[type_]
+        physical = {k:v[type_] for k,v in mesh.cell_sets_dict.items() if type_ in v}
+        return elements, physical
+    
+    lines, physical_lines = [], {}
+    triangles, physical_triangles = [], {}
+    
+    if &#39;line&#39; in mesh.cells_dict:
+        lines, physical_lines = extract(&#39;line&#39;)
+    elif &#39;line4&#39; in mesh.cells_dict:
+        lines, physical_lines = extract(&#39;line4&#39;)
+    
+    if &#39;triangle&#39; in mesh.cells_dict:
+        triangles, physical_triangles = extract(&#39;triangle&#39;)
+    elif &#39;triangle6&#39; in mesh.cells_dict:
+        triangles, physical_triangles = extract(&#39;triangle6&#39;)
+    
+    return Mesh(points=mesh.points,
+        lines=lines, physical_to_lines=physical_lines,
+        triangles=triangles, physical_to_triangles=physical_triangles)</code></pre>
+      </details>
+
+  <div class="desc"><p>Create a Traceon mesh from a meshio.Mesh object.</p>
+<h2 id="parameters">Parameters</h2>
+<dl>
+<dt><strong><code>mesh</code></strong> :&ensp;<code>meshio.Mesh</code></dt>
+<dd>The mesh to convert to a Traceon mesh</dd>
+</dl>
+<h2 id="returns">Returns</h2>
+<dl>
+<dt><code><a title="traceon.mesher.Mesh" href="#traceon.mesher.Mesh">Mesh</a></code></dt>
+<dd>&nbsp;</dd>
+</dl></div>
+</dd>
+  
+              
+    <dt id="traceon.mesher.Mesh.read_file"><code class="name flex">
+        
+        <span>def <span class="ident">read_file</span></span>(<span>filename, name=None)</span>
+    </code></dt>
+    <dd>
+  
+  
+    
+      <details class="source">
+        <summary>
+            <span>Expand source code</span>
+        </summary>
+        <pre><code class="python">@staticmethod
+def read_file(filename,  name=None):
+    &#34;&#34;&#34;Create a mesh from a given file. All formats supported by meshio are accepted.
+
+    Parameters
+    ------------------------------
+    filename: str
+        Path of the file to convert to Mesh
+    name: str
+        (optional) name to assign to all elements readed
+
+    Returns
+    -------------------------------
+    Mesh&#34;&#34;&#34;
+    meshio_obj = meshio.read(filename)
+    mesh = Mesh.from_meshio(meshio_obj)
+     
+    if name is not None:
+        mesh.physical_to_lines[name] = np.arange(len(mesh.lines))
+        mesh.physical_to_triangles[name] = np.arange(len(mesh.triangles))
+     
+    return mesh</code></pre>
+      </details>
+
+  <div class="desc"><p>Create a mesh from a given file. All formats supported by meshio are accepted.</p>
+<h2 id="parameters">Parameters</h2>
+<dl>
+<dt><strong><code>filename</code></strong> :&ensp;<code>str</code></dt>
+<dd>Path of the file to convert to Mesh</dd>
+<dt><strong><code>name</code></strong> :&ensp;<code>str</code></dt>
+<dd>(optional) name to assign to all elements readed</dd>
+</dl>
+<h2 id="returns">Returns</h2>
+<dl>
+<dt><code><a title="traceon.mesher.Mesh" href="#traceon.mesher.Mesh">Mesh</a></code></dt>
+<dd>&nbsp;</dd>
+</dl></div>
+</dd>
+  
+          </dl>
+          <h3>Methods</h3>
+          <dl>
+              
+    <dt id="traceon.mesher.Mesh.__add__"><code class="name flex">
+        
+        <span>def <span class="ident">__add__</span></span>(<span>self, other)</span>
+    </code></dt>
+    <dd>
+  
+  
+    
+      <details class="source">
+        <summary>
+            <span>Expand source code</span>
+        </summary>
+        <pre><code class="python">def __add__(self, other):
+    &#34;&#34;&#34;Add meshes together, using the + operator (mesh1 + mesh2).
+    
+    Returns
+    ------------------------------
+    Mesh
+
+    A new mesh consisting of the elements of the added meshes&#34;&#34;&#34;
+    if not isinstance(other, Mesh):
+        return NotImplemented
+     
+    N_points = len(self.points)
+    N_lines = len(self.lines)
+    N_triangles = len(self.triangles)
+     
+    points = _concat_arrays(self.points, other.points)
+    lines = _concat_arrays(self.lines, other.lines+N_points)
+    triangles = _concat_arrays(self.triangles, other.triangles+N_points)
+
+    other_physical_to_lines = {k:(v+N_lines) for k, v in other.physical_to_lines.items()}
+    other_physical_to_triangles = {k:(v+N_triangles) for k, v in other.physical_to_triangles.items()}
+     
+    physical_lines = Mesh._merge_dicts(self.physical_to_lines, other_physical_to_lines)
+    physical_triangles = Mesh._merge_dicts(self.physical_to_triangles, other_physical_to_triangles)
+     
+    return Mesh(points=points,
+                lines=lines,
+                triangles=triangles,
+                physical_to_lines=physical_lines,
+                physical_to_triangles=physical_triangles)</code></pre>
+      </details>
+
+  <div class="desc"><p>Add meshes together, using the + operator (mesh1 + mesh2).</p>
+<h2 id="returns">Returns</h2>
+<dl>
+<dt><code><a title="traceon.mesher.Mesh" href="#traceon.mesher.Mesh">Mesh</a></code></dt>
+<dd>&nbsp;</dd>
+<dt><code>A new mesh consisting</code> of <code>the elements</code> of <code>the added meshes</code></dt>
+<dd>&nbsp;</dd>
+</dl></div>
+</dd>
+  
+              
+    <dt id="traceon.mesher.Mesh.ensure_inward_normals"><code class="name flex">
+        
+        <span>def <span class="ident">ensure_inward_normals</span></span>(<span>self, electrode)</span>
+    </code></dt>
+    <dd>
+  
+  
+    
+      <details class="source">
+        <summary>
+            <span>Expand source code</span>
+        </summary>
+        <pre><code class="python">def ensure_inward_normals(self, electrode):
+    if electrode in self.physical_to_triangles:
+        self._ensure_normal_orientation_triangles(electrode, False)
+     
+    if electrode in self.physical_to_lines:
+        self._ensure_normal_orientation_lines(electrode, False)</code></pre>
+      </details>
+
+  <div class="desc"></div>
+</dd>
+  
+              
+    <dt id="traceon.mesher.Mesh.ensure_outward_normals"><code class="name flex">
+        
+        <span>def <span class="ident">ensure_outward_normals</span></span>(<span>self, electrode)</span>
+    </code></dt>
+    <dd>
+  
+  
+    
+      <details class="source">
+        <summary>
+            <span>Expand source code</span>
+        </summary>
+        <pre><code class="python">def ensure_outward_normals(self, electrode):
+    if electrode in self.physical_to_triangles:
+        self._ensure_normal_orientation_triangles(electrode, True)
+    
+    if electrode in self.physical_to_lines:
+        self._ensure_normal_orientation_lines(electrode, True)</code></pre>
+      </details>
+
+  <div class="desc"></div>
+</dd>
+  
+              
+    <dt id="traceon.mesher.Mesh.extract_physical_group"><code class="name flex">
+        
+        <span>def <span class="ident">extract_physical_group</span></span>(<span>self, name)</span>
+    </code></dt>
+    <dd>
+  
+  
+    
+      <details class="source">
+        <summary>
+            <span>Expand source code</span>
+        </summary>
+        <pre><code class="python">def extract_physical_group(self, name):
+    &#34;&#34;&#34;Extract a named group from the mesh.
+
+    Parameters
+    ---------------------------
+    name: str
+        Name of the group of elements
+
+    Returns
+    --------------------------
+    Mesh
+
+    Subset of the mesh consisting only of the elements with the given name.&#34;&#34;&#34;
+    assert name in self.physical_to_lines or name in self.physical_to_triangles, &#34;Physical group not in mesh, so cannot extract&#34;
+
+    if name in self.physical_to_lines:
+        elements = self.lines
+        physical = self.physical_to_lines
+    elif name in self.physical_to_triangles:
+        elements = self.triangles
+        physical = self.physical_to_triangles
+     
+    elements_indices = np.unique(physical[name])
+    elements = elements[elements_indices]
+      
+    points_mask = np.full(len(self.points), False)
+    points_mask[elements] = True
+    points = self.points[points_mask]
+      
+    new_index = np.cumsum(points_mask) - 1
+    elements = new_index[elements]
+    physical_to_elements = {name:np.arange(len(elements))}
+     
+    if name in self.physical_to_lines:
+        return Mesh(points=points, lines=elements, physical_to_lines=physical_to_elements)
+    elif name in self.physical_to_triangles:
+        return Mesh(points=points, triangles=elements, physical_to_triangles=physical_to_elements)</code></pre>
+      </details>
+
+  <div class="desc"><p>Extract a named group from the mesh.</p>
+<h2 id="parameters">Parameters</h2>
+<dl>
+<dt><strong><code>name</code></strong> :&ensp;<code>str</code></dt>
+<dd>Name of the group of elements</dd>
+</dl>
+<h2 id="returns">Returns</h2>
+<dl>
+<dt><code><a title="traceon.mesher.Mesh" href="#traceon.mesher.Mesh">Mesh</a></code></dt>
+<dd>&nbsp;</dd>
+</dl>
+<p>Subset of the mesh consisting only of the elements with the given name.</p></div>
+</dd>
+  
+              
+    <dt id="traceon.mesher.Mesh.flip_normals"><code class="name flex">
+        
+        <span>def <span class="ident">flip_normals</span></span>(<span>self)</span>
+    </code></dt>
+    <dd>
+  
+  
+    
+      <details class="source">
+        <summary>
+            <span>Expand source code</span>
+        </summary>
+        <pre><code class="python">def flip_normals(self):
+    &#34;&#34;&#34;Flip the normals in the mesh by inverting the &#39;orientation&#39; of the elements.
+
+    Returns
+    ----------------------------
+    Mesh&#34;&#34;&#34;
+    lines = self.lines
+    triangles = self.triangles
+    
+    # Flip the orientation of the lines
+    if lines.shape[1] == 4:
+        p0, p1, p2, p3 = lines.T
+        lines = np.array([p1, p0, p3, p2]).T
+    else:
+        p0, p1 = lines.T
+        lines = np.array([p1, p0]).T
+      
+    # Flip the orientation of the triangles
+    if triangles.shape[1] == 6:
+        p0, p1, p2, p3, p4, p5 = triangles.T
+        triangles = np.array([p0, p2, p1, p5, p4, p3]).T
+    else:
+        p0, p1, p2 = triangles.T
+        triangles = np.array([p0, p2, p1]).T
+    
+    return Mesh(self.points, lines, triangles,
+        physical_to_lines=self.physical_to_lines,
+        physical_to_triangles=self.physical_to_triangles)</code></pre>
+      </details>
+
+  <div class="desc"><p>Flip the normals in the mesh by inverting the 'orientation' of the elements.</p>
+<h2 id="returns">Returns</h2>
+<dl>
+<dt><code><a title="traceon.mesher.Mesh" href="#traceon.mesher.Mesh">Mesh</a></code></dt>
+<dd>&nbsp;</dd>
+</dl></div>
+</dd>
+  
+              
+    <dt id="traceon.mesher.Mesh.get_electrodes"><code class="name flex">
+        
+        <span>def <span class="ident">get_electrodes</span></span>(<span>self)</span>
+    </code></dt>
+    <dd>
+  
+  
+    
+      <details class="source">
+        <summary>
+            <span>Expand source code</span>
+        </summary>
+        <pre><code class="python">def get_electrodes(self):
+    &#34;&#34;&#34;Get the names of all the named groups (i.e. electrodes) in the mesh
+     
+    Returns
+    ---------
+    str iterable
+
+    Names
+    &#34;&#34;&#34;
+    return list(self.physical_to_lines.keys()) + list(self.physical_to_triangles.keys())</code></pre>
+      </details>
+
+  <div class="desc"><p>Get the names of all the named groups (i.e. electrodes) in the mesh</p>
+<h2 id="returns">Returns</h2>
+<dl>
+<dt><code>str iterable</code></dt>
+<dd>&nbsp;</dd>
+<dt><code>Names</code></dt>
+<dd>&nbsp;</dd>
+</dl></div>
+</dd>
+  
+              
+    <dt id="traceon.mesher.Mesh.is_2d"><code class="name flex">
+        
+        <span>def <span class="ident">is_2d</span></span>(<span>self)</span>
+    </code></dt>
+    <dd>
+  
+  
+    
+      <details class="source">
+        <summary>
+            <span>Expand source code</span>
+        </summary>
+        <pre><code class="python">def is_2d(self):
+    &#34;&#34;&#34;Check if the mesh is two dimensional, by checking that all z coordinates are zero.
+    
+    Returns
+    ----------------
+    bool
+
+    Whether the mesh is two dimensional&#34;&#34;&#34;
+    return np.all(self.points[:, 1] == 0.)</code></pre>
+      </details>
+
+  <div class="desc"><p>Check if the mesh is two dimensional, by checking that all z coordinates are zero.</p>
+<h2 id="returns">Returns</h2>
+<dl>
+<dt><code>bool</code></dt>
+<dd>&nbsp;</dd>
+<dt><code>Whether the mesh is two dimensional</code></dt>
+<dd>&nbsp;</dd>
+</dl></div>
+</dd>
+  
+              
+    <dt id="traceon.mesher.Mesh.is_3d"><code class="name flex">
+        
+        <span>def <span class="ident">is_3d</span></span>(<span>self)</span>
+    </code></dt>
+    <dd>
+  
+  
+    
+      <details class="source">
+        <summary>
+            <span>Expand source code</span>
+        </summary>
+        <pre><code class="python">def is_3d(self):
+    &#34;&#34;&#34;Check if the mesh is three dimensional by checking whether any z coordinate is non-zero.
+
+    Returns
+    ----------------
+    bool
+
+    Whether the mesh is three dimensional&#34;&#34;&#34;
+    return np.any(self.points[:, 1] != 0.)</code></pre>
+      </details>
+
+  <div class="desc"><p>Check if the mesh is three dimensional by checking whether any z coordinate is non-zero.</p>
+<h2 id="returns">Returns</h2>
+<dl>
+<dt><code>bool</code></dt>
+<dd>&nbsp;</dd>
+<dt><code>Whether the mesh is three dimensional</code></dt>
+<dd>&nbsp;</dd>
+</dl></div>
+</dd>
+  
+              
+    <dt id="traceon.mesher.Mesh.is_higher_order"><code class="name flex">
+        
+        <span>def <span class="ident">is_higher_order</span></span>(<span>self)</span>
+    </code></dt>
+    <dd>
+  
+  
+    
+      <details class="source">
+        <summary>
+            <span>Expand source code</span>
+        </summary>
+        <pre><code class="python">def is_higher_order(self):
+    &#34;&#34;&#34;Whether the mesh contains higher order elements.
+
+    Returns
+    ----------------------------
+    bool&#34;&#34;&#34;
+    return isinstance(self.lines, np.ndarray) and len(self.lines.shape) == 2 and self.lines.shape[1] == 4</code></pre>
+      </details>
+
+  <div class="desc"><p>Whether the mesh contains higher order elements.</p>
+<h2 id="returns">Returns</h2>
+<dl>
+<dt><code>bool</code></dt>
+<dd>&nbsp;</dd>
+</dl></div>
+</dd>
+  
+              
+    <dt id="traceon.mesher.Mesh.map_points"><code class="name flex">
+        
+        <span>def <span class="ident">map_points</span></span>(<span>self, fun)</span>
+    </code></dt>
+    <dd>
+  
+  
+    
+      <details class="source">
+        <summary>
+            <span>Expand source code</span>
+        </summary>
+        <pre><code class="python">def map_points(self, fun):
+    &#34;&#34;&#34;See `GeometricObject`
+
+    &#34;&#34;&#34;
+    new_points = np.empty_like(self.points)
+    for i in range(len(self.points)):
+        new_points[i] = fun(self.points[i])
+    assert new_points.shape == self.points.shape and new_points.dtype == self.points.dtype
+    
+    return Mesh(new_points, self.lines, self.triangles, self.physical_to_lines, self.physical_to_triangles)</code></pre>
+      </details>
+
+  <div class="desc"><p>See <code><a title="traceon.mesher.GeometricObject" href="#traceon.mesher.GeometricObject">GeometricObject</a></code></p></div>
+</dd>
+  
+              
+    <dt id="traceon.mesher.Mesh.remove_lines"><code class="name flex">
+        
+        <span>def <span class="ident">remove_lines</span></span>(<span>self)</span>
+    </code></dt>
+    <dd>
+  
+  
+    
+      <details class="source">
+        <summary>
+            <span>Expand source code</span>
+        </summary>
+        <pre><code class="python">def remove_lines(self):
+    &#34;&#34;&#34;Remove all the lines from the mesh.
+
+    Returns
+    -----------------------------
+    Mesh&#34;&#34;&#34;
+    return Mesh(self.points, triangles=self.triangles, physical_to_triangles=self.physical_to_triangles)</code></pre>
+      </details>
+
+  <div class="desc"><p>Remove all the lines from the mesh.</p>
+<h2 id="returns">Returns</h2>
+<dl>
+<dt><code><a title="traceon.mesher.Mesh" href="#traceon.mesher.Mesh">Mesh</a></code></dt>
+<dd>&nbsp;</dd>
+</dl></div>
+</dd>
+  
+              
+    <dt id="traceon.mesher.Mesh.remove_triangles"><code class="name flex">
+        
+        <span>def <span class="ident">remove_triangles</span></span>(<span>self)</span>
+    </code></dt>
+    <dd>
+  
+  
+    
+      <details class="source">
+        <summary>
+            <span>Expand source code</span>
+        </summary>
+        <pre><code class="python">def remove_triangles(self):
+    &#34;&#34;&#34;Remove all triangles from the mesh.
+
+    Returns
+    -------------------------------------
+    Mesh&#34;&#34;&#34;
+    return Mesh(self.points, lines=self.lines, physical_to_lines=self.physical_to_lines)</code></pre>
+      </details>
+
+  <div class="desc"><p>Remove all triangles from the mesh.</p>
+<h2 id="returns">Returns</h2>
+<dl>
+<dt><code><a title="traceon.mesher.Mesh" href="#traceon.mesher.Mesh">Mesh</a></code></dt>
+<dd>&nbsp;</dd>
+</dl></div>
+</dd>
+  
+              
+    <dt id="traceon.mesher.Mesh.to_meshio"><code class="name flex">
+        
+        <span>def <span class="ident">to_meshio</span></span>(<span>self)</span>
+    </code></dt>
+    <dd>
+  
+  
+    
+      <details class="source">
+        <summary>
+            <span>Expand source code</span>
+        </summary>
+        <pre><code class="python">def to_meshio(self):
+    &#34;&#34;&#34;Convert the Mesh to a meshio object.
+
+    Returns
+    ------------------------------------
+    meshio.Mesh&#34;&#34;&#34;
+    to_write = []
+    
+    if len(self.lines):
+        line_type = &#39;line&#39; if self.lines.shape[1] == 2 else &#39;line4&#39;
+        to_write.append( (line_type, self.lines) )
+    
+    if len(self.triangles):
+        triangle_type = &#39;triangle&#39; if self.triangles.shape[1] == 3 else &#39;triangle6&#39;
+        to_write.append( (triangle_type, self.triangles) )
+    
+    return meshio.Mesh(self.points, to_write)</code></pre>
+      </details>
+
+  <div class="desc"><p>Convert the Mesh to a meshio object.</p>
+<h2 id="returns">Returns</h2>
+<dl>
+<dt><code>meshio.Mesh</code></dt>
+<dd>&nbsp;</dd>
+</dl></div>
+</dd>
+  
+              
+    <dt id="traceon.mesher.Mesh.write"><code class="name flex">
+        
+        <span>def <span class="ident">write</span></span>(<span>self, filename)</span>
+    </code></dt>
+    <dd>
+  
+  
+    
+      <details class="source">
+        <summary>
+            <span>Expand source code</span>
+        </summary>
+        <pre><code class="python">def write(self, filename):
+    self.write_file(filename)</code></pre>
+      </details>
+
+  <div class="desc"><p>Write a mesh to a file. The pickle module will be used
+to save the Geometry object.</p>
+<h2 id="args">Args</h2>
+<dl>
+<dt><strong><code>filename</code></strong></dt>
+<dd>name of the file</dd>
+</dl></div>
+</dd>
+  
+              
+    <dt id="traceon.mesher.Mesh.write_file"><code class="name flex">
+        
+        <span>def <span class="ident">write_file</span></span>(<span>self, filename)</span>
+    </code></dt>
+    <dd>
+  
+  
+    
+      <details class="source">
+        <summary>
+            <span>Expand source code</span>
+        </summary>
+        <pre><code class="python">def write_file(self, filename):
+    &#34;&#34;&#34;Write a mesh to a given file. The format is determined from the file extension.
+    All formats supported by meshio are supported.
+
+    Parameters
+    ----------------------------------
+    filename: str
+        The name of the file to write the mesh to.&#34;&#34;&#34;
+    meshio_obj = self.to_meshio()
+    meshio_obj.write(filename)</code></pre>
+      </details>
+
+  <div class="desc"><p>Write a mesh to a given file. The format is determined from the file extension.
+All formats supported by meshio are supported.</p>
+<h2 id="parameters">Parameters</h2>
+<dl>
+<dt><strong><code>filename</code></strong> :&ensp;<code>str</code></dt>
+<dd>The name of the file to write the mesh to.</dd>
+</dl></div>
+</dd>
+  
+          </dl>
+
+          
+              <h3>Inherited members</h3>
+              <ul class="hlist">
+                  <li><code><b><a title="traceon.mesher.GeometricObject" href="#traceon.mesher.GeometricObject">GeometricObject</a></b></code>:
+                      <ul class="hlist">
+                              <li><code><a title="traceon.mesher.GeometricObject.mirror_xy" href="#traceon.mesher.GeometricObject.mirror_xy">mirror_xy</a></code></li>
+                              <li><code><a title="traceon.mesher.GeometricObject.mirror_xz" href="#traceon.mesher.GeometricObject.mirror_xz">mirror_xz</a></code></li>
+                              <li><code><a title="traceon.mesher.GeometricObject.mirror_yz" href="#traceon.mesher.GeometricObject.mirror_yz">mirror_yz</a></code></li>
+                              <li><code><a title="traceon.mesher.GeometricObject.move" href="#traceon.mesher.GeometricObject.move">move</a></code></li>
+                              <li><code><a title="traceon.mesher.GeometricObject.rotate" href="#traceon.mesher.GeometricObject.rotate">rotate</a></code></li>
+                              <li><code><a title="traceon.mesher.GeometricObject.rotate_around_axis" href="#traceon.mesher.GeometricObject.rotate_around_axis">rotate_around_axis</a></code></li>
+                      </ul>
+
+                  </li>
+              </ul>
+
+      </dd>
+    </dl>
+  </section>
+
+    </article>
+    
+  
+  <nav id="sidebar">
+
+    
+
+	<h1 class='title'><a href='index.html' style='color:black'>Traceon</a></h1>
+	
+    <ul id="index">
+	
+	<li><h3><a href="#header-submodules">Examples</a></h3>
+      <ul>
+			<li><code><a href="../traceon/einzel-lens.html">Einzel lens</a></code></li>
+      </ul>
+    </li>
+		
+    <li><h3><a href="#header-submodules">Traceon</a></h3>
+      <ul>
+        <li><code ><a title="traceon.excitation" href="excitation.html">traceon.excitation</a></code></li>
+        <li><code ><a title="traceon.field" href="field.html">traceon.field</a></code></li>
+        <li><code ><a title="traceon.focus" href="focus.html">traceon.focus</a></code></li>
+        <li><code ><a title="traceon.geometry" href="geometry.html">traceon.geometry</a></code></li>
+        <li><code ><a title="traceon.logging" href="logging.html">traceon.logging</a></code></li>
+        <li><code class='selected'><a title="traceon.mesher" href="#traceon.mesher">traceon.mesher</a></code></li>
+        <li><code ><a title="traceon.plotting" href="plotting.html">traceon.plotting</a></code></li>
+        <li><code ><a title="traceon.solver" href="solver.html">traceon.solver</a></code></li>
+        <li><code ><a title="traceon.tracing" href="tracing.html">traceon.tracing</a></code></li>
+      </ul>
+    </li>
+		
+	<li><h3><a href="#header-submodules">Traceon Pro</a></h3>
+      <ul>
+			<li><code ><a title="traceon_pro.field" href="../traceon_pro/field.html">traceon_pro.field</a></code></li>
+			<li><code ><a title="traceon_pro.solver" href="../traceon_pro/solver.html">traceon_pro.solver</a></code></li>
+      </ul>
+    </li>
+
+
+
+
+    <li><h3><a href="#header-classes">Classes</a></h3>
+      <ul>
+        <li>
+        <h4><code><a title="traceon.mesher.GeometricObject" href="#traceon.mesher.GeometricObject">GeometricObject</a></code></h4>
+        
+          
+  
+  <ul class="two-column">
+    <li><code><a title="traceon.mesher.GeometricObject.map_points" href="#traceon.mesher.GeometricObject.map_points">map_points</a></code></li>
+    <li><code><a title="traceon.mesher.GeometricObject.mirror_xy" href="#traceon.mesher.GeometricObject.mirror_xy">mirror_xy</a></code></li>
+    <li><code><a title="traceon.mesher.GeometricObject.mirror_xz" href="#traceon.mesher.GeometricObject.mirror_xz">mirror_xz</a></code></li>
+    <li><code><a title="traceon.mesher.GeometricObject.mirror_yz" href="#traceon.mesher.GeometricObject.mirror_yz">mirror_yz</a></code></li>
+    <li><code><a title="traceon.mesher.GeometricObject.move" href="#traceon.mesher.GeometricObject.move">move</a></code></li>
+    <li><code><a title="traceon.mesher.GeometricObject.rotate" href="#traceon.mesher.GeometricObject.rotate">rotate</a></code></li>
+    <li><code><a title="traceon.mesher.GeometricObject.rotate_around_axis" href="#traceon.mesher.GeometricObject.rotate_around_axis">rotate_around_axis</a></code></li>
+  </ul>
+
+        </li>
+        <li>
+        <h4><code><a title="traceon.mesher.Mesh" href="#traceon.mesher.Mesh">Mesh</a></code></h4>
+        
+          
+  
+  <ul class="">
+    <li><code><a title="traceon.mesher.Mesh.__add__" href="#traceon.mesher.Mesh.__add__">__add__</a></code></li>
+    <li><code><a title="traceon.mesher.Mesh.ensure_inward_normals" href="#traceon.mesher.Mesh.ensure_inward_normals">ensure_inward_normals</a></code></li>
+    <li><code><a title="traceon.mesher.Mesh.ensure_outward_normals" href="#traceon.mesher.Mesh.ensure_outward_normals">ensure_outward_normals</a></code></li>
+    <li><code><a title="traceon.mesher.Mesh.extract_physical_group" href="#traceon.mesher.Mesh.extract_physical_group">extract_physical_group</a></code></li>
+    <li><code><a title="traceon.mesher.Mesh.flip_normals" href="#traceon.mesher.Mesh.flip_normals">flip_normals</a></code></li>
+    <li><code><a title="traceon.mesher.Mesh.from_meshio" href="#traceon.mesher.Mesh.from_meshio">from_meshio</a></code></li>
+    <li><code><a title="traceon.mesher.Mesh.get_electrodes" href="#traceon.mesher.Mesh.get_electrodes">get_electrodes</a></code></li>
+    <li><code><a title="traceon.mesher.Mesh.is_2d" href="#traceon.mesher.Mesh.is_2d">is_2d</a></code></li>
+    <li><code><a title="traceon.mesher.Mesh.is_3d" href="#traceon.mesher.Mesh.is_3d">is_3d</a></code></li>
+    <li><code><a title="traceon.mesher.Mesh.is_higher_order" href="#traceon.mesher.Mesh.is_higher_order">is_higher_order</a></code></li>
+    <li><code><a title="traceon.mesher.Mesh.map_points" href="#traceon.mesher.Mesh.map_points">map_points</a></code></li>
+    <li><code><a title="traceon.mesher.Mesh.read_file" href="#traceon.mesher.Mesh.read_file">read_file</a></code></li>
+    <li><code><a title="traceon.mesher.Mesh.remove_lines" href="#traceon.mesher.Mesh.remove_lines">remove_lines</a></code></li>
+    <li><code><a title="traceon.mesher.Mesh.remove_triangles" href="#traceon.mesher.Mesh.remove_triangles">remove_triangles</a></code></li>
+    <li><code><a title="traceon.mesher.Mesh.to_meshio" href="#traceon.mesher.Mesh.to_meshio">to_meshio</a></code></li>
+    <li><code><a title="traceon.mesher.Mesh.write" href="#traceon.mesher.Mesh.write">write</a></code></li>
+    <li><code><a title="traceon.mesher.Mesh.write_file" href="#traceon.mesher.Mesh.write_file">write_file</a></code></li>
+  </ul>
+
+        </li>
+      </ul>
+    </li>
+
+    </ul>
+  </nav>
+
+</main>
+
+<footer id="footer">
+    
+    <p>Generated by <a href="https://pdoc3.github.io/pdoc" title="pdoc: Python API documentation generator"><cite>pdoc</cite> 0.11.5</a>.</p>
+</footer>
+
+</body>
+</html>
