@@ -85,7 +85,7 @@ Don't worry. You can reach me.
 - Various bug fixes and improvements
 
 **Breaking changes**
-- Some code was restructured internally, but shouldn't affect code using only the public API
+- `FieldRadialAxial` was moved from `solver.py` to `field.py`
 
 ### v0.8.0
 - New plotting module (charge density, equipotential lines)
