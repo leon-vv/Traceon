@@ -1,15 +1,19 @@
 # Simulation of a stimgator using the boundary sweeping functions introduced in v0.8.0.
 # Shows how particles of general mass and charge can be traced since v0.8.0
-
 import numpy as np
 import matplotlib.pyplot as plt
 from scipy.constants import m_p, e
 
 import traceon.geometry as G
-import traceon.solver as S
 import traceon.excitation as E 
 import traceon.plotting as P
 import traceon.tracing as T
+
+try:
+    import traceon_pro.solver as S
+except ImportError:
+    S = None
+
 
 # Multipole configuration
 ORDER = 2 # A second-order multipole (quadrupole) acts a stigmator
@@ -56,6 +60,9 @@ excitation = E.Excitation(mesh, E.Symmetry.THREE_D)
 excitation.add_voltage(positive_electrode=1, negative_electrode=-1, boundary=0)
 
 # Calculate field
+assert S is not None, ("The 'traceon_pro' package is not installed or not found. "
+        "Traceon Pro is required to solve 3D geometries.\n"
+        "For more information, visit: https://www.traceon.org")
 field = S.solve_direct(excitation)
 
 # Plot mesh and equipotential lines
@@ -89,7 +96,7 @@ for i, (x, y) in enumerate(zip(x_start, y_start)):
     start_point = np.array([x, y, z_start])
 
     _, e_trace = tracer(start_point, e_start_velocity) # electrons are default
-    _, p_trace = tracer(start_point, a_start_velocity, mass=4*m_p, charge=2*e) # alpha-oarticle = two protons + two neutrons
+    _, p_trace = tracer(start_point, a_start_velocity, mass=4*m_p, charge=2*e) # alpha-particle = two protons + two neutrons
 
     e_trajectories.append(e_trace)
     a_trajectories.append(p_trace)

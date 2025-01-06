@@ -6,7 +6,7 @@ import traceon.solver as S
 import traceon.excitation as E
 import traceon.plotting as P
 import traceon.tracing as T
-from traceon.interpolation import FieldRadialAxial
+from traceon.field import FieldRadialAxial
 
 # Dimensions of the einzel lens.
 THICKNESS = 0.5
@@ -37,7 +37,7 @@ mesh = (boundary + bottom + middle + top).mesh(mesh_size_factor=45)
  
 excitation = E.Excitation(mesh, E.Symmetry.RADIAL)
 
-# Excite the geometry, put ground at 0V and the lens electrode at 1000V.
+# Excite the geometry, put ground at 0V and the lens electrode at 1800V.
 excitation.add_voltage(ground=0.0, lens=1800)
 excitation.add_electrostatic_boundary('boundary')
 

@@ -22,6 +22,7 @@ struct effective_point_charges_3d {
 	size_t N;
 };
 
+
 struct field_derivs_args {
 	double *z_interpolation;
 	double *electrostatic_axial_coeffs;
@@ -30,61 +31,66 @@ struct field_derivs_args {
 };
 
 
-
-EXPORT double  
-potential_3d(double point[3], double *charges, jacobian_buffer_3d jacobian_buffer, position_buffer_3d position_buffer, size_t N_vertices) {  
-	
-	double sum_ = 0.0;  
-	
-	for(int i = 0; i < N_vertices; i++) {  
-		for(int k = 0; k < N_TRIANGLE_QUAD; k++) {
-			double *pos = &position_buffer[i][k][0];
-			double potential = potential_3d_point(point[0], point[1], point[2], pos[0], pos[1], pos[2], NULL);
+EXPORT void fill_jacobian_buffer_3d(
+	jacobian_buffer_3d jacobian_buffer,
+	position_buffer_3d pos_buffer,
+    vertices_3d t,
+    size_t N_triangles) {
+		
+    for(int i = 0; i < N_triangles; i++) {  
+		
+		double x1 = t[i][0][0], y1 = t[i][0][1], z1 = t[i][0][2];
+		double x2 = t[i][1][0], y2 = t[i][1][1], z2 = t[i][1][2];
+		double x3 = t[i][2][0], y3 = t[i][2][1], z3 = t[i][2][2];
+				
+		double area = 0.5*sqrt(
+			pow((y2-y1)*(z3-z1)-(y3-y1)*(z2-z1), 2) +
+			pow((x3-x1)*(z2-z1)-(x2-x1)*(z3-z1), 2) +
+			pow((x2-x1)*(y3-y1)-(x3-x1)*(y2-y1), 2));
+		
+        for (int k=0; k < N_TRIANGLE_QUAD; k++) {  
+            double b1_ = QUAD_B1[k];  
+            double b2_ = QUAD_B2[k];  
+            double w = QUAD_WEIGHTS[k];  
 			
-			sum_ += charges[i] * jacobian_buffer[i][k] * potential;
-		}
-	}  
-	
-	return sum_;
-}  
-
-double
-field_dot_normal_3d(double x0, double y0, double z0, double x, double y, double z, void* normal_p) {
-	
-	double Ex = -dx1_potential_3d_point(x0, y0, z0, x, y, z, NULL);
-	double Ey = -dy1_potential_3d_point(x0, y0, z0, x, y, z, NULL);
-	double Ez = -dz1_potential_3d_point(x0, y0, z0, x, y, z, NULL);
-	
-	double *normal = (double *)normal_p;
-	
-    return normal[0]*Ex + normal[1]*Ey + normal[2]*Ez;
+            jacobian_buffer[i][k] = 2 * w * area;
+            pos_buffer[i][k][0] = x1 + b1_*(x2 - x1) + b2_*(x3 - x1);
+            pos_buffer[i][k][1] = y1 + b1_*(y2 - y1) + b2_*(y3 - y1);
+            pos_buffer[i][k][2] = z1 + b1_*(z2 - z1) + b2_*(z3 - z1);
+        }
+    }
 }
+
 
 EXPORT void
-field_3d(double point[3], double result[3], double *charges,
-	jacobian_buffer_3d jacobian_buffer, position_buffer_3d position_buffer, size_t N_vertices) {
-
-	double Ex = 0.0, Ey = 0.0, Ez = 0.0;
-
-	for(int i = 0; i < N_vertices; i++) {
-		for(int k = 0; k < N_TRIANGLE_QUAD; k++) {
-			double *pos = &position_buffer[i][k][0];
-			double field_x = dx1_potential_3d_point(point[0], point[1], point[2], pos[0], pos[1], pos[2], NULL);
-			double field_y = dy1_potential_3d_point(point[0], point[1], point[2], pos[0], pos[1], pos[2], NULL);
-			double field_z = dz1_potential_3d_point(point[0], point[1], point[2], pos[0], pos[1], pos[2], NULL);
+fill_jacobian_buffer_current_three_d(
+	double (*line_points)[2][3],
+	double (*jacobians)[N_QUAD_2D],
+	double (*positions)[N_QUAD_2D][3],
+	double (*directions)[N_QUAD_2D][3],
+	size_t N_lines)
+{
+	for(int i = 0; i < N_lines; i++) {
+		double *v1 = &line_points[i][0][0];
+		double *v2 = &line_points[i][1][0];
 		
-			Ex -= charges[i] * jacobian_buffer[i][k] * field_x;
-			Ey -= charges[i] * jacobian_buffer[i][k] * field_y;
-			Ez -= charges[i] * jacobian_buffer[i][k] * field_z;
+		double length = distance_3d(v1, v2);
+
+		for(int k = 0; k < N_QUAD_2D; k++) {
+			double g = 0.5*(GAUSS_QUAD_POINTS[k] + 1); // Rescale to 0, 1
+			
+			jacobians[i][k] = 0.5*GAUSS_QUAD_WEIGHTS[k]*length;
+			
+			positions[i][k][0] = v1[0] + (v2[0] - v1[0])*g;
+			positions[i][k][1] = v1[1] + (v2[1] - v1[1])*g;
+			positions[i][k][2] = v1[2] + (v2[2] - v1[2])*g;
+			
+			directions[i][k][0] = (v2[0] - v1[0])/length;
+			directions[i][k][1] = (v2[1] - v1[1])/length;
+			directions[i][k][2] = (v2[2] - v1[2])/length;
 		}
 	}
-		
-	result[0] = Ex;
-	result[1] = Ey;
-	result[2] = Ez;
 }
-
-
 
 EXPORT void
 axial_coefficients_3d(double *restrict charges,

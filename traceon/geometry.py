@@ -964,7 +964,20 @@ class PathCollection(GeometricObject):
             self.paths.append(other)
         else:
             self.paths.extend(other.paths)
-       
+    
+    def __getitem__(self, index):
+        selection = np.array(self.paths, dtype=object).__getitem__(index)
+        if isinstance(selection, np.ndarray):
+            return PathCollection(selection.tolist())
+        else:
+            return selection
+    
+    def __len__(self):
+        return len(self.paths)
+
+    def __iter__(self):
+        return iter(self.paths)
+    
     def revolve_x(self, angle=2*pi):
         return self._map_to_surfaces(Path.revolve_x, angle=angle)
     def revolve_y(self, angle=2*pi):
@@ -977,7 +990,7 @@ class PathCollection(GeometricObject):
         return self._map_to_surfaces(Path.extrude_by_path, p2)
     
     def __str__(self):
-        return f"<PathCollection with {len(self.paths)} surfaces, name: {self.name}>"
+        return f"<PathCollection with {len(self.paths)} paths, name: {self.name}>"
 
 
 class Surface(GeometricObject):
@@ -1283,6 +1296,75 @@ class Surface(GeometricObject):
         -----------------------
         Surface representing the rectangle"""
         return Path.line([xmin, ymin, 0.], [xmin, ymax, 0.]).extrude([xmax-xmin, 0., 0.])
+    
+    @staticmethod
+    def annulus_xy(x0, y0, inner_radius, outer_radius):
+        """Create a annulus in the XY plane.         
+        
+        Parameters
+        ------------------------
+        x0: float
+            x-coordiante of the center of the annulus
+        y0: float
+            y-coordinate of the center of the annulus
+        inner_radius: float
+            inner radius of the annulus
+        outer_radius:
+            outer radius of the annulus
+        Returns
+        -----------------------
+        Surface"""
+        assert inner_radius > 0 and outer_radius > 0, "radii must be positive"
+        assert outer_radius > inner_radius, "outer radius must be larger than inner radius"
+
+        annulus_at_origin = Path.line([inner_radius, 0.0, 0.0], [outer_radius, 0.0, 0.0]).revolve_z()
+        return annulus_at_origin.move(dx=x0, dy=y0)
+
+    @staticmethod
+    def annulus_xz(x0, z0, inner_radius, outer_radius):
+        """Create a annulus in the XZ plane.         
+        
+        Parameters
+        ------------------------
+        x0: float
+            x-coordiante of the center of the annulus
+        z0: float
+            z-coordinate of the center of the annulus
+        inner_radius: float
+            inner radius of the annulus
+        outer_radius:
+            outer radius of the annulus
+        Returns
+        -----------------------
+        Surface"""
+        assert inner_radius > 0 and outer_radius > 0, "radii must be positive"
+        assert outer_radius > inner_radius, "outer radius must be larger than inner radius"
+
+        annulus_at_origin = Path.line([inner_radius, 0.0, 0.0], [outer_radius, 0.0, 0.0]).revolve_y()
+        return annulus_at_origin.move(dx=x0, dz=z0)
+    
+    @staticmethod
+    def annulus_yz(y0, z0, inner_radius, outer_radius):
+        """Create a annulus in the YZ plane.         
+        
+        Parameters
+        ------------------------
+        y0: float
+            y-coordiante of the center of the annulus
+        z0: float
+            z-coordinate of the center of the annulus
+        inner_radius: float
+            inner radius of the annulus
+        outer_radius:
+            outer radius of the annulus
+        Returns
+        -----------------------
+        Surface"""
+        assert inner_radius > 0 and outer_radius > 0, "radii must be positive"
+        assert outer_radius > inner_radius, "outer radius must be larger than inner radius"
+
+        annulus_at_origin = Path.line([0.0, inner_radius, 0.0], [0.0, outer_radius, 0.0]).revolve_x()
+        return annulus_at_origin.move(dy=y0, dz=z0)
 
     @staticmethod
     def aperture(height, radius, extent, z=0.):
@@ -1528,6 +1610,19 @@ class SurfaceCollection(GeometricObject):
             self.surfaces.append(other)
         else:
             self.surfaces.extend(other.surfaces)
+        
+    def __getitem__(self, index):
+        selection = np.array(self.surfaces, dtype=object).__getitem__(index)
+        if isinstance(selection, np.ndarray):
+            return SurfaceCollection(selection.tolist())
+        else:
+            return selection
+    
+    def __len__(self):
+        return len(self.surfaces)
+
+    def __iter__(self):
+        return iter(self.surfaces)
 
     def __str__(self):
         return f"<SurfaceCollection with {len(self.surfaces)} surfaces, name: {self.name}>"
