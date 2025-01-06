@@ -120,7 +120,7 @@ class Field(GeometricObject,ABC):
     def map_points(self, fun):
         field_copy = self.copy()
         field_copy.origin = fun(self.origin)
-        field_copy.basis = np.array([fun(b) for b in self.basis])
+        field_copy.basis = np.array([fun(b + self.origin) - field_copy.origin for b in self.basis])
         return field_copy
 
     def map_points_to_local(self, point):
@@ -176,19 +176,19 @@ class Field(GeometricObject,ABC):
 
     def electrostatic_field_at_point(self, point):
         local_point = self.map_points_to_local(point)
-        self.electrostatic_field_at_local_point(local_point)
+        return self.electrostatic_field_at_local_point(local_point)
     
     def magnetostatic_field_at_point(self, point):
         local_point = self.map_points_to_local(point)
-        self.magnetostatic_field_at_local_point(local_point)
+        return self.magnetostatic_field_at_local_point(local_point)
     
     def electrostatic_potential_at_point(self, point):
         local_point = self.map_points_to_local(point)
-        self.electrostatic_potential_at_local_point(local_point)
+        return self.electrostatic_potential_at_local_point(local_point)
 
     def magnetostatic_potential_at_point(self, point):
         local_point = self.map_points_to_local(point)
-        self.magnetostatic_potential_at_local_point(local_point)
+        return self.magnetostatic_potential_at_local_point(local_point)
 
     @abstractmethod
     def is_electrostatic(self):
@@ -338,7 +338,7 @@ class FieldBEM(Field, ABC):
     
     def current_field_at_point(self, point):
         local_point = self.map_points_to_local(point)
-        self.current_field_at_local_point(local_point)
+        return self.current_field_at_local_point(local_point)
 
     @abstractmethod
     def current_field_at_local_point(self, point_):
@@ -657,7 +657,7 @@ class FieldRadialAxial(FieldAxial):
 
         return z, elec_coeffs, mag_coeffs
      
-    def electrostatic_field_at_point(self, point_):
+    def electrostatic_field_at_local_point(self, point_):
         """
         Compute the electric field, \\( \\vec{E} = -\\nabla \\phi \\)
         
