@@ -293,7 +293,6 @@ class Excitation:
         """
         if ensure_inward_normals:
             for electrode in args:
-                print('flipping normals', electrode)
                 self.mesh.ensure_inward_normals(electrode)
          
         for name in args:
