@@ -1,0 +1,211 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, minimum-scale=1">
+  <meta name="generator" content="pdoc3 0.11.5">
+
+
+
+    <title>traceon API documentation</title>
+    <meta name="description" content="Welcome! …">
+
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/10up-sanitize.css/13.0.0/sanitize.min.css" integrity="sha512-y1dtMcuvtTMJc1yPgEqF0ZjQbhnc/bFhyvIyVNb9Zk5mIGtqVaAB1Ttl28su8AvFMOY0EwRbAe+HCLqj6W7/KA==" crossorigin>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/10up-sanitize.css/13.0.0/typography.min.css" integrity="sha512-Y1DYSb995BAfxobCkKepB1BqJJTPrOp3zPL74AWFugHHmmdcvO+C48WLrUOlhGMc0QG7AE3f7gmvvcrmX2fDoA==" crossorigin>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/default.min.css" crossorigin>
+
+  
+  <style>:root{--highlight-color:#fe9}.flex{display:flex !important}body{line-height:1.5em}#content{padding:20px}#content .doc-image{padding:0px;display:block;margin:0px auto}#sidebar{padding:1.5em;padding-left:2.5em;overflow:hidden}#sidebar > *:last-child{margin-bottom:2cm}#sidebar .title{font-weight:bold}.http-server-breadcrumbs{font-size:130%;margin:0 0 15px 0}#footer{font-size:.75em;padding:5px 30px;border-top:1px solid #ddd;text-align:right}#footer p{margin:0 0 0 1em;display:inline-block}#footer p:last-child{margin-right:30px}h1,h2,h3,h4,h5{font-weight:300}h1{font-size:2.5em;line-height:1.1em}h2{font-size:1.75em;margin:2em 0 .50em 0}h3{font-size:1.4em;margin:1.6em 0 .7em 0}h4{margin:0;font-size:105%}h1:target,h2:target,h3:target,h4:target,h5:target,h6:target{background:var(--highlight-color);padding:.2em 0}a{color:#058;text-decoration:none;transition:color .2s ease-in-out}a:visited{color:#503}a:hover{color:#b62}.title code{font-weight:bold}h2[id^="header-"]{margin-top:2em}.ident{color:#900;font-weight:bold}pre code{font-size:.8em;line-height:1.4em;padding:1em;display:block}code{background:#f3f3f3;font-family:"DejaVu Sans Mono",monospace;padding:1px 4px;overflow-wrap:break-word}h1 code{background:transparent}pre{border-top:1px solid #ccc;border-bottom:1px solid #ccc;margin:1em 0}#http-server-module-list{display:flex;flex-flow:column}#http-server-module-list div{display:flex}#http-server-module-list dt{min-width:10%}#http-server-module-list p{margin-top:0}.toc ul,#index{list-style-type:none;margin:0;padding:0}#index code{background:transparent}#index .selected{background:transparent;font-weight:bold}#index a{color:#058}#index h3{border-bottom:1px solid #ddd}#index ul{padding:0}#index h4{margin-top:.6em;font-weight:bold}@media (min-width:200ex){#index .two-column{column-count:2}}@media (min-width:300ex){#index .two-column{column-count:3}}dl{margin-bottom:2em}dl dl:last-child{margin-bottom:4em}dd{margin:0 0 1em 3em}#header-classes + dl > dd{margin-bottom:3em}dd dd{margin-left:2em}dd p{margin:10px 0}.name{background:#eee;font-size:.85em;padding:5px 10px;display:inline-block;min-width:40%}.name:hover{background:#e0e0e0}dt:target .name{background:var(--highlight-color)}.name > span:first-child{white-space:nowrap}.name.class > span:nth-child(2){margin-left:.4em}.inherited{color:#999;border-left:5px solid #eee;padding-left:1em}.inheritance em{font-style:normal;font-weight:bold}.desc h2{font-weight:400;font-size:1.25em}.desc h3{font-size:1em}.desc dt code{background:inherit}.source > summary,.git-link-div{color:#666;text-align:right;font-weight:400;font-size:.8em;text-transform:uppercase}.source summary > *{white-space:nowrap;cursor:pointer}.git-link{color:inherit;margin-left:1em}.source pre{max-height:500px;overflow:auto;margin:0}.source pre code{font-size:12px;overflow:visible;min-width:max-content}.hlist{list-style:none}.hlist li{display:inline}.hlist li:after{content:',\2002'}.hlist li:last-child:after{content:none}.hlist .hlist{display:inline;padding-left:1em}img{max-width:100%}td{padding:0 .5em}.admonition{padding:.1em 1em;margin:1em 0}.admonition-title{font-weight:bold}.admonition.note,.admonition.info,.admonition.important{background:#aef}.admonition.todo,.admonition.versionadded,.admonition.tip,.admonition.hint{background:#dfd}.admonition.warning,.admonition.versionchanged,.admonition.deprecated{background:#fd4}.admonition.error,.admonition.danger,.admonition.caution{background:lightpink}</style>
+  <style media="screen and (min-width: 700px)">@media screen and (min-width:700px){#sidebar{width:29%;min-width:525px;height:100vh;overflow:auto;position:sticky;top:0}#content{width:80%;max-width:110ch;padding:3em 6em;border-left:1px solid #ddd}pre code{font-size:1em}.name{font-size:1em}main{display:flex;flex-direction:row-reverse;justify-content:flex-end}.toc ul ul,#index ul ul{padding-left:1em}.toc > ul > li{margin-top:.5em}}</style>
+  <style media="print">@media print{#sidebar h1{page-break-before:always}.source{display:none}}@media print{*{background:transparent !important;color:#000 !important;box-shadow:none !important;text-shadow:none !important}a[href]:after{content:" (" attr(href) ")";font-size:90%}a[href][title]:after{content:none}abbr[title]:after{content:" (" attr(title) ")"}.ir a:after,a[href^="javascript:"]:after,a[href^="#"]:after{content:""}pre,blockquote{border:1px solid #999;page-break-inside:avoid}thead{display:table-header-group}tr,img{page-break-inside:avoid}img{max-width:100% !important}@page{margin:0.5cm}p,h2,h3{orphans:3;widows:3}h1,h2,h3,h4,h5,h6{page-break-after:avoid}}</style>
+
+
+
+    <script type="text/x-mathjax-config">MathJax.Hub.Config({ tex2jax: { inlineMath: [ ['$','$'], ["\\(","\\)"] ], processEscapes: true } });</script>
+    <script async src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.7/latest.js?config=TeX-AMS_CHTML" integrity="sha256-kZafAc6mZvK3W3v1pHOcUix30OHQN6pU/NO2oFkqZVw=" crossorigin></script>
+
+    <script defer src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js" integrity="sha512-D9gUyxqja7hBtkWpPWGt9wfbfaMGVt9gnyCvYa+jojwwPHLCzUm5i8rpk7vD7wNee9bA35eYIjobYPaQuKS1MQ==" crossorigin></script>
+    <script>window.addEventListener('DOMContentLoaded', () => {
+        hljs.configure({languages: ['bash', 'css', 'diff', 'graphql', 'ini', 'javascript', 'json', 'plaintext', 'python', 'python-repl', 'rust', 'shell', 'sql', 'typescript', 'xml', 'yaml']});
+        hljs.highlightAll();
+        /* Collapse source docstrings */
+        setTimeout(() => {
+            [...document.querySelectorAll('.hljs.language-python > .hljs-string')]
+                .filter(el => el.innerHTML.length > 200 && ['"""', "'''"].includes(el.innerHTML.substring(0, 3)))
+                .forEach(el => {
+                    let d = document.createElement('details');
+                    d.classList.add('hljs-string');
+                    d.innerHTML = '<summary>"""</summary>' + el.innerHTML.substring(3);
+                    el.replaceWith(d);
+                });
+        }, 100);
+    })</script>
+
+  
+</head>
+<body>
+<main>
+     <article id="content">
+	 
+	 <h1 id="einzel-lens">Einzel lens</h1>
+<h2 id="introduction">Introduction</h2>
+<p>This example walks you through the code of <a href="https://github.com/leon-vv/Traceon/blob/main/examples/einzel-lens.py">examples/einzel-lens.py</a>. We will
+compute the electrostatic field inside an axial symmetric einzel lens and trace a number of electrons through the field. Please follow
+the link to find the up-to-date version of the code, including the neccessary <code>import</code> statements to actually run the example. To install Traceon,
+please first install <a href="https://www.python.org/downloads/">Python</a> and use the standard <code>pip</code> command to install the package:</p>
+<pre><code class="language-bash">pip install traceon
+</code></pre>
+<h2 id="defining-the-geometry">Defining the geometry</h2>
+<p>First, we have to define the geometry of the element we want to simulate. In the boundary element method (BEM) only the boundaries of the
+objects need to be meshed. This implies that in a radial symmetric geometry (like our einzel lens) our elements will be lines. To find the true
+3D representation of the einzel lens, image revolving the line elements around the z-axis. The code needed to define the geometry is given below. </p>
+<pre><code class="language-Python"># Dimensions of the einzel lens.
+THICKNESS = 0.5
+SPACING = 0.5
+RADIUS = 0.15
+
+# Start value of z chosen such that the middle of the einzel
+# lens is at z = 0mm.
+z0 = -THICKNESS - SPACING - THICKNESS/2
+
+boundary = G.Path.line([0., 0., 1.75],  [2.0, 0., 1.75]).extend_with_line([2.0, 0., -1.75]).extend_with_line([0., 0., -1.75])
+
+margin_right = 0.1
+extent = 2.0 - margin_right
+
+bottom = G.Path.aperture(THICKNESS, RADIUS, extent, -THICKNESS - SPACING)
+middle = G.Path.aperture(THICKNESS, RADIUS, extent)
+top = G.Path.aperture(THICKNESS, RADIUS, extent, THICKNESS + SPACING)
+
+boundary.name = 'boundary'
+bottom.name = 'ground'
+middle.name = 'lens'
+top.name = 'ground'
+</code></pre>
+<p>Note that we explicitely assign names to the different elements in our geometry. Later, we will use these names to apply the correct <em>excitations</em>
+to the elements. Next, we mesh the geometry which transforms it into many small line elements used in the solver. Note, that you can either supply
+a <code>mesh_size</code> or a <code>mesh_size_factor</code> to the <code><a title="traceon.geometry.Path.mesh" href="geometry.html#traceon.geometry.Path.mesh">Path.mesh()</a></code> function. </p>
+<pre><code class="language-Python">mesh = (boundary + bottom + middle + top).mesh(mesh_size_factor=45)
+
+P.plot_mesh(mesh, lens='blue', ground='green', boundary='purple')
+P.show()
+</code></pre>
+<p><img class='doc-image' src="../images/einzel_lens_radial.png" width="600" height="600" /></p>
+<h2 id="applying-excitations">Applying excitations</h2>
+<p>We are now ready to apply excitations to our elements. We choose to put 0V on the 'ground' electrode, and 1800V on the 'lens' electrode. We specify
+that the boundary electrode is an 'electrostatic boundary', which means that there is no electric field parallel to the surface ($\mathbf{n} \cdot \nabla V = 0$).</p>
+<pre><code class="language-Python">excitation = E.Excitation(mesh, E.Symmetry.RADIAL)
+
+# Excite the geometry, put ground at 0V and the lens electrode at 1800V.
+excitation.add_voltage(ground=0.0, lens=1800)
+excitation.add_electrostatic_boundary('boundary')
+</code></pre>
+<h2 id="solving-for-the-field">Solving for the field</h2>
+<p>Solving for the field is now just a matter of calling the <code><a title="traceon.solver.solve_direct" href="solver.html#traceon.solver.solve_direct">solve_direct()</a></code> function. The <code><a title="traceon.field.Field" href="field.html#traceon.field.Field">Field</a></code> class returned 
+provides methods for calculating the resulting potential and electrostatic field, which we can subsequently use to trace electrons.</p>
+<pre><code class="language-Python"># Use the Boundary Element Method (BEM) to calculate the surface charges,
+# the surface charges gives rise to a electrostatic field.
+field = S.solve_direct(excitation)
+</code></pre>
+<h2 id="axial-interpolation">Axial interpolation</h2>
+<p>Before tracing the electrons, we first construct an axial interpolation of the Einzel lens. In a radial symmetric system the field
+close to the optical axis is completely determined by the higher order derivatives of the potential. This fact can be used to trace
+electrons very rapidly. The unique strength of the BEM is that there exists closed form formulas for calculating the higher
+order derivatives (from the computed charge distribution). In Traceon, we can make this interpolation in a single
+line of code:</p>
+<pre><code class="language-Python">field_axial = FieldRadialAxial(field, -1.5, 1.5, 150)
+</code></pre>
+<p>Note that this field is only accurate close to the optical axis (z-axis). We can plot the potential along the axis to ensure ourselves
+that the interpolation is working as expected:</p>
+<pre><code class="language-Python">z = np.linspace(-1.5, 1.5, 150)
+pot = [field.potential_at_point([0.0, 0.0, z_]) for z_ in z]
+pot_axial = [field_axial.potential_at_point([0.0, 0.0, z_]) for z_ in z]
+
+plt.title('Potential along axis')
+plt.plot(z, pot, label='Surface charge integration')
+plt.plot(z, pot_axial, linestyle='dashed', label='Interpolation')
+plt.xlabel('z (mm)')
+plt.ylabel('Potential (V)')
+plt.legend()
+</code></pre>
+<p><img class='doc-image' src="../images/einzel lens potential along axis.png" width="500" height="400" /></p>
+<h2 id="tracing-electrons">Tracing electrons</h2>
+<p>Tracing electrons is now just a matter of calling the <code>.get_tracer()</code> method. We provide
+to this method the bounds in which we want to trace. Once an electron hits the edges of the bounds the tracing will
+automatically stop.</p>
+<pre><code class="language-Python"># An instance of the tracer class allows us to easily find the trajectories of 
+# electrons. Here we specify that the interpolated field should be used, and that
+# the tracing should stop if the x,y value goes outside ±RADIUS/2 or the z value outside ±10 mm.
+tracer = field_axial.get_tracer( [(-RADIUS/2, RADIUS/2), (-RADIUS/2,RADIUS/2),  (-10, 10)] )
+
+# Start tracing from z=7mm
+r_start = np.linspace(-RADIUS/3, RADIUS/3, 7)
+
+# Initial velocity vector points downwards, with a 
+# initial speed corresponding to 1000eV.
+velocity = T.velocity_vec(1000, [0, 0, -1])
+
+trajectories = []
+
+for i, r0 in enumerate(r_start):
+    print(f'Tracing electron {i+1}/{len(r_start)}...')
+    _, positions = tracer(np.array([r0, 0, 5]), velocity)
+    trajectories.append(positions)
+</code></pre>
+<p>From the traces we can see the focusing effect of the lens. If we zoom in on the focus we can clearly see the
+spherical aberration, thanks to the high accuracy of both the solver and the field interpolation.</p>
+<p><img class='doc-image' src="../images/einzel lens electron traces.png" width="850" height="390" /></p>
+    </article>
+    
+  
+  <nav id="sidebar">
+
+    
+
+	<h1 class='title'><a href='index.html' style='color:black'>Traceon</a></h1>
+	
+    <ul id="index">
+	
+	<li><h3><a href="#header-submodules">Examples</a></h3>
+      <ul>
+			<li><code><a href="../traceon/einzel-lens.html">Einzel lens</a></code></li>
+      </ul>
+    </li>
+		
+    <li><h3><a href="#header-submodules">Traceon</a></h3>
+      <ul>
+        <li><code ><a title="traceon.excitation" href="excitation.html">traceon.excitation</a></code></li>
+        <li><code ><a title="traceon.field" href="field.html">traceon.field</a></code></li>
+        <li><code ><a title="traceon.focus" href="focus.html">traceon.focus</a></code></li>
+        <li><code ><a title="traceon.geometry" href="geometry.html">traceon.geometry</a></code></li>
+        <li><code ><a title="traceon.logging" href="logging.html">traceon.logging</a></code></li>
+        <li><code ><a title="traceon.mesher" href="mesher.html">traceon.mesher</a></code></li>
+        <li><code ><a title="traceon.plotting" href="plotting.html">traceon.plotting</a></code></li>
+        <li><code ><a title="traceon.solver" href="solver.html">traceon.solver</a></code></li>
+        <li><code ><a title="traceon.tracing" href="tracing.html">traceon.tracing</a></code></li>
+      </ul>
+    </li>
+		
+	<li><h3><a href="#header-submodules">Traceon Pro</a></h3>
+      <ul>
+			<li><code ><a title="traceon_pro.field" href="../traceon_pro/field.html">traceon_pro.field</a></code></li>
+			<li><code ><a title="traceon_pro.solver" href="../traceon_pro/solver.html">traceon_pro.solver</a></code></li>
+      </ul>
+    </li>
+
+
+
+
+
+    </ul>
+  </nav>
+
+</main>
+
+<footer id="footer">
+    
+    <p>Generated by <a href="https://pdoc3.github.io/pdoc" title="pdoc: Python API documentation generator"><cite>pdoc</cite> 0.11.5</a>.</p>
+</footer>
+
+</body>
+</html>
