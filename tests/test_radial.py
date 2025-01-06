@@ -239,6 +239,63 @@ class TestRadial(unittest.TestCase):
 
         assert np.allclose(computed, correct, atol=0.0, rtol=1e-9) 
 
+    def test_field_superposition(self):
+        boundary = G.Path.line([0., 0., 0.], [5., 0., 0.]).extend_with_line([5., 0., 5.]).extend_with_line([0., 0., 5.])
+        boundary.name = 'boundary'
+
+        rect1 = G.Path.rectangle_xz(1.0, 2.0, 1.0, 2.0)
+        rect1.name = 'rect1'
+
+        rect2 = G.Path.rectangle_xz(1.0, 2.0, 3.0, 4.0)
+        rect2.name = 'rect2'
+
+        rect3 = G.Surface.rectangle_xz(3.0, 4.0, 3.0, 4.0)
+        rect3.name = 'rect3'
+
+        rect4 = G.Path.rectangle_xz(3.0, 4.0, 1.0, 2.0)
+        rect4.name = 'rect4'
+
+        mesh = (boundary + rect1 + rect2 + rect4).mesh(mesh_size_factor=5) + rect3.mesh(mesh_size_factor=2)
+
+        exc = E.Excitation(mesh, E.Symmetry.RADIAL)
+        exc.add_magnetostatic_boundary('boundary')
+        exc.add_voltage(rect1=10)
+        exc.add_voltage(rect2=0.0)
+        exc.add_current(rect3=2.5)
+        exc.add_dielectric(rect4=8)
+
+        field = S.solve_direct(exc)
+
+        # Excitation with half the values
+        exc_half = E.Excitation(mesh, E.Symmetry.RADIAL)
+        exc_half.add_magnetostatic_boundary('boundary')
+        exc_half.add_voltage(rect1=10 / 2.)
+        exc_half.add_voltage(rect2=1.0)
+        exc_half.add_current(rect3=2.5 / 2.)
+        exc_half.add_dielectric(rect4=8)
+
+        superposition = S.solve_direct_superposition(exc_half)
+
+        # The following expression is written in a weird way to test many corner cases
+        numpy_minus_two = np.array([-2.0])[0] # Numpy scalars sometimes give issues
+        superposed = -2.0* (-superposition['rect1']) - superposition['rect3']*numpy_minus_two + 0*superposition['rect2']
+
+        # Field and superposed should be EXACTLY the same!
+        for (eff1, eff2) in zip([field.electrostatic_point_charges, field.magnetostatic_point_charges, field.current_point_charges],
+                                [superposed.electrostatic_point_charges, superposed.magnetostatic_point_charges, superposed.current_point_charges]):
+            assert np.allclose(eff1.jacobians, eff2.jacobians)
+            assert np.allclose(eff1.charges, eff2.charges)
+            assert np.allclose(eff1.positions, eff2.positions)
+            assert eff1.directions == eff2.directions or np.allclose(eff1.directions, eff2.directions)
+
+        # Since the fields are the same they should return the same values at some arbitrary points
+        points = [ [0.5, 0.5, 0.5], [1.0, 0.0, 2.0], [2.0, 0.0, -2.0] ]
+
+        for p in points:
+            assert np.allclose(field.electrostatic_field_at_point(p), superposed.electrostatic_field_at_point(p))
+            assert np.allclose(field.magnetostatic_field_at_point(p), superposed.magnetostatic_field_at_point(p))
+            assert np.allclose(field.current_field_at_point(p), superposed.current_field_at_point(p))
+
 
 class TestRadialPermanentMagnet(unittest.TestCase):
     def test_triangular_permanent_magnet(self):

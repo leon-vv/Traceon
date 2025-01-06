@@ -382,17 +382,17 @@ def solve_direct_superposition(excitation):
         excitation = _excitation_to_higher_order(excitation)
     
     # Speedup: invert matrix only once, when using superposition
-    excitations = excitation._split_for_superposition()
+    electrostatic_excitations, magnetostatic_excitations = excitation._split_for_superposition()
     
     # Solve for elec fields
-    elec_names = [n for n, v in excitations.items() if v.is_electrostatic()]
-    right_hand_sides = np.array([ElectrostaticSolverRadial(excitations[n]).get_right_hand_side() for n in elec_names])
+    elec_names = electrostatic_excitations.keys()
+    right_hand_sides = np.array([ElectrostaticSolverRadial(electrostatic_excitations[n]).get_right_hand_side() for n in elec_names])
     solutions = ElectrostaticSolverRadial(excitation).solve_matrix(right_hand_sides)
     elec_dict = {n:s for n, s in zip(elec_names, solutions)}
     
     # Solve for mag fields 
-    mag_names = [n for n, v in excitations.items() if v.is_magnetostatic()]
-    right_hand_sides = np.array([MagnetostaticSolverRadial(excitations[n]).get_right_hand_side() for n in mag_names])
+    mag_names = magnetostatic_excitations.keys()
+    right_hand_sides = np.array([MagnetostaticSolverRadial(magnetostatic_excitations[n]).get_right_hand_side() for n in mag_names])
     solutions = MagnetostaticSolverRadial(excitation).solve_matrix(right_hand_sides)
     mag_dict = {n:s for n, s in zip(mag_names, solutions)}
         
