@@ -293,7 +293,6 @@ class Excitation:
         """
         if ensure_inward_normals:
             for electrode in args:
-                print('flipping normals', electrode)
                 self.mesh.ensure_inward_normals(electrode)
          
         for name in args:
@@ -304,38 +303,43 @@ class Excitation:
          
         self.add_magnetizable(**{a:0 for a in args})
     
+    def _is_excitation_type_part_of_superposition(self, type_: ExcitationType) -> bool:
+        # When computing a superposition, should we return a field for the given excitation type with
+        # the given value? We should only return a field if the field is not trivially zero.
+        # For example, an excitation with only a boundary element will never produce a field.
+        # There are only a few cases that would produce a field:
+        return type_ in [ExcitationType.VOLTAGE_FIXED, ExcitationType.VOLTAGE_FUN, ExcitationType.CURRENT, ExcitationType.PERMANENT_MAGNET]
+     
     def _split_for_superposition(self):
+        types = self.excitation_types.items()
+        part_of_superposition = [(n, t.is_electrostatic()) for n, (t, v) in types if self._is_excitation_type_part_of_superposition(t)]
         
-        # Names that have a fixed voltage excitation, not equal to 0.0
-        types = self.excitation_types
-        non_zero_fixed = [n for n, (t, v) in types.items() if t in [ExcitationType.VOLTAGE_FIXED,
-                                                                    ExcitationType.CURRENT] and v != 0.0]
-        
-        excitations = []
+        electrostatic_excitations = {}
+        magnetostatic_excitations = {}
          
-        for name in non_zero_fixed:
+        for (name, is_electrostatic) in part_of_superposition:
              
             new_types_dict = {}
              
-            for n, (t, v) in types.items():
-                assert t != ExcitationType.VOLTAGE_FUN, "VOLTAGE_FUN excitation not supported for superposition."
-                 
-                if n == name:
-                    new_types_dict[n] = (t, 1.0)
-                elif t == ExcitationType.VOLTAGE_FIXED:
-                    new_types_dict[n] = (t, 0.0)
-                elif t == ExcitationType.CURRENT:
-                    new_types_dict[n] = (t, 0.0)
-                else:
+            for n, (t, v) in types:
+                if n == name or not self._is_excitation_type_part_of_superposition(t):
                     new_types_dict[n] = (t, v)
+                elif t == ExcitationType.VOLTAGE_FUN: 
+                    new_types_dict[n] = (t, lambda _: 0.0) # Already gets its own field, don't include in this one
+                else: 
+                    new_types_dict[n] = (t, np.zeros_like(v) if isinstance(v, np.ndarray) else 0.0) # Already gets its own field, don't include in this one
             
             exc = Excitation(self.mesh, self.symmetry)
             exc.excitation_types = new_types_dict
-            excitations.append(exc)
 
-        assert len(non_zero_fixed) == len(excitations)
-        return {n:e for (n,e) in zip(non_zero_fixed, excitations)}
+            if is_electrostatic:
+                electrostatic_excitations[name] = exc
+            else:
+                magnetostatic_excitations[name] = exc
 
+        assert len(electrostatic_excitations) + len(magnetostatic_excitations) == len(part_of_superposition)
+        return electrostatic_excitations, magnetostatic_excitations
+    
     def _get_active_elements(self, type_):
         assert type_ in ['electrostatic', 'magnetostatic']
         

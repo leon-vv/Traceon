@@ -32,6 +32,10 @@ __pdoc__['Field.get_low_level_trace_function'] = False
 __pdoc__['FieldRadialBEM.get_low_level_trace_function'] = False
 __pdoc__['FieldRadialAxial.get_low_level_trace_function'] = False
 
+def _is_numeric(x):
+    if isinstance(x, int) or isinstance(x, float) or isinstance(x, np.generic):
+        return True
+
 class EffectivePointCharges:
     def __init__(self, charges, jacobians, positions, directions=None):
         self.charges = np.array(charges, dtype=np.float64)
@@ -78,8 +82,11 @@ class EffectivePointCharges:
                 np.concatenate([self.jacobians, other.jacobians]),
                 np.concatenate([self.positions, other.positions]))
     
+    def __radd__(self, other):
+        return self.__add__(other)
+     
     def __mul__(self, other):
-        if isinstance(other, int) or isinstance(other, float):
+        if _is_numeric(other):
             return EffectivePointCharges(other*self.charges, self.jacobians, self.positions)
         
         return NotImplemented
@@ -87,6 +94,9 @@ class EffectivePointCharges:
     def __neg__(self):
         return -1*self
     
+    def __sub__(self, other):
+        return self.__add__(-1*other)
+     
     def __rmul__(self, other):
         return self.__mul__(other)
 
@@ -229,23 +239,23 @@ class FieldBEM(Field, ABC):
             self.current_point_charges.__radd__(other.current_point_charges))
     
     def __mul__(self, other):
+        if not _is_numeric(other):
+            return NotImplemented
+         
         return self.__class__(
-            self.electrostatic_point_charges.__mul__(other.electrostatic_point_charges),
-            self.magnetostatic_point_charges.__mul__(other.magnetostatic_point_charges),
-            self.current_point_charges.__mul__(other.current_point_charges))
+            self.electrostatic_point_charges.__mul__(other),
+            self.magnetostatic_point_charges.__mul__(other),
+            self.current_point_charges.__mul__(other))
     
-    def __neg__(self, other):
+    def __neg__(self):
         return self.__class__(
-            self.electrostatic_point_charges.__neg__(other.electrostatic_point_charges),
-            self.magnetostatic_point_charges.__neg__(other.magnetostatic_point_charges),
-            self.current_point_charges.__neg__(other.current_point_charges))
+            self.electrostatic_point_charges.__neg__(),
+            self.magnetostatic_point_charges.__neg__(),
+            self.current_point_charges.__neg__())
      
     def __rmul__(self, other):
-        return self.__class__(
-            self.electrostatic_point_charges.__rmul__(other.electrostatic_point_charges),
-            self.magnetostatic_point_charges.__rmul__(other.magnetostatic_point_charges),
-            self.current_point_charges.__rmul__(other.current_point_charges))
-     
+        return self.__mul__(other)
+      
     def area_of_elements(self, indices):
         """Compute the total area of the elements at the given indices.
         
