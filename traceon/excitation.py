@@ -213,12 +213,12 @@ class Excitation:
     
     def add_permanent_magnet(self, **kwargs):
         """
-        Assign a magnetization vector to a permanent magnet. The magnetization is supplied as the residual flux density, which has unit Tesla.
+        Assign a magnetization vector to a permanent magnet. The magnetization is supplied as the residual flux density vectors, with unit Tesla.
         
         Parameters
         ----------
         **kwargs : dict
-            The keys of the dictionary are the geometry names, while the values are the magnetization vectors M.
+            The keys of the dictionary are the geometry names, while the values are the residual flux density vectors (Numpy shape (3,)).
         """
         for name, vector in kwargs.items():
             vector = np.array(vector, dtype=np.float64) / mu_0 # Note that we convert from Tesla to A/m, since the rest of the code works with H fields (which has unit A/m)
