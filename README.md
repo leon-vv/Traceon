@@ -78,6 +78,15 @@ Don't worry. You can reach me.
 
 ## Release notes
 
+### v0.9.0
+- Add permanent magnets
+- Small improvements to geometry module (add annulus methods)
+- More general rotations for GeometricObject
+- Various bug fixes and improvements
+
+**Breaking changes**
+- Some code was restructured internally, but shouldn't code using only the public API
+
 ### v0.8.0
 - New plotting module (charge density, equipotential lines)
 - Automatic orientation of normal vectors
