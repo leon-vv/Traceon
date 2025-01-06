@@ -12,13 +12,11 @@ def spherical_to_cartesian(r, theta, phi):
 def cartesian_to_spherical(x, y, z):
     r = np.sqrt(x**2 + y**2 + z**2)
     theta = np.arccos(z / r)
-    phi = np.sign(y)*np.arccos(x/(x**2 + y**2))
+    phi = np.sign(y)*np.arccos(x/np.sqrt(x**2 + y**2))
     return r, theta, phi
 
 def Y(l,m,theta, phi):
-    if np.abs(m)> l:
-        return 0
-    return sp.sph_harm(m,l,phi, theta)
+    return sp.sph_harm_y(l,m, theta, phi)
 
 def Y_star(l,m,theta,phi):
     return np.conj(Y(l,m,theta, phi))
@@ -33,15 +31,14 @@ def dYdphi(l,m,theta,phi):
 def vp(L, r, theta, phi, I):
     rp, phip, thetap, Ix, Iy, Iz = I
     sum = 0
-    factor = 4*np.pi/(rp)
     for l in range(0, L):
         for m in range(-l, l+1):
-            prefactor = (r/rp)**l * 1/(2*l+1)* Y_star(l, m,thetap, phip)
+            prefactor = 1/rp*(r/rp)**l * 4*np.pi/(2*l+1)* Y_star(l, m,thetap, phip)
             Ylm = Y(l, m, theta, phi)
             print(f'term {l,m} {prefactor*Ylm}')
             sum += prefactor*Ylm
             
-    return factor*sum* np.array([Ix, Iy, Iz])
+    return sum* np.array([Ix, Iy, Iz])
 
 def B_r(L, r, theta, phi, I):
     rp, phip, thetap, Ir, Iphi, Itheta = I
@@ -124,7 +121,7 @@ print('analytically', derivative_analytically)
 
 # assert np.isclose(derivative_numerically, derivative_analytically)
 vp1= VectorPotential(*r, I)
-vp2 = vp(2, *r, I)
+vp2 = vp(50, *r, I)
 print('vp', vp1)
 print('vp2', vp2)
 print(vp1/vp2)
