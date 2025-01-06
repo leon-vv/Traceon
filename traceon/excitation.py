@@ -9,6 +9,7 @@ The possible excitations are as follows:
 - Current lines (3D geometry)
 - Magnetostatic scalar potential
 - Magnetizable material, with arbitrary magnetic permeability
+- Permanent magnet, with uniform magnetization
 
 Once the excitation is specified, it can be passed to `traceon.solver.solve_direct` to compute the resulting field.
 """
