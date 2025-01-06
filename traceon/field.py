@@ -124,6 +124,18 @@ class Field(GeometricObject,ABC):
         return field_copy
 
     def map_points_to_local(self, point):
+        """Converts a point from the global coordinate system to the local coordinate system of the field. 
+    
+        Parameters
+        ---------------------
+        point: (3,) np.ndarray of float64
+            The coordinates of the point in the global coordinate system.
+
+        Returns
+        ---------------------
+        (3,) np.ndarray of float64
+            The coordinates of the point in the local coordinate system."""
+
         global_point_homogeneous = np.array([*point, 1], dtype=np.float64)
         local_point_homogeneous = self.inverse_transformation_matrix @ global_point_homogeneous
         return local_point_homogeneous[:3] / local_point_homogeneous[3]
@@ -175,18 +187,66 @@ class Field(GeometricObject,ABC):
             "use electrostatic_potential_at_point or magnetostatic_potential_at_point")
 
     def electrostatic_field_at_point(self, point):
+        """
+        Compute the electric field, \\( \\vec{E} = -\\nabla \\phi \\)
+        
+        Parameters
+        ----------
+        point: (3,) array of float64
+            Position in global coordinate system at which to compute the field.
+        
+        Returns
+        -------
+        (3,) array of float64, containing the field strengths (units of V/m)
+        """
         local_point = self.map_points_to_local(point)
         return self.electrostatic_field_at_local_point(local_point)
     
     def magnetostatic_field_at_point(self, point):
+        """
+        Compute the magnetic field \\( \\vec{H} \\)
+        
+        Parameters
+        ----------
+        point: (3,) array of float64
+            Position in global coordinate system at which to compute the field.
+             
+        Returns
+        -------
+        (3,) np.ndarray of float64 containing the field strength (in units of A/m) in the x, y and z directions.
+        """
         local_point = self.map_points_to_local(point)
         return self.magnetostatic_field_at_local_point(local_point)
     
     def electrostatic_potential_at_point(self, point):
+        """
+        Compute the electrostatic potential.
+        
+        Parameters
+        ----------
+        point: (3,) array of float64
+            Position in global coordinate system at which to compute the field.
+        
+        Returns
+        -------
+        Potential as a float value (in units of V).
+        """
         local_point = self.map_points_to_local(point)
         return self.electrostatic_potential_at_local_point(local_point)
 
     def magnetostatic_potential_at_point(self, point):
+        """
+        Compute the magnetostatic scalar potential (satisfying \\(\\vec{H} = -\\nabla \\phi \\))
+        
+        Parameters
+        ----------
+        point: (3,) array of float64
+            Position in global coordinate system in local coordinate system at which to compute the field.
+        
+        Returns
+        -------
+        Potential as a float value (in units of A).
+        """
         local_point = self.map_points_to_local(point)
         return self.magnetostatic_potential_at_local_point(local_point)
 
@@ -238,7 +298,7 @@ class FieldBEM(Field, ABC):
         self.current_point_charges = current_point_charges
         self.field_bounds = None
         
-    def set_bounds(self, bounds):
+    def set_bounds(self, bounds, transform_to_local=False):
         """Set the field bounds. Outside the field bounds the field always returns zero (i.e. no field). Note
         that even in 2D the field bounds needs to be specified for x,y and z axis. The trajectories in the presence
         of magnetostatic field are in general 3D even in radial symmetric geometries.
@@ -247,10 +307,18 @@ class FieldBEM(Field, ABC):
         -------------------
         bounds: (3, 2) np.ndarray of float64
             The min, max value of x, y, z respectively within the field is still computed.
+        transform_to_local: bool, optional
+            If True, the bounds are transformed into the local coordinate system.
         """
-        self.field_bounds = np.array(bounds)
-        assert self.field_bounds.shape == (3,2)
-    
+        bounds = np.array(bounds)
+        assert bounds.shape == (3,2)
+
+        if transform_to_local:
+            corners = np.array(np.meshgrid(*bounds.T)).T.reshape(-1, 3)
+            local_corners = np.array([self.map_points_to_local(corner) for corner in corners])
+            bounds = np.column_stack([local_corners.min(axis=0), local_corners.max(axis=0)])
+        self.field_bounds = bounds 
+        
     def is_electrostatic(self):
         return len(self.electrostatic_point_charges) > 0
 
@@ -389,26 +457,6 @@ class FieldRadialBEM(FieldBEM):
         jacobians = self.electrostatic_point_charges.jacobians
         positions = self.electrostatic_point_charges.positions
         return backend.field_radial(point, charges, jacobians, positions)
-     
-    def electrostatic_potential_at_local_point(self, point_):
-        """
-        Compute the electrostatic potential.
-        
-        Parameters
-        ----------
-        point: (3,) array of float64
-            Position in local coordinate system at which to compute the field.
-        
-        Returns
-        -------
-        Potential as a float value (in units of V).
-        """
-        point = np.array(point_)
-        assert point.shape == (3,), "Please supply a three dimensional point"
-        charges = self.electrostatic_point_charges.charges
-        jacobians = self.electrostatic_point_charges.jacobians
-        positions = self.electrostatic_point_charges.positions
-        return backend.potential_radial(point, charges, jacobians, positions)
     
     def magnetostatic_field_at_local_point(self, point_):
         """
@@ -435,6 +483,26 @@ class FieldRadialBEM(FieldBEM):
 
         return current_field + mag_field
 
+    def electrostatic_potential_at_local_point(self, point_):
+        """
+        Compute the electrostatic potential.
+        
+        Parameters
+        ----------
+        point: (3,) array of float64
+            Position in local coordinate system at which to compute the field.
+        
+        Returns
+        -------
+        Potential as a float value (in units of V).
+        """
+        point = np.array(point_)
+        assert point.shape == (3,), "Please supply a three dimensional point"
+        charges = self.electrostatic_point_charges.charges
+        jacobians = self.electrostatic_point_charges.jacobians
+        positions = self.electrostatic_point_charges.positions
+        return backend.potential_radial(point, charges, jacobians, positions)
+     
     def magnetostatic_potential_at_local_point(self, point_):
         """
         Compute the magnetostatic scalar potential (satisfying \\(\\vec{H} = -\\nabla \\phi \\))
@@ -543,8 +611,12 @@ class FieldAxial(Field, ABC):
     not initialize this class yourself, but it is used as a base class for the fields returned by the `axial_derivative_interpolation` methods. 
     This base class overloads the +,*,- operators so it is very easy to take a superposition of different fields."""
     
-    def __init__(self, z, electrostatic_coeffs=None, magnetostatic_coeffs=None):
+    def __init__(self, field, z, electrostatic_coeffs=None, magnetostatic_coeffs=None):
         super().__init__()
+        self.origin = field.origin
+        self.basis = field.basis
+        self._update_inverse_transformation_matrix()
+
         N = len(z)
         assert z.shape == (N,)
         assert electrostatic_coeffs is None or len(electrostatic_coeffs)== N-1
@@ -552,7 +624,7 @@ class FieldAxial(Field, ABC):
         assert electrostatic_coeffs is not None or magnetostatic_coeffs is not None
         
         assert z[0] < z[-1], "z values in axial interpolation should be ascending"
-         
+
         self.z = z
         self.electrostatic_coeffs = electrostatic_coeffs if electrostatic_coeffs is not None else np.zeros_like(magnetostatic_coeffs)
         self.magnetostatic_coeffs = magnetostatic_coeffs if magnetostatic_coeffs is not None else np.zeros_like(electrostatic_coeffs)
@@ -633,8 +705,8 @@ class FieldRadialAxial(FieldAxial):
 
         z, electrostatic_coeffs, magnetostatic_coeffs = FieldRadialAxial._get_interpolation_coefficients(field, zmin, zmax, N=N)
         
-        super().__init__(z, electrostatic_coeffs, magnetostatic_coeffs)
-        
+        super().__init__(field, z, electrostatic_coeffs, magnetostatic_coeffs)
+
         assert self.electrostatic_coeffs.shape == (len(z)-1, backend.DERIV_2D_MAX, 6)
         assert self.magnetostatic_coeffs.shape == (len(z)-1, backend.DERIV_2D_MAX, 6)
     
