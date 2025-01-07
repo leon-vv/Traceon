@@ -26,6 +26,7 @@ from . import excitation as E
 from . import util
 from . import logging
 from . import backend
+from .mesher import GeometricObject
 
 __pdoc__ = {}
 __pdoc__['EffectivePointCharges'] = False
@@ -192,7 +193,7 @@ class Field(GeometricObject,ABC):
             return self.magnetostatic_field_at_point(point)
          
         raise RuntimeError("Cannot use field_at_point when both electric and magnetic fields are present, " \
-            "use electrostatic_field_at_point or magnetostatic_potential_at_point")
+            "use electrostatic_field_at_point or magnetostatic_field_at_point")
      
     def potential_at_point(self, point):
         """Convenience function for getting the potential in the case that the field is purely electrostatic
@@ -349,10 +350,13 @@ class FieldBEM(Field, ABC):
         return len(self.magnetostatic_point_charges) > 0 or len(self.current_point_charges) > 0 
      
     def __add__(self, other):
-        return self.__class__(
-            self.electrostatic_point_charges.__add__(other.electrostatic_point_charges),
-            self.magnetostatic_point_charges.__add__(other.magnetostatic_point_charges),
-            self.current_point_charges.__add__(other.current_point_charges))
+        if np.allclose(self.origin, other.origin) and np.allclose(self.basis, other.basis):
+            return self.__class__(
+                self.electrostatic_point_charges.__add__(other.electrostatic_point_charges),
+                self.magnetostatic_point_charges.__add__(other.magnetostatic_point_charges),
+                self.current_point_charges.__add__(other.current_point_charges))
+        else:
+            return FieldSuperposition([self, other])
      
     def __sub__(self, other):
         return self.__class__(
@@ -844,5 +848,92 @@ class FieldRadialAxial(FieldAxial):
         return backend.field_fun(("field_radial_derivs_traceable", backend.backend_lib)), args
  
     
+class FieldSuperposition(GeometricObject):
+    def __init__(self, fields):
+        assert all([isinstance(f, Field) for f in fields])
+        self.fields = fields
 
-     
+    def map_points(self, fun):
+        return FieldSuperposition(f.map_points(fun) for f in self.fields)
+    
+    def __add__(self, other):
+        if isinstance(other, Field):
+            return FieldSuperposition(self.fields + [other])
+        
+        if isinstance(other, FieldSuperposition):
+            return FieldSuperposition(self.fields + other.fields)
+        
+        return NotImplemented
+    
+    def __iadd__(self, other):
+        assert isinstance(other, FieldSuperposition) or isinstance(other, Field)
+
+        if isinstance(other, Field):
+            self.fields.append(other)
+        else:
+            self.fields.extend(other.fields)
+
+    def __getitem__(self, index):
+        selection = np.array(self.fields, dtype=object).__getitem__(index)
+        if isinstance(selection, np.ndarray):
+            return FieldSuperposition(selection.tolist())
+        else:
+            return selection
+    
+    def __len__(self):
+        return len(self.fields)
+
+    def __iter__(self):
+        return iter(self.fields)
+    
+    def field_at_point(self, point):
+        elec, mag = self.is_electrostatic(), self.is_magnetostatic()
+        
+        if elec and not mag:
+            return self.electrostatic_field_at_point(point)
+        elif not elec and mag:
+            return self.magnetostatic_field_at_point(point)
+        
+        raise RuntimeError("Cannot use field_at_point when both electric and magnetic fields are present, " \
+            "use electrostatic_field_at_point or magnetostatic_field_at_point")
+
+    def potential_at_point(self, point):
+        elec, mag = self.is_electrostatic(), self.is_magnetostatic()
+
+        if elec and not mag:
+            return self.electrostatic_potential_at_point(point)
+        elif not elec and mag:
+            return self.magnetostatic_potential_at_point(point)
+        
+        raise RuntimeError("Cannot use potential_at_point when both electric and magnetic fields are present, " \
+            "use electrostatic_potential_at_point or magnetostatic_potential_at_point")
+        
+    def electrostatic_field_at_point(self, point):
+        return np.sum([f.electrostatic_field_at_point(point) for f in self.fields], axis=0)
+
+    def magnetostatic_field_at_point(self, point):
+        return np.sum([f.magnetostatic_field_at_point(point) for f in self.fields], axis=0)
+
+    def electrostatic_potential_at_point(self, point):
+        return np.sum([f.electrostatic_potential_at_point(point) for f in self.fields], axis=0)
+
+    def magnetostatic_potential_at_point(self, point):
+        return np.sum([f.magnetostatic_potential_at_point(point) for f in self.fields], axis=0)
+
+    def is_electrostatic(self):
+        return any(f.is_electrostatic() for f in self.fields)
+    
+    def is_magnetostatic(self):
+        return any(f.is_magnetostatic() for f in self.fields)
+
+    def get_tracer(self, bounds):
+        return T.Tracer(self, bounds)
+    
+    # Following function can be implemented to get a speedup while tracing. 
+    # Return a field function implemented in C and a ctypes argument needed. 
+    # See the field_fun variable in backend/__init__.py.
+    # Note that by default it gives back a Python function, which gives no speedup.
+    def get_low_level_trace_function(self):
+        fun = lambda pos, vel: (self.electrostatic_field_at_point(pos), self.magnetostatic_field_at_point(pos))
+        return backend.wrap_field_fun(fun), None
+
