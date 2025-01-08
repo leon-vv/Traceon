@@ -27,18 +27,16 @@ The core of Traceon is completely free to use and open source, and distributed u
 
 [Examples](https://github.com/leon-vv/Traceon/tree/main/examples)
 
+[API documentation v0.9.0](https://traceon.org/docs/v0.9.0/traceon/index.html)
+
 [API documentation v0.8.0](https://traceon.org/docs/v0.8.0/index.html)
-
-[API documentation v0.7.3](https://traceon.org/docs/v0.7.3/index.html)
-
-[API documentation v0.6.0](https://traceon.org/docs/v0.6.0/index.html)
 
 ## Citation
 
 Please cite the software as follows:
 
 ```
-L.B. van Velzen. Traceon software (version 0.8.0). 2024. https://doi.org/10.5281/zenodo.14500008
+L.B. van Velzen. Traceon software (version 0.9.0). 2024. https://doi.org/10.5281/zenodo.14606886
 ```
 
 ## Installation
@@ -79,6 +77,15 @@ Don't worry. You can reach me.
 ![Image of Einzel lens traces](https://raw.githubusercontent.com/leon-vv/traceon/main/images/einzel-lens-traces.png)
 
 ## Release notes
+
+### v0.9.0
+- Add permanent magnets
+- Small improvements to geometry module (add annulus methods)
+- More general rotations for GeometricObject
+- Various bug fixes and improvements
+
+**Breaking changes**
+- `FieldRadialAxial` was moved from `solver.py` to `field.py`
 
 ### v0.8.0
 - New plotting module (charge density, equipotential lines)

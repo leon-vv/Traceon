@@ -7,9 +7,8 @@
 
 
 
-    <title>traceon.solver API documentation</title>
-    <meta name="description" content="The solver module uses the Boundary Element Method (BEM) to compute the surface charge distribution of a given
-geometry and excitation. Once the …">
+    <title>traceon_pro.solver API documentation</title>
+    <meta name="description" content="">
 
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/10up-sanitize.css/13.0.0/sanitize.min.css" integrity="sha512-y1dtMcuvtTMJc1yPgEqF0ZjQbhnc/bFhyvIyVNb9Zk5mIGtqVaAB1Ttl28su8AvFMOY0EwRbAe+HCLqj6W7/KA==" crossorigin>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/10up-sanitize.css/13.0.0/typography.min.css" integrity="sha512-Y1DYSb995BAfxobCkKepB1BqJJTPrOp3zPL74AWFugHHmmdcvO+C48WLrUOlhGMc0QG7AE3f7gmvvcrmX2fDoA==" crossorigin>
@@ -53,16 +52,11 @@ geometry and excitation. Once the …">
   
 
   <header>
-  <h1 class="title">Module <code>traceon.solver</code></h1>
+  <h1 class="title">Module <code>traceon_pro.solver</code></h1>
   </header>
 
   <section id="section-intro">
-  <p>The solver module uses the Boundary Element Method (BEM) to compute the surface charge distribution of a given
-geometry and excitation. Once the surface charge distribution is known, the field at any arbitrary position in space
-can be calculated by integration over the charged boundary. However, doing a field evaluation in this manner is very slow
-as for every field evaluation an iteration needs to be done over all elements in the mesh. Especially for particle tracing it
-is crucial that the field evaluation can be done faster. To achieve this, interpolation techniques can be used, see <code><a title="traceon.field.FieldRadialAxial" href="field.html#traceon.field.FieldRadialAxial">FieldRadialAxial</a></code>,
-and <code><a title="traceon_pro.field.Field3DAxial" href="../traceon_pro/field.html#traceon_pro.field.Field3DAxial">Field3DAxial</a></code>.</p>
+  
   </section>
 
   <section>
@@ -75,125 +69,105 @@ and <code><a title="traceon_pro.field.Field3DAxial" href="../traceon_pro/field.h
     <h2 class="section-title" id="header-functions">Functions</h2>
     <dl>
       
-    <dt id="traceon.solver.solve_direct"><code class="name flex">
+    <dt id="traceon_pro.solver.solve_direct"><code class="name flex">
         
         <span>def <span class="ident">solve_direct</span></span>(<span>excitation)</span>
     </code></dt>
     <dd>
   
   
-    
-      <details class="source">
-        <summary>
-            <span>Expand source code</span>
-        </summary>
-        <pre><code class="python">def solve_direct(excitation):
-    &#34;&#34;&#34;
-    Solve for the charges on the surface of the geometry by using a direct method and taking
-    into account the specified `excitation`. 
-
-    Parameters
-    ----------
-    excitation : traceon.excitation.Excitation
-        The excitation that produces the resulting field.
-     
-    Returns
-    -------
-    `FieldRadialBEM`
-    &#34;&#34;&#34;
-    if excitation.mesh.is_2d() and not excitation.mesh.is_higher_order():
-        excitation = _excitation_to_higher_order(excitation)
-    
-    mag, elec = excitation.is_magnetostatic(), excitation.is_electrostatic()
-
-    assert mag or elec, &#34;Solving for an empty excitation&#34;
-
-    if mag and elec:
-        elec_field = ElectrostaticSolverRadial(excitation).solve_matrix()[0]
-        mag_field = MagnetostaticSolverRadial(excitation).solve_matrix()[0]
-        return elec_field + mag_field # type: ignore
-    elif elec and not mag:
-        return ElectrostaticSolverRadial(excitation).solve_matrix()[0]
-    elif mag and not elec:
-        return MagnetostaticSolverRadial(excitation).solve_matrix()[0]</code></pre>
-      </details>
 
   <div class="desc"><p>Solve for the charges on the surface of the geometry by using a direct method and taking
-into account the specified <code>excitation</code>. </p>
+into account the specified excitation.</p>
 <h2 id="parameters">Parameters</h2>
 <dl>
-<dt><strong><code>excitation</code></strong> :&ensp;<code><a title="traceon.excitation.Excitation" href="excitation.html#traceon.excitation.Excitation">Excitation</a></code></dt>
+<dt><strong><code>excitation</code></strong> :&ensp;<code><a title="traceon.excitation.Excitation" href="../traceon/excitation.html#traceon.excitation.Excitation">Excitation</a></code></dt>
 <dd>The excitation that produces the resulting field.</dd>
 </dl>
 <h2 id="returns">Returns</h2>
-<p><code>FieldRadialBEM</code></p></div>
+<p><code><a title="traceon_pro.field.Field3D_BEM" href="field.html#traceon_pro.field.Field3D_BEM">Field3D_BEM</a></code> or <code><a title="traceon.field.FieldRadialBEM" href="../traceon/field.html#traceon.field.FieldRadialBEM">FieldRadialBEM</a></code></p></div>
 </dd>
   
       
-    <dt id="traceon.solver.solve_direct_superposition"><code class="name flex">
+    <dt id="traceon_pro.solver.solve_direct_superposition"><code class="name flex">
         
         <span>def <span class="ident">solve_direct_superposition</span></span>(<span>excitation)</span>
     </code></dt>
     <dd>
   
   
-    
-      <details class="source">
-        <summary>
-            <span>Expand source code</span>
-        </summary>
-        <pre><code class="python">def solve_direct_superposition(excitation):
-    &#34;&#34;&#34;
-    When using superposition multiple fields are computed at once. Each field corresponds with a unity excitation (1V)
-    of an electrode that was assigned a non-zero fixed voltage value. This is useful when a geometry needs
-    to be analyzed for many different voltage settings. In this case taking a linear superposition of the returned fields
-    allows to select a different voltage &#39;setting&#39; without inducing any computational cost. There is no computational cost
-    involved in using `superposition=True` since a direct solver is used which easily allows for multiple right hand sides (the
-    matrix does not have to be inverted multiple times). However, voltage functions are invalid in the superposition process (position dependent voltages).
 
-    Parameters
-    ---------------------
-    excitation: `traceon.excitation.Excitation`
-        The excitation that produces the resulting field.
-    
-    Returns
-    ---------------------------
-    Dictionary from str to `traceon.field.Field`. Each key is the name of an electrode on which a voltage (or current) was applied, the corresponding values are the fields.
-    &#34;&#34;&#34;
-    if excitation.mesh.is_2d() and not excitation.mesh.is_higher_order():
-        excitation = _excitation_to_higher_order(excitation)
-    
-    # Speedup: invert matrix only once, when using superposition
-    excitations = excitation._split_for_superposition()
-    
-    # Solve for elec fields
-    elec_names = [n for n, v in excitations.items() if v.is_electrostatic()]
-    right_hand_sides = np.array([ElectrostaticSolverRadial(excitations[n]).get_right_hand_side() for n in elec_names])
-    solutions = ElectrostaticSolverRadial(excitation).solve_matrix(right_hand_sides)
-    elec_dict = {n:s for n, s in zip(elec_names, solutions)}
-    
-    # Solve for mag fields 
-    mag_names = [n for n, v in excitations.items() if v.is_magnetostatic()]
-    right_hand_sides = np.array([MagnetostaticSolverRadial(excitations[n]).get_right_hand_side() for n in mag_names])
-    solutions = MagnetostaticSolverRadial(excitation).solve_matrix(right_hand_sides)
-    mag_dict = {n:s for n, s in zip(mag_names, solutions)}
-        
-    return {**elec_dict, **mag_dict}</code></pre>
-      </details>
-
-  <div class="desc"><p>When using superposition multiple fields are computed at once. Each field corresponds with a unity excitation (1V)
-of an electrode that was assigned a non-zero fixed voltage value. This is useful when a geometry needs
-to be analyzed for many different voltage settings. In this case taking a linear superposition of the returned fields
+  <div class="desc"><p>When using superposition multiple fields are computed at once. Each field corresponds with a unity excitation (1V or 1A)
+of an electrode that was assigned a non-zero fixed voltage (or current) value. This is useful when a geometry needs
+to be analyzed for many different voltage (or current) settings. In this case taking a linear superposition of the returned fields
 allows to select a different voltage 'setting' without inducing any computational cost. There is no computational cost
 involved in using <code>superposition=True</code> since a direct solver is used which easily allows for multiple right hand sides (the
-matrix does not have to be inverted multiple times). However, voltage functions are invalid in the superposition process (position dependent voltages).</p>
+matrix does not have to be inverted multiple times). However, position dependent voltages are invalid in the superposition process.</p>
 <h2 id="parameters">Parameters</h2>
 <dl>
-<dt><strong><code>excitation</code></strong> :&ensp;<code><a title="traceon.excitation.Excitation" href="excitation.html#traceon.excitation.Excitation">Excitation</a></code></dt>
+<dt><strong><code>excitation</code></strong> :&ensp;<code><a title="traceon.excitation.Excitation" href="../traceon/excitation.html#traceon.excitation.Excitation">Excitation</a></code></dt>
 <dd>The excitation that produces the resulting field.</dd>
 </dl>
 <h2 id="returns">Returns</h2>
-<p>Dictionary from str to <code><a title="traceon.field.Field" href="field.html#traceon.field.Field">Field</a></code>. Each key is the name of an electrode on which a voltage (or current) was applied, the corresponding values are the fields.</p></div>
+<p>Dictionary of str to <code><a title="traceon.field.Field" href="../traceon/field.html#traceon.field.Field">Field</a></code>.
+    Each key is the name of an electrode on which a voltage (or current) was applied, the corresponding values are the fields.</p></div>
+</dd>
+  
+      
+    <dt id="traceon_pro.solver.solve_fmm"><code class="name flex">
+        
+        <span>def <span class="ident">solve_fmm</span></span>(<span>excitation, N_max=256, l_max=12)</span>
+    </code></dt>
+    <dd>
+  
+  
+
+  <div class="desc"><p>Solve for the charges on the surface of the geometry by using a fast multipole method (FMM) and taking
+into account the specified excitation. The FMM works by diving the geometry up into boxes, and using approximation
+formulas to compute the potential interaction of elements that are 'far apart'. </p>
+<h2 id="parameters">Parameters</h2>
+<dl>
+<dt><strong><code>excitation</code></strong> :&ensp;<code><a title="traceon.excitation.Excitation" href="../traceon/excitation.html#traceon.excitation.Excitation">Excitation</a></code></dt>
+<dd>The excitation that produces the resulting field.</dd>
+<dt><strong><code>N_max</code></strong> :&ensp;<code>int</code></dt>
+<dd>The maximum number of triangles to put into every box when dividing up the geometry. A larger number usually 
+improves accuracy (and sometimes performance) but increases memory usage.</dd>
+<dt><strong><code>l_max</code></strong> :&ensp;<code>int</code></dt>
+<dd>The order of the multipole expansions used to compute the far-away interactions. A larger number improves 
+accuracy but increases the solve time.</dd>
+</dl>
+<h2 id="returns">Returns</h2>
+<p><code><a title="traceon_pro.field.Field3D_BEM" href="field.html#traceon_pro.field.Field3D_BEM">Field3D_BEM</a></code></p></div>
+</dd>
+  
+      
+    <dt id="traceon_pro.solver.solve_fmm_superposition"><code class="name flex">
+        
+        <span>def <span class="ident">solve_fmm_superposition</span></span>(<span>excitation, N_max=256, l_max=12)</span>
+    </code></dt>
+    <dd>
+  
+  
+
+  <div class="desc"><p>When using superposition multiple fields are computed. Each field corresponds with a unity excitation (1V or 1A)
+of an electrode that was assigned a non-zero fixed voltage (or current) value. This is useful when a geometry needs
+to be analyzed for many different voltage (or current) settings. In this case taking a linear superposition of the returned fields
+allows to select a different voltage 'setting' without inducing any computational cost. Note that unlike the direct method the
+fast multipole method (FMM) uses an iterative solver and therefore needs to redo the entire solve step for every unity excitation.</p>
+<h2 id="parameters">Parameters</h2>
+<dl>
+<dt><strong><code>excitation</code></strong> :&ensp;<code><a title="traceon.excitation.Excitation" href="../traceon/excitation.html#traceon.excitation.Excitation">Excitation</a></code></dt>
+<dd>The excitation that produces the resulting field.</dd>
+<dt><strong><code>N_max</code></strong> :&ensp;<code>int</code></dt>
+<dd>The maximum number of triangles to put into every box when dividing up the geometry. A larger number usually 
+improves accuracy (and sometimes performance) but increases memory usage.</dd>
+<dt><strong><code>l_max</code></strong> :&ensp;<code>int</code></dt>
+<dd>The order of the multipole expansions used to compute the far-away interactions. A larger number improves 
+accuracy but increases the solve time.</dd>
+</dl>
+<h2 id="returns">Returns</h2>
+<p>Dictionary of str to <code><a title="traceon.field.Field" href="../traceon/field.html#traceon.field.Field">Field</a></code>.
+    Each key is the name of an electrode on which a voltage (or current) was applied, the corresponding values are the fields.</p></div>
 </dd>
   
     </dl>
@@ -221,22 +195,22 @@ matrix does not have to be inverted multiple times). However, voltage functions 
 		
     <li><h3><a href="#header-submodules">Traceon</a></h3>
       <ul>
-        <li><code ><a title="traceon.excitation" href="excitation.html">traceon.excitation</a></code></li>
-        <li><code ><a title="traceon.field" href="field.html">traceon.field</a></code></li>
-        <li><code ><a title="traceon.focus" href="focus.html">traceon.focus</a></code></li>
-        <li><code ><a title="traceon.geometry" href="geometry.html">traceon.geometry</a></code></li>
-        <li><code ><a title="traceon.logging" href="logging.html">traceon.logging</a></code></li>
-        <li><code ><a title="traceon.mesher" href="mesher.html">traceon.mesher</a></code></li>
-        <li><code ><a title="traceon.plotting" href="plotting.html">traceon.plotting</a></code></li>
-        <li><code class='selected'><a title="traceon.solver" href="#traceon.solver">traceon.solver</a></code></li>
-        <li><code ><a title="traceon.tracing" href="tracing.html">traceon.tracing</a></code></li>
+        <li><code ><a title="traceon.excitation" href="../traceon/excitation.html">traceon.excitation</a></code></li>
+        <li><code ><a title="traceon.field" href="../traceon/field.html">traceon.field</a></code></li>
+        <li><code ><a title="traceon.focus" href="../traceon/focus.html">traceon.focus</a></code></li>
+        <li><code ><a title="traceon.geometry" href="../traceon/geometry.html">traceon.geometry</a></code></li>
+        <li><code ><a title="traceon.logging" href="../traceon/logging.html">traceon.logging</a></code></li>
+        <li><code ><a title="traceon.mesher" href="../traceon/mesher.html">traceon.mesher</a></code></li>
+        <li><code ><a title="traceon.plotting" href="../traceon/plotting.html">traceon.plotting</a></code></li>
+        <li><code ><a title="traceon.solver" href="../traceon/solver.html">traceon.solver</a></code></li>
+        <li><code ><a title="traceon.tracing" href="../traceon/tracing.html">traceon.tracing</a></code></li>
       </ul>
     </li>
 		
 	<li><h3><a href="#header-submodules">Traceon Pro</a></h3>
       <ul>
-			<li><code ><a title="traceon_pro.field" href="../traceon_pro/field.html">traceon_pro.field</a></code></li>
-			<li><code ><a title="traceon_pro.solver" href="../traceon_pro/solver.html">traceon_pro.solver</a></code></li>
+			<li><code ><a title="traceon_pro.field" href="field.html">traceon_pro.field</a></code></li>
+			<li><code class='selected'><a title="traceon_pro.solver" href="#traceon_pro.solver">traceon_pro.solver</a></code></li>
       </ul>
     </li>
 
@@ -246,8 +220,10 @@ matrix does not have to be inverted multiple times). However, voltage functions 
       
   
   <ul class="">
-    <li><code><a title="traceon.solver.solve_direct" href="#traceon.solver.solve_direct">solve_direct</a></code></li>
-    <li><code><a title="traceon.solver.solve_direct_superposition" href="#traceon.solver.solve_direct_superposition">solve_direct_superposition</a></code></li>
+    <li><code><a title="traceon_pro.solver.solve_direct" href="#traceon_pro.solver.solve_direct">solve_direct</a></code></li>
+    <li><code><a title="traceon_pro.solver.solve_direct_superposition" href="#traceon_pro.solver.solve_direct_superposition">solve_direct_superposition</a></code></li>
+    <li><code><a title="traceon_pro.solver.solve_fmm" href="#traceon_pro.solver.solve_fmm">solve_fmm</a></code></li>
+    <li><code><a title="traceon_pro.solver.solve_fmm_superposition" href="#traceon_pro.solver.solve_fmm_superposition">solve_fmm_superposition</a></code></li>
   </ul>
 
     </li>

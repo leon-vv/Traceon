@@ -67,6 +67,7 @@ created with the <code><a title="traceon.geometry" href="geometry.html">traceon.
 <li>Current lines (3D geometry)</li>
 <li>Magnetostatic scalar potential</li>
 <li>Magnetizable material, with arbitrary magnetic permeability</li>
+<li>Permanent magnet, with uniform magnetization</li>
 </ul>
 <p>Once the excitation is specified, it can be passed to <code><a title="traceon.solver.solve_direct" href="solver.html#traceon.solver.solve_direct">solve_direct()</a></code> to compute the resulting field.</p>
   </section>
@@ -173,6 +174,10 @@ created with the <code><a title="traceon.geometry" href="geometry.html">traceon.
         else:
             raise ValueError(&#39;Symmetry should be one of RADIAL or THREE_D&#39;)
 
+    def has_permanent_magnet(self):
+        &#34;&#34;&#34;Check whether the excitation contains a permanent magnet.&#34;&#34;&#34;
+        return any([t == ExcitationType.PERMANENT_MAGNET for t, _ in self.excitation_types.values()])
+    
     def has_current(self):
         &#34;&#34;&#34;Check whether a current is applied in this excitation.&#34;&#34;&#34;
         return any([t == ExcitationType.CURRENT for t, _ in self.excitation_types.values()])
@@ -183,7 +188,7 @@ created with the <code><a title="traceon.geometry" href="geometry.html">traceon.
      
     def is_magnetostatic(self):
         &#34;&#34;&#34;Check whether the excitation contains magnetostatic fields.&#34;&#34;&#34;
-        return any([t in [ExcitationType.MAGNETOSTATIC_POT, ExcitationType.CURRENT] for t, _ in self.excitation_types.values()])
+        return any([t in [ExcitationType.MAGNETOSTATIC_POT, ExcitationType.PERMANENT_MAGNET, ExcitationType.CURRENT] for t, _ in self.excitation_types.values()])
      
     def add_magnetostatic_potential(self, **kwargs):
         &#34;&#34;&#34;
@@ -222,6 +227,31 @@ created with the <code><a title="traceon.geometry" href="geometry.html">traceon.
                 self._ensure_electrode_is_triangles(&#39;magnetizable&#39;, name)
 
             self.excitation_types[name] = (ExcitationType.MAGNETIZABLE, permeability)
+    
+    def add_permanent_magnet(self, **kwargs):
+        &#34;&#34;&#34;
+        Assign a magnetization vector to a permanent magnet. The magnetization is supplied as the residual flux density vectors, with unit Tesla.
+        
+        Parameters
+        ----------
+        **kwargs : dict
+            The keys of the dictionary are the geometry names, while the values are the residual flux density vectors (Numpy shape (3,)).
+        &#34;&#34;&#34;
+        for name, vector in kwargs.items():
+            vector = np.array(vector, dtype=np.float64) / mu_0 # Note that we convert from Tesla to A/m, since the rest of the code works with H fields (which has unit A/m)
+            
+            if self.symmetry == E.Symmetry.RADIAL:
+                self._ensure_electrode_is_lines(&#39;permanent magnet&#39;, name)
+                assert vector.shape == (3,) and vector[1] == 0.0 and vector[0] == 0.0, \
+                    &#34;Please supply the magnetization vector in radial symmetry as the vector [0, 0, B], with B&#34; +\
+                    &#34; the residual flux density (unit Tesla). Note that a magnetization vector along r (for example [B, 0, 0]) &#34; +\
+                    &#34; would lead to a non-uniform magnetization in radial symmetry, and is currently not supported. &#34;
+
+            elif self.symmetry == E.Symmetry.THREE_D:
+                self._ensure_electrode_is_triangles(&#39;permanent magnet&#39;, name)
+                assert vector.shape == (3,), &#34;The magnetization vector must be a 3D vector.&#34;
+
+            self.excitation_types[name] = (ExcitationType.PERMANENT_MAGNET, vector)
      
     def add_dielectric(self, **kwargs):
         &#34;&#34;&#34;
@@ -280,7 +310,6 @@ created with the <code><a title="traceon.geometry" href="geometry.html">traceon.
         &#34;&#34;&#34;
         if ensure_inward_normals:
             for electrode in args:
-                print(&#39;flipping normals&#39;, electrode)
                 self.mesh.ensure_inward_normals(electrode)
          
         for name in args:
@@ -291,38 +320,43 @@ created with the <code><a title="traceon.geometry" href="geometry.html">traceon.
          
         self.add_magnetizable(**{a:0 for a in args})
     
+    def _is_excitation_type_part_of_superposition(self, type_: ExcitationType) -&gt; bool:
+        # When computing a superposition, should we return a field for the given excitation type with
+        # the given value? We should only return a field if the field is not trivially zero.
+        # For example, an excitation with only a boundary element will never produce a field.
+        # There are only a few cases that would produce a field:
+        return type_ in [ExcitationType.VOLTAGE_FIXED, ExcitationType.VOLTAGE_FUN, ExcitationType.CURRENT, ExcitationType.PERMANENT_MAGNET]
+     
     def _split_for_superposition(self):
+        types = self.excitation_types.items()
+        part_of_superposition = [(n, t.is_electrostatic()) for n, (t, v) in types if self._is_excitation_type_part_of_superposition(t)]
         
-        # Names that have a fixed voltage excitation, not equal to 0.0
-        types = self.excitation_types
-        non_zero_fixed = [n for n, (t, v) in types.items() if t in [ExcitationType.VOLTAGE_FIXED,
-                                                                    ExcitationType.CURRENT] and v != 0.0]
-        
-        excitations = []
+        electrostatic_excitations = {}
+        magnetostatic_excitations = {}
          
-        for name in non_zero_fixed:
+        for (name, is_electrostatic) in part_of_superposition:
              
             new_types_dict = {}
              
-            for n, (t, v) in types.items():
-                assert t != ExcitationType.VOLTAGE_FUN, &#34;VOLTAGE_FUN excitation not supported for superposition.&#34;
-                 
-                if n == name:
-                    new_types_dict[n] = (t, 1.0)
-                elif t == ExcitationType.VOLTAGE_FIXED:
-                    new_types_dict[n] = (t, 0.0)
-                elif t == ExcitationType.CURRENT:
-                    new_types_dict[n] = (t, 0.0)
-                else:
+            for n, (t, v) in types:
+                if n == name or not self._is_excitation_type_part_of_superposition(t):
                     new_types_dict[n] = (t, v)
+                elif t == ExcitationType.VOLTAGE_FUN: 
+                    new_types_dict[n] = (t, lambda _: 0.0) # Already gets its own field, don&#39;t include in this one
+                else: 
+                    new_types_dict[n] = (t, np.zeros_like(v) if isinstance(v, np.ndarray) else 0.0) # Already gets its own field, don&#39;t include in this one
             
             exc = Excitation(self.mesh, self.symmetry)
             exc.excitation_types = new_types_dict
-            excitations.append(exc)
 
-        assert len(non_zero_fixed) == len(excitations)
-        return {n:e for (n,e) in zip(non_zero_fixed, excitations)}
+            if is_electrostatic:
+                electrostatic_excitations[name] = exc
+            else:
+                magnetostatic_excitations[name] = exc
 
+        assert len(electrostatic_excitations) + len(magnetostatic_excitations) == len(part_of_superposition)
+        return electrostatic_excitations, magnetostatic_excitations
+    
     def _get_active_elements(self, type_):
         assert type_ in [&#39;electrostatic&#39;, &#39;magnetostatic&#39;]
         
@@ -597,7 +631,6 @@ calling the function as <code>add_dielectric(spacer=2)</code> assign the relativ
     &#34;&#34;&#34;
     if ensure_inward_normals:
         for electrode in args:
-            print(&#39;flipping normals&#39;, electrode)
             self.mesh.ensure_inward_normals(electrode)
      
     for name in args:
@@ -658,6 +691,53 @@ permeability of zero. This is how a boundary is actually implemented internally.
 <dt><strong><code>**kwargs</code></strong> :&ensp;<code>dict</code></dt>
 <dd>The keys of the dictionary are the geometry names, while the values are the voltages in units of Ampere. For example,
 calling the function as <code>add_magnetostatic_potential(lens=50)</code> assigns a 50A value to the geometry elements part of the 'lens' physical group.</dd>
+</dl></div>
+</dd>
+  
+              
+    <dt id="traceon.excitation.Excitation.add_permanent_magnet"><code class="name flex">
+        
+        <span>def <span class="ident">add_permanent_magnet</span></span>(<span>self, **kwargs)</span>
+    </code></dt>
+    <dd>
+  
+  
+    
+      <details class="source">
+        <summary>
+            <span>Expand source code</span>
+        </summary>
+        <pre><code class="python">def add_permanent_magnet(self, **kwargs):
+    &#34;&#34;&#34;
+    Assign a magnetization vector to a permanent magnet. The magnetization is supplied as the residual flux density vectors, with unit Tesla.
+    
+    Parameters
+    ----------
+    **kwargs : dict
+        The keys of the dictionary are the geometry names, while the values are the residual flux density vectors (Numpy shape (3,)).
+    &#34;&#34;&#34;
+    for name, vector in kwargs.items():
+        vector = np.array(vector, dtype=np.float64) / mu_0 # Note that we convert from Tesla to A/m, since the rest of the code works with H fields (which has unit A/m)
+        
+        if self.symmetry == E.Symmetry.RADIAL:
+            self._ensure_electrode_is_lines(&#39;permanent magnet&#39;, name)
+            assert vector.shape == (3,) and vector[1] == 0.0 and vector[0] == 0.0, \
+                &#34;Please supply the magnetization vector in radial symmetry as the vector [0, 0, B], with B&#34; +\
+                &#34; the residual flux density (unit Tesla). Note that a magnetization vector along r (for example [B, 0, 0]) &#34; +\
+                &#34; would lead to a non-uniform magnetization in radial symmetry, and is currently not supported. &#34;
+
+        elif self.symmetry == E.Symmetry.THREE_D:
+            self._ensure_electrode_is_triangles(&#39;permanent magnet&#39;, name)
+            assert vector.shape == (3,), &#34;The magnetization vector must be a 3D vector.&#34;
+
+        self.excitation_types[name] = (ExcitationType.PERMANENT_MAGNET, vector)</code></pre>
+      </details>
+
+  <div class="desc"><p>Assign a magnetization vector to a permanent magnet. The magnetization is supplied as the residual flux density vectors, with unit Tesla.</p>
+<h2 id="parameters">Parameters</h2>
+<dl>
+<dt><strong><code>**kwargs</code></strong> :&ensp;<code>dict</code></dt>
+<dd>The keys of the dictionary are the geometry names, while the values are the residual flux density vectors (Numpy shape (3,)).</dd>
 </dl></div>
 </dd>
   
@@ -806,6 +886,27 @@ applied to them. This does not include current excitation, as these are not part
 </dd>
   
               
+    <dt id="traceon.excitation.Excitation.has_permanent_magnet"><code class="name flex">
+        
+        <span>def <span class="ident">has_permanent_magnet</span></span>(<span>self)</span>
+    </code></dt>
+    <dd>
+  
+  
+    
+      <details class="source">
+        <summary>
+            <span>Expand source code</span>
+        </summary>
+        <pre><code class="python">def has_permanent_magnet(self):
+    &#34;&#34;&#34;Check whether the excitation contains a permanent magnet.&#34;&#34;&#34;
+    return any([t == ExcitationType.PERMANENT_MAGNET for t, _ in self.excitation_types.values()])</code></pre>
+      </details>
+
+  <div class="desc"><p>Check whether the excitation contains a permanent magnet.</p></div>
+</dd>
+  
+              
     <dt id="traceon.excitation.Excitation.is_electrostatic"><code class="name flex">
         
         <span>def <span class="ident">is_electrostatic</span></span>(<span>self)</span>
@@ -841,7 +942,7 @@ applied to them. This does not include current excitation, as these are not part
         </summary>
         <pre><code class="python">def is_magnetostatic(self):
     &#34;&#34;&#34;Check whether the excitation contains magnetostatic fields.&#34;&#34;&#34;
-    return any([t in [ExcitationType.MAGNETOSTATIC_POT, ExcitationType.CURRENT] for t, _ in self.excitation_types.values()])</code></pre>
+    return any([t in [ExcitationType.MAGNETOSTATIC_POT, ExcitationType.PERMANENT_MAGNET, ExcitationType.CURRENT] for t, _ in self.excitation_types.values()])</code></pre>
       </details>
 
   <div class="desc"><p>Check whether the excitation contains magnetostatic fields.</p></div>
@@ -875,6 +976,7 @@ applied to them. This does not include current excitation, as these are not part
     CURRENT = 4
     MAGNETOSTATIC_POT = 5
     MAGNETIZABLE = 6
+    PERMANENT_MAGNET = 7
      
     def is_electrostatic(self):
         return self in [ExcitationType.VOLTAGE_FIXED,
@@ -884,7 +986,8 @@ applied to them. This does not include current excitation, as these are not part
     def is_magnetostatic(self):
         return self in [ExcitationType.MAGNETOSTATIC_POT,
                         ExcitationType.MAGNETIZABLE,
-                        ExcitationType.CURRENT]
+                        ExcitationType.CURRENT,
+                        ExcitationType.PERMANENT_MAGNET]
      
     def __str__(self):
         if self == ExcitationType.VOLTAGE_FIXED:
@@ -899,6 +1002,8 @@ applied to them. This does not include current excitation, as these are not part
             return &#39;magnetostatic potential&#39;
         elif self == ExcitationType.MAGNETIZABLE:
             return &#39;magnetizable&#39;
+        elif self == ExcitationType.PERMANENT_MAGNET:
+            return &#39;permanent magnet&#39;
          
         raise RuntimeError(&#39;ExcitationType not understood in __str__ method&#39;)</code></pre>
       </details>
@@ -941,6 +1046,14 @@ applied to them. This does not include current excitation, as these are not part
 </dd>
               
               <dt id="traceon.excitation.ExcitationType.MAGNETOSTATIC_POT"><code class="name">var <span class="ident">MAGNETOSTATIC_POT</span></code></dt>
+              <dd>
+  
+  
+
+  <div class="desc"></div>
+</dd>
+              
+              <dt id="traceon.excitation.ExcitationType.PERMANENT_MAGNET"><code class="name">var <span class="ident">PERMANENT_MAGNET</span></code></dt>
               <dd>
   
   
@@ -1004,7 +1117,8 @@ applied to them. This does not include current excitation, as these are not part
         <pre><code class="python">def is_magnetostatic(self):
     return self in [ExcitationType.MAGNETOSTATIC_POT,
                     ExcitationType.MAGNETIZABLE,
-                    ExcitationType.CURRENT]</code></pre>
+                    ExcitationType.CURRENT,
+                    ExcitationType.PERMANENT_MAGNET]</code></pre>
       </details>
 
   <div class="desc"></div>
@@ -1184,10 +1298,12 @@ supported symmetries are radial symmetry (also called cylindrical symmetry) and 
     <li><code><a title="traceon.excitation.Excitation.add_magnetizable" href="#traceon.excitation.Excitation.add_magnetizable">add_magnetizable</a></code></li>
     <li><code><a title="traceon.excitation.Excitation.add_magnetostatic_boundary" href="#traceon.excitation.Excitation.add_magnetostatic_boundary">add_magnetostatic_boundary</a></code></li>
     <li><code><a title="traceon.excitation.Excitation.add_magnetostatic_potential" href="#traceon.excitation.Excitation.add_magnetostatic_potential">add_magnetostatic_potential</a></code></li>
+    <li><code><a title="traceon.excitation.Excitation.add_permanent_magnet" href="#traceon.excitation.Excitation.add_permanent_magnet">add_permanent_magnet</a></code></li>
     <li><code><a title="traceon.excitation.Excitation.add_voltage" href="#traceon.excitation.Excitation.add_voltage">add_voltage</a></code></li>
     <li><code><a title="traceon.excitation.Excitation.get_electrostatic_active_elements" href="#traceon.excitation.Excitation.get_electrostatic_active_elements">get_electrostatic_active_elements</a></code></li>
     <li><code><a title="traceon.excitation.Excitation.get_magnetostatic_active_elements" href="#traceon.excitation.Excitation.get_magnetostatic_active_elements">get_magnetostatic_active_elements</a></code></li>
     <li><code><a title="traceon.excitation.Excitation.has_current" href="#traceon.excitation.Excitation.has_current">has_current</a></code></li>
+    <li><code><a title="traceon.excitation.Excitation.has_permanent_magnet" href="#traceon.excitation.Excitation.has_permanent_magnet">has_permanent_magnet</a></code></li>
     <li><code><a title="traceon.excitation.Excitation.is_electrostatic" href="#traceon.excitation.Excitation.is_electrostatic">is_electrostatic</a></code></li>
     <li><code><a title="traceon.excitation.Excitation.is_magnetostatic" href="#traceon.excitation.Excitation.is_magnetostatic">is_magnetostatic</a></code></li>
   </ul>
@@ -1203,6 +1319,7 @@ supported symmetries are radial symmetry (also called cylindrical symmetry) and 
     <li><code><a title="traceon.excitation.ExcitationType.DIELECTRIC" href="#traceon.excitation.ExcitationType.DIELECTRIC">DIELECTRIC</a></code></li>
     <li><code><a title="traceon.excitation.ExcitationType.MAGNETIZABLE" href="#traceon.excitation.ExcitationType.MAGNETIZABLE">MAGNETIZABLE</a></code></li>
     <li><code><a title="traceon.excitation.ExcitationType.MAGNETOSTATIC_POT" href="#traceon.excitation.ExcitationType.MAGNETOSTATIC_POT">MAGNETOSTATIC_POT</a></code></li>
+    <li><code><a title="traceon.excitation.ExcitationType.PERMANENT_MAGNET" href="#traceon.excitation.ExcitationType.PERMANENT_MAGNET">PERMANENT_MAGNET</a></code></li>
     <li><code><a title="traceon.excitation.ExcitationType.VOLTAGE_FIXED" href="#traceon.excitation.ExcitationType.VOLTAGE_FIXED">VOLTAGE_FIXED</a></code></li>
     <li><code><a title="traceon.excitation.ExcitationType.VOLTAGE_FUN" href="#traceon.excitation.ExcitationType.VOLTAGE_FUN">VOLTAGE_FUN</a></code></li>
     <li><code><a title="traceon.excitation.ExcitationType.is_electrostatic" href="#traceon.excitation.ExcitationType.is_electrostatic">is_electrostatic</a></code></li>

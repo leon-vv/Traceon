@@ -613,23 +613,23 @@ This base class overloads the +,*,- operators so it is very easy to take a super
             self.current_point_charges.__radd__(other.current_point_charges))
     
     def __mul__(self, other):
+        if not _is_numeric(other):
+            return NotImplemented
+         
         return self.__class__(
-            self.electrostatic_point_charges.__mul__(other.electrostatic_point_charges),
-            self.magnetostatic_point_charges.__mul__(other.magnetostatic_point_charges),
-            self.current_point_charges.__mul__(other.current_point_charges))
+            self.electrostatic_point_charges.__mul__(other),
+            self.magnetostatic_point_charges.__mul__(other),
+            self.current_point_charges.__mul__(other))
     
-    def __neg__(self, other):
+    def __neg__(self):
         return self.__class__(
-            self.electrostatic_point_charges.__neg__(other.electrostatic_point_charges),
-            self.magnetostatic_point_charges.__neg__(other.magnetostatic_point_charges),
-            self.current_point_charges.__neg__(other.current_point_charges))
+            self.electrostatic_point_charges.__neg__(),
+            self.magnetostatic_point_charges.__neg__(),
+            self.current_point_charges.__neg__())
      
     def __rmul__(self, other):
-        return self.__class__(
-            self.electrostatic_point_charges.__rmul__(other.electrostatic_point_charges),
-            self.magnetostatic_point_charges.__rmul__(other.magnetostatic_point_charges),
-            self.current_point_charges.__rmul__(other.current_point_charges))
-     
+        return self.__mul__(other)
+      
     def area_of_elements(self, indices):
         &#34;&#34;&#34;Compute the total area of the elements at the given indices.
         
