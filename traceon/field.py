@@ -696,6 +696,7 @@ class FieldAxial(Field, ABC):
     
     def __init__(self, field, z, electrostatic_coeffs=None, magnetostatic_coeffs=None):
         super().__init__()
+        self.field = field
         self.origin = field.origin
         self.basis = field.basis
         self._update_inverse_transformation_matrix()
@@ -741,7 +742,10 @@ class FieldAxial(Field, ABC):
      
     def __add__(self, other):
         if self.matches_geometry(other):
-            return self.__class__(self.z, self.electrostatic_coeffs + other.electrostatic_coeffs, self.magnetostatic_coeffs + other.magnetostatic_coeffs)
+            field_copy = self.copy()
+            field_copy.electrostatic_coeffs = self.electrostatic_coeffs + other.electrostatic_coeffs
+            field_copy.magnetostatic_coeffs = self.magnetostatic_coeffs + other.magnetostatic_coeffs
+            return field_copy
         else:
             return FieldSuperposition([self, other])
 
@@ -753,7 +757,10 @@ class FieldAxial(Field, ABC):
      
     def __mul__(self, other):
         if _is_numeric(other):
-            return self.__class__(self.z, other*self.electrostatic_coeffs, other*self.magnetostatic_coeffs)
+            field_copy = self.copy()
+            field_copy.electrostatic_coeffs = other * self.electrostatic_coeffs
+            field_copy.magnetostatic_coeffs = other * self.electrostatic_coeffs
+            return field_copy
          
         return NotImplemented
     
@@ -822,6 +829,7 @@ class FieldRadialAxial(FieldAxial):
     
     @staticmethod
     def _get_interpolation_coefficients(field: FieldRadialBEM, zmin, zmax, N=None):
+        print(zmax, zmin)
         assert zmax > zmin, "zmax should be bigger than zmin"
 
         N_charges = max(len(field.electrostatic_point_charges.charges), len(field.magnetostatic_point_charges.charges))
