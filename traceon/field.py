@@ -402,10 +402,11 @@ class FieldBEM(Field, ABC):
 
     def __add__(self, other):
         if self.matches_geometry(other):
-            return self.__class__(
-                self.electrostatic_point_charges.__add__(other.electrostatic_point_charges),
-                self.magnetostatic_point_charges.__add__(other.magnetostatic_point_charges),
-                self.current_point_charges.__add__(other.current_point_charges))
+            field_copy = self.copy()
+            field_copy.electrostatic_point_charges = self.electrostatic_point_charges + other.electrostatic_point_charges
+            field_copy.magnetostatic_point_charges = self.magnetostatic_point_charges + other.magnetostatic_point_charges
+            field_copy.current_point_charges = self.current_point_charges + other.current_point_charges
+            return field_copy
         else:
             return FieldSuperposition([self, other])
      
@@ -413,23 +414,17 @@ class FieldBEM(Field, ABC):
         return self.__add__(-other)
 
     def __radd__(self, other):
-        if self.matches_geometry(other):
-            return self.__class__(
-                self.electrostatic_point_charges.__radd__(other.electrostatic_point_charges),
-                self.magnetostatic_point_charges.__radd__(other.magnetostatic_point_charges),
-                self.current_point_charges.__radd__(other.current_point_charges))
-        
-        else:
-            return FieldSuperposition([self, other])
+        return self.__add__(other)
         
     def __mul__(self, other):
-        if not _is_numeric(other):
+        if _is_numeric(other):
+           field_copy = self.copy()
+           field_copy.electrostatic_point_charges = self.electrostatic_point_charges * other
+           field_copy.magnetostatic_point_charges = self.magnetostatic_point_charges * other
+           field_copy.current_point_charges = self.current_point_charges * other
+           return field_copy
+        else:
             return NotImplemented
-         
-        return self.__class__(
-            self.electrostatic_point_charges.__mul__(other),
-            self.magnetostatic_point_charges.__mul__(other),
-            self.current_point_charges.__mul__(other))
     
     def __neg__(self):
         return self.__class__(
@@ -761,8 +756,8 @@ class FieldAxial(Field, ABC):
             field_copy.electrostatic_coeffs = other * self.electrostatic_coeffs
             field_copy.magnetostatic_coeffs = other * self.electrostatic_coeffs
             return field_copy
-         
-        return NotImplemented
+        else:
+            return NotImplemented
     
     def __neg__(self):
         return -1*self
