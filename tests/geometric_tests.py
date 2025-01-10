@@ -7,7 +7,7 @@ import traceon.mesher as M
 from traceon.geometry import *
 import traceon.excitation as E
 import traceon.solver as S
-from traceon.field import FieldRadialAxial
+from traceon.field import *
 
 class MeshTests(unittest.TestCase):
 
@@ -256,8 +256,8 @@ class FieldTests(unittest.TestCase):
         mesh = (neg + pos).mesh(mesh_size=1)
 
         excitation = E.Excitation(mesh, E.Symmetry.RADIAL)
-        excitation.add_voltage(neg=-1, pos=1)
-        excitation.add_magnetostatic_potential(neg=-1, pos=1)
+        excitation.add_voltage(pos=1)
+        excitation.add_magnetostatic_potential(neg=-1)
         cls.field = S.solve_direct(excitation)
         cls.field_axial = FieldRadialAxial(cls.field, -2, 2, 100)
 
@@ -347,3 +347,56 @@ class FieldTests(unittest.TestCase):
         
         assert np.allclose(field_axial_trans.magnetostatic_field_at_point(pg),
                         field_axial_trans.magnetostatic_field_at_local_point(pl))
+    
+    def test_field_bounds(self):
+        field_mirr = self.field.mirror_xy()
+        field_mirr.set_bounds([[0,1], [0,1], [0,1]])
+        self.field.set_bounds([[0,1],[0,1], [0,1]])
+
+        # field bounds are local by default so global orientation should not matter
+        assert np.allclose(field_mirr.field_bounds, self.field.field_bounds)
+
+        # if set in global coordinates, field bounds should be transformed to local coordinates
+        field_mirr.set_bounds([[0,1], [0,1], [0,1]], in_global_coords=True)
+        assert np.allclose(field_mirr.field_bounds, np.array([[0,1], [0,1], [-1,0]]))
+
+        # point is outside bounds if its global, but inside if its local
+        
+        point = [0.5, 0.5, -0.5]
+        assert field_mirr.electrostatic_potential_at_point(point) == 0.
+        assert field_mirr.electrostatic_potential_at_local_point(point) != 0.
+
+
+    def test_field_superposition(self):
+        field_scaled = 2 * self.field
+        field_trans  = self.field.move(dx=1)
+        field_magnetic_only = FieldRadialBEM(self.field.magnetostatic_point_charges)
+
+        field_axial_scaled = 2 * self.field_axial
+        field_axial_trans = self.field.move(dx=1)
+        field_axial_diff_z = FieldRadialAxial(self.field, -2, 2, 200)
+
+        # fields with same underlying geometry are added directly
+        assert isinstance(self.field + field_scaled, FieldRadialBEM)
+        assert isinstance(self.field_axial + field_axial_scaled, FieldRadialAxial)
+        assert isinstance(self.field + field_magnetic_only, FieldRadialBEM)
+
+        # fields with different geometry or type become a superposition
+        assert isinstance(self.field + field_trans, FieldSuperposition)
+        assert isinstance(self.field_axial + field_axial_trans, FieldSuperposition)
+        assert isinstance(self.field + self.field_axial, FieldSuperposition)
+        assert isinstance(self.field_axial + field_axial_diff_z, FieldSuperposition)
+
+        field_sup = FieldSuperposition([self.field, field_trans])
+        field_sup2 = field_sup + field_trans
+        field_sup3 = field_sup + self.field_axial
+
+        assert len(field_sup2) == 2 and len(field_sup3) == 3
+
+    
+
+
+
+
+
+    
