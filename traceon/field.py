@@ -829,7 +829,6 @@ class FieldRadialAxial(FieldAxial):
     
     @staticmethod
     def _get_interpolation_coefficients(field: FieldRadialBEM, zmin, zmax, N=None):
-        print(zmax, zmin)
         assert zmax > zmin, "zmax should be bigger than zmin"
 
         N_charges = max(len(field.electrostatic_point_charges.charges), len(field.magnetostatic_point_charges.charges))
