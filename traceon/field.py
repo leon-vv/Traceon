@@ -271,7 +271,7 @@ class Field(GeometricObject,ABC):
 
         if (self.field_bounds is None or np.all((self.field_bounds[:, 0] <= local_point) 
                                                 & (local_point <= self.field_bounds[:, 1]))):
-            return self.electrostatic_field_at_local_point(local_point)
+            return self.basis @ self.electrostatic_field_at_local_point(local_point)
         else:
              return np.array([0.,0.,0.])
         
@@ -291,7 +291,7 @@ class Field(GeometricObject,ABC):
         local_point = self.map_points_to_local(point)
         if (self.field_bounds is None or np.all((self.field_bounds[:, 0] <= local_point) 
                                                 & (local_point <= self.field_bounds[:, 1]))):
-            return self.magnetostatic_field_at_local_point(local_point)
+            return self.basis @ self.magnetostatic_field_at_local_point(local_point)
         else:
              return np.array([0.,0.,0.])
     
