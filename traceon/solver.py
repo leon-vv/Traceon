@@ -267,7 +267,8 @@ class ElectrostaticSolverRadial(SolverRadial):
 class MagnetostaticSolverRadial(SolverRadial):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.preexisting_field = self.get_current_field() + self.get_permanent_magnet_field()
+        self.preexisting_field = FieldRadialBEM(magnetostatic_point_charges=self.get_permanent_magnet_field().magnetostatic_point_charges,
+                                                current_point_charges=self.get_current_field().current_point_charges)
 
     def get_active_elements(self):
         return self.excitation.get_magnetostatic_active_elements()
