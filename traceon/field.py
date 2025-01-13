@@ -74,7 +74,7 @@ class EffectivePointCharges:
     def is_3d(self):
         return self.jacobians.shape[1] == backend.N_TRIANGLE_QUAD
      
-    def matches_geometry(self, other):
+    def _matches_geometry(self, other):
         return (self.positions.shape == other.positions.shape and np.allclose(self.positions, other.positions)
                 and self.jacobians.shape == other.jacobians.shape and np.allclose(self.jacobians, other.jacobians))
 
@@ -85,7 +85,7 @@ class EffectivePointCharges:
         if not isinstance(other, EffectivePointCharges) or self.is_2d() != other.is_2d():
             return NotImplemented
         
-        if self.matches_geometry(other):
+        if self._matches_geometry(other):
             return EffectivePointCharges(self.charges + other.charges, self.jacobians, self.positions)
         else:
             return EffectivePointCharges(
@@ -199,7 +199,7 @@ class Field(GeometricObject,ABC):
     def _within_field_bounds(self, point):
         return self.field_bounds is None or np.all((self.field_bounds[:, 0] <= point) & (point <= self.field_bounds[:, 1]))
 
-    def matches_geometry(self, other):
+    def _matches_geometry(self, other):
         return False
     
     def field_at_point(self, point):
@@ -379,16 +379,14 @@ class FieldBEM(Field, ABC):
     def is_magnetostatic(self):
         return len(self.magnetostatic_point_charges) > 0 or len(self.current_point_charges) > 0 
     
-    def matches_geometry(self, other):
+    def _matches_geometry(self, other):
         return (self.__class__ == other.__class__
             and np.allclose(self._origin, other._origin) 
             and np.allclose(self._basis, other._basis))
-            # and self.electrostatic_point_charges.matches_geometry(other.electrostatic_point_charges)
-            # and self.magnetostatic_point_charges.matches_geometry(other.magnetostatic_point_charges)
-            # and self.current_point_charges.matches_geometry(other.current_point_charges))
+
 
     def __add__(self, other):
-        if self.matches_geometry(other):
+        if self._matches_geometry(other):
             field_copy = self.copy()
             field_copy.electrostatic_point_charges = self.electrostatic_point_charges + other.electrostatic_point_charges
             field_copy.magnetostatic_point_charges = self.magnetostatic_point_charges + other.magnetostatic_point_charges
@@ -704,7 +702,7 @@ class FieldAxial(Field, ABC):
     def is_magnetostatic(self):
         return self.has_magnetostatic
     
-    def matches_geometry(self, other):
+    def _matches_geometry(self, other):
         return (self.__class__ == other.__class__
                 and np.allclose(self._origin, other._origin) 
                 and np.allclose(self._basis, other._basis)
@@ -715,7 +713,7 @@ class FieldAxial(Field, ABC):
         return f'<Traceon {name}, zmin={self.z[0]} mm, zmax={self.z[-1]} mm,\n\tNumber of samples on optical axis: {len(self.z)}>'
      
     def __add__(self, other):
-        if self.matches_geometry(other):
+        if self._matches_geometry(other):
             field_copy = self.copy()
             field_copy.electrostatic_coeffs = self.electrostatic_coeffs + other.electrostatic_coeffs
             field_copy.magnetostatic_coeffs = self.magnetostatic_coeffs + other.magnetostatic_coeffs
