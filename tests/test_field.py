@@ -31,24 +31,24 @@ class FieldGeometryTests(unittest.TestCase):
         # translation
         field_trans = self.field.move(dx=1)
         # origin should shift
-        assert np.allclose(field_trans.origin, [1.,0.,0.]) 
+        assert np.allclose(field_trans.get_origin(), [1.,0.,0.]) 
         # basis vectors should remain invariant
-        assert np.allclose(field_trans.basis, self.field.basis) 
+        assert np.allclose(field_trans.get_basis(), self.field.get_basis()) 
         # in homogenous coords the tranformation matrix is [[R, t], [0,1]]
         assert np.allclose(
-            np.linalg.inv(field_trans.inverse_transformation_matrix), np.array([[1,0,0,1], 
+            np.linalg.inv(field_trans._inverse_transformation_matrix), np.array([[1,0,0,1], 
                                                                                 [0,1,0,0],
                                                                                 [0,0,1,0],
                                                                                 [0,0,0,1]]))
         #rotation after translation
         field_trans_rot = field_trans.rotate(Ry=np.pi/2)
         # local origin [1,0,0] rotates as well in global coordinate system
-        assert np.allclose(field_trans_rot.origin, [0,0,-1]) 
+        assert np.allclose(field_trans_rot.get_origin(), [0,0,-1]) 
         # x-> -z, y-> y, z-> -x
-        assert np.allclose(field_trans_rot.basis, np.array([[0,0,-1],[0,1,0],[1,0,0]])) 
+        assert np.allclose(field_trans_rot.get_basis(), np.array([[0,0,-1],[0,1,0],[1,0,0]])) 
         #T_total = T_rot @ T_trans
         assert np.allclose(
-            np.linalg.inv(field_trans_rot.inverse_transformation_matrix), np.array([[0,0,-1,0], 
+            np.linalg.inv(field_trans_rot._inverse_transformation_matrix), np.array([[0,0,-1,0], 
                                                                                     [0,1,0,0],
                                                                                     [1,0,0,-1],
                                                                                     [0,0,0,1]]))
@@ -62,7 +62,7 @@ class FieldGeometryTests(unittest.TestCase):
 
         # origin should locally always coincide with standard origin
         field_trans_rot = field_trans.rotate(Ry=np.pi/2)
-        assert np.allclose(field_trans_rot.map_points_to_local(field_trans_rot.origin), self.field.origin)
+        assert np.allclose(field_trans_rot.map_points_to_local(field_trans_rot.get_origin()), self.field.get_origin())
         # NOTE: map_points_to_local does not work for basis as they are direction vectors not points
     
     def test_field_axial_coordinate_system(self):
@@ -73,8 +73,8 @@ class FieldGeometryTests(unittest.TestCase):
         
         # it should not matter wheter we interpolate or transform first
         # FieldAxial should inherit the coordinate system of its base field
-        assert np.allclose(field_axial_trans_rot1.inverse_transformation_matrix, 
-                           field_axial_trans_rot2.inverse_transformation_matrix)
+        assert np.allclose(field_axial_trans_rot1._inverse_transformation_matrix, 
+                           field_axial_trans_rot2._inverse_transformation_matrix)
     
     def test_potential_at_point(self):
         field_trans = self.field.move(dx=1)
@@ -123,7 +123,7 @@ class FieldGeometryTests(unittest.TestCase):
         assert np.allclose(field_mirr.field_bounds, self.field.field_bounds)
 
         # if set in global coordinates, field bounds should be transformed to local coordinates
-        field_mirr.set_bounds([[0,1], [0,1], [0,1]], in_global_coords=True)
+        field_mirr.set_bounds([[0,1], [0,1], [0,1]], global_coordinates=True)
         assert np.allclose(field_mirr.field_bounds, np.array([[0,1], [0,1], [-1,0]]))
 
         # point is outside bounds if its global, but inside if its local
