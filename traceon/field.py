@@ -367,9 +367,7 @@ class FieldBEM(Field, ABC):
     
     def __init__(self, electrostatic_point_charges, magnetostatic_point_charges, current_point_charges):
         super().__init__()
-        assert all([isinstance(eff, EffectivePointCharges) for eff in [electrostatic_point_charges,
-                                                                       magnetostatic_point_charges,
-                                                                       current_point_charges]])
+        
         self.electrostatic_point_charges = electrostatic_point_charges
         self.magnetostatic_point_charges = magnetostatic_point_charges
         self.current_point_charges = current_point_charges
@@ -488,7 +486,10 @@ class FieldRadialBEM(FieldBEM):
             magnetostatic_point_charges = EffectivePointCharges.empty_2d()
         if current_point_charges is None:
             current_point_charges = EffectivePointCharges.empty_3d()
-         
+        
+        assert all([isinstance(eff, EffectivePointCharges) for eff in [electrostatic_point_charges,
+                                                                       magnetostatic_point_charges,
+                                                                       current_point_charges]])
         self.symmetry = E.Symmetry.RADIAL
         super().__init__(electrostatic_point_charges, magnetostatic_point_charges, current_point_charges)
          
