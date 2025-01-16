@@ -8,6 +8,9 @@ from traceon.geometry import *
 import traceon.excitation as E
 import traceon.solver as S
 from traceon.field import *
+import traceon.logging as logging
+
+logging.set_log_level(logging.LogLevel.SILENT)
 
 class FieldGeometryTests(unittest.TestCase):
 
