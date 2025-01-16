@@ -970,7 +970,7 @@ class FieldSuperposition(Field):
             other_fields = other.fields if isinstance(other, FieldSuperposition) else [other]
             fields_copy = self.fields.copy()
             for of in other_fields:
-                for i, f in enumerate(fields_copy):
+                for i, f in enumerate(self.fields):
                     if f._matches_geometry(of):
                         fields_copy[i] = f + of
                         break
@@ -982,19 +982,7 @@ class FieldSuperposition(Field):
             return NotImplemented
     
     def __iadd__(self, other):
-        if isinstance(other, Field):
-            other_fields = other.fields if isinstance(other, FieldSuperposition) else [other]
-            for of in other_fields:
-                for i,f in enumerate(self.fields):
-                    if f._matches_geometry(of):
-                        self.fields[i] = f + of
-                        break
-                else:
-                    self.fields.append(of)
-
-            return self
-        else:
-            return NotImplemented
+        self.fields = (self + other).fields
 
     def __mul__(self, other):
         if _is_numeric(other):
