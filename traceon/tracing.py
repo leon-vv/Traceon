@@ -6,7 +6,10 @@ compute intersections of the computed traces with various planes.
 ### References
 [1] Erwin Fehlberg. Low-Order Classical Runge-Kutta Formulas With Stepsize Control and their Application to Some Heat
 Transfer Problems. 1969. National Aeronautics and Space Administration."""
-
+from __future__ import annotations
+from typing import TypeAlias
+from collections.abc import Sequence
+from numpy.typing import NDArray
 import ctypes
 from math import sqrt, cos, sin, atan2
 import time
@@ -19,8 +22,15 @@ from scipy.constants import m_e, e, mu_0
 
 from . import backend
 from . import logging
+from .field import Field
 
-def velocity_vec(eV, direction_):
+Point3D: TypeAlias = tuple[float, float , float] | list[float] | NDArray[np.floating]
+Point3DArray: TypeAlias = NDArray[np.floating]
+
+Vector3D: TypeAlias = tuple[float, float , float] | list[float] | NDArray[np.floating]
+Vector3DArray: TypeAlias = NDArray[np.floating]
+
+def velocity_vec(eV: float, direction_: Vector3D) -> Vector3D:
     """Compute an initial velocity vector in the correct units and direction.
     
     Parameters
@@ -46,7 +56,7 @@ def velocity_vec(eV, direction_):
     
     return eV * np.array(direction)/np.linalg.norm(direction)
 
-def velocity_vec_spherical(eV, theta, phi):
+def velocity_vec_spherical(eV: float, theta: float, phi: float) -> Vector3D:
     """Compute initial velocity vector given energy and direction computed from spherical coordinates.
     
     Parameters
@@ -64,7 +74,7 @@ def velocity_vec_spherical(eV, theta, phi):
     """
     return velocity_vec(eV, [sin(theta)*cos(phi), sin(theta)*sin(phi), cos(theta)])
 
-def velocity_vec_xz_plane(eV, angle, downward=True):
+def velocity_vec_xz_plane(eV: float, angle: float, downward: bool = True) -> Vector3D:
     """Compute initial velocity vector in the xz plane with the given energy and angle with z-axis.
     
     Parameters
@@ -84,7 +94,7 @@ def velocity_vec_xz_plane(eV, angle, downward=True):
     direction = [sin(angle), 0.0, sign*cos(angle)]
     return velocity_vec(eV, direction)
     
-def _z_to_bounds(z1, z2):
+def _z_to_bounds(z1: float, z2: float) -> tuple[float, float]:
     if z1 < 0 and z2 < 0:
         return (min(z1, z2)-1, 1.0)
     elif z1 > 0 and z2 > 0:
@@ -92,7 +102,7 @@ def _z_to_bounds(z1, z2):
     else:
         return (min(z1, z2)-1, max(z1, z2)+1)
 
-def _convert_velocity_to_SI(velocity, mass):
+def _convert_velocity_to_SI(velocity: Vector3DArray, mass: float) -> Vector3DArray:
     # Convert a velocity vector expressed in eV (see functions above)
     # to one expressed in m/s.
     speed_eV = np.linalg.norm(velocity)
@@ -111,9 +121,8 @@ class Tracer:
         Once the particle reaches one of the boundaries the tracing stops. The bounds are of the form ( (xmin, xmax), (ymin, ymax), (zmin, zmax) ).
     """
     
-    def __init__(self, field, bounds):
+    def __init__(self, field: Field, bounds: Sequence[Sequence[float]] | NDArray[np.floating]) -> None:
         self.field = field
-         
         bounds = np.array(bounds).astype(np.float64)
         assert bounds.shape == (3,2)
         self.bounds = bounds
@@ -132,13 +141,18 @@ class Tracer:
         else: # Interpret as anything ctypes can make sense of
             self.trace_args = ctypes.cast(ctypes.pointer(self.low_level_args), ctypes.c_void_p)
      
-    def __str__(self):
+    def __str__(self) -> str:
         field_name = self.field.__class__.__name__
         bounds_str = ' '.join([f'({bmin:.2f}, {bmax:.2f})' for bmin, bmax in self.bounds])
         return f'<Traceon Tracer of {field_name},\n\t' \
             + 'Bounds: ' + bounds_str + ' mm >'
     
-    def __call__(self, position, velocity, mass=m_e, charge=-e, atol=1e-8):
+    def __call__(self, 
+                 position: Point3DArray, 
+                 velocity: Vector3DArray, 
+                 mass: float = m_e, 
+                 charge: float = -e, 
+                 atol: float = 1e-8) -> tuple[NDArray[np.floating], NDArray[np.floating]]:
         """Trace a charged particle.
 
         Parameters
@@ -175,7 +189,7 @@ class Tracer:
                 atol,
                 self.trace_args)
 
-def plane_intersection(positions, p0, normal):
+def plane_intersection(positions: NDArray[np.floating], p0: Point3DArray, normal: Vector3DArray) -> NDArray[np.floating]:
     """Compute the intersection of a trajectory with a general plane in 3D. The plane is specified
     by a point (p0) in the plane and a normal vector (normal) to the plane. The intersection
     point is calculated using a linear interpolation.
@@ -200,7 +214,7 @@ def plane_intersection(positions, p0, normal):
     assert positions.shape == (len(positions), 6), "The positions array should have shape (N, 6)"
     return backend.plane_intersection(positions, p0, normal)
 
-def xy_plane_intersection(positions, z):
+def xy_plane_intersection(positions: NDArray[np.floating], z: float) -> NDArray[np.floating] :
     """Compute the intersection of a trajectory with an xy-plane.
 
     Parameters
@@ -216,7 +230,7 @@ def xy_plane_intersection(positions, z):
     """
     return plane_intersection(positions, np.array([0.,0.,z]), np.array([0., 0., 1.0]))
 
-def xz_plane_intersection(positions, y):
+def xz_plane_intersection(positions: NDArray[np.floating], y: float) -> NDArray[np.floating]:
     """Compute the intersection of a trajectory with an xz-plane.
 
     Parameters
@@ -232,7 +246,7 @@ def xz_plane_intersection(positions, y):
     """
     return plane_intersection(positions, np.array([0.,y,0.]), np.array([0., 1.0, 0.]))
 
-def yz_plane_intersection(positions, x):
+def yz_plane_intersection(positions: NDArray[np.floating], x: float) -> NDArray[np.floating]:
     """Compute the intersection of a trajectory with an yz-plane.
 
     Parameters
@@ -248,7 +262,7 @@ def yz_plane_intersection(positions, x):
     """
     return plane_intersection(positions, np.array([x,0.,0.]), np.array([1.0, 0., 0.]))
 
-def axis_intersection(positions):
+def axis_intersection(positions: NDArray[np.floating]) -> float:
     """Compute the z-value of the intersection of the trajectory with the x=0 plane.
     Note that this function will not work properly if the trajectory crosses the x=0 plane zero or multiple times.
     
