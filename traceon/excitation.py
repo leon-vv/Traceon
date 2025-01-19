@@ -317,7 +317,7 @@ class Excitation:
         # There are only a few cases that would produce a field:
         return type_ in [ExcitationType.VOLTAGE_FIXED, ExcitationType.VOLTAGE_FUN, ExcitationType.CURRENT, ExcitationType.PERMANENT_MAGNET]
      
-    def _split_for_superposition(self) -> tuple[dict[str, ExcitationType], dict[str, ExcitationType]]:
+    def _split_for_superposition(self) -> tuple[dict[str, Excitation], dict[str, Excitation]]:
         types = self.excitation_types.items()
         part_of_superposition = [(n, t.is_electrostatic()) for n, (t, v) in types if self._is_excitation_type_part_of_superposition(t)]
         
