@@ -9,7 +9,10 @@ plt.show()
 ```
 Where mesh is created using the `traceon.geometry` module.
 """
-
+from __future__ import annotations
+from typing import Any
+from collections.abc import Sequence
+from numpy.typing import NDArray
 from math import sqrt
 import numpy as np
 import vedo
@@ -17,17 +20,21 @@ import vedo.shapes
 import vedo.colors
 
 from . import backend
-
+from .geometry import Surface
+from .mesher import Mesh
+from .excitation import Excitation
+from .field import Field, FieldBEM, FieldRadialBEM
+from traceon_pro.field import Field3DBEM
 _current_figures = []
 
 class Figure:
-    def __init__(self, show_legend=True):
+    def __init__(self, show_legend: bool = True) -> None:
         self.show_legend = show_legend
         self.is_2d = True
         self.legend_entries = []
         self.to_plot = []
      
-    def plot_mesh(self, mesh, show_normals=False, **colors):
+    def plot_mesh(self, mesh: Mesh, show_normals: bool = False, **colors: str) -> None:
         """Plot mesh using the Vedo library. Optionally showing normal vectors.
 
         Parameters
@@ -62,7 +69,15 @@ class Figure:
         
         self.is_2d &= mesh.is_2d()
 
-    def plot_equipotential_lines(self, field, surface, N0=75, N1=75, color_map='coolwarm', N_isolines=40, isolines_width=1, isolines_color='#444444'):
+    def plot_equipotential_lines(self,
+        field: Field,
+        surface: Surface,
+        N0: int = 75,
+        N1: int = 75,
+        color_map: str = 'coolwarm',
+        N_isolines: int = 40,
+        isolines_width: int = 1,
+        isolines_color: str = '#444444') -> None:
         """Make potential color plot including equipotential lines.
 
         Parameters
@@ -89,11 +104,11 @@ class Figure:
         self.to_plot.append(grid)
         self.to_plot.append(isolines)
     
-    def plot_trajectories(self, trajectories, 
-                xmin=None, xmax=None,
-                ymin=None, ymax=None,
-                zmin=None, zmax=None,
-                color='#00AA00', line_width=1):
+    def plot_trajectories(self, trajectories: Sequence[NDArray[np.floating]], 
+                xmin: float | None = None, xmax: float | None = None,
+                ymin: float | None = None, ymax: float | None = None,
+                zmin: float | None = None, zmax: float | None = None,
+                color: str = '#00AA00', line_width: int = 1) -> None:
         """Plot particle trajectories.
 
         Parameters
@@ -138,7 +153,7 @@ class Figure:
             lines = vedo.shapes.Lines(start_pts=t[:-1, :3], end_pts=t[1:, :3], c=color, lw=line_width)
             self.to_plot.append(lines)
 
-    def plot_charge_density(self, excitation, field, color_map='coolwarm'):
+    def plot_charge_density(self, excitation: Excitation, field: FieldBEM, color_map: str = 'coolwarm') -> None:
         """Plot charge density using the Vedo library.
         
         Parameters
@@ -156,16 +171,18 @@ class Figure:
             raise RuntimeError("Trying to plot empty mesh.")
         
         if len(mesh.triangles):
+            assert isinstance(field, Field3DBEM)
             meshes = _get_vedo_charge_density_3d(excitation, field, color_map)
             self.to_plot.append(meshes)
             
         if len(mesh.lines):
+            assert isinstance(field, FieldRadialBEM)
             lines = _get_vedo_charge_density_2d(excitation, field, color_map)
             self.to_plot.append(lines)
          
         self.is_2d &= mesh.is_2d()
     
-    def show(self):
+    def show(self) -> None:
         """Show the figure."""
         plotter = vedo.Plotter() 
 
@@ -184,7 +201,7 @@ class Figure:
         plotter.look_at(plane='xz')
         plotter.show()
 
-def new_figure(show_legend=True):
+def new_figure(show_legend: bool = True) -> Figure:
     """Create a new figure and make it the current figure.
     
     Parameters
@@ -212,23 +229,23 @@ def get_current_figure() -> Figure:
     
     return new_figure()
 
-def plot_mesh(*args, **kwargs):
+def plot_mesh(*args: Any, **kwargs: Any) -> None:
     """Calls `Figure.plot_mesh` on the current `Figure`"""
     get_current_figure().plot_mesh(*args, **kwargs)
 
-def plot_charge_density(*args, **kwargs):
+def plot_charge_density(*args: Any, **kwargs: Any) -> None:
     """Calls `Figure.plot_charge_density` on the current `Figure`"""
     get_current_figure().plot_charge_density(*args, **kwargs)
 
-def plot_equipotential_lines(*args, **kwargs):
+def plot_equipotential_lines(*args: Any, **kwargs: Any) -> None:
     """Calls `Figure.plot_equipotential_lines` on the current `Figure`"""
     get_current_figure().plot_equipotential_lines(*args, **kwargs)
 
-def plot_trajectories(*args, **kwargs):
+def plot_trajectories(*args: Any, **kwargs: Any) -> None:
     """Calls `Figure.plot_trajectories` on the current `Figure`"""
     get_current_figure().plot_trajectories(*args, **kwargs)
 
-def show():
+def show() -> None:
     """Calls `Figure.show` on the current `Figure`"""
     global _current_figures
         
@@ -237,7 +254,7 @@ def show():
 
     _current_figures = []
 
-def _get_vedo_grid(field, surface, N0, N1):
+def _get_vedo_grid(field: Field, surface: Surface, N0: int, N1: int) -> vedo.Grid:
     x = np.linspace(0, surface.path_length1, N0)
     y = np.linspace(0, surface.path_length2, N1)
 
@@ -249,7 +266,7 @@ def _get_vedo_grid(field, surface, N0, N1):
 
     return grid
     
-def _create_point_to_physical_dict(mesh):
+def _create_point_to_physical_dict(mesh: Mesh) -> dict[int, NDArray]:
     d = {}
     
     for physical, elements in [(mesh.physical_to_lines, mesh.lines), (mesh.physical_to_triangles, mesh.triangles)]:
@@ -259,7 +276,7 @@ def _create_point_to_physical_dict(mesh):
                     d[p] = k
     return d
 
-def _get_vedo_triangles_and_normals(mesh, **phys_colors):
+def _get_vedo_triangles_and_normals(mesh: Mesh, **phys_colors: str) -> tuple[list[vedo.Mesh], vedo.shapes.Arrows]:
     triangles = mesh.triangles[:, :3]
     normals = np.array([backend.normal_3d(mesh.points[t]) for t in triangles])
     
@@ -299,7 +316,7 @@ def _get_vedo_triangles_and_normals(mesh, **phys_colors):
     return meshes, arrows
 
 
-def _get_vedo_charge_density_3d(excitation, field, color_map):
+def _get_vedo_charge_density_3d(excitation: Excitation, field: Field3DBEM, color_map: str) -> list[vedo.Mesh]:
     
     if excitation.is_electrostatic():
         all_vertices, name = excitation.get_electrostatic_active_elements()
@@ -324,7 +341,7 @@ def _get_vedo_charge_density_3d(excitation, field, color_map):
     
     return meshes
 
-def _get_vedo_charge_density_2d(excitation, field, color_map):
+def _get_vedo_charge_density_2d(excitation: Excitation, field: FieldRadialBEM, color_map: str) -> list[vedo.Lines]:
     if excitation.is_electrostatic():
         all_vertices, name = excitation.get_electrostatic_active_elements()
         all_charges = field.electrostatic_point_charges.charges
@@ -349,7 +366,7 @@ def _get_vedo_charge_density_2d(excitation, field, color_map):
     return lines
     
 
-def _get_vedo_lines_and_normals(mesh, **phys_colors):
+def _get_vedo_lines_and_normals(mesh: Mesh, **phys_colors: str) -> tuple[list[vedo.Lines], vedo.shapes.Arrows]:
     lines = mesh.lines[:, :2]
     start = np.zeros( (len(lines), 3) )
     end = np.zeros( (len(lines), 3) )
