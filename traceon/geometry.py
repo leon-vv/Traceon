@@ -519,7 +519,7 @@ class Path(GeometricObject):
         Surface"""
         p0 = p2.starting_point()
          
-        def f(u, v):
+        def f(u: float, v: float) -> Point3D:
             return self(u) + p2(v) - p0
 
         return Surface(f, self.path_length, p2.path_length, self.breakpoints, p2.breakpoints, name=self.name)
@@ -550,7 +550,7 @@ class Path(GeometricObject):
         # Crazy enough there is no closed formula
         # to go from path length to a point on the ellipse.
         # So we have to use `from_irregular_function`
-        def f(u):
+        def f(u: float) -> Point3D:
             return np.array([major*cos(2*pi*u), minor*sin(2*pi*u), 0.])
         return Path.from_irregular_function(f)
     
@@ -856,7 +856,7 @@ class Path(GeometricObject):
             p3 = r[2::3]
             lines = np.array([p0, p1, p2, p3]).T
           
-        assert lines.dtype == np.uint64 or lines.dtype == np.uint32
+        assert lines.dtype == np.int64 or lines.dtype == np.int32
         
         name = self.name if name is None else name
          

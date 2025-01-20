@@ -44,7 +44,7 @@ class GeometricObject(ABC):
         This function returns the same type as the object on which this method was called."""
         ...
     
-    def move(self, dx: float = 0., dy: float =0., dz: float = 0.):
+    def move(self, dx: float = 0., dy: float = 0., dz: float = 0.) -> Self:
         """Move along x, y or z axis.
 
         Parameters
@@ -65,7 +65,7 @@ class GeometricObject(ABC):
         assert all([isinstance(d, float) or isinstance(d, int) for d in [dx, dy, dz]])
         return self.map_points(lambda p: p + np.array([dx, dy, dz]))
      
-    def rotate(self, Rx: float =0., Ry: float = 0., Rz: float = 0., origin: Point3DLike = (0, 0, 0)) -> Self:
+    def rotate(self, Rx: float = 0., Ry: float = 0., Rz: float = 0., origin: Point3DLike = (0, 0, 0)) -> Self:
         """Rotate counterclockwise around the x, y or z axis. Only one axis supported at the same time
         (rotations do not commute).
 
@@ -95,10 +95,11 @@ class GeometricObject(ABC):
         if Rz !=0.:
             return self.rotate_around_axis([0,0,1], angle=Rz, origin=origin)
         
-        else return
+        else: 
+            return self.map_points(lambda x : np.array(x))
 
     
-    def rotate_around_axis(self, axis=[0., 0, 1.], angle=0., origin=[0., 0., 0.]):
+    def rotate_around_axis(self, axis: Vector3DLike = (0, 0, 1), angle: float = 0., origin: Vector3DLike = (0, 0, 0)) -> Self:
         """
         Rotate  counterclockwise around a general axis defined by a vector.
         
@@ -124,7 +125,7 @@ class GeometricObject(ABC):
         axis = axis / np.linalg.norm(axis)
 
         if angle == 0:
-            return self.map_points(lambda x: x)
+            return self.map_points(lambda x: np.array(x))
         
         # Rotation is implemented using Rodrigues' rotation formula
         # See: https://en.wikipedia.org/wiki/Rodrigues%27_rotation_formula
@@ -139,7 +140,7 @@ class GeometricObject(ABC):
 
         return self.map_points(lambda p: origin + R @ (p - origin))
 
-    def mirror_xz(self):
+    def mirror_xz(self) -> Self:
         """Mirror object in the XZ plane.
 
         Returns
@@ -149,7 +150,7 @@ class GeometricObject(ABC):
         This function returns the same type as the object on which this method was called."""
         return self.map_points(lambda p: np.array([p[0], -p[1], p[2]]))
      
-    def mirror_yz(self):
+    def mirror_yz(self) -> Self:
         """Mirror object in the YZ plane.
 
         Returns
@@ -158,7 +159,7 @@ class GeometricObject(ABC):
         This function returns the same type as the object on which this method was called."""
         return self.map_points(lambda p: np.array([-p[0], p[1], p[2]]))
     
-    def mirror_xy(self):
+    def mirror_xy(self) -> Self:
         """Mirror object in the XY plane.
 
         Returns
@@ -169,7 +170,7 @@ class GeometricObject(ABC):
         return self.map_points(lambda p: np.array([p[0], p[1], -p[2]]))
  
 
-def _concat_arrays(arr1, arr2):
+def _concat_arrays(arr1: NDArray[Any], arr2: NDArray[Any]) -> NDArray[Any]:
     if not len(arr1):
         return np.copy(arr2)
     if not len(arr2):
@@ -186,31 +187,31 @@ class Mesh(Saveable, GeometricObject):
     `traceon.mesher.GeometricObject`, and therefore can be easily moved and rotated."""
      
     def __init__(self,
-            points=[],
-            lines=[],
-            triangles=[],
-            physical_to_lines={},
-            physical_to_triangles={},
-            ensure_outward_normals=True):
+            points: PointsLike | None = None,
+            lines: LinesLike | None = None,
+            triangles: TrianglesLike | None = None,
+            physical_to_lines: Mapping[str, Lines] | None = None,
+            physical_to_triangles: Mapping[str, Triangles] | None = None,
+            ensure_outward_normals: bool = True):
         
         # Ensure the correct shape even if empty arrays
-        if len(points):
+        if points is not None and len(points) > 0:
             self.points = np.array(points, dtype=np.float64)
         else:
             self.points = np.empty((0,3), dtype=np.float64)
          
-        if len(lines) or (isinstance(lines, np.ndarray) and len(lines.shape)==2):
+        if lines is not None and len(lines) > 0 or (isinstance(lines, np.ndarray) and len(lines.shape)==2):
             self.lines = np.array(lines, dtype=np.uint64)
         else:
             self.lines = np.empty((0,2), dtype=np.uint64)
     
-        if len(triangles):
+        if triangles is not None and len(triangles) > 0:
             self.triangles = np.array(triangles, dtype=np.uint64)
         else:
             self.triangles = np.empty((0, 3), dtype=np.uint64)
          
-        self.physical_to_lines = physical_to_lines.copy()
-        self.physical_to_triangles = physical_to_triangles.copy()
+        self.physical_to_lines = dict(physical_to_lines) if physical_to_lines is not None else {}
+        self.physical_to_triangles = dict(physical_to_triangles) if physical_to_triangles is not None else {}
 
         self._remove_degenerate_triangles()
         self._deduplicate_points()
@@ -226,7 +227,7 @@ class Mesh(Saveable, GeometricObject):
         assert not len(self.lines) or self.lines.shape[1] in [2,4], "Lines should contain either 2 or 4 points."
         assert not len(self.triangles) or self.triangles.shape[1] in [3,6], "Triangles should contain either 3 or 6 points"
     
-    def is_higher_order(self):
+    def is_higher_order(self) -> bool:
         """Whether the mesh contains higher order elements.
 
         Returns
@@ -234,7 +235,7 @@ class Mesh(Saveable, GeometricObject):
         bool"""
         return isinstance(self.lines, np.ndarray) and len(self.lines.shape) == 2 and self.lines.shape[1] == 4
     
-    def map_points(self, fun):
+    def map_points(self, fun: PointTransformFunction) -> Mesh:
         """See `GeometricObject`
 
         """
@@ -259,7 +260,7 @@ class Mesh(Saveable, GeometricObject):
         if np.any(degenerate):
             log_debug(f'Removed {sum(degenerate)} degenerate triangles')
 
-    def _deduplicate_points(self):
+    def _deduplicate_points(self) -> None:
         if not len(self.points):
             return
          
@@ -294,8 +295,8 @@ class Mesh(Saveable, GeometricObject):
             self.lines = old_to_new_indices[self.lines]
     
     @staticmethod
-    def _merge_dicts(dict1, dict2):
-        dict_: dict[str, np.ndarray] = {}
+    def _merge_dicts(dict1: Mapping[str, NDArray[Any]], dict2: Mapping[str, NDArray[Any]]) -> dict[str, NDArray[Any]]:
+        dict_: dict[str, NDArray[Any]] = {}
         
         for (k, v) in chain(dict1.items(), dict2.items()):
             if k in dict_:
@@ -305,7 +306,7 @@ class Mesh(Saveable, GeometricObject):
 
         return dict_
      
-    def __add__(self, other):
+    def __add__(self, other: Mesh) -> Mesh:
         """Add meshes together, using the + operator (mesh1 + mesh2).
         
         Returns
@@ -336,7 +337,7 @@ class Mesh(Saveable, GeometricObject):
                     physical_to_lines=physical_lines,
                     physical_to_triangles=physical_triangles)
      
-    def extract_physical_group(self, name):
+    def extract_physical_group(self, name: str) -> Mesh:
         """Extract a named group from the mesh.
 
         Parameters
@@ -349,7 +350,6 @@ class Mesh(Saveable, GeometricObject):
         Mesh
 
         Subset of the mesh consisting only of the elements with the given name."""
-        assert name in self.physical_to_lines or name in self.physical_to_triangles, "Physical group not in mesh, so cannot extract"
 
         if name in self.physical_to_lines:
             elements = self.lines
@@ -373,9 +373,11 @@ class Mesh(Saveable, GeometricObject):
             return Mesh(points=points, lines=elements, physical_to_lines=physical_to_elements)
         elif name in self.physical_to_triangles:
             return Mesh(points=points, triangles=elements, physical_to_triangles=physical_to_elements)
-     
+        else:
+            raise RuntimeError(f' Cannot extract Physical group {name} since it is not present in the mesh.')
+    
     @staticmethod
-    def read_file(filename,  name=None):
+    def read_file(filename: str, name: str | None = None) -> Mesh:
         """Create a mesh from a given file. All formats supported by meshio are accepted.
 
         Parameters
@@ -397,7 +399,7 @@ class Mesh(Saveable, GeometricObject):
          
         return mesh
      
-    def write_file(self, filename):
+    def write_file(self, filename: str) -> None:
         """Write a mesh to a given file. The format is determined from the file extension.
         All formats supported by meshio are supported.
 
@@ -408,11 +410,11 @@ class Mesh(Saveable, GeometricObject):
         meshio_obj = self.to_meshio()
         meshio_obj.write(filename)
     
-    def write(self, filename):
+    def write(self, filename: str) -> None:
         self.write_file(filename)
         
      
-    def to_meshio(self):
+    def to_meshio(self) -> meshio.Mesh:
         """Convert the Mesh to a meshio object.
 
         Returns
@@ -431,7 +433,7 @@ class Mesh(Saveable, GeometricObject):
         return meshio.Mesh(self.points, to_write)
      
     @staticmethod
-    def from_meshio(mesh: meshio.Mesh):
+    def from_meshio(mesh: meshio.Mesh) -> Mesh:
         """Create a Traceon mesh from a meshio.Mesh object.
 
         Parameters
@@ -464,7 +466,7 @@ class Mesh(Saveable, GeometricObject):
             lines=lines, physical_to_lines=physical_lines,
             triangles=triangles, physical_to_triangles=physical_triangles)
      
-    def is_3d(self):
+    def is_3d(self) -> bool:
         """Check if the mesh is three dimensional by checking whether any z coordinate is non-zero.
 
         Returns
@@ -472,9 +474,9 @@ class Mesh(Saveable, GeometricObject):
         bool
 
         Whether the mesh is three dimensional"""
-        return np.any(self.points[:, 1] != 0.)
+        return bool(np.any(self.points[:, 1] != 0.))
     
-    def is_2d(self):
+    def is_2d(self) -> bool:
         """Check if the mesh is two dimensional, by checking that all z coordinates are zero.
         
         Returns
@@ -482,9 +484,9 @@ class Mesh(Saveable, GeometricObject):
         bool
 
         Whether the mesh is two dimensional"""
-        return np.all(self.points[:, 1] == 0.)
+        return bool(np.all(self.points[:, 1] == 0.))
     
-    def flip_normals(self):
+    def flip_normals(self) -> Mesh:
         """Flip the normals in the mesh by inverting the 'orientation' of the elements.
 
         Returns
@@ -513,7 +515,7 @@ class Mesh(Saveable, GeometricObject):
             physical_to_lines=self.physical_to_lines,
             physical_to_triangles=self.physical_to_triangles)
      
-    def remove_lines(self):
+    def remove_lines(self) -> Mesh:
         """Remove all the lines from the mesh.
 
         Returns
@@ -529,7 +531,7 @@ class Mesh(Saveable, GeometricObject):
         Mesh"""
         return Mesh(self.points, lines=self.lines, physical_to_lines=self.physical_to_lines)
      
-    def get_electrodes(self):
+    def get_electrodes(self) -> list[str]:
         """Get the names of all the named groups (i.e. electrodes) in the mesh
          
         Returns
@@ -541,10 +543,13 @@ class Mesh(Saveable, GeometricObject):
         return list(self.physical_to_lines.keys()) + list(self.physical_to_triangles.keys())
      
     @staticmethod
-    def _lines_to_higher_order(points, elements):
+    def _lines_to_higher_order(points: PointsLike, elements: LinesLike) -> tuple[Points, Lines]:
+        points = np.array(points, dtype=np.float64)
+        elements = np.array(elements, dtype=np.uint64)
+        
         N_elements = len(elements)
         N_points = len(points)
-         
+        
         v0, v1 = elements.T
         p2 = points[v0] + (points[v1] - points[v0]) * 1/3
         p3 = points[v0] + (points[v1] - points[v0]) * 2/3
@@ -557,19 +562,19 @@ class Mesh(Saveable, GeometricObject):
             elements[:, 0], elements[:, 1], 
             np.arange(N_points, N_points + N_elements, dtype=np.uint64),
             np.arange(N_points + N_elements, N_points + 2*N_elements, dtype=np.uint64)]).T
-        print(elements.dtype)
+        
         assert np.allclose(p2, points[elements[:, 2]]) and np.allclose(p3, points[elements[:, 3]])
         return points, elements
 
 
-    def _to_higher_order_mesh(self):
+    def _to_higher_order_mesh(self) -> Mesh:
         # The matrix solver currently only works with higher order meshes.
         # We can however convert a simple mesh easily to a higher order mesh, and solve that.
         
         points, lines, triangles = self.points, self.lines, self.triangles
 
         if not len(lines):
-            lines = np.empty( (0, 4), dtype=np.float64)
+            lines = np.empty( (0, 4), dtype=np.uint64)
         elif len(lines) and lines.shape[1] == 2:
             points, lines = Mesh._lines_to_higher_order(points, lines)
         
@@ -579,7 +584,7 @@ class Mesh(Saveable, GeometricObject):
             lines=lines, physical_to_lines=self.physical_to_lines,
             triangles=triangles, physical_to_triangles=self.physical_to_triangles)
      
-    def __str__(self):
+    def __str__(self) -> str:
         physical_lines = ', '.join(self.physical_to_lines.keys())
         physical_lines_nums = ', '.join([str(len(self.physical_to_lines[n])) for n in self.physical_to_lines.keys()])
         physical_triangles = ', '.join(self.physical_to_triangles.keys())
@@ -594,7 +599,7 @@ class Mesh(Saveable, GeometricObject):
             f'\tPhysical triangles: {physical_triangles}\n' \
             f'\tElements in physical triangle groups: {physical_triangles_nums}>'
 
-    def _ensure_normal_orientation_triangles(self, electrode, outwards):
+    def _ensure_normal_orientation_triangles(self, electrode : str, outwards : bool) -> None:
         assert electrode in self.physical_to_triangles, "electrode should be part of mesh"
         
         triangle_indices = self.physical_to_triangles[electrode]
@@ -612,7 +617,7 @@ class Mesh(Saveable, GeometricObject):
 
         self.triangles[triangle_indices] = electrode_triangles
      
-    def _ensure_normal_orientation_lines(self, electrode, outwards):
+    def _ensure_normal_orientation_lines(self, electrode: str, outwards: bool) -> None:
         assert electrode in self.physical_to_lines, "electrode should be part of mesh"
         
         line_indices = self.physical_to_lines[electrode]
@@ -630,14 +635,14 @@ class Mesh(Saveable, GeometricObject):
 
         self.lines[line_indices] = electrode_lines
      
-    def ensure_outward_normals(self, electrode):
+    def ensure_outward_normals(self, electrode: str) -> None:
         if electrode in self.physical_to_triangles:
             self._ensure_normal_orientation_triangles(electrode, True)
         
         if electrode in self.physical_to_lines:
             self._ensure_normal_orientation_lines(electrode, True)
      
-    def ensure_inward_normals(self, electrode):
+    def ensure_inward_normals(self, electrode: str) -> None:
         if electrode in self.physical_to_triangles:
             self._ensure_normal_orientation_triangles(electrode, False)
          
@@ -648,11 +653,11 @@ class Mesh(Saveable, GeometricObject):
 
 ## Code related to checking connectivity  
 
-def _compute_vertex_to_indices(elements):
+def _compute_vertex_to_indices(elements: LinesLike | TrianglesLike) -> dict[int, list[int]]:
     # elements is either a list of line or triangles
     # containing indices into the points array
     
-    vertex_to_indices: Dict[int, list] = {}
+    vertex_to_indices = {}
 
     for index, el in enumerate(elements):
         for vertex in el:
@@ -662,7 +667,7 @@ def _compute_vertex_to_indices(elements):
     
     return vertex_to_indices
 
-def _get_element_neighbours(element, vertex_to_indices):
+def _get_element_neighbours(element : LineLike | TriangleLike, vertex_to_indices: Mapping[int, list[int]]) -> list[int]:
     neighbours = []
     for vertex in element:
         n = vertex_to_indices.get(vertex, None)
@@ -672,7 +677,7 @@ def _get_element_neighbours(element, vertex_to_indices):
     
     return neighbours
 
-def _get_connected_elements(elements):
+def _get_connected_elements(elements : LinesLike | TrianglesLike) -> list[Line | Triangle]:
     # Get subsets of elements that are connected to each other
     # For triangle elements, this would be surfaces
     # For line elements, this would be unbroken paths
@@ -709,7 +714,7 @@ def _get_connected_elements(elements):
 ## Code related to checking if normals point inward or outwards, given
 ## that all the normals already agree on orientation (all inwards or all outwards)
 
-def _are_triangle_normals_pointing_outwards(triangles, points):
+def _are_triangle_normals_pointing_outwards(triangles : Triangles, points : Points) -> bool:
     # Based on https://math.stackexchange.com/questions/689418/how-to-compute-surface-normal-pointing-out-of-the-object
     triangle_points = points[triangles]
     
@@ -725,7 +730,7 @@ def _are_triangle_normals_pointing_outwards(triangles, points):
 
     return np.sum(mid_x * normals[:, 0] * double_area/2) > 0.0
 
-def _are_line_normals_pointing_outwards(lines, points):
+def _are_line_normals_pointing_outwards(lines: Lines, points: Points) -> bool:
     # Based on https://math.stackexchange.com/questions/689418/how-to-compute-surface-normal-pointing-out-of-the-object
     vertices = points[lines[:, :2]]
     mid_x = (vertices[:, 0, 0] + vertices[:, 1, 0])/2.
@@ -738,7 +743,7 @@ def _are_line_normals_pointing_outwards(lines, points):
 ## Code related to ensuring normals over a connected surface/path agree in orientation.
 ## These functios allow us to flip all normals 'inward' or all 'outward'
 
-def _reorient_triangles(triangles, points):
+def _reorient_triangles(triangles: Triangles, points: Points) -> None:
     if not len(triangles):
         return
      
@@ -773,7 +778,7 @@ def _reorient_triangles(triangles, points):
             oriented[n] = True
             active.append(n)
 
-def _ensure_triangle_orientation(triangles, points, should_be_outwards):
+def _ensure_triangle_orientation(triangles : Triangles, points : Points, should_be_outwards: bool) -> None:
     # Ensure the triangles forming a closed surface have their
     # normals either outwards (should_be_outwards is True) or inwards (should_be_outwards is False)
     _reorient_triangles(triangles, points)
@@ -785,7 +790,7 @@ def _ensure_triangle_orientation(triangles, points, should_be_outwards):
             v0, v1, v2 = triangles[i]
             triangles[i] = [v0, v2, v1]
 
-def _line_orientation_equal(index1, index2, lines):
+def _line_orientation_equal(index1 : int, index2: int, lines: Lines) -> bool:
     # Note that the orientation is equal if the lines do not
     # walk 'towards' or both 'away' from the common vertex
     p1, p2 = lines[index1, :2]
@@ -798,7 +803,7 @@ def _line_orientation_equal(index1, index2, lines):
 
     return False
 
-def _reorient_lines(lines, points):
+def _reorient_lines(lines: Lines, points: Points) -> None:
     assert lines.shape == (len(lines), 2) or lines.shape == (len(lines), 4)
     
     # Reorient the normals of lines in the same direction, at this point
@@ -832,7 +837,7 @@ def _reorient_lines(lines, points):
             oriented[n] = True
             active.append(n)
 
-def _ensure_line_orientation(lines, points, should_be_outwards):
+def _ensure_line_orientation(lines: Lines, points: Points, should_be_outwards: bool) -> None:
     # Ensure the triangles forming a closed surface have their
     # normals either outwards (should_be_outwards is True) or inwards (should_be_outwards is False)
     _reorient_lines(lines, points)
@@ -850,11 +855,9 @@ def _ensure_line_orientation(lines, points, should_be_outwards):
                 lines[i] = [p1, p0]
 
 
-
-
-
 class PointsWithQuads:
-    def __init__(self, indices, quads):
+    def __init__(self, indices: NDArray[np.integer], quads: QuadsLike) -> None:
+        quads = np.array(quads, dtype=np.int64)
         N = len(indices)
         assert indices.shape == (N, N)
         assert np.all(quads[:, 1] < N)
@@ -867,7 +870,7 @@ class PointsWithQuads:
         
         self.shape = indices.shape
     
-    def to_triangles(self):
+    def to_triangles(self) -> Triangles:
         triangles = []
 
         def add_triangle(p0, p1, p2):
@@ -907,43 +910,45 @@ class PointsWithQuads:
                 add_triangle(p0, p2, p3)
          
         assert not (-1 in np.array(triangles))
-        return triangles
-            
-    def __getitem__(self, *args, **kwargs):
+        return np.array(triangles, dtype=np.uint64)
+    
+    def __getitem__(self, *args: Any, **kwargs: Any) -> NDArray[np.integer]:
         return self.indices.__getitem__(*args, **kwargs)
     
-    def __setitem__(self, *args, **kwargs):
+    def __setitem__(self, *args: Any, **kwargs: Any) -> None:
         self.indices.__setitem__(*args, **kwargs)
 
 
 class PointStack:
-    def __init__(self, surface, points=[]):
+    def __init__(self, surface: Surface, points: list[Point3D] | None = None) -> None:
+
+        self.points = points if points is not None else [] # here we need points as list to append in-place
+            
         self.path_length1 = surface.path_length1
         self.path_length2 = surface.path_length2
         
         self.surf = surface
          
-        self.points = points
         self.indices = []
     
-    def index_to_u(self, depth, i):
+    def index_to_u(self, depth: int, i: int) -> float:
         return self.path_length1/(self.get_number_of_indices(depth) - 1) * i
      
-    def index_to_v(self, depth, j):
+    def index_to_v(self, depth: int, j: int) -> float:
         return self.path_length2/(self.get_number_of_indices(depth) - 1) * j
     
-    def index_to_point(self, depth, i, j):
+    def index_to_point(self, depth: int, i: int, j: int) -> Point3D:
         u = self.index_to_u(depth, i)
         v = self.index_to_v(depth, j)
         return self.surf(u, v)
     
-    def get_number_of_indices(self, depth):
+    def get_number_of_indices(self, depth: int) -> int:
         return 2**depth + 1
     
-    def depth(self):
+    def depth(self) -> int:
         return len(self.indices) - 1
     
-    def add_level(self):
+    def add_level(self) -> None:
         new_depth = len(self.indices)
         Nu = Nv = self.get_number_of_indices(new_depth)
         
@@ -954,7 +959,7 @@ class PointStack:
         
         self.indices.append(index_map)
      
-    def to_point_index(self, depth, i, j):
+    def to_point_index(self, depth: int, i: int, j) -> int:
         assert 0 <= i <= self.get_number_of_indices(depth)
         assert 0 <= j <= self.get_number_of_indices(depth)
         
@@ -969,11 +974,11 @@ class PointStack:
 
         return map_[i, j]
      
-    def __getitem__(self, args):
+    def __getitem__(self, args: Sequence[int]) -> Points:
         depth, i, j = args
-        return self.points[self.to_point_index(depth, i, j)]
+        return np.array(self.points[self.to_point_index(depth, i, j)])
      
-    def normalize_to_depth(self, depth, quads, start_depth):
+    def normalize_to_depth(self, depth: int, quads: QuadsLike, start_depth: int) -> PointsWithQuads:
         N = self.get_number_of_indices(depth)
         
         while self.depth() < depth:
@@ -1005,9 +1010,14 @@ class PointStack:
         return PointsWithQuads(self.indices[-1], quads)
 
 
-def _subdivide_quads(pstack, mesh_size, to_subdivide=[], quads=[]): 
+def _subdivide_quads(pstack: PointStack, 
+                     mesh_size: float, 
+                     to_subdivide: list[QuadLike] | None = None, 
+                     quads: list[QuadLike] | None = None) -> None: 
     assert isinstance(pstack, PointStack)
-     
+    
+    to_subdivide = to_subdivide if to_subdivide is not None else []
+    quads = quads if quads is not None else [] # need quads as shared list in order to append in place
     if not callable(mesh_size):
         mesh_size_fun = lambda x, y, z: mesh_size
     else:
@@ -1044,13 +1054,13 @@ def _subdivide_quads(pstack, mesh_size, to_subdivide=[], quads=[]):
         else: # We are done, both sides are within mesh size limits
             quads.append((depth, i0, i1, j0, j1))
 
-def _mesh_subsections_to_quads(surface, mesh_size, start_depth):
+def _mesh_subsections_to_quads(surface: Surface, mesh_size: float, start_depth: int) -> tuple[Points, list[PointStack], Quads]:
     all_pstacks = []
     all_quads = []
-    points: list[np.ndarray] = []
+    points: list[Point3D] = []
     
     for s in surface._sections():
-        quads: list[tuple[int, int, int, int, int]] = []
+        quads: QuadsLike = []
         pstack = PointStack(s, points=points)
         
         for i in range(pstack.get_number_of_indices(start_depth) - 1):
@@ -1061,9 +1071,9 @@ def _mesh_subsections_to_quads(surface, mesh_size, start_depth):
         all_quads.append(quads)
         points = pstack.points
 
-    return points, all_pstacks, all_quads
+    return np.array(points), all_pstacks, np.array(all_quads)
     
-def _copy_over_edge(e1, e2):
+def _copy_over_edge(e1: NDArray[np.integer], e2: NDArray[np.integer]) -> None:
     assert e1.shape == e2.shape
     mask = e2 != -1
     e1[mask] = e2[mask]
@@ -1071,7 +1081,11 @@ def _copy_over_edge(e1, e2):
     mask = e1 != -1
     e2[mask] = e1[mask]
 
-def _mesh(surface, mesh_size, start_depth=2, name=None, ensure_outward_normals=True):
+def _mesh(surface: Surface, 
+          mesh_size: float, 
+          start_depth: int = 2, 
+          name: str | None = None, 
+          ensure_outward_normals: bool = True) -> Mesh:
     # Create a point stack for each subsection
     points, point_stacks, quads = _mesh_subsections_to_quads(surface, mesh_size, start_depth)
      
