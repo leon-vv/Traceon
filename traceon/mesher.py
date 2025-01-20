@@ -1,3 +1,4 @@
+from __future__ import annotations
 from math import sqrt
 import numpy as np
 import time
@@ -14,6 +15,7 @@ from .backend import triangle_areas
 from .logging import log_debug
 from . import backend as B
 
+from ._typing import *
 
 __pdoc__ = {}
 __pdoc__['PointsWithQuads'] = False
@@ -26,7 +28,7 @@ class GeometricObject(ABC):
     of `traceon.mesher.GeometricObject`. This means that they all can be moved, rotated, mirrored."""
     
     @abstractmethod
-    def map_points(self, fun: Callable[[np.ndarray], np.ndarray]) -> Any:
+    def map_points(self, fun: PointTransformFunction) -> Self:
         """Create a new geometric object, by mapping each point by a function.
         
         Parameters
@@ -42,7 +44,7 @@ class GeometricObject(ABC):
         This function returns the same type as the object on which this method was called."""
         ...
     
-    def move(self, dx=0., dy=0., dz=0.):
+    def move(self, dx: float = 0., dy: float =0., dz: float = 0.):
         """Move along x, y or z axis.
 
         Parameters
@@ -63,7 +65,7 @@ class GeometricObject(ABC):
         assert all([isinstance(d, float) or isinstance(d, int) for d in [dx, dy, dz]])
         return self.map_points(lambda p: p + np.array([dx, dy, dz]))
      
-    def rotate(self, Rx=0., Ry=0., Rz=0., origin=[0., 0., 0.]):
+    def rotate(self, Rx: float =0., Ry: float = 0., Rz: float = 0., origin: Point3DLike = (0, 0, 0)) -> Self:
         """Rotate counterclockwise around the x, y or z axis. Only one axis supported at the same time
         (rotations do not commute).
 
@@ -93,6 +95,7 @@ class GeometricObject(ABC):
         if Rz !=0.:
             return self.rotate_around_axis([0,0,1], angle=Rz, origin=origin)
         
+        else return
 
     
     def rotate_around_axis(self, axis=[0., 0, 1.], angle=0., origin=[0., 0., 0.]):
@@ -554,7 +557,7 @@ class Mesh(Saveable, GeometricObject):
             elements[:, 0], elements[:, 1], 
             np.arange(N_points, N_points + N_elements, dtype=np.uint64),
             np.arange(N_points + N_elements, N_points + 2*N_elements, dtype=np.uint64)]).T
-         
+        print(elements.dtype)
         assert np.allclose(p2, points[elements[:, 2]]) and np.allclose(p3, points[elements[:, 3]])
         return points, elements
 
