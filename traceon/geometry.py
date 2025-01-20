@@ -122,7 +122,7 @@ class Path(GeometricObject):
         return Path(lambda pl: fun(interpolation(pl)), path_length, breakpoints=[b*path_length for b in breakpoints])
     
     @staticmethod
-    def spline_through_points(points: NDArray[np.float64], N: int = 100) -> Path:
+    def spline_through_points(points: Points, N: int = 100) -> Path:
         """Construct a path by fitting a cubic spline through the given points.
 
         Parameters
