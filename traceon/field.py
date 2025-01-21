@@ -648,7 +648,7 @@ class FieldRadialAxial(FieldAxial):
         assert point.shape == (3,), "Please supply a three dimensional point"
         return backend.field_radial_derivs(point, self.z, self.electrostatic_coeffs)
     
-    def magnetostatic_field_at_point(self, point_):
+    def magnetostatic_field_at_point(self, point_) -> Vector3D:
         """
         Compute the magnetic field \\( \\vec{H} \\)
         

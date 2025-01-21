@@ -69,3 +69,4 @@ if TYPE_CHECKING:
     from .mesher import Mesh
     from .excitation import Excitation
     from .field import EffectivePointCharges, Field, FieldBEM, FieldRadialBEM
+    from traceon_pro.field import Field3DBEM # type: ignore

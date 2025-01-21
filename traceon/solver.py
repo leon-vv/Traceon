@@ -67,11 +67,11 @@ class Solver(ABC):
         self.jac_buffer, self.pos_buffer = self.get_jacobians_and_positions(self.vertices)
 
     @abstractmethod
-    def get_jacobians_and_positions(self, vertices: NDArray) -> tuple[NDArray[np.floating], Points]:
+    def get_jacobians_and_positions(self, vertices: NDArray[np.floating]) -> tuple[Jacobians, Points]:
         ...
      
     @abstractmethod
-    def get_active_elements(self) -> tuple[NDArray, dict[str, Indices]]:
+    def get_active_elements(self) -> tuple[NDArray[np.floating], dict[str, Indices]]:
         ...
 
     @abstractmethod

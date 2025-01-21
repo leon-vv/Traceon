@@ -10,9 +10,7 @@ plt.show()
 Where mesh is created using the `traceon.geometry` module.
 """
 from __future__ import annotations
-from typing import Any
-from collections.abc import Sequence
-from numpy.typing import NDArray
+
 from math import sqrt
 import numpy as np
 import vedo
@@ -20,11 +18,9 @@ import vedo.shapes
 import vedo.colors
 
 from . import backend
-from .geometry import Surface
-from .mesher import Mesh
-from .excitation import Excitation
-from .field import Field, FieldBEM, FieldRadialBEM
-from traceon_pro.field import Field3DBEM
+
+from ._typing import *
+
 _current_figures = []
 
 class Figure:
@@ -171,7 +167,7 @@ class Figure:
             raise RuntimeError("Trying to plot empty mesh.")
         
         if len(mesh.triangles):
-            assert isinstance(field, Field3DBEM)
+            # assert isinstance(field, Field3DBEM)
             meshes = _get_vedo_charge_density_3d(excitation, field, color_map)
             self.to_plot.append(meshes)
             
@@ -315,7 +311,7 @@ def _get_vedo_triangles_and_normals(mesh: Mesh, **phys_colors: str) -> tuple[lis
      
     return meshes, arrows
 
-
+# TODO: Move to Traceon Pro
 def _get_vedo_charge_density_3d(excitation: Excitation, field: Field3DBEM, color_map: str) -> list[vedo.Mesh]:
     
     if excitation.is_electrostatic():
