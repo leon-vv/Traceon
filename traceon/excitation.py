@@ -14,8 +14,6 @@ The possible excitations are as follows:
 Once the excitation is specified, it can be passed to `traceon.solver.solve_direct` to compute the resulting field.
 """
 from __future__ import annotations
-from typing import Any, TypeAlias
-from numpy.typing import NDArray
 from enum import IntEnum
 
 import numpy as np
@@ -23,9 +21,9 @@ from scipy.constants import mu_0
 
 from .backend import N_QUAD_2D
 from .logging import log_error
-from .mesher import Mesh
 
-Vector3D: TypeAlias = tuple[float, float , float] | list[float] | NDArray[np.floating]
+
+from ._typing import * 
 
 class Symmetry(IntEnum):
     """Symmetry to be used for solver. Used when deciding which formulas to use in the Boundary Element Method. The currently
@@ -218,7 +216,7 @@ class Excitation:
 
             self.excitation_types[name] = (ExcitationType.MAGNETIZABLE, permeability)
     
-    def add_permanent_magnet(self, **kwargs: Vector3D) -> None:
+    def add_permanent_magnet(self, **kwargs: Vector3DLike) -> None:
         """
         Assign a magnetization vector to a permanent magnet. The magnetization is supplied as the residual flux density vectors, with unit Tesla.
         
@@ -347,7 +345,7 @@ class Excitation:
         assert len(electrostatic_excitations) + len(magnetostatic_excitations) == len(part_of_superposition)
         return electrostatic_excitations, magnetostatic_excitations
     
-    def _get_active_elements(self, type_: str) -> tuple[NDArray, dict[str, NDArray]]:
+    def _get_active_elements(self, type_: str) -> tuple[NDArray[np.floating], dict[str, NDArray[np.integer]]]:
         assert type_ in ['electrostatic', 'magnetostatic']
         
         if self.symmetry == Symmetry.RADIAL:
@@ -374,7 +372,7 @@ class Excitation:
          
         return self.mesh.points[ elements[~inactive] ], names
      
-    def get_electrostatic_active_elements(self) ->  tuple[NDArray, dict[str, NDArray]]:
+    def get_electrostatic_active_elements(self) ->  tuple[NDArray[np.floating], dict[str, Indices]]:
         """Get elements in the mesh that have an electrostatic excitation
         applied to them. 
          
@@ -389,7 +387,7 @@ class Excitation:
         """
         return self._get_active_elements('electrostatic')
     
-    def get_magnetostatic_active_elements(self) ->  tuple[NDArray, dict[str, NDArray]]:
+    def get_magnetostatic_active_elements(self) ->  tuple[NDArray[np.floating], dict[str, Indices]]:
         """Get elements in the mesh that have an magnetostatic excitation
         applied to them. This does not include current excitation, as these are not part of the matrix.
     
