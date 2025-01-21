@@ -25,21 +25,16 @@ import numpy as np
 from numpy.typing import NDArray
 
 
-Numeric: TypeAlias = float | int
-NumpyNumeric: TypeAlias = np.floating | np.integer
+Point3D: TypeAlias = NDArray[np.floating]  # Single point as a (3,) array
+Point3DLike: TypeAlias = Point3D | Sequence[np.floating]  # Single point as (3,) array or sequence
 
-Point3D: TypeAlias = NDArray[NumpyNumeric]  # Single point as a (3,) array
-Point3DLike: TypeAlias = Point3D | Sequence[Numeric]  # Single point as (3,) array or sequence
-
-Points: TypeAlias = NDArray[NumpyNumeric]  # Multiple points as (N, 3) array
+Points: TypeAlias = NDArray[np.floating]  # Multiple points as (N, 3) array
 PointsLike: TypeAlias = Points | Sequence[Point3DLike]  # (N, 3) array or sequence of Point3DLike
 
-# Vector definitions
-Vector3D: TypeAlias = NDArray[NumpyNumeric]  # Single vector as a (3,) array
-Vector3DLike: TypeAlias = Vector3D | Sequence[Numeric]  # Single vector as (3,) array or sequence
+Vector3D: TypeAlias = NDArray[np.floating]  # Single vector as a (3,) array
+Vector3DLike: TypeAlias = Vector3D | Sequence[np.floating]  # Single vector as (3,) array or sequence
 
-# Vectors definitions
-Vectors: TypeAlias = NDArray[NumpyNumeric]  # Multiple vectors as (N, 3) array
+Vectors: TypeAlias = NDArray[np.floating]  # Multiple vectors as (N, 3) array
 VectorsLike: TypeAlias = Vectors | Sequence[Vector3DLike]  # (N, 3) array or sequence of Vector3DLike
 
 PointTransformFunction: TypeAlias = Callable[[Point3DLike], Point3D]
