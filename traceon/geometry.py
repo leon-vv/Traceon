@@ -607,8 +607,8 @@ class Path(GeometricObject):
         Returns
         -----------------------
         Path"""
-        return Path.line([xmin, 0., zmin], [xmax, 0, zmin]) \
-            .extend_with_line([xmax, 0, zmax]).extend_with_line([xmin, 0., zmax]).close()
+        return Path.line([xmin, 0., zmin], [xmax, 0., zmin]) \
+            .extend_with_line([xmax, 0., zmax]).extend_with_line([xmin, 0., zmax]).close()
      
     @staticmethod
     def rectangle_yz(ymin: float, ymax: float, zmin: float, zmax: float) -> Path:
