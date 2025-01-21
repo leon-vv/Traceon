@@ -667,7 +667,7 @@ def _compute_vertex_to_indices(elements: LinesLike | TrianglesLike) -> dict[int,
     
     return vertex_to_indices
 
-def _get_element_neighbours(element : LineLike | TriangleLike, vertex_to_indices: Mapping[int, list[int]]) -> list[int]:
+def _get_element_neighbours(element : LineLike | TriangleLike, vertex_to_indices: Mapping[int, IndicesLike]) -> IndicesLike:
     neighbours = []
     for vertex in element:
         n = vertex_to_indices.get(vertex, None)
@@ -856,7 +856,8 @@ def _ensure_line_orientation(lines: Lines, points: Points, should_be_outwards: b
 
 
 class PointsWithQuads:
-    def __init__(self, indices: NDArray[np.integer], quads: QuadsLike) -> None:
+    def __init__(self, indices: IndicesLike, quads: QuadsLike) -> None:
+        indices = np.array(indices, dtype=np.int64)
         quads = np.array(quads, dtype=np.int64)
         N = len(indices)
         assert indices.shape == (N, N)
@@ -912,7 +913,7 @@ class PointsWithQuads:
         assert not (-1 in np.array(triangles))
         return np.array(triangles, dtype=np.uint64)
     
-    def __getitem__(self, *args: Any, **kwargs: Any) -> NDArray[np.integer]:
+    def __getitem__(self, *args: Any, **kwargs: Any) -> Indices:
         return self.indices.__getitem__(*args, **kwargs)
     
     def __setitem__(self, *args: Any, **kwargs: Any) -> None:
