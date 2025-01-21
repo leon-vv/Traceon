@@ -6,9 +6,7 @@ is crucial that the field evaluation can be done faster. To achieve this, interp
 and `traceon_pro.field.Field3DAxial`.
 """
 from __future__ import annotations
-from typing import TypeAlias, cast
-from numpy.typing import NDArray
-from collections.abc import Sequence
+
 import math as m
 import time
 from threading import Thread
@@ -27,7 +25,7 @@ from . import backend
 from . import util
 from . import tracing as T
 
-from .field import *
+from ._typing import *
 
 __pdoc__ = {}
 __pdoc__['EffectivePointCharges'] = False
@@ -41,7 +39,7 @@ __pdoc__['Solver'] = False
 
 class Solver(ABC):
     
-    def __init__(self, excitation: E.Excitation) -> None:
+    def __init__(self, excitation: Excitation) -> None:
         self.excitation = excitation
         vertices, names = self.get_active_elements()
         
@@ -66,20 +64,18 @@ class Solver(ABC):
         self.excitation_types = excitation_types
         self.excitation_values = excitation_values
         
-        
-        
         self.jac_buffer, self.pos_buffer = self.get_jacobians_and_positions(self.vertices)
 
     @abstractmethod
-    def get_jacobians_and_positions(self, vertices: NDArray) -> tuple[NDArray[np.floating], NDArray[np.floating]]:
+    def get_jacobians_and_positions(self, vertices: NDArray) -> tuple[NDArray[np.floating], Points]:
         ...
      
     @abstractmethod
-    def get_active_elements(self) -> tuple[NDArray, dict[str, NDArray]]:
+    def get_active_elements(self) -> tuple[NDArray, dict[str, Indices]]:
         ...
 
     @abstractmethod
-    def get_normal_vectors(self) -> NDArray[np.floating]:
+    def get_normal_vectors(self) -> Vectors:
         ...
     
     def get_number_of_matrix_elements(self) -> int:
@@ -94,7 +90,7 @@ class Solver(ABC):
     def is_2d(self) -> bool:
         return self.excitation.mesh.is_2d()
 
-    def get_flux_indices(self) -> NDArray[np.integer]:
+    def get_flux_indices(self) -> Indices:
         """Get the indices of the vertices that are of type DIELECTRIC or MAGNETIZABLE.
         For these indices we don't compute the potential but the flux through the element (the inner 
         product of the field with the normal of the vertex. The method is implemented in the derived classes."""
@@ -102,7 +98,7 @@ class Solver(ABC):
         N = self.get_number_of_matrix_elements()
         return np.arange(N)[ (self.excitation_types == int(E.ExcitationType.DIELECTRIC)) | (self.excitation_types == int(E.ExcitationType.MAGNETIZABLE)) ]
     
-    def get_center_of_element(self, index: int | slice) -> NDArray[np.floating]:
+    def get_center_of_element(self, index: int | slice) -> Point3D:
         two_d = self.is_2d()
         higher_order = self.is_higher_order()
          
@@ -114,7 +110,7 @@ class Solver(ABC):
             return np.array([pos[0], 0.0, pos[1]])
     
     @abstractmethod
-    def get_preexisting_field(self, point: Point3D) -> Vector3DArray:
+    def get_preexisting_field(self, point: Point3DLike) -> Vector3D:
         """Get a field that exists even if all the charges are zero. This field
         is currently always a result of currents, but can in the future be extended
         to for example support permanent magnets."""
@@ -187,8 +183,8 @@ class Solver(ABC):
 
 class SolverRadial(Solver):
     
-    def __init__(self, *args: E.Excitation, **kwargs: E.Excitation) -> None:
-        super().__init__(*args, **kwargs)
+    def __init__(self, excitation: Excitation) -> None:
+        super().__init__(excitation)
         
         N = len(self.vertices) 
         normals = np.zeros( (N, 2) if self.is_2d() else (N, 3) )
@@ -204,7 +200,7 @@ class SolverRadial(Solver):
     def get_normal_vectors(self) -> NDArray[np.floating]:
         return self.normals
     
-    def get_jacobians_and_positions(self, vertices: NDArray[np.integer]) -> tuple[NDArray, NDArray]:
+    def get_jacobians_and_positions(self, vertices: Indices) -> tuple[Jacobians, Points]:
         return backend.fill_jacobian_buffer_radial(vertices)
     
     def get_matrix(self) -> NDArray[np.floating]:
@@ -224,7 +220,7 @@ class SolverRadial(Solver):
         fill_fun = backend.fill_matrix_radial
 
         # Wrapper for filling matrix rows
-        def fill_matrix_rows(rows: Sequence[int] | NDArray[np.integer]) -> None:
+        def fill_matrix_rows(rows: IndicesLike) -> None:
             fill_fun(
                 matrix,
                 self.vertices,
@@ -258,10 +254,10 @@ class SolverRadial(Solver):
 
 
 class ElectrostaticSolverRadial(SolverRadial):
-    def get_preexisting_field(self, point: Point3D) -> Vector3D:
+    def get_preexisting_field(self, point: Point3DLike) -> Vector3D:
         return np.zeros(3)
     
-    def get_active_elements(self) -> tuple[NDArray, dict[str, NDArray]]:
+    def get_active_elements(self) -> tuple[NDArray[np.floating], dict[str, Indices]]:
         return self.excitation.get_electrostatic_active_elements()
     
     def charges_to_field(self, charges: EffectivePointCharges) -> FieldRadialBEM:
@@ -356,7 +352,7 @@ class MagnetostaticSolverRadial(SolverRadial):
             current_point_charges=self.preexisting_field.current_point_charges)
 
      
-def _excitation_to_higher_order(excitation: E.Excitation) -> E.Excitation:
+def _excitation_to_higher_order(excitation: Excitation) -> Excitation:
     logging.log_info('Upgrading mesh to higher to be compatible with matrix solver')
     # Upgrade mesh, such that matrix solver will support it
     excitation = copy.copy(excitation)
@@ -364,7 +360,7 @@ def _excitation_to_higher_order(excitation: E.Excitation) -> E.Excitation:
     excitation.mesh = mesh._to_higher_order_mesh()
     return excitation
 
-def solve_direct_superposition(excitation: E.Excitation) -> dict[str, FieldBEM]:
+def solve_direct_superposition(excitation: Excitation) -> dict[str, FieldBEM]:
     """
     When using superposition multiple fields are computed at once. Each field corresponds with a unity excitation (1V)
     of an electrode that was assigned a non-zero fixed voltage value. This is useful when a geometry needs
@@ -402,7 +398,7 @@ def solve_direct_superposition(excitation: E.Excitation) -> dict[str, FieldBEM]:
         
     return {**elec_dict, **mag_dict}
 
-def solve_direct(excitation: E.Excitation) -> FieldRadialBEM:
+def solve_direct(excitation: Excitation) -> FieldRadialBEM:
     """
     Solve for the charges on the surface of the geometry by using a direct method and taking
     into account the specified `excitation`. 
@@ -424,7 +420,7 @@ def solve_direct(excitation: E.Excitation) -> FieldRadialBEM:
     if mag and elec:
         elec_field = ElectrostaticSolverRadial(excitation).solve_matrix()[0]
         mag_field = MagnetostaticSolverRadial(excitation).solve_matrix()[0]
-        return cast(FieldRadialBEM, elec_field + mag_field) #NOTE: typecasting not necessarry with @override from python 3.12)
+        return cast(FieldRadialBEM, elec_field + mag_field) # NOTE: typecasting not necessarry with @override from python 3.12)
     elif elec and not mag:
         return cast(FieldRadialBEM, ElectrostaticSolverRadial(excitation).solve_matrix()[0]) 
     elif mag and not elec:

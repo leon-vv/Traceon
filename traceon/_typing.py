@@ -5,6 +5,7 @@ from typing import (
     Any, 
     Self,
     TypeAlias, 
+    cast
 )
 
 from collections.abc import (
