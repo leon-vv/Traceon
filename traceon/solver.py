@@ -25,6 +25,7 @@ from . import backend
 from . import util
 from . import tracing as T
 
+from .field import *
 from ._typing import *
 
 __pdoc__ = {}
@@ -67,15 +68,15 @@ class Solver(ABC):
         self.jac_buffer, self.pos_buffer = self.get_jacobians_and_positions(self.vertices)
 
     @abstractmethod
-    def get_jacobians_and_positions(self, vertices: NDArray[np.floating]) -> tuple[Jacobians, Points]:
+    def get_jacobians_and_positions(self, vertices: LinesVertices | TrianglesVertices) -> tuple[Jacobians2D, QuadPoints2D] | tuple[Jacobians3D, QuadPoints3D]:
         ...
      
     @abstractmethod
-    def get_active_elements(self) -> tuple[NDArray[np.floating], dict[str, Indices]]:
+    def get_active_elements(self) -> ActiveLines | ActiveTriangles:
         ...
 
     @abstractmethod
-    def get_normal_vectors(self) -> Vectors:
+    def get_normal_vectors(self) -> Vectors2D | Vectors3D:
         ...
     
     def get_number_of_matrix_elements(self) -> int:
@@ -90,7 +91,7 @@ class Solver(ABC):
     def is_2d(self) -> bool:
         return self.excitation.mesh.is_2d()
 
-    def get_flux_indices(self) -> Indices:
+    def get_flux_indices(self) -> ArrayInt1D:
         """Get the indices of the vertices that are of type DIELECTRIC or MAGNETIZABLE.
         For these indices we don't compute the potential but the flux through the element (the inner 
         product of the field with the normal of the vertex. The method is implemented in the derived classes."""
@@ -110,7 +111,7 @@ class Solver(ABC):
             return np.array([pos[0], 0.0, pos[1]])
     
     @abstractmethod
-    def get_preexisting_field(self, point: Point3DLike) -> Vector3D:
+    def get_preexisting_field(self, point: PointLike3D) -> Vector3D:
         """Get a field that exists even if all the charges are zero. This field
         is currently always a result of currents, but can in the future be extended
         to for example support permanent magnets."""
@@ -155,10 +156,10 @@ class Solver(ABC):
         ...
 
     @abstractmethod
-    def get_matrix(self) -> NDArray[np.floating]:
+    def get_matrix(self) -> ArrayFloat2D:
         ...
     
-    def solve_matrix(self, right_hand_side: NDArray[np.floating] | None = None) -> list[FieldBEM]:
+    def solve_matrix(self, right_hand_side: ArrayFloat1D | None = None) -> list[FieldBEM]:
         F = np.array([self.get_right_hand_side()]) if right_hand_side is None else right_hand_side
         
         N = self.get_number_of_matrix_elements()
@@ -197,13 +198,14 @@ class SolverRadial(Solver):
          
         self.normals = normals
     
-    def get_normal_vectors(self) -> NDArray[np.floating]:
+    def get_normal_vectors(self) -> Vectors2D:
         return self.normals
     
-    def get_jacobians_and_positions(self, vertices: Indices) -> tuple[Jacobians, Points]:
+    def get_jacobians_and_positions(self, vertices: LinesVertices) -> tuple[Jacobians2D, QuadPoints2D]:
+        
         return backend.fill_jacobian_buffer_radial(vertices)
     
-    def get_matrix(self) -> NDArray[np.floating]:
+    def get_matrix(self) -> ArrayFloat2D:
         # Sanity check: 2D must be higher-order
         assert self.is_2d() and self.is_higher_order(), "2D mesh needs to be higher-order (consider upgrading mesh)."
         
@@ -220,14 +222,14 @@ class SolverRadial(Solver):
         fill_fun = backend.fill_matrix_radial
 
         # Wrapper for filling matrix rows
-        def fill_matrix_rows(rows: IndicesLike) -> None:
+        def fill_matrix_rows(rows: ArrayInt1D) -> None:
             fill_fun(
                 matrix,
-                self.vertices,
+                cast(LinesVertices, self.vertices),
                 self.excitation_types,
                 self.excitation_values,
-                self.jac_buffer,
-                self.pos_buffer,
+                cast(Jacobians2D, self.jac_buffer),
+                cast(QuadPoints2D, self.pos_buffer),
                 rows[0],
                 rows[-1])
 
@@ -254,29 +256,29 @@ class SolverRadial(Solver):
 
 
 class ElectrostaticSolverRadial(SolverRadial):
-    def get_preexisting_field(self, point: Point3DLike) -> Vector3D:
+    def get_preexisting_field(self, point: PointLike3D) -> Vector3D:
         return np.zeros(3)
     
-    def get_active_elements(self) -> tuple[NDArray[np.floating], dict[str, Indices]]:
-        return self.excitation.get_electrostatic_active_elements()
-    
+    def get_active_elements(self) -> ActiveLines:
+        return cast(ActiveLines, self.excitation.get_electrostatic_active_elements())
+       
     def charges_to_field(self, charges: EffectivePointCharges) -> FieldRadialBEM:
         return FieldRadialBEM(electrostatic_point_charges=charges)
 
 
 class MagnetostaticSolverRadial(SolverRadial):
-    def __init__(self, *args: E.Excitation, **kwargs: E.Excitation) -> None:
+    def __init__(self, *args: Excitation, **kwargs: Excitation) -> None:
         super().__init__(*args, **kwargs)
         self.preexisting_field = self.get_current_field() + self.get_permanent_magnet_field()
 
-    def get_active_elements(self) -> tuple[NDArray, dict[str, NDArray]]:
-        return self.excitation.get_magnetostatic_active_elements()
+    def get_active_elements(self) -> ActiveLines:
+        return cast(ActiveLines, self.excitation.get_magnetostatic_active_elements())
     
-    def get_preexisting_field(self, point: Point3D) -> Vector3D:
+    def get_preexisting_field(self, point: PointLike3D) -> Vector3D:
         return self.preexisting_field.magnetostatic_field_at_point(point)
      
     def get_permanent_magnet_field(self) -> FieldRadialBEM:
-        charges: list[NDArray[np.floating]] = []
+        charges: ArrayLikeFloat1D = []
         jacobians = []
         positions = []
         
@@ -420,7 +422,7 @@ def solve_direct(excitation: Excitation) -> FieldRadialBEM:
     if mag and elec:
         elec_field = ElectrostaticSolverRadial(excitation).solve_matrix()[0]
         mag_field = MagnetostaticSolverRadial(excitation).solve_matrix()[0]
-        return cast(FieldRadialBEM, elec_field + mag_field) # NOTE: typecasting not necessarry with @override from python 3.12)
+        return cast(FieldRadialBEM, elec_field + mag_field)
     elif elec and not mag:
         return cast(FieldRadialBEM, ElectrostaticSolverRadial(excitation).solve_matrix()[0]) 
     elif mag and not elec:

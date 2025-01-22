@@ -18,7 +18,7 @@ from . import backend as B
 from ._typing import *
 
 __pdoc__ = {}
-__pdoc__['PointsWithQuads'] = False
+__pdoc__['Points3DWithQuads'] = False
 __pdoc__['PointStack'] = False
 __pdoc__['Mesh.__add__'] = True
 
@@ -65,7 +65,7 @@ class GeometricObject(ABC):
         assert all([isinstance(d, float) or isinstance(d, int) for d in [dx, dy, dz]])
         return self.map_points(lambda p: p + np.array([dx, dy, dz]))
      
-    def rotate(self, Rx: float = 0., Ry: float = 0., Rz: float = 0., origin: Point3DLike = (0, 0, 0)) -> Self:
+    def rotate(self, Rx: float = 0., Ry: float = 0., Rz: float = 0., origin: PointLike3D = (0, 0, 0)) -> Self:
         """Rotate counterclockwise around the x, y or z axis. Only one axis supported at the same time
         (rotations do not commute).
 
@@ -99,7 +99,7 @@ class GeometricObject(ABC):
             return self.map_points(lambda x : np.array(x))
 
     
-    def rotate_around_axis(self, axis: Vector3DLike = (0, 0, 1), angle: float = 0., origin: Vector3DLike = (0, 0, 0)) -> Self:
+    def rotate_around_axis(self, axis: VectorLike3D = (0, 0, 1), angle: float = 0., origin: VectorLike3D = (0, 0, 0)) -> Self:
         """
         Rotate  counterclockwise around a general axis defined by a vector.
         
@@ -187,7 +187,7 @@ class Mesh(Saveable, GeometricObject):
     `traceon.mesher.GeometricObject`, and therefore can be easily moved and rotated."""
      
     def __init__(self,
-            points: PointsLike | None = None,
+            points: PointsLike3D | None = None,
             lines: LinesLike | None = None,
             triangles: TrianglesLike | None = None,
             physical_to_lines: Mapping[str, Lines] | None = None,
@@ -543,7 +543,7 @@ class Mesh(Saveable, GeometricObject):
         return list(self.physical_to_lines.keys()) + list(self.physical_to_triangles.keys())
      
     @staticmethod
-    def _lines_to_higher_order(points: PointsLike, elements: LinesLike) -> tuple[Points, Lines]:
+    def _lines_to_higher_order(points: PointsLike3D, elements: LinesLike) -> tuple[Points3D, Lines]:
         points = np.array(points, dtype=np.float64)
         elements = np.array(elements, dtype=np.uint64)
         
@@ -667,7 +667,7 @@ def _compute_vertex_to_indices(elements: LinesLike | TrianglesLike) -> dict[int,
     
     return vertex_to_indices
 
-def _get_element_neighbours(element : LineLike | TriangleLike, vertex_to_indices: Mapping[int, IndicesLike]) -> IndicesLike:
+def _get_element_neighbours(element : LineLike | TriangleLike, vertex_to_indices: Mapping[int, ArrayLikeInt1D]) -> ArrayLikeInt1D:
     neighbours = []
     for vertex in element:
         n = vertex_to_indices.get(vertex, None)
@@ -714,7 +714,7 @@ def _get_connected_elements(elements : LinesLike | TrianglesLike) -> list[Line |
 ## Code related to checking if normals point inward or outwards, given
 ## that all the normals already agree on orientation (all inwards or all outwards)
 
-def _are_triangle_normals_pointing_outwards(triangles : Triangles, points : Points) -> bool:
+def _are_triangle_normals_pointing_outwards(triangles : Triangles, points : Points3D) -> bool:
     # Based on https://math.stackexchange.com/questions/689418/how-to-compute-surface-normal-pointing-out-of-the-object
     triangle_points = points[triangles]
     
@@ -730,7 +730,7 @@ def _are_triangle_normals_pointing_outwards(triangles : Triangles, points : Poin
 
     return np.sum(mid_x * normals[:, 0] * double_area/2) > 0.0
 
-def _are_line_normals_pointing_outwards(lines: Lines, points: Points) -> bool:
+def _are_line_normals_pointing_outwards(lines: Lines, points: Points3D) -> bool:
     # Based on https://math.stackexchange.com/questions/689418/how-to-compute-surface-normal-pointing-out-of-the-object
     vertices = points[lines[:, :2]]
     mid_x = (vertices[:, 0, 0] + vertices[:, 1, 0])/2.
@@ -743,7 +743,7 @@ def _are_line_normals_pointing_outwards(lines: Lines, points: Points) -> bool:
 ## Code related to ensuring normals over a connected surface/path agree in orientation.
 ## These functios allow us to flip all normals 'inward' or all 'outward'
 
-def _reorient_triangles(triangles: Triangles, points: Points) -> None:
+def _reorient_triangles(triangles: Triangles, points: Points3D) -> None:
     if not len(triangles):
         return
      
@@ -778,7 +778,7 @@ def _reorient_triangles(triangles: Triangles, points: Points) -> None:
             oriented[n] = True
             active.append(n)
 
-def _ensure_triangle_orientation(triangles : Triangles, points : Points, should_be_outwards: bool) -> None:
+def _ensure_triangle_orientation(triangles : Triangles, points : Points3D, should_be_outwards: bool) -> None:
     # Ensure the triangles forming a closed surface have their
     # normals either outwards (should_be_outwards is True) or inwards (should_be_outwards is False)
     _reorient_triangles(triangles, points)
@@ -803,7 +803,7 @@ def _line_orientation_equal(index1 : int, index2: int, lines: Lines) -> bool:
 
     return False
 
-def _reorient_lines(lines: Lines, points: Points) -> None:
+def _reorient_lines(lines: Lines, points: Points3D) -> None:
     assert lines.shape == (len(lines), 2) or lines.shape == (len(lines), 4)
     
     # Reorient the normals of lines in the same direction, at this point
@@ -837,7 +837,7 @@ def _reorient_lines(lines: Lines, points: Points) -> None:
             oriented[n] = True
             active.append(n)
 
-def _ensure_line_orientation(lines: Lines, points: Points, should_be_outwards: bool) -> None:
+def _ensure_line_orientation(lines: Lines, points: Points3D, should_be_outwards: bool) -> None:
     # Ensure the triangles forming a closed surface have their
     # normals either outwards (should_be_outwards is True) or inwards (should_be_outwards is False)
     _reorient_lines(lines, points)
@@ -855,8 +855,8 @@ def _ensure_line_orientation(lines: Lines, points: Points, should_be_outwards: b
                 lines[i] = [p1, p0]
 
 
-class PointsWithQuads:
-    def __init__(self, indices: IndicesLike, quads: QuadsLike) -> None:
+class Points3DWithQuads:
+    def __init__(self, indices: ArrayLikeInt1D, quads: QuadsLike) -> None:
         indices = np.array(indices, dtype=np.int64)
         quads = np.array(quads, dtype=np.int64)
         N = len(indices)
@@ -913,7 +913,7 @@ class PointsWithQuads:
         assert not (-1 in np.array(triangles))
         return np.array(triangles, dtype=np.uint64)
     
-    def __getitem__(self, *args: Any, **kwargs: Any) -> Indices:
+    def __getitem__(self, *args: Any, **kwargs: Any) -> ArrayInt1D:
         return self.indices.__getitem__(*args, **kwargs)
     
     def __setitem__(self, *args: Any, **kwargs: Any) -> None:
@@ -975,11 +975,11 @@ class PointStack:
 
         return map_[i, j]
      
-    def __getitem__(self, args: Sequence[int]) -> Points:
+    def __getitem__(self, args: Sequence[int]) -> Points3D:
         depth, i, j = args
         return np.array(self.points[self.to_point_index(depth, i, j)])
      
-    def normalize_to_depth(self, depth: int, quads: QuadsLike, start_depth: int) -> PointsWithQuads:
+    def normalize_to_depth(self, depth: int, quads: QuadsLike, start_depth: int) -> Points3DWithQuads:
         N = self.get_number_of_indices(depth)
         
         while self.depth() < depth:
@@ -1008,7 +1008,7 @@ class PointStack:
               
             quads[i] = (quad_depth, i0, i1, j0, j1)
          
-        return PointsWithQuads(self.indices[-1], quads)
+        return Points3DWithQuads(self.indices[-1], quads)
 
 
 def _subdivide_quads(pstack: PointStack, 
@@ -1055,7 +1055,7 @@ def _subdivide_quads(pstack: PointStack,
         else: # We are done, both sides are within mesh size limits
             quads.append((depth, i0, i1, j0, j1))
 
-def _mesh_subsections_to_quads(surface: Surface, mesh_size: float, start_depth: int) -> tuple[Points, list[PointStack], Quads]:
+def _mesh_subsections_to_quads(surface: Surface, mesh_size: float, start_depth: int) -> tuple[Points3D, list[PointStack], Quads]:
     all_pstacks = []
     all_quads = []
     points: list[Point3D] = []

@@ -6,10 +6,8 @@ compute intersections of the computed traces with various planes.
 ### References
 [1] Erwin Fehlberg. Low-Order Classical Runge-Kutta Formulas With Stepsize Control and their Application to Some Heat
 Transfer Problems. 1969. National Aeronautics and Space Administration."""
+
 from __future__ import annotations
-from typing import TypeAlias
-from collections.abc import Sequence
-from numpy.typing import NDArray
 import ctypes
 from math import sqrt, cos, sin, atan2
 import time
@@ -22,15 +20,10 @@ from scipy.constants import m_e, e, mu_0
 
 from . import backend
 from . import logging
-from .field import Field
 
-Point3D: TypeAlias = tuple[float, float , float] | list[float] | NDArray[np.floating]
-Point3DArray: TypeAlias = NDArray[np.floating]
+from ._typing import * 
 
-Vector3D: TypeAlias = tuple[float, float , float] | list[float] | NDArray[np.floating]
-Vector3DArray: TypeAlias = NDArray[np.floating]
-
-def velocity_vec(eV: float, direction_: Vector3D) -> Vector3D:
+def velocity_vec(eV: float, direction_: VectorLike3D) -> Vector3D:
     """Compute an initial velocity vector in the correct units and direction.
     
     Parameters
@@ -102,9 +95,10 @@ def _z_to_bounds(z1: float, z2: float) -> tuple[float, float]:
     else:
         return (min(z1, z2)-1, max(z1, z2)+1)
 
-def _convert_velocity_to_SI(velocity: Vector3DArray, mass: float) -> Vector3DArray:
+def _convert_velocity_to_SI(velocity: VectorLike3D, mass: float) -> Vector3D:
     # Convert a velocity vector expressed in eV (see functions above)
     # to one expressed in m/s.
+    velocity = np.array(velocity)
     speed_eV = np.linalg.norm(velocity)
     speed = sqrt(2*speed_eV*e/mass)
     direction = velocity / speed_eV
@@ -121,7 +115,7 @@ class Tracer:
         Once the particle reaches one of the boundaries the tracing stops. The bounds are of the form ( (xmin, xmax), (ymin, ymax), (zmin, zmax) ).
     """
     
-    def __init__(self, field: Field, bounds: Sequence[Sequence[float]] | NDArray[np.floating]) -> None:
+    def __init__(self, field: Field, bounds: Bounds3D) -> None:
         self.field = field
         bounds = np.array(bounds).astype(np.float64)
         assert bounds.shape == (3,2)
@@ -148,11 +142,11 @@ class Tracer:
             + 'Bounds: ' + bounds_str + ' mm >'
     
     def __call__(self, 
-                 position: Point3DArray, 
-                 velocity: Vector3DArray, 
+                 position: PointLike3D, 
+                 velocity: VectorLike3D, 
                  mass: float = m_e, 
                  charge: float = -e, 
-                 atol: float = 1e-8) -> tuple[NDArray[np.floating], NDArray[np.floating]]:
+                 atol: float = 1e-8) -> tuple[ArrayFloat1D, ArrayFloat2D]:
         """Trace a charged particle.
 
         Parameters
@@ -177,6 +171,7 @@ class Tracer:
         The first three elements in the `positions[i]` array contain the x,y,z positions.
         The last three elements in `positions[i]` contain the vx,vy,vz velocities.
         """
+        position = np.array(position)
         charge_over_mass = charge / mass
         velocity = _convert_velocity_to_SI(velocity, mass)
 
@@ -184,12 +179,12 @@ class Tracer:
                 position,
                 velocity,
                 charge_over_mass, 
-                self.trace_fun,
+                self.trace_fun, #type:ignore
                 self.bounds,
                 atol,
                 self.trace_args)
 
-def plane_intersection(positions: NDArray[np.floating], p0: Point3DArray, normal: Vector3DArray) -> NDArray[np.floating]:
+def plane_intersection(positions: ArrayLikeFloat2D, p0: PointLike3D, normal: VectorLike3D) -> ArrayFloat1D:
     """Compute the intersection of a trajectory with a general plane in 3D. The plane is specified
     by a point (p0) in the plane and a normal vector (normal) to the plane. The intersection
     point is calculated using a linear interpolation.
@@ -210,11 +205,12 @@ def plane_intersection(positions: NDArray[np.floating], p0: Point3DArray, normal
     --------
     np.ndarray of shape (6,) containing the position and velocity of the particle at the intersection point.
     """
+    positions, p0, normal = np.array(positions, dtype=np.float64), np.array(p0, dtype=np.float64), np.array(normal, dtype=np.float64)
 
     assert positions.shape == (len(positions), 6), "The positions array should have shape (N, 6)"
     return backend.plane_intersection(positions, p0, normal)
 
-def xy_plane_intersection(positions: NDArray[np.floating], z: float) -> NDArray[np.floating] :
+def xy_plane_intersection(positions: ArrayLikeFloat2D, z: float) -> ArrayFloat1D:
     """Compute the intersection of a trajectory with an xy-plane.
 
     Parameters
@@ -228,9 +224,9 @@ def xy_plane_intersection(positions: NDArray[np.floating], z: float) -> NDArray[
     --------
     (6,) array of float64, containing the position and velocity of the particle at the intersection point.
     """
-    return plane_intersection(positions, np.array([0.,0.,z]), np.array([0., 0., 1.0]))
+    return plane_intersection(positions, [0, 0, z], [0, 0, 1])
 
-def xz_plane_intersection(positions: NDArray[np.floating], y: float) -> NDArray[np.floating]:
+def xz_plane_intersection(positions: ArrayLikeFloat2D, y: float) -> ArrayLikeFloat1D:
     """Compute the intersection of a trajectory with an xz-plane.
 
     Parameters
@@ -244,9 +240,9 @@ def xz_plane_intersection(positions: NDArray[np.floating], y: float) -> NDArray[
     --------
     (6,) array of float64, containing the position and velocity of the particle at the intersection point.
     """
-    return plane_intersection(positions, np.array([0.,y,0.]), np.array([0., 1.0, 0.]))
+    return plane_intersection(positions, [0, y, 0], [0, 1, 0])
 
-def yz_plane_intersection(positions: NDArray[np.floating], x: float) -> NDArray[np.floating]:
+def yz_plane_intersection(positions: ArrayLikeFloat2D, x: float) -> ArrayLikeFloat1D:
     """Compute the intersection of a trajectory with an yz-plane.
 
     Parameters
@@ -260,9 +256,9 @@ def yz_plane_intersection(positions: NDArray[np.floating], x: float) -> NDArray[
     --------
     (6,) array of float64, containing the position and velocity of the particle at the intersection point.
     """
-    return plane_intersection(positions, np.array([x,0.,0.]), np.array([1.0, 0., 0.]))
+    return plane_intersection(positions, [x, 0, 0], [1, 0, 0])
 
-def axis_intersection(positions: NDArray[np.floating]) -> float:
+def axis_intersection(positions: ArrayLikeFloat2D) -> float:
     """Compute the z-value of the intersection of the trajectory with the x=0 plane.
     Note that this function will not work properly if the trajectory crosses the x=0 plane zero or multiple times.
     
@@ -275,5 +271,5 @@ def axis_intersection(positions: NDArray[np.floating]) -> float:
     --------
     float, z-value of the intersection with the x=0 plane
     """
-    return yz_plane_intersection(positions, 0.0)[2]
+    return yz_plane_intersection(positions, 0)[2]
 

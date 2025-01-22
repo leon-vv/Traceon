@@ -33,7 +33,7 @@ __pdoc__['SurfaceCollection.__iadd__'] = True
 __pdoc__['Surface.__call__'] = True
 
 
-def _points_close(p1: Point3DLike, p2: Point3DLike, tolerance: float = 1e-8) -> bool:
+def _points_close(p1: PointLike3D, p2: PointLike3D, tolerance: float = 1e-8) -> bool:
     return np.allclose(p1, p2, atol=tolerance)
 
 def discretize_path(path_length: float, breakpoints: list[float], mesh_size: float | None, mesh_size_factor: float | None = None, N_factor: int = 1) -> NDArray[np.floating]:
@@ -122,7 +122,7 @@ class Path(GeometricObject):
         return Path(lambda pl: fun(interpolation(pl)), path_length, breakpoints=[b*path_length for b in breakpoints])
     
     @staticmethod
-    def spline_through_points(points: Points, N: int = 100) -> Path:
+    def spline_through_points(points: Points3D, N: int = 100) -> Path:
         """Construct a path by fitting a cubic spline through the given points.
 
         Parameters
@@ -272,7 +272,7 @@ class Path(GeometricObject):
         The endpoint of the path."""
         return self(self.path_length)
     
-    def extend_with_line(self, point: Point3DLike) -> Path:
+    def extend_with_line(self, point: PointLike3D) -> Path:
         """Extend the current path by a line from the current endpoint to the given point.
         The given point is marked a breakpoint.
 
@@ -376,7 +376,7 @@ class Path(GeometricObject):
         return self >> Path.arc(center, start, end, reverse=reverse)
     
     @staticmethod
-    def arc(center: Point3DLike, start: Point3DLike, end: Point3DLike, reverse: bool = False) -> Path:
+    def arc(center: PointLike3D, start: PointLike3D, end: PointLike3D, reverse: bool = False) -> Path:
         """Return an arc by specifying the center, start and end point.
 
         Parameters
@@ -484,7 +484,7 @@ class Path(GeometricObject):
         
         return Surface(f, self.path_length, length2, self.breakpoints, name=self.name)
      
-    def extrude(self, vector: Vector3DLike) -> Surface:
+    def extrude(self, vector: VectorLike3D) -> Surface:
         """Create a surface by extruding the path along a vector. The vector gives both
         the length and the direction of the extrusion.
 
@@ -555,7 +555,7 @@ class Path(GeometricObject):
         return Path.from_irregular_function(f)
     
     @staticmethod
-    def line(from_: Point3DLike, to: Point3DLike) -> Path:
+    def line(from_: PointLike3D, to: PointLike3D) -> Path:
         """Create a straight line between two points.
 
         Parameters
@@ -680,7 +680,7 @@ class Path(GeometricObject):
                 .extend_with_line([radius, 0., height/2]).extend_with_line([extent, 0., height/2]).move(dz=z)
 
     @staticmethod
-    def polar_arc(radius: float, angle: float, start: Point3DLike, direction: Vector3DLike, plane_normal: Vector3DLike = (0, 1, 0)) -> Path:
+    def polar_arc(radius: float, angle: float, start: PointLike3D, direction: VectorLike3D, plane_normal: VectorLike3D = (0, 1, 0)) -> Path:
         """Return an arc specified by polar coordinates. The arc lies in a plane defined by the 
         provided normal vector and curves from the start point in the specified direction 
         counterclockwise around the normal.
@@ -726,7 +726,7 @@ class Path(GeometricObject):
         
         return Path(f, radius*angle)
     
-    def extend_with_polar_arc(self, radius: float, angle: float, plane_normal: Vector3DLike = (0,1,0)) -> Path:
+    def extend_with_polar_arc(self, radius: float, angle: float, plane_normal: VectorLike3D = (0,1,0)) -> Path:
         """Extend the current path by a smooth arc using polar coordinates.
         The arc is defined by a specified radius and angle and rotates counterclockwise
          around around the normal that defines the arcing plane.
@@ -960,7 +960,7 @@ class PathCollection(GeometricObject):
         return self._map_to_surfaces(Path.revolve_y, angle=angle)
     def revolve_z(self, angle: float = 2*pi) -> SurfaceCollection:
         return self._map_to_surfaces(Path.revolve_z, angle=angle)
-    def extrude(self, vector: Vector3DLike) -> SurfaceCollection:
+    def extrude(self, vector: VectorLike3D) -> SurfaceCollection:
         return self._map_to_surfaces(Path.extrude, vector)
     def extrude_by_path(self, p2: Path) -> SurfaceCollection:
         return self._map_to_surfaces(Path.extrude_by_path, p2)
@@ -1079,7 +1079,7 @@ class Surface(GeometricObject):
         return Surface(f, length1, length2)
 
     @staticmethod
-    def box(p0: Point3DLike, p1: Point3DLike) -> SurfaceCollection:
+    def box(p0: PointLike3D, p1: PointLike3D) -> SurfaceCollection:
         """Create a box with the two given points at opposite corners.
 
         Parameters
@@ -1376,7 +1376,7 @@ class Surface(GeometricObject):
         
         return boundary
 
-    def extrude_boundary(self, vector: Vector3DLike, enclose: bool = True) -> SurfaceCollection:
+    def extrude_boundary(self, vector: VectorLike3D, enclose: bool = True) -> SurfaceCollection:
         """
         Extrude the boundary paths of the surface along a vector. The vector gives both
         the length and the direction of the extrusion.

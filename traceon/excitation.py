@@ -216,7 +216,7 @@ class Excitation:
 
             self.excitation_types[name] = (ExcitationType.MAGNETIZABLE, permeability)
     
-    def add_permanent_magnet(self, **kwargs: Vector3DLike) -> None:
+    def add_permanent_magnet(self, **kwargs: VectorLike3D) -> None:
         """
         Assign a magnetization vector to a permanent magnet. The magnetization is supplied as the residual flux density vectors, with unit Tesla.
         
@@ -345,7 +345,7 @@ class Excitation:
         assert len(electrostatic_excitations) + len(magnetostatic_excitations) == len(part_of_superposition)
         return electrostatic_excitations, magnetostatic_excitations
     
-    def _get_active_elements(self, type_: str) -> tuple[NDArray[np.floating], dict[str, NDArray[np.integer]]]:
+    def _get_active_elements(self, type_: str) -> ActiveLines | ActiveTriangles:
         assert type_ in ['electrostatic', 'magnetostatic']
         
         if self.symmetry == Symmetry.RADIAL:
@@ -369,10 +369,10 @@ class Excitation:
         map_index = np.arange(len(elements)) - np.cumsum(inactive)
         names = {n:map_index[i] for n, i in physicals.items() \
                     if n in self.excitation_types and type_check(self.excitation_types[n][0])}
-         
+       
         return self.mesh.points[ elements[~inactive] ], names
-     
-    def get_electrostatic_active_elements(self) ->  tuple[NDArray[np.floating], dict[str, Indices]]:
+
+    def get_electrostatic_active_elements(self) -> ActiveLines | ActiveTriangles:
         """Get elements in the mesh that have an electrostatic excitation
         applied to them. 
          
@@ -387,7 +387,7 @@ class Excitation:
         """
         return self._get_active_elements('electrostatic')
     
-    def get_magnetostatic_active_elements(self) ->  tuple[NDArray[np.floating], dict[str, Indices]]:
+    def get_magnetostatic_active_elements(self) ->  ActiveLines | ActiveTriangles:
         """Get elements in the mesh that have an magnetostatic excitation
         applied to them. This does not include current excitation, as these are not part of the matrix.
     

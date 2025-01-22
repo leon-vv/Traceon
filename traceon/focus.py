@@ -6,7 +6,7 @@ import numpy as np
 
 from ._typing import * 
 
-def focus_position(positions: NDArray[np.floating]) -> Point3D:
+def focus_position(positions: ArrayFloat2D) -> Point3D:
     """
     Find the focus of the given trajectories (which are returned from `traceon.tracing.Tracer.__call__`).
     The focus is found using a least square method by considering the final positions and velocities of

@@ -363,7 +363,7 @@ def kronrod_adaptive(fun: Callable[[float], float], a: float, b: float,
     callback = integration_cb_1d(lambda x, _: fun(x))
     return backend_lib.kronrod_adaptive(callback, a, b, vp(None), epsabs, epsrel)
 
-def higher_order_normal_radial(alpha: float, vertices: Points3D) -> Vector2D:
+def higher_order_normal_radial(alpha: float, vertices: LineVertices) -> Vector2D:
     assert vertices.shape == (4,3) 
     normal = np.zeros(2)
     backend_lib.higher_order_normal_radial(alpha, vertices[0], vertices[2], vertices[3], vertices[1], normal)
@@ -491,7 +491,7 @@ def trace_particle(position: Point3D,
                    field: Field, 
                    bounds: BoundsLike3D, 
                    atol: float, 
-                   args: Any = None) -> Tuple[np.ndarray, np.ndarray]:
+                   args: Any = None) -> Tuple[ArrayFloat1D, ArrayFloat2D]:
     bounds = np.array(bounds)
      
     return trace_particle_wrapper(position, velocity,
@@ -604,7 +604,7 @@ def axial_coefficients_3d(charges: ArrayFloat1D, jacobian_buffer: Jacobians3D, p
       
     return output_coeffs
 
-def fill_jacobian_buffer_current_three_d(lines: ArrayFloat3D) -> tuple[Jacobians3D, QuadPoints3D, QuadVectors3D]:
+def fill_jacobian_buffer_current_three_d(lines: LinesVertices) -> tuple[Jacobians3D, QuadPoints3D, QuadVectors3D]:
     assert lines.shape == (len(lines), 2, 3)
 
     jacobians = np.zeros( (len(lines), N_QUAD_2D) )
@@ -674,7 +674,7 @@ def current_axial_derivatives_radial(z: ArrayFloat1D, currents: ArrayFloat1D, ja
     return derivs
 
 
-def fill_jacobian_buffer_radial(vertices: ArrayFloat3D) -> Tuple[Jacobians2D, QuadPoints2D]:
+def fill_jacobian_buffer_radial(vertices: LinesVertices) -> Tuple[Jacobians2D, QuadPoints2D]:
     assert vertices.shape == (len(vertices), 4, 3)
     assert np.all(vertices[:, :, 1] == 0.)
         
@@ -686,7 +686,7 @@ def fill_jacobian_buffer_radial(vertices: ArrayFloat3D) -> Tuple[Jacobians2D, Qu
     
     return jac_buffer, pos_buffer
 
-def self_potential_radial(vertices: Points3D) -> float:
+def self_potential_radial(vertices: LineVertices) -> float:
     assert vertices.shape == (4,3) and vertices.dtype == np.double
     user_data = vertices.ctypes.data_as(C.c_void_p)
     low_level = LowLevelCallable(backend_lib.self_potential_radial, user_data=user_data) # type: ignore
@@ -695,7 +695,7 @@ def self_potential_radial(vertices: Points3D) -> float:
 class SelfFieldDotNormalRadialArgs(C.Structure):
     _fields_ = [("line_points", C.POINTER(C.c_double)), ("K", C.c_double)]
 
-def self_field_dot_normal_radial(vertices: Points3D, K: float) -> float:
+def self_field_dot_normal_radial(vertices: LineVertices, K: float) -> float:
     assert vertices.shape == (4,3) and vertices.dtype == np.double
     user_data = vertices.ctypes.data_as(C.c_void_p)
 
@@ -711,7 +711,7 @@ def self_field_dot_normal_radial(vertices: Points3D, K: float) -> float:
 
 
 def fill_matrix_radial(matrix: ArrayFloat2D,
-                    lines: ArrayFloat3D,
+                    lines: LinesVertices,
                     excitation_types: ArrayInt1D,
                     excitation_values: ArrayFloat1D,
                     jac_buffer: Jacobians2D,
@@ -730,7 +730,7 @@ def fill_matrix_radial(matrix: ArrayFloat2D,
      
     backend_lib.fill_matrix_radial(matrix, lines, excitation_types, excitation_values, jac_buffer, pos_buffer, N, matrix.shape[0], start_index, end_index)
 
-def fill_jacobian_buffer_3d(vertices: ArrayFloat3D) -> Tuple[Jacobians3D, QuadPoints3D]:
+def fill_jacobian_buffer_3d(vertices: TrianglesVertices) -> Tuple[Jacobians3D, QuadPoints3D]:
     N = len(vertices)
     assert vertices.shape == (N, 3, 3)
     jac_buffer = np.zeros( (N, N_TRIANGLE_QUAD) )
@@ -742,7 +742,7 @@ def fill_jacobian_buffer_3d(vertices: ArrayFloat3D) -> Tuple[Jacobians3D, QuadPo
 
 
 def fill_matrix_3d(matrix: ArrayFloat2D,
-                vertices: ArrayFloat3D,
+                vertices: TrianglesVertices,
                 excitation_types: ArrayInt1D,
                 excitation_values: ArrayFloat1D,
                 jac_buffer: Jacobians3D,
@@ -761,7 +761,7 @@ def fill_matrix_3d(matrix: ArrayFloat2D,
      
     backend_lib.fill_matrix_3d(matrix, vertices, excitation_types, excitation_values, jac_buffer, pos_buffer, N, matrix.shape[0], start_index, end_index)
 
-def plane_intersection(positions: ArrayFloat2D, p0: Point3D, normal: Vector3D) -> ArrayFloat2D:
+def plane_intersection(positions: ArrayFloat2D, p0: Point3D, normal: Vector3D) -> ArrayFloat1D:
     assert p0.shape == (3,)
     assert normal.shape == (3,)
     assert positions.shape == (len(positions), 6)

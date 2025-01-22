@@ -13,7 +13,7 @@ very efficiently compute the axial derivatives of the potential.
 
 [1] P. Hawkes, E. Kasper. Principles of Electron Optics. Volume one: Basic Geometrical Optics. 2018.
 """
-
+from __future__ import annotations
 import time
 from abc import ABC, abstractmethod
 
@@ -25,6 +25,8 @@ from . import excitation as E
 from . import util
 from . import logging
 from . import backend
+
+from ._typing import *
 
 __pdoc__ = {}
 __pdoc__['EffectivePointCharges'] = False
@@ -41,8 +43,8 @@ class EffectivePointCharges:
         self.charges = np.array(charges, dtype=np.float64)
         self.jacobians = np.array(jacobians, dtype=np.float64)
         self.positions = np.array(positions, dtype=np.float64)
-        self.directions = directions # Current elements will have a direction
-
+        self.directions = np.array(directions, dtype=np.float64) if directions is not None else np.empty_like(positions) # Current elements will have a direction
+        
         N = len(self.charges)
         N_QUAD = self.jacobians.shape[1]
         assert self.charges.shape == (N,) and self.jacobians.shape == (N, N_QUAD)
@@ -369,7 +371,7 @@ class FieldRadialBEM(FieldBEM):
         positions = self.electrostatic_point_charges.positions
         return backend.potential_radial(point, charges, jacobians, positions)
     
-    def magnetostatic_field_at_point(self, point_):
+    def magnetostatic_field_at_point(self, point_: PointLike3D):
         """
         Compute the magnetic field \\( \\vec{H} \\)
         
