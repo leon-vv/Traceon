@@ -17,7 +17,7 @@ from scipy.integrate import quad
 from scipy.interpolate import CubicSpline
 
 from .mesher import GeometricObject, _mesh, Mesh
-from  ._typing import *
+from  .typing import *
 
 
 __pdoc__ = {}
@@ -36,7 +36,7 @@ __pdoc__['Surface.__call__'] = True
 def _points_close(p1: PointLike3D, p2: PointLike3D, tolerance: float = 1e-8) -> bool:
     return np.allclose(p1, p2, atol=tolerance)
 
-def discretize_path(path_length: float, breakpoints: list[float], mesh_size: float | None, mesh_size_factor: float | None = None, N_factor: int = 1) -> NDArray[np.floating]:
+def discretize_path(path_length: float, breakpoints: list[float], mesh_size: float | None, mesh_size_factor: float | None = None, N_factor: int = 1) -> ArrayFloat1D:
     assert mesh_size is not None or mesh_size_factor is not None
     
     # Return the arguments to use to breakup the path

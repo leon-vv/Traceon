@@ -23,7 +23,7 @@ from .backend import N_QUAD_2D
 from .logging import log_error
 
 
-from ._typing import * 
+from .typing import *
 
 class Symmetry(IntEnum):
     """Symmetry to be used for solver. Used when deciding which formulas to use in the Boundary Element Method. The currently

@@ -2,7 +2,6 @@ from __future__ import annotations
 from math import sqrt
 import numpy as np
 import time
-from typing import Callable, Any
 from itertools import chain
 from abc import ABC, abstractmethod
 import ctypes as C
@@ -15,7 +14,7 @@ from .backend import triangle_areas
 from .logging import log_debug
 from . import backend as B
 
-from ._typing import *
+from .typing import *
 
 __pdoc__ = {}
 __pdoc__['Points3DWithQuads'] = False
@@ -170,7 +169,7 @@ class GeometricObject(ABC):
         return self.map_points(lambda p: np.array([p[0], p[1], -p[2]]))
  
 
-def _concat_arrays(arr1: NDArray[Any], arr2: NDArray[Any]) -> NDArray[Any]:
+def _concat_arrays(arr1: np.ndarray, arr2: np.ndarray) -> np.ndarray:
     if not len(arr1):
         return np.copy(arr2)
     if not len(arr2):
@@ -295,8 +294,8 @@ class Mesh(Saveable, GeometricObject):
             self.lines = old_to_new_indices[self.lines]
     
     @staticmethod
-    def _merge_dicts(dict1: Mapping[str, NDArray[Any]], dict2: Mapping[str, NDArray[Any]]) -> dict[str, NDArray[Any]]:
-        dict_: dict[str, NDArray[Any]] = {}
+    def _merge_dicts(dict1: Mapping[str, np.ndarray], dict2: Mapping[str, np.ndarray]) -> dict[str, np.ndarray]:
+        dict_: dict[str, np.ndarray] = {}
         
         for (k, v) in chain(dict1.items(), dict2.items()):
             if k in dict_:
@@ -1074,7 +1073,7 @@ def _mesh_subsections_to_quads(surface: Surface, mesh_size: float, start_depth: 
 
     return np.array(points), all_pstacks, np.array(all_quads)
     
-def _copy_over_edge(e1: NDArray[np.integer], e2: NDArray[np.integer]) -> None:
+def _copy_over_edge(e1: ArrayInt1D, e2: ArrayInt1D) -> None:
     assert e1.shape == e2.shape
     mask = e2 != -1
     e1[mask] = e2[mask]

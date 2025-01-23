@@ -19,7 +19,7 @@ import vedo.colors
 
 from . import backend
 
-from ._typing import *
+from .typing import *
 
 _current_figures = []
 
@@ -263,8 +263,8 @@ def _get_vedo_grid(field: Field, surface: Surface, N0: int, N1: int) -> vedo.Gri
 
     return grid
     
-def _create_point_to_physical_dict(mesh: Mesh) -> dict[int, NDArray]:
-    d = {}
+def _create_point_to_physical_dict(mesh: Mesh) -> dict[int, ArrayFloat1D]:
+    d: dict[int, ArrayFloat1D] = {}
     
     for physical, elements in [(mesh.physical_to_lines, mesh.lines), (mesh.physical_to_triangles, mesh.triangles)]:
         for k, v in physical.items():

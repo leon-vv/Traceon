@@ -26,7 +26,7 @@ from . import util
 from . import tracing as T
 
 from .field import *
-from ._typing import *
+from .typing import *
 
 __pdoc__ = {}
 __pdoc__['EffectivePointCharges'] = False
@@ -68,7 +68,7 @@ class Solver(ABC):
         self.jac_buffer, self.pos_buffer = self.get_jacobians_and_positions(self.vertices)
 
     @abstractmethod
-    def get_jacobians_and_positions(self, vertices: LinesVertices | TrianglesVertices) -> tuple[Jacobians2D, QuadPoints2D] | tuple[Jacobians3D, QuadPoints3D]:
+    def get_jacobians_and_positions(self, vertices: LinesVertices | TrianglesVertices) -> tuple[Jacobians2D, LinesQuadPoints] | tuple[Jacobians3D, TrianglesQuadPoints]:
         ...
      
     @abstractmethod
@@ -117,7 +117,7 @@ class Solver(ABC):
         to for example support permanent magnets."""
         ...
      
-    def get_right_hand_side(self) -> NDArray[np.floating]:
+    def get_right_hand_side(self) -> ArrayFloat1D:
         st = time.time()
         N = self.get_number_of_matrix_elements()
         F = np.zeros((N,))
@@ -201,7 +201,7 @@ class SolverRadial(Solver):
     def get_normal_vectors(self) -> Vectors2D:
         return self.normals
     
-    def get_jacobians_and_positions(self, vertices: LinesVertices) -> tuple[Jacobians2D, QuadPoints2D]:
+    def get_jacobians_and_positions(self, vertices: LinesVertices) -> tuple[Jacobians2D, LinesQuadPoints]:
         
         return backend.fill_jacobian_buffer_radial(vertices)
     
@@ -229,7 +229,7 @@ class SolverRadial(Solver):
                 self.excitation_types,
                 self.excitation_values,
                 cast(Jacobians2D, self.jac_buffer),
-                cast(QuadPoints2D, self.pos_buffer),
+                cast(LinesQuadPoints, self.pos_buffer),
                 rows[0],
                 rows[-1])
 
@@ -316,7 +316,7 @@ class MagnetostaticSolverRadial(SolverRadial):
         return FieldRadialBEM(magnetostatic_point_charges=EffectivePointCharges(np.array(charges), np.array(jacobians), np.array(positions)))
      
     def get_current_field(self) -> FieldRadialBEM:
-        currents: list[NDArray[np.floating]] = []
+        currents: list[Vector3D] = []
         jacobians = []
         positions = []
         

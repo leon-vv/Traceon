@@ -21,7 +21,7 @@ from scipy.constants import m_e, e, mu_0
 from . import backend
 from . import logging
 
-from ._typing import * 
+from .typing import * 
 
 def velocity_vec(eV: float, direction_: VectorLike3D) -> Vector3D:
     """Compute an initial velocity vector in the correct units and direction.
