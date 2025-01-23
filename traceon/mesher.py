@@ -1054,7 +1054,7 @@ def _subdivide_quads(pstack: PointStack,
         else: # We are done, both sides are within mesh size limits
             quads.append((depth, i0, i1, j0, j1))
 
-def _mesh_subsections_to_quads(surface: Surface, mesh_size: float, start_depth: int) -> tuple[Points3D, list[PointStack], Quads]:
+def _mesh_subsections_to_quads(surface: Surface, mesh_size: float, start_depth: int) -> tuple[list[Point3D], list[PointStack], list[QuadsLike]]:
     all_pstacks = []
     all_quads = []
     points: list[Point3D] = []
@@ -1071,7 +1071,7 @@ def _mesh_subsections_to_quads(surface: Surface, mesh_size: float, start_depth: 
         all_quads.append(quads)
         points = pstack.points
 
-    return np.array(points), all_pstacks, np.array(all_quads)
+    return points, all_pstacks, all_quads
     
 def _copy_over_edge(e1: ArrayInt1D, e2: ArrayInt1D) -> None:
     assert e1.shape == e2.shape

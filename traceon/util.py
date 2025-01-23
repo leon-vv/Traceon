@@ -7,7 +7,7 @@ import pickle
 from .backend import DEBUG
 from . import logging
 
-from ._typing import *
+from .typing import *
 
 class Saveable:
     def write(self, filename: str) -> None:

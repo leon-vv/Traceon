@@ -1,4 +1,4 @@
-from future import __annotations__
+from __future__ import annotations
 
 from ._array_like import(
     ArrayFloat, ArrayFloat1D, ArrayFloat2D, ArrayFloat3D, ArrayFloat4D, ArrayFloat5D,
