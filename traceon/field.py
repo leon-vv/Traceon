@@ -138,6 +138,9 @@ class Field(GeometricObject,ABC):
         transformation_matrix = np.eye(4)
         transformation_matrix[:3, :3] = self._basis
         transformation_matrix[:3, 3] = self._origin
+
+        assert np.linalg.det(transformation_matrix) != 0, ("Transformations of field have resulted in a two-dimensional coordinate system. "
+                                                           "Please only use affine transformations.")
         self._inverse_transformation_matrix = np.linalg.inv(transformation_matrix)
 
     def copy(self):
@@ -145,15 +148,13 @@ class Field(GeometricObject,ABC):
     
     def map_points(self, fun):
         field_copy = self.copy()
-        new_origin = fun(self._origin)
-        assert new_origin.shape == (3,)
-        field_copy._origin = new_origin
         
-        new_basis = np.array([fun(b + self._origin) - field_copy._origin for b in self._basis])
-        assert new_basis.shape == (3,3), "Please supply basis as a (3,3) array"
-        assert np.linalg.det(new_basis) != 0, "Please supply a non-singular basis"
-        field_copy._basis = new_basis
-
+        field_copy._origin = fun(self._origin)
+        assert field_copy._origin.shape == (3,), "Transformation of field did not map origin to a 3D point"
+        
+        field_copy._basis = np.array([fun(b + self._origin) - field_copy._origin for b in self._basis])
+        assert field_copy._basis.shape == (3,3), "Transformation of field did not map unit vectors to a 3D vector"
+        
         field_copy._update_inverse_transformation_matrix()
         return field_copy
 
