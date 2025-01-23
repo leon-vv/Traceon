@@ -1,4 +1,13 @@
 from __future__ import annotations
+import sys 
+
+from typing import TYPE_CHECKING, Any, cast
+from collections.abc import Callable, Generator, Iterator, Mapping, Sequence
+
+if sys.version_info >= (3, 11):
+    from typing import Self
+else:
+    from typing_extensions import Self
 
 from ._array_like import(
     ArrayFloat, ArrayFloat1D, ArrayFloat2D, ArrayFloat3D, ArrayFloat4D, ArrayFloat5D,

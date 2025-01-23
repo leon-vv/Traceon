@@ -1,9 +1,11 @@
 from __future__ import annotations
-from typing import TYPE_CHECKING, Any, Self, cast
-from collections.abc import Callable, Generator, Iterator, Mapping, Sequence
+
 
 from ._typing import (
-    # Array-Like types
+    # general
+    TYPE_CHECKING, Any, cast, Self, Callable, Generator, Iterator, Mapping, Sequence,
+
+    # Array-like types
     ArrayFloat, ArrayFloat1D, ArrayFloat2D, ArrayFloat3D, ArrayFloat4D, ArrayFloat5D,
     ArrayLikeFloat, ArrayLikeFloat1D, ArrayLikeFloat2D, ArrayLikeFloat3D, ArrayLikeFloat4D, ArrayLikeFloat5D,
     ArrayInt, ArrayInt1D, ArrayInt2D, ArrayInt3D, ArrayInt4D,
@@ -21,13 +23,12 @@ from ._typing import (
     PointTransformFunction,
     Bounds2D, BoundsLike2D, Bounds3D, BoundsLike3D,
 
-    # Mesh Types
+    # Mesh types
     Line, LineLike, Lines, LinesLike,
     Triangle, TriangleLike, Triangles, TrianglesLike,
     Quad, QuadLike, Quads, QuadsLike,
     LineVertices, LinesVertices, Triangles, TrianglesVertices,
-    ActiveLines, ActiveTriangles
-
+    ActiveLines, ActiveTriangles,
 )
 
 if TYPE_CHECKING:
@@ -35,9 +36,7 @@ if TYPE_CHECKING:
     from .mesher import Mesh
     from .excitation import Excitation
     from .field import EffectivePointCharges, Field, FieldBEM, FieldRadialBEM
-    try: 
-        from traceon_pro.field import Field3DBEM # type: ignore
+    try:
+        from traceon_pro.field import Field3DBEM  # type: ignore
     except ImportError:
-        Field3DBEM = Any
-
-
+        Field3DBEM = None  # Fallback for unavailable import
