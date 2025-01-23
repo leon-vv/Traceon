@@ -1,7 +1,11 @@
 from __future__ import annotations
-
+import sys
 from collections.abc import Sequence
-from typing import TypeAlias
+
+if sys.version_info >= (3, 10):
+    from typing import TypeAlias
+else:
+    from typing_extensions import TypeAlias
 
 import numpy as np
 

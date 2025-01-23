@@ -1,6 +1,13 @@
 from __future__ import annotations
-from typing import Literal, TypeAlias
+import sys
+from typing import Literal
 from collections.abc import Callable, Sequence
+
+if sys.version_info >= (3, 10):
+    from typing import TypeAlias
+else:
+    from typing_extensions import TypeAlias
+
 import numpy as np
 from ._array_like import _NumpyFloat
 
