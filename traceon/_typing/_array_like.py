@@ -9,8 +9,12 @@ else:
 
 import numpy as np
 
-_NumpyFloat: TypeAlias = np.dtype[np.floating]
-_NumpyInt: TypeAlias = np.dtype[np.integer]
+if sys.version_info >= (3, 9):
+    _NumpyFloat: TypeAlias = np.dtype[np.floating]
+    _NumpyInt: TypeAlias = np.dtype[np.integer]
+else:
+    _NumpyFloat: TypeAlias = np.dtype
+    _NumpyInt: TypeAlias = np.dtype
 
 _ShapeLike: TypeAlias = tuple[int, ...]
 
