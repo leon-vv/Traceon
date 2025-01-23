@@ -1,11 +1,12 @@
 """
 Module containing a single function to find the focus of a beam of electron trajecories.
 """
-
+from __future__ import annotations
 import numpy as np
 
+from .typing import * 
 
-def focus_position(positions):
+def focus_position(positions: ArrayFloat2D) -> Point3D:
     """
     Find the focus of the given trajectories (which are returned from `traceon.tracing.Tracer.__call__`).
     The focus is found using a least square method by considering the final positions and velocities of
