@@ -171,7 +171,7 @@ class EffectivePointCurrents3D(C.Structure):
         assert currents.shape == (N,) and currents.dtype == np.double
         assert eff.jacobians.shape == (N, N_QUAD_2D) and eff.jacobians.dtype == np.double
         assert eff.positions.shape == (N, N_QUAD_2D, 3) and eff.positions.dtype == np.double
-        assert eff.directions.shape == (N, N_QUAD_2D, 3) and eff.directions.dtype == np.double
+        assert eff.directions is not None and eff.directions.shape == (N, N_QUAD_2D, 3) and eff.directions.dtype == np.double
 
         # Beware, we need to keep references to the arrays pointed to by the C.Structure
         # otherwise, they are garbage collected and bad things happen
@@ -717,7 +717,7 @@ def fill_matrix_radial(matrix: ArrayFloat2D,
                     jac_buffer: Jacobians2D,
                     pos_buffer: QuadPoints2D,
                     start_index: int, 
-                    end_index: int):
+                    end_index: int) -> None:
     N = len(lines)
     assert np.all(lines[:, :, 1] == 0.0)
     assert matrix.shape[0] == N and matrix.shape[1] == N and matrix.shape[0] == matrix.shape[1]

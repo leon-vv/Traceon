@@ -1,14 +1,13 @@
 from __future__ import annotations
 import os
 from threading import Thread
-from typing import Any
-from collections.abc import Callable
-from numpy.typing import NDArray
 import numpy as np
 import pickle
 
 from .backend import DEBUG
 from . import logging
+
+from ._typing import *
 
 class Saveable:
     def write(self, filename: str) -> None:
@@ -55,7 +54,7 @@ def get_number_of_threads() -> int:
     # for at least modern Intel and AMD CPU's.
     return cpu_count // 2
 
-def split_collect(f: Callable[[Any], Any], array: NDArray[Any]) -> list[NDArray[np.floating]]:
+def split_collect(f: Callable[[Any], Any], array: np.ndarray) -> list[ArrayFloat1D]:
     
     if DEBUG:
         logging.log_debug(f'Running function \'{f.__name__}\' on a single thread since DEBUG=True')

@@ -43,7 +43,7 @@ class EffectivePointCharges:
         self.charges = np.array(charges, dtype=np.float64)
         self.jacobians = np.array(jacobians, dtype=np.float64)
         self.positions = np.array(positions, dtype=np.float64)
-        self.directions = np.array(directions, dtype=np.float64) if directions is not None else np.empty_like(positions) # Current elements will have a direction
+        self.directions = np.array(directions, dtype=np.float64) if directions is not None else None # Current elements will have a direction
         
         N = len(self.charges)
         N_QUAD = self.jacobians.shape[1]

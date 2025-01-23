@@ -44,7 +44,6 @@ import numpy as np
 
 _NumpyFloat: TypeAlias = np.dtype[np.floating]
 _NumpyInt: TypeAlias = np.dtype[np.integer]
-_NumpySignedInt: TypeAlias = np.dtype[np.signedinteger]
 
 ShapeLike: TypeAlias = tuple[int, ...]
 

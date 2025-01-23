@@ -100,7 +100,7 @@ class Figure:
         self.to_plot.append(grid)
         self.to_plot.append(isolines)
     
-    def plot_trajectories(self, trajectories: Sequence[NDArray[np.floating]], 
+    def plot_trajectories(self, trajectories: ArrayLikeFloat2D, 
                 xmin: float | None = None, xmax: float | None = None,
                 ymin: float | None = None, ymax: float | None = None,
                 zmin: float | None = None, zmax: float | None = None,
@@ -122,6 +122,7 @@ class Figure:
         line_width: int
             Width of the trajectory lines
         """
+        trajectories = np.array(trajectories)
         for t in trajectories:
             if not len(t):
                 continue
