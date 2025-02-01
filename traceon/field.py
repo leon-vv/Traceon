@@ -129,6 +129,15 @@ class Field(GeometricObject,ABC):
         self.field_bounds = None
 
     def get_origin(self):
+        """
+        Get the origin of the field in the global coordinate system. This is the position
+        that the origin (0, 0, 0) was transformed to by using methods from `traceon.mesher.GeometricObject`.
+
+        Returns
+        -----------------------------
+        numpy.ndarray
+            Float array of shape (3,)
+        """
         return self._origin.copy()
     
     def get_basis(self):
