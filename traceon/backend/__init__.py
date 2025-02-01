@@ -681,13 +681,13 @@ def fill_matrix_radial(matrix: np.ndarray,
                     start_index: int, end_index: int):
     N = len(lines)
     assert np.all(lines[:, :, 1] == 0.0)
-    assert matrix.shape[0] == N and matrix.shape[1] == N and matrix.shape[0] == matrix.shape[1]
+    assert matrix.shape == (N, N)
     assert lines.shape == (N, 4, 3)
     assert excitation_types.shape == (N,)
     assert excitation_values.shape == (N,)
     assert jac_buffer.shape == (N, N_QUAD_2D)
     assert pos_buffer.shape == (N, N_QUAD_2D, 2)
-    assert 0 <= start_index < N and 0 <= end_index < N and start_index < end_index
+    assert 0 <= start_index < N and 0 <= end_index < N and start_index <= end_index, (start_index, end_index, N)
      
     backend_lib.fill_matrix_radial(matrix, lines, excitation_types, excitation_values, jac_buffer, pos_buffer, N, matrix.shape[0], start_index, end_index)
 
