@@ -137,8 +137,11 @@ class Tracer:
         bounds_str = ' '.join([f'({bmin:.2f}, {bmax:.2f})' for bmin, bmax in self.bounds])
         return f'<Traceon Tracer of {field_name},\n\t' \
             + 'Bounds: ' + bounds_str + ' mm >'
+
+    def __call__(self, *args, **kwargs):
+        return self.trace_single(*args, **kwargs)
     
-    def __call__(self, position, velocity, mass=m_e, charge=-e, atol=1e-8):
+    def trace_single(self, position, velocity, mass=m_e, charge=-e, atol=1e-8):
         """Trace a charged particle.
 
         Parameters
@@ -174,6 +177,61 @@ class Tracer:
                 self.bounds,
                 atol,
                 self.trace_args)
+    
+    @staticmethod
+    def _normalize_input_shapes(position, velocity, mass, charge):
+        position = np.array(position, dtype=np.float64)
+        velocity = np.array(velocity, dtype=np.float64)
+        mass = np.array(mass, dtype=np.float64)
+        charge = np.array(charge, dtype=np.float64)
+
+        if position.shape == (3,):
+            position = position[np.newaxis] # Ensure position has shape (N, 3) with N=1
+
+        # Normalize shape against one another
+        # So that they both have shape (N, 3)
+        position, velocity = np.broadcast_arrays(position, velocity)
+
+        N = len(position)
+
+        mass = np.broadcast_to(mass, shape=(N,))
+        charge = np.broadcast_to(charge, shape=(N,))
+        
+        return [np.copy(backend.ensure_contiguous_aligned(arr)) for arr in [position, velocity, mass, charge]]
+    
+    def trace_multiple(self, position, velocity, mass=m_e, charge=-e, atol=1e-8):
+        """Trace multiple charged particles. Numpy broadcasting rules apply if one 
+        of the inputs does not have enough elements. For example, if all particles have the
+        same charge simply pass in a float for the 'charge' input.
+        
+        Parameters
+        ----------
+        position: (N, 3) np.ndarray of float64
+            Initial positions of the particle.
+        velocity: (N, 3) np.ndarray of float64
+            Initial velocities (expressed in a vector whose magnitude has units of eV). Use one of the utility functions documented
+            above to create the initial velocity vector.
+        mass: float or (N,)
+            Particle masses in kilogram (kg). The default value is the electron mass: m_e = 9.1093837015e-31 kg.
+        charge: float or (N,)
+            Particle charges in Coulomb (C). The default value is the electron charge: -1 * e = -1.602176634e-19 C.
+        atol: float
+            Absolute tolerance determining the accuracy of the trace.
+        
+        Returns
+        -------
+        list of (times, positions)
+            See documentation of `Tracer.trace_single`
+        """
+
+        positions, velocities, masses, charges = Tracer._normalize_input_shapes(position, velocity, mass, charge)
+
+        N = len(positions)
+
+        assert positions.shape == (N, 3) and velocities.shape == (N, 3), "Position or velocity array has unexpected shape"
+        assert masses.shape == (N,) and charges.shape == (N,), "mass or charge input has unexpected shape"
+
+        return [self.trace_single(p, v, mass=m, charge=c, atol=atol) for p, v, m, c in zip(positions, velocities, masses, charges)]
 
 def plane_intersection(positions, p0, normal):
     """Compute the intersection of a trajectory with a general plane in 3D. The plane is specified

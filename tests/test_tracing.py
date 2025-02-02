@@ -11,6 +11,7 @@ import traceon.geometry as G
 import traceon.excitation as E
 import traceon.backend as B
 import traceon.solver as S
+import traceon.field as F
 import traceon.tracing as T
 from traceon.field import FieldRadialAxial
 
@@ -38,7 +39,38 @@ class TestTracing(unittest.TestCase):
 
         assert np.allclose(correct_x, positions[:, 0])
         assert np.allclose(correct_z, positions[:, 2])
+    
+    def test_tracing_multiple_constant_acceleration(self):
+        # Same test as above but using a custom field and the trace_many function
 
+        class ConstantField(F.Field):
+            def is_electrostatic(self):
+                return True
+            def is_magnetostatic(self):
+                return False
+            def magnetostatic_field_at_point(self, point):
+                return np.zeros(3)
+            def electrostatic_potential_at_point(self):
+                return 0.0
+            def electrostatic_field_at_point(self, point):
+                acceleration = np.array([3., 0., 0.])
+                return acceleration * m_e/(-e)
+        
+        bounds = ((-2.0, 2.0), (-2.0, 2.0), (-2.0, np.sqrt(12)+1))
+
+        tracer = T.Tracer(ConstantField(), bounds)
+         
+        speed = 3.
+        eV = (0.5 * m_e * speed**2)/e
+        result = tracer.trace_multiple([np.zeros(3), np.zeros(3)], T.velocity_vec(eV, [0., 0., 1.]))
+        
+        for times, positions in result:
+            correct_x = 3/2*times**2
+            correct_z = 3*times
+            
+            assert np.allclose(correct_x, positions[:, 0])
+            assert np.allclose(correct_z, positions[:, 2])
+    
     def test_tracing_helix_against_scipy(self):
         def acceleration(_, y):
             v = y[3:]
