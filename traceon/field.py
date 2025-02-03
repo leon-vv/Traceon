@@ -26,7 +26,7 @@ from . import util
 from . import logging
 from . import backend
 
-from ._typing import *
+from .typing import *
 
 __pdoc__ = {}
 __pdoc__['EffectivePointCharges'] = False

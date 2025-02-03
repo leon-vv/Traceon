@@ -68,7 +68,7 @@ class Solver(ABC):
         self.jac_buffer, self.pos_buffer = self.get_jacobians_and_positions(self.vertices)
 
     @abstractmethod
-    def get_jacobians_and_positions(self, vertices: LinesVertices | TrianglesVertices) -> tuple[Jacobians2D, LinesQuadPoints] | tuple[Jacobians3D, TrianglesQuadPoints]:
+    def get_jacobians_and_positions(self, vertices: LinesVertices | TrianglesVertices) -> tuple[ArrayFloat2D, ArrayFloat3D] | tuple[ArrayFloat2D, ArrayFloat3D]:
         ...
      
     @abstractmethod
@@ -201,7 +201,7 @@ class SolverRadial(Solver):
     def get_normal_vectors(self) -> Vectors2D:
         return self.normals
     
-    def get_jacobians_and_positions(self, vertices: LinesVertices) -> tuple[Jacobians2D, LinesQuadPoints]:
+    def get_jacobians_and_positions(self, vertices: LinesVertices) -> tuple[ArrayFloat2D, ArrayFloat3D]:
         
         return backend.fill_jacobian_buffer_radial(vertices)
     
@@ -225,11 +225,11 @@ class SolverRadial(Solver):
         def fill_matrix_rows(rows: ArrayInt1D) -> None:
             fill_fun(
                 matrix,
-                cast(LinesVertices, self.vertices),
+                self.vertices,
                 self.excitation_types,
                 self.excitation_values,
-                cast(Jacobians2D, self.jac_buffer),
-                cast(LinesQuadPoints, self.pos_buffer),
+                self.jac_buffer,
+                self.pos_buffer,
                 rows[0],
                 rows[-1])
 
@@ -260,7 +260,7 @@ class ElectrostaticSolverRadial(SolverRadial):
         return np.zeros(3)
     
     def get_active_elements(self) -> ActiveLines:
-        return cast(ActiveLines, self.excitation.get_electrostatic_active_elements())
+        return self.excitation.get_electrostatic_active_elements()
        
     def charges_to_field(self, charges: EffectivePointCharges) -> FieldRadialBEM:
         return FieldRadialBEM(electrostatic_point_charges=charges)
@@ -272,7 +272,7 @@ class MagnetostaticSolverRadial(SolverRadial):
         self.preexisting_field = self.get_current_field() + self.get_permanent_magnet_field()
 
     def get_active_elements(self) -> ActiveLines:
-        return cast(ActiveLines, self.excitation.get_magnetostatic_active_elements())
+        return self.excitation.get_magnetostatic_active_elements()
     
     def get_preexisting_field(self, point: PointLike3D) -> Vector3D:
         return self.preexisting_field.magnetostatic_field_at_point(point)

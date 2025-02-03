@@ -154,7 +154,7 @@ class Path(GeometricObject):
         The average value of the function along the point."""
         return quad(lambda s: fun(self(s)), 0, self.path_length, points=self.breakpoints)[0]/self.path_length
      
-    def map_points(self, fun: PointTransformFunction) -> Path:
+    def map_points(self, fun: Callable[[PointLike3D], Point3D]) -> Path:
         """Return a new function by mapping a function over points along the path (see `traceon.mesher.GeometricObject`).
         The path length is assumed to stay the same after this operation.
         
@@ -307,7 +307,7 @@ class Path(GeometricObject):
         Returns
         ---------------------------------
         Path"""
-        def f(u):
+        def f(u: float) -> Point3D:
             theta = u / radius 
             return np.array([radius*cos(theta), 0., radius*sin(theta)])
         return Path(f, angle*radius).move(dx=x0, dz=z0)
@@ -330,7 +330,7 @@ class Path(GeometricObject):
         Returns
         ---------------------------------
         Path"""
-        def f(u):
+        def f(u: float) -> Point3D:
             theta = u / radius 
             return np.array([0., radius*cos(theta), radius*sin(theta)])
         return Path(f, angle*radius).move(dy=y0, dz=z0)
@@ -353,7 +353,7 @@ class Path(GeometricObject):
         Returns
         ---------------------------------
         Path"""
-        def f(u):
+        def f(u: float) -> Point3D:
             theta = u / radius 
             return np.array([radius*cos(theta), radius*sin(theta), 0.])
         return Path(f, angle*radius).move(dx=x0, dy=y0)
@@ -430,7 +430,7 @@ class Path(GeometricObject):
         r_avg = self.average(lambda p: sqrt(p[1]**2 + p[2]**2))
         length2 = 2*pi*r_avg
          
-        def f(u, v):
+        def f(u: float, v: float) -> Point3D:
             p = self(u)
             theta = atan2(p[2], p[1])
             r = sqrt(p[1]**2 + p[2]**2)
@@ -453,7 +453,7 @@ class Path(GeometricObject):
         r_avg = self.average(lambda p: sqrt(p[0]**2 + p[2]**2))
         length2 = 2*pi*r_avg
          
-        def f(u, v):
+        def f(u: float, v: float) -> Point3D:
             p = self(u)
             theta = atan2(p[2], p[0])
             r = sqrt(p[0]*p[0] + p[2]*p[2])
@@ -476,7 +476,7 @@ class Path(GeometricObject):
         r_avg = self.average(lambda p: sqrt(p[0]**2 + p[1]**2))
         length2 = 2*pi*r_avg
         
-        def f(u, v):
+        def f(u: float, v: float) -> Point3D:
             p = self(u)
             theta = atan2(p[1], p[0])
             r = sqrt(p[0]*p[0] + p[1]*p[1])
@@ -499,7 +499,7 @@ class Path(GeometricObject):
         vector = np.array(vector)
         length = float(np.linalg.norm(vector))
          
-        def f(u, v):
+        def f(u: float, v: float) -> Point3D:
             return self(u) + v/length*vector
         
         return Surface(f, self.path_length, length, self.breakpoints, name=self.name)
@@ -890,11 +890,11 @@ class PathCollection(GeometricObject):
         for path in self.paths:
             path.name = name
      
-    def map_points(self, fun: PointTransformFunction) -> PathCollection:
+    def map_points(self, fun: Callable[[PointLike3D], Point3D]) -> PathCollection:
         return PathCollection([p.map_points(fun) for p in self.paths])
      
     def mesh(self, 
-             mesh_size: float| None = None, 
+             mesh_size: float | None = None, 
              mesh_size_factor: float | None = None, 
              higher_order: bool = False, 
              name: str | None = None, 
@@ -944,7 +944,7 @@ class PathCollection(GeometricObject):
     def __getitem__(self, index: int | slice) -> Path | PathCollection:
         selection = np.array(self.paths, dtype=object).__getitem__(index)
         if isinstance(selection, np.ndarray):
-            return PathCollection(selection.tolist())
+            return PathCollection(cast(list[Path], selection.tolist()))
         else:
             return selection
     
@@ -1013,7 +1013,7 @@ class Surface(GeometricObject):
         (3,) np.ndarray of double"""
         return self.fun(u, v)
 
-    def map_points(self, fun: PointTransformFunction) -> Surface:
+    def map_points(self, fun: Callable[[PointLike3D], Point3D]) -> Surface:
         return Surface(lambda u, v: fun(self(u, v)),
             self.path_length1, self.path_length2,
             self.breakpoints1, self.breakpoints2, name=self.name)
@@ -1040,7 +1040,7 @@ class Surface(GeometricObject):
         length_final = float(np.linalg.norm(path1.endpoint() - path2.endpoint()))
         length2 = (length_start + length_final)/2
          
-        def f(u, v):
+        def f(u: float, v: float) -> Point3D:
             p1 = path1(u/length1*path1.path_length) # u/l*p = b, u = l*b/p
             p2 = path2(u/length1*path2.path_length)
             return (1-v/length2)*p1 + v/length2*p2
@@ -1067,7 +1067,7 @@ class Surface(GeometricObject):
         length1 = 2*pi*radius
         length2 = pi*radius
          
-        def f(u, v):
+        def f(u: float, v: float ) -> Point3D:
             phi = u/radius
             theta = v/radius
             
@@ -1137,7 +1137,7 @@ class Surface(GeometricObject):
         path_length_p1_and_p3 = (p1.path_length + p3.path_length)/2
         path_length_p2_and_p4 = (p2.path_length + p4.path_length)/2
 
-        def f(u, v):
+        def f(u: float, v: float) -> Point3D:
             u /= path_length_p1_and_p3
             v /= path_length_p2_and_p4
             
@@ -1565,7 +1565,7 @@ class SurfaceCollection(GeometricObject):
         for surf in self.surfaces:
             surf.name = name
      
-    def map_points(self, fun: PointTransformFunction) -> SurfaceCollection:
+    def map_points(self, fun: Callable[[PointLike3D], Point3D]) -> SurfaceCollection:
         return SurfaceCollection([s.map_points(fun) for s in self.surfaces])
      
     def mesh(self, 
@@ -1606,9 +1606,10 @@ class SurfaceCollection(GeometricObject):
         return self
         
     def __getitem__(self, index: int | slice) -> Surface | SurfaceCollection:
-        selection = np.array(self.surfaces, dtype=object).__getitem__(index)
+        selection = np.array(self.surfaces, dtype=Surface).__getitem__(index)
         if isinstance(selection, np.ndarray):
-            return SurfaceCollection(selection.tolist())
+
+            return SurfaceCollection(cast(list[Surface], selection.tolist()))
         else:
             return selection
     

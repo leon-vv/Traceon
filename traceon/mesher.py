@@ -27,7 +27,7 @@ class GeometricObject(ABC):
     of `traceon.mesher.GeometricObject`. This means that they all can be moved, rotated, mirrored."""
     
     @abstractmethod
-    def map_points(self, fun: PointTransformFunction) -> Self:
+    def map_points(self, fun: Callable[[PointLike3D], Point3D]) -> Self:
         """Create a new geometric object, by mapping each point by a function.
         
         Parameters
@@ -234,7 +234,7 @@ class Mesh(Saveable, GeometricObject):
         bool"""
         return isinstance(self.lines, np.ndarray) and len(self.lines.shape) == 2 and self.lines.shape[1] == 4
     
-    def map_points(self, fun: PointTransformFunction) -> Mesh:
+    def map_points(self, fun: Callable[[PointLike3D], Point3D]) -> Mesh:
         """See `GeometricObject`
 
         """
@@ -598,7 +598,7 @@ class Mesh(Saveable, GeometricObject):
             f'\tPhysical triangles: {physical_triangles}\n' \
             f'\tElements in physical triangle groups: {physical_triangles_nums}>'
 
-    def _ensure_normal_orientation_triangles(self, electrode : str, outwards : bool) -> None:
+    def _ensure_normal_orientation_triangles(self, electrode: str, outwards: bool) -> None:
         assert electrode in self.physical_to_triangles, "electrode should be part of mesh"
         
         triangle_indices = self.physical_to_triangles[electrode]

@@ -542,7 +542,7 @@ def dr1_potential_radial_ring(r0: float, z0: float, delta_r: float, delta_z: flo
 def dz1_potential_radial_ring(r0: float, z0: float, delta_r: float, delta_z: float) -> float:
     return backend_lib.dz1_potential_radial_ring(r0, z0, delta_r, delta_z, None)
 
-def axial_derivatives_radial(z: ArrayFloat1D, charges: ArrayFloat1D, jac_buffer: Jacobians2D, pos_buffer: LinesQuadPoints) -> ArrayFloat1D:
+def axial_derivatives_radial(z: ArrayFloat1D, charges: ArrayFloat1D, jac_buffer: ArrayFloat2D, pos_buffer: ArrayFloat3D) -> ArrayFloat1D:
     derivs = np.zeros( (z.size, DERIV_2D_MAX) )
     
     assert jac_buffer.shape == (len(charges), N_QUAD_2D)
@@ -552,7 +552,7 @@ def axial_derivatives_radial(z: ArrayFloat1D, charges: ArrayFloat1D, jac_buffer:
     backend_lib.axial_derivatives_radial(derivs,charges, jac_buffer, pos_buffer, len(charges), z, len(z))
     return derivs
 
-def potential_radial(point: Point3D, charges: ArrayFloat1D, jac_buffer: Jacobians2D, pos_buffer: LinesQuadPoints) -> float:
+def potential_radial(point: Point3D, charges: ArrayFloat1D, jac_buffer: ArrayFloat2D, pos_buffer: ArrayFloat3D) -> float:
     assert point.shape == (3,)
     assert jac_buffer.shape == (len(charges), N_QUAD_2D)
     assert pos_buffer.shape == (len(charges), N_QUAD_2D, 2)
@@ -566,7 +566,7 @@ def charge_radial(vertices: Points3D, charge: float) -> float:
     assert vertices.shape == (len(vertices), 3)
     return backend_lib.charge_radial(vertices, charge)
 
-def field_radial(point: Point3D, charges: ArrayFloat1D, jac_buffer: Jacobians2D, pos_buffer: LinesQuadPoints) -> Vector3D:
+def field_radial(point: Point3D, charges: ArrayFloat1D, jac_buffer: ArrayFloat2D, pos_buffer: ArrayFloat2D) -> Vector3D:
     assert point.shape == (3,)
     assert jac_buffer.shape == (len(charges), N_QUAD_2D)
     assert pos_buffer.shape == (len(charges), N_QUAD_2D, 2)
@@ -586,7 +586,7 @@ def field_radial_derivs(point: Point3D, z: ArrayFloat1D, coeffs: ArrayFloat3D) -
 def flux_density_to_charge_factor(K: float) -> float:
     return backend_lib.flux_density_to_charge_factor(K)
 
-def axial_coefficients_3d(charges: ArrayFloat1D, jacobian_buffer: Jacobians3D, pos_buffer: TrianglesQuadPoints, z: ArrayFloat1D) -> ArrayFloat4D:
+def axial_coefficients_3d(charges: ArrayFloat1D, jacobian_buffer: ArrayFloat2D, pos_buffer: ArrayFloat3D, z: ArrayFloat1D) -> ArrayFloat:
     if len(charges) == 0:
         return np.zeros( (len(z), 2, NU_MAX, M_MAX) )
      
@@ -603,7 +603,7 @@ def axial_coefficients_3d(charges: ArrayFloat1D, jacobian_buffer: Jacobians3D, p
       
     return output_coeffs
 
-def fill_jacobian_buffer_current_three_d(lines: LinesVertices) -> tuple[Jacobians2D, LinesQuadPoints, LinesQuadPoints]:
+def fill_jacobian_buffer_current_three_d(lines: LinesVertices) -> tuple[ArrayFloat2D, ArrayFloat3D, ArrayFloat3D]:
     assert lines.shape == (len(lines), 2, 3)
 
     jacobians = np.zeros( (len(lines), N_QUAD_2D) )
@@ -614,13 +614,13 @@ def fill_jacobian_buffer_current_three_d(lines: LinesVertices) -> tuple[Jacobian
 
     return jacobians, positions, directions
 
-def potential_3d_derivs(point: Point3D, z: ArrayFloat1D, coeffs: ArrayFloat5D) -> float:
+def potential_3d_derivs(point: Point3D, z: ArrayFloat1D, coeffs: ArrayFloat) -> float:
     assert coeffs.shape == (len(z)-1, 2, NU_MAX, M_MAX, 4)
     assert point.shape == (3,)
     
     return backend_lib.potential_3d_derivs(point.astype(np.float64), z, coeffs, len(z))
 
-def field_3d_derivs(point: Point3D, z: ArrayFloat1D, coeffs: ArrayFloat5D) -> Vector3D:
+def field_3d_derivs(point: Point3D, z: ArrayFloat1D, coeffs: ArrayFloat) -> Vector3D:
     assert point.shape == (3,)
     assert coeffs.shape == (len(z)-1, 2, NU_MAX, M_MAX, 4)
 
@@ -631,7 +631,7 @@ def field_3d_derivs(point: Point3D, z: ArrayFloat1D, coeffs: ArrayFloat5D) -> Ve
 def current_potential_axial_radial_ring(z0: float, r: float, z: float) -> float:
     return backend_lib.current_potential_axial_radial_ring(z0, r, z)
 
-def current_potential_axial(z: float, currents: ArrayFloat1D, jac_buffer: Jacobians3D, pos_buffer: TrianglesQuadPoints) -> float:
+def current_potential_axial(z: float, currents: ArrayFloat1D, jac_buffer: ArrayFloat2D, pos_buffer: ArrayFloat3D) -> float:
     N = len(currents)
     assert currents.shape == (N,)
     assert jac_buffer.shape == (N, N_TRIANGLE_QUAD)
@@ -646,7 +646,7 @@ def current_field_radial_ring(x0: float, y0: float, x: float, y: float) -> Vecto
     backend_lib.current_field_radial_ring(x0, y0, x, y, res)
     return res
 
-def current_field_radial(p0: Point3D, currents: ArrayFloat1D, jac_buffer: Jacobians3D, pos_buffer: TrianglesQuadPoints) -> Vector3D:
+def current_field_radial(p0: Point3D, currents: ArrayFloat1D, jac_buffer: ArrayFloat2D, pos_buffer: ArrayFloat3D) -> Vector3D:
     assert p0.shape == (3,)
     N = len(currents)
     assert currents.shape == (N,)
@@ -659,7 +659,7 @@ def current_field_radial(p0: Point3D, currents: ArrayFloat1D, jac_buffer: Jacobi
     backend_lib.current_field_radial(p0, result, currents, jac_buffer, pos_buffer, N)
     return result
 
-def current_axial_derivatives_radial(z: ArrayFloat1D, currents: ArrayFloat1D, jac_buffer: Jacobians3D, pos_buffer: TrianglesQuadPoints) -> ArrayFloat2D:
+def current_axial_derivatives_radial(z: ArrayFloat1D, currents: ArrayFloat1D, jac_buffer: ArrayFloat2D, pos_buffer: ArrayFloat3D) -> ArrayFloat2D:
     N_z = len(z)
     N_vertices = len(currents)
 
@@ -673,7 +673,7 @@ def current_axial_derivatives_radial(z: ArrayFloat1D, currents: ArrayFloat1D, ja
     return derivs
 
 
-def fill_jacobian_buffer_radial(vertices: LinesVertices) -> tuple[Jacobians2D, LinesQuadPoints]:
+def fill_jacobian_buffer_radial(vertices: LinesVertices) -> tuple[ArrayFloat2D, ArrayFloat3D]:
     assert vertices.shape == (len(vertices), 4, 3)
     assert np.all(vertices[:, :, 1] == 0.)
         
@@ -713,8 +713,8 @@ def fill_matrix_radial(matrix: ArrayFloat2D,
                     lines: LinesVertices,
                     excitation_types: ArrayInt1D,
                     excitation_values: ArrayFloat1D,
-                    jac_buffer: Jacobians2D,
-                    pos_buffer: LinesQuadPoints,
+                    jac_buffer: ArrayFloat2D,
+                    pos_buffer: ArrayFloat3D,
                     start_index: int, 
                     end_index: int) -> None:
     N = len(lines)
@@ -729,7 +729,7 @@ def fill_matrix_radial(matrix: ArrayFloat2D,
      
     backend_lib.fill_matrix_radial(matrix, lines, excitation_types, excitation_values, jac_buffer, pos_buffer, N, matrix.shape[0], start_index, end_index)
 
-def fill_jacobian_buffer_3d(vertices: TrianglesVertices) -> tuple[Jacobians3D, TrianglesQuadPoints]:
+def fill_jacobian_buffer_3d(vertices: TrianglesVertices) -> tuple[ArrayFloat2D, ArrayFloat3D]:
     N = len(vertices)
     assert vertices.shape == (N, 3, 3)
     jac_buffer = np.zeros( (N, N_TRIANGLE_QUAD) )
@@ -744,8 +744,8 @@ def fill_matrix_3d(matrix: ArrayFloat2D,
                 vertices: TrianglesVertices,
                 excitation_types: ArrayInt1D,
                 excitation_values: ArrayFloat1D,
-                jac_buffer: Jacobians3D,
-                pos_buffer: TrianglesQuadPoints,
+                jac_buffer: ArrayFloat2D,
+                pos_buffer: ArrayFloat3D,
                 start_index: int, 
                 end_index: int):
     
