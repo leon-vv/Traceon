@@ -12,7 +12,7 @@ import traceon.excitation as E
 import traceon.backend as B
 import traceon.solver as S
 import traceon.tracing as T
-from traceon.field import FieldRadialAxial
+from traceon.field import *
 
 from tests.test_radial_ring import biot_savart_loop
 from tests.test_radial import get_ring_effective_point_charges
@@ -67,13 +67,16 @@ class TestTracing(unittest.TestCase):
             return np.hstack( (v, np.cross(v, B)) )
 
         class CustomField(S.Field):
-            def magnetostatic_field_at_point(self, point):
+            def magnetostatic_field_at_local_point(self, point):
                 return np.array([0, 0, 1])/(mu_0*EM)
             
-            def electrostatic_field_at_point(self, point):
+            def magnetostatic_potential_at_local_point(self, point):
+                return 1./(mu_0*EM)
+            
+            def electrostatic_field_at_local_point(self, point):
                 return np.array([0, 0, 0])
 
-            def electrostatic_potential_at_point(self):
+            def electrostatic_potential_at_local_point(self):
                 return 0.0
 
             def is_magnetostatic(self):
@@ -248,4 +251,40 @@ class TestTracing(unittest.TestCase):
         # State of particle at intersection of y-axis
         y_intersection = interp(0.)
         assert np.allclose(y_intersection, np.array([-1., 0, 0, 0, -1, 0]))
-     
+
+    def test_superposition_tracing(self):
+        pos = G.Path.rectangle_xz(0.1,1,1, 1.5)
+        neg = G.Path.rectangle_xz(0.1,1,-1.5, -1)
+        neg.name='neg'
+        pos.name='pos'
+
+        mesh = (neg + pos).mesh(mesh_size=1)
+
+        excitation = E.Excitation(mesh, E.Symmetry.RADIAL)
+        excitation.add_voltage(pos=1, neg=-1)
+        field = S.solve_direct(excitation)
+
+        # superposition of field and field should be the same as doubling the field strength
+        field_superposition = FieldSuperposition([field, field])
+        field_double = 2 * field
+
+        tracer_sup = field_superposition.get_tracer([[-2,2], [-2,2], [-2,2]])
+        tracer_double = field_double.get_tracer([[-2,2], [-2,2], [-2,2]])
+        start = np.array([0.001, 0, 2])
+        velocity = T.velocity_vec(10, [0, 0, -1])
+
+        _, trajectory_sup = tracer_sup(start, velocity)
+        _, trajectory_double = tracer_double(start, velocity)
+
+        assert np.allclose(trajectory_sup, trajectory_double)
+
+        #symmetry in xy plane so field should be zero everywhere
+        # so trajectory should be straight line
+        field_sup2 = FieldSuperposition([field, field.rotate(Ry=np.pi)])
+
+        tracer_sup2= field_sup2.get_tracer([[-2,2], [-2,2], [-2,2]])
+        _, trajectory = tracer_sup2(start, velocity)
+        assert np.allclose(T.plane_intersection(np.array(trajectory), np.array([0.,0.,0.]), np.array([0.,0.,-1.]))[:3], np.array([0.001, 0, 0]))
+        assert np.allclose(T.plane_intersection(np.array(trajectory), np.array([0.,0.,-1.]), np.array([0.,0.,-1.]))[:3], np.array([0.001, 0, -1]))
+        assert np.allclose(T.plane_intersection(np.array(trajectory), np.array([0.,0.,-1.5]), np.array([0.,0.,-1.]))[:3], np.array([0.001, 0, -1.5]))
+

@@ -5,9 +5,9 @@ from math import *
 
 import traceon.mesher as M
 from traceon.geometry import *
-import traceon.plotting as P
-
-
+import traceon.excitation as E
+import traceon.solver as S
+from traceon.field import *
 
 class MeshTests(unittest.TestCase):
 
@@ -242,14 +242,3 @@ class SurfaceTests(unittest.TestCase):
             assert not np.all(p3 == p1)
          
         assert len(mesh.physical_to_triangles['test']) == len(mesh.triangles)
-        
-
-
-
-
-
-
-
-
-
-
