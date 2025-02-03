@@ -1,17 +1,11 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any, Tuple, Dict, Union, Sequence, Callable, Mapping, Iterator, Generator, cast, TypeVar, Generic
+from typing import TYPE_CHECKING, Any, Tuple, Union, Callable, Generator, Iterator, Mapping, Sequence, cast
 from typing_extensions import TypeAlias, Self
 
 import numpy as np
 
 from numpy.typing import NDArray
-
-a = NDArray[np.floating]
-
-_NumpyFloat: TypeAlias = np.floating
-_NumpyInt: TypeAlias = np.integer
-
 
 #: 1.1.1 Array
 ArrayFloat: TypeAlias = NDArray[np.floating]

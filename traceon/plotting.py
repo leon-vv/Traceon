@@ -27,8 +27,8 @@ class Figure:
     def __init__(self, show_legend: bool = True) -> None:
         self.show_legend = show_legend
         self.is_2d = True
-        self.legend_entries = []
-        self.to_plot = []
+        self.legend_entries: list[Any] = []
+        self.to_plot: list[Any] = []
      
     def plot_mesh(self, mesh: Mesh, show_normals: bool = False, **colors: str) -> None:
         """Plot mesh using the Vedo library. Optionally showing normal vectors.
@@ -280,7 +280,7 @@ def _get_vedo_triangles_and_normals(mesh: Mesh, **phys_colors: str) -> tuple[lis
     colors = np.full(len(triangles), '#CCCCCC')
     dict_ = _create_point_to_physical_dict(mesh)
     
-    for i, (A, B, C) in enumerate(triangles):
+    for i, (A, B, C) in enumerate(cast(list[tuple[int,int,int]], triangles)):
         if A in dict_ and B in dict_ and C in dict_:
             phys1, phys2, phys3 = dict_[A], dict_[B], dict_[C]
             if phys1 == phys2 and phys2 == phys3 and phys1 in phys_colors:
@@ -372,7 +372,7 @@ def _get_vedo_lines_and_normals(mesh: Mesh, **phys_colors: str) -> tuple[list[ve
     dict_ = _create_point_to_physical_dict(mesh)
     points = mesh.points 
      
-    for i, (A, B) in enumerate(lines):
+    for i, (A, B) in enumerate(cast(list[tuple[int, int]], lines)):
             color = '#CCCCC'
             
             if A in dict_ and B in dict_:

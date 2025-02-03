@@ -190,7 +190,7 @@ class SolverRadial(Solver):
         N = len(self.vertices) 
         normals = np.zeros( (N, 2) if self.is_2d() else (N, 3) )
         
-        for i, v in enumerate(self.vertices):
+        for i, v in enumerate(cast(list[Point3D], self.vertices)):
             if not self.is_higher_order():
                 normals[i] = backend.normal_2d(v[0], v[1])
             else:
@@ -279,9 +279,9 @@ class MagnetostaticSolverRadial(SolverRadial):
         return self.preexisting_field.magnetostatic_field_at_point(point)
      
     def get_permanent_magnet_field(self) -> FieldRadialBEM:
-        charges: ArrayLikeFloat1D = []
-        jacobians = []
-        positions = []
+        charges: list[float] = []
+        jacobians: list[ArrayFloat1D] = []
+        positions: list[ArrayFloat2D] = []
         
         mesh = self.excitation.mesh
         
@@ -318,8 +318,8 @@ class MagnetostaticSolverRadial(SolverRadial):
      
     def get_current_field(self) -> FieldRadialBEM:
         currents: list[Vector3D] = []
-        jacobians = []
-        positions = []
+        jacobians: list[ArrayFloat1D] = []
+        positions: list[ArrayFloat2D] = []
         
         mesh = self.excitation.mesh
         

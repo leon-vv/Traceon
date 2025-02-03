@@ -133,7 +133,7 @@ class Field(GeometricObject, ABC):
         self._basis = np.eye(3, dtype=np.float64)
         self._update_inverse_transformation_matrix()
 
-        self.field_bounds = None
+        self.field_bounds: Bounds3D | None = None
 
     def get_origin(self) -> Point3D:
         """
@@ -165,7 +165,7 @@ class Field(GeometricObject, ABC):
     def map_points(self, fun: Callable[[PointLike3D], Point3D]) -> Self:
         field_copy = self.copy()
         
-        field_copy._origin = fun(self._origin)
+        field_copy._origin = fun(self._origin).astype(np.float64)
         assert field_copy._origin.shape == (3,), "Transformation of field did not map origin to a 3D point"
         
         field_copy._basis = np.array([fun(b + self._origin) - field_copy._origin for b in self._basis])
@@ -206,7 +206,7 @@ class Field(GeometricObject, ABC):
             If `True` the given bounds are in global coordinates and transformed to the fields local system internally.
         """
         bounds = np.array(bounds, dtype=np.float64)
-        assert bounds.shape ==(3,2)
+        assert bounds.shape == (3,2)
 
         if global_coordinates:
             transformed_corners = np.array([self.map_points_to_local(corner) for corner in product(*bounds)])
@@ -372,7 +372,7 @@ class Field(GeometricObject, ABC):
     # Return a field function implemented in C and a ctypes argument needed. 
     # See the field_fun variable in backend/__init__.py.
     # Note that by default it gives back a Python function, which gives no speedup.
-    def get_low_level_trace_function(self) -> tuple[Callable, Any]:
+    def get_low_level_trace_function(self) -> tuple[Callable, Any, *tuple[Any, ...]]:
         fun = lambda pos, vel: (self.electrostatic_field_at_point(pos), self.magnetostatic_field_at_point(pos))
         return backend.wrap_field_fun(fun), None
     
@@ -823,7 +823,7 @@ def _quintic_spline_coefficients(z: ArrayLikeFloat1D, derivs: ArrayLikeFloat1D) 
     dz = z[1] - z[0]
     assert np.all(np.isclose(np.diff(z), dz)) # Equally spaced
      
-    for i, d in enumerate(derivs):
+    for i, d in enumerate(cast(list[int], derivs)):
         high_order = i + 2 < len(derivs)
         
         if high_order:

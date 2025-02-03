@@ -93,7 +93,7 @@ class Excitation:
     def __init__(self, mesh: Mesh, symmetry: Symmetry) -> None:
         self.mesh = mesh
         self.electrodes = mesh.get_electrodes()
-        self.excitation_types = {}
+        self.excitation_types : dict[str, tuple[ExcitationType, Any]] = {}
         self.symmetry = symmetry
          
         if symmetry == Symmetry.RADIAL:
@@ -225,8 +225,8 @@ class Excitation:
         **kwargs : dict
             The keys of the dictionary are the geometry names, while the values are the residual flux density vectors (Numpy shape (3,)).
         """
-        for name, vector in kwargs.items():
-            vector = np.array(vector, dtype=np.float64) / mu_0 # Note that we convert from Tesla to A/m, since the rest of the code works with H fields (which has unit A/m)
+        for name, vec in kwargs.items():
+            vector = np.array(vec, dtype=np.float64) / mu_0 # Note that we convert from Tesla to A/m, since the rest of the code works with H fields (which has unit A/m)
             
             if self.symmetry == Symmetry.RADIAL:
                 self._ensure_electrode_is_lines('permanent magnet', name)

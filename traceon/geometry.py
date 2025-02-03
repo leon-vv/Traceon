@@ -65,7 +65,7 @@ def discretize_path(path_length: float, breakpoints: list[float], mesh_size: flo
         # N_factor = 3  extra points for curved line elements (line4 in GMSH terminology)
         subdivision.append(np.linspace(u0, u1, N_factor*N, endpoint=False))
     
-    subdivision.append( [path_length] )
+    subdivision.append(np.array([path_length]))
     
     return np.concatenate(subdivision)
 
@@ -877,7 +877,7 @@ class PathCollection(GeometricObject):
     def __init__(self, paths: list[Path]) -> None:
         assert all([isinstance(p, Path) for p in paths])
         self.paths = paths
-        self._name = None
+        self._name: str | None = None
     
     @property
     def name(self) -> str | None:
@@ -1552,7 +1552,7 @@ class SurfaceCollection(GeometricObject):
     def __init__(self, surfaces: list[Surface]) -> None:
         assert all([isinstance(s, Surface) for s in surfaces])
         self.surfaces = surfaces
-        self._name = None
+        self._name: str | None = None
 
     @property
     def name(self) -> str | None:

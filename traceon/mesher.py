@@ -542,9 +542,9 @@ class Mesh(Saveable, GeometricObject):
         return list(self.physical_to_lines.keys()) + list(self.physical_to_triangles.keys())
      
     @staticmethod
-    def _lines_to_higher_order(points: PointsLike3D, elements: LinesLike) -> tuple[Points3D, Lines]:
-        points = np.array(points, dtype=np.float64)
-        elements = np.array(elements, dtype=np.uint64)
+    def _lines_to_higher_order(points_: PointsLike3D, elements_: LinesLike) -> tuple[Points3D, Lines]:
+        points = np.array(points_, dtype=np.float64)
+        elements = np.array(elements_, dtype=np.uint64)
         
         N_elements = len(elements)
         N_points = len(points)
@@ -575,12 +575,12 @@ class Mesh(Saveable, GeometricObject):
         if not len(lines):
             lines = np.empty( (0, 4), dtype=np.uint64)
         elif len(lines) and lines.shape[1] == 2:
-            points, lines = Mesh._lines_to_higher_order(points, lines)
+            new_points, new_lines = Mesh._lines_to_higher_order(points, lines)
         
         assert lines.shape == (len(lines), 4)
 
-        return Mesh(points=points,
-            lines=lines, physical_to_lines=self.physical_to_lines,
+        return Mesh(points=new_points,
+            lines=new_lines, physical_to_lines=self.physical_to_lines,
             triangles=triangles, physical_to_triangles=self.physical_to_triangles)
      
     def __str__(self) -> str:
@@ -656,9 +656,9 @@ def _compute_vertex_to_indices(elements: LinesLike | TrianglesLike) -> dict[int,
     # elements is either a list of line or triangles
     # containing indices into the points array
     
-    vertex_to_indices = {}
+    vertex_to_indices: dict[int, list] = {}
 
-    for index, el in enumerate(elements):
+    for index, el in enumerate(cast(list[ArrayLikeInt1D], elements)):
         for vertex in el:
             if vertex not in vertex_to_indices:
                 vertex_to_indices[vertex] = []
@@ -666,8 +666,8 @@ def _compute_vertex_to_indices(elements: LinesLike | TrianglesLike) -> dict[int,
     
     return vertex_to_indices
 
-def _get_element_neighbours(element : LineLike | TriangleLike, vertex_to_indices: Mapping[int, ArrayLikeInt1D]) -> ArrayLikeInt1D:
-    neighbours = []
+def _get_element_neighbours(element : LineLike | TriangleLike, vertex_to_indices: Mapping[int, ArrayLikeInt1D]) -> list[int]:
+    neighbours: list[int] = []
     for vertex in element:
         n = vertex_to_indices.get(vertex, None)
         
@@ -701,7 +701,7 @@ def _get_connected_elements(elements : LinesLike | TrianglesLike) -> list[Line |
             component_id += 1
 
     # Group elements by label
-    connected_elements = []
+    connected_elements: list[Line | Triangle] = []
     
     for comp_id in range(component_id):
         triangle_indices = np.where(labels == comp_id)[0]
@@ -929,7 +929,7 @@ class PointStack:
         
         self.surf = surface
          
-        self.indices = []
+        self.indices: list[ArrayInt2D] = []
     
     def index_to_u(self, depth: int, i: int) -> float:
         return self.path_length1/(self.get_number_of_indices(depth) - 1) * i
@@ -1056,11 +1056,11 @@ def _subdivide_quads(pstack: PointStack,
 
 def _mesh_subsections_to_quads(surface: Surface, mesh_size: float, start_depth: int) -> tuple[list[Point3D], list[PointStack], list[QuadsLike]]:
     all_pstacks = []
-    all_quads = []
+    all_quads: list[QuadsLike] = []
     points: list[Point3D] = []
     
     for s in surface._sections():
-        quads: QuadsLike = []
+        quads: list[QuadLike] = []
         pstack = PointStack(s, points=points)
         
         for i in range(pstack.get_number_of_indices(start_depth) - 1):
@@ -1087,7 +1087,7 @@ def _mesh(surface: Surface,
           name: str | None = None, 
           ensure_outward_normals: bool = True) -> Mesh:
     # Create a point stack for each subsection
-    points, point_stacks, quads = _mesh_subsections_to_quads(surface, mesh_size, start_depth)
+    points_list, point_stacks, quads = _mesh_subsections_to_quads(surface, mesh_size, start_depth)
      
     max_depth = max([p.depth() for p in point_stacks])
      
@@ -1106,7 +1106,7 @@ def _mesh(surface: Surface,
         for j in range(Ny-1): # Vertical copying
             _copy_over_edge(point_with_quads[j*Nx + i][:, -1], point_with_quads[(j+1)*Nx + i][:, 0])
      
-    points = np.array(points)
+    points = np.array(points_list)
     triangles = np.concatenate([pq.to_triangles() for pq in point_with_quads], axis=0)
     
     assert points.shape == (len(points), 3)
