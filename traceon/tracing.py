@@ -115,7 +115,7 @@ class Tracer:
         Once the particle reaches one of the boundaries the tracing stops. The bounds are of the form ( (xmin, xmax), (ymin, ymax), (zmin, zmax) ).
     """
     
-    def __init__(self, field: Field, bounds: Bounds3D) -> None:
+    def __init__(self, field: Field, bounds: BoundsLike3D) -> None:
         self.field = field
         bounds = np.array(bounds).astype(np.float64)
         assert bounds.shape == (3,2)
