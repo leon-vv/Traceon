@@ -1,3 +1,4 @@
+from __future__ import annotations
 import os
 
 from enum import IntEnum
@@ -35,7 +36,7 @@ if _log_level_env is None or _log_level_env.upper() not in dir(LogLevel):
 else:
     _log_level = LogLevel[_log_level_env.upper()]
 
-def set_log_level(level):
+def set_log_level(level: LogLevel) -> None:
     """Set the current `LogLevel`. Note that the log level can also 
     be set by setting the environment value TRACEON_LOG_LEVEL to one
     of 'debug', 'info', 'warning', 'error' or 'silent'."""
@@ -43,18 +44,18 @@ def set_log_level(level):
     assert isinstance(level, LogLevel)
     _log_level = level
 
-def log_debug(msg):
+def log_debug(msg: str):
     if _log_level <= LogLevel.DEBUG:
         print('DEBUG: ', msg)
  
-def log_info(msg):
+def log_info(msg: str) -> None:
     if _log_level <= LogLevel.INFO:
         print(msg)
  
-def log_warning(msg):
+def log_warning(msg: str) -> None:
     if _log_level <= LogLevel.WARNING:
         print('WARNING: ', msg)
 
-def log_error(msg):
+def log_error(msg: str) -> None:
     if _log_level <= LogLevel.ERROR:
         print('ERROR: ', msg)

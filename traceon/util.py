@@ -1,15 +1,16 @@
+from __future__ import annotations
 import os
 from threading import Thread
-from typing import List
-
 import numpy as np
 import pickle
 
 from .backend import DEBUG
 from . import logging
 
+from .typing import *
+
 class Saveable:
-    def write(self, filename):
+    def write(self, filename: str) -> None:
         """Write a mesh to a file. The pickle module will be used
         to save the Geometry object.
 
@@ -20,7 +21,7 @@ class Saveable:
             pickle.dump(self, f)
     
     @staticmethod
-    def read(filename):
+    def read(filename: str) -> Any:
         """Read a geometry from disk (previously saved with the write method)
         
         Args:
@@ -30,7 +31,7 @@ class Saveable:
             return pickle.load(f)
 
 
-def get_number_of_threads():
+def get_number_of_threads() -> int:
     
     threads = os.environ.get('TRACEON_THREADS')
 
@@ -41,7 +42,7 @@ def get_number_of_threads():
     # To really count the number of physical cores, we would need
     # a module like psutil. But I don't want to pull in an external
     # dependency for such a triviality. 
-    cpu_count = len(os.sched_getaffinity(0)) if hasattr(os, 'sched_getaffinity') else os.cpu_count()
+    cpu_count = len(os.sched_getaffinity(0)) if hasattr(os, 'sched_getaffinity') else os.cpu_count() # type: ignore
      
     # os.cpu_count() might be 1 on old CPU's and in virtual machines.
     # Of course at least one thread is needed to run the computations.
@@ -53,7 +54,7 @@ def get_number_of_threads():
     # for at least modern Intel and AMD CPU's.
     return cpu_count // 2
 
-def split_collect(f, array: np.ndarray) -> List[np.ndarray]:
+def split_collect(f: Callable[[Any], Any], array: np.ndarray) -> list[np.ndarray]:
     
     if DEBUG:
         logging.log_debug(f'Running function \'{f.__name__}\' on a single thread since DEBUG=True')
@@ -63,7 +64,7 @@ def split_collect(f, array: np.ndarray) -> List[np.ndarray]:
      
     results = [np.zeros(0)]*len(args)
     
-    def set_result(index):
+    def set_result(index: int | slice) -> None:
         results[index] = f(args[index])
     
     threads = [Thread(target=set_result, args=(i,)) for i in range(len(args))]
