@@ -280,7 +280,7 @@ def _get_vedo_triangles_and_normals(mesh: Mesh, **phys_colors: str) -> tuple[lis
     colors = np.full(len(triangles), '#CCCCCC')
     dict_ = _create_point_to_physical_dict(mesh)
     
-    for i, (A, B, C) in enumerate(cast(list[tuple[int,int,int]], triangles)):
+    for i, (A, B, C) in enumerate(cast(List[Tuple[int,int,int]], triangles)):
         if A in dict_ and B in dict_ and C in dict_:
             phys1, phys2, phys3 = dict_[A], dict_[B], dict_[C]
             if phys1 == phys2 and phys2 == phys3 and phys1 in phys_colors:
@@ -372,7 +372,7 @@ def _get_vedo_lines_and_normals(mesh: Mesh, **phys_colors: str) -> tuple[list[ve
     dict_ = _create_point_to_physical_dict(mesh)
     points = mesh.points 
      
-    for i, (A, B) in enumerate(cast(list[tuple[int, int]], lines)):
+    for i, (A, B) in enumerate(cast(List[Tuple[int, int]], lines)):
             color = '#CCCCC'
             
             if A in dict_ and B in dict_:

@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any, Tuple, Union, Callable, Generator, Iterator, Mapping, Sequence, cast
+from typing import TYPE_CHECKING, Any, Tuple, Dict, List, Union, Callable, Generator, Iterator, Mapping, Sequence, cast
 from typing_extensions import TypeAlias, Self
 
 import numpy as np

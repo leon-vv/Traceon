@@ -190,7 +190,7 @@ class SolverRadial(Solver):
         N = len(self.vertices) 
         normals = np.zeros( (N, 2) if self.is_2d() else (N, 3) )
         
-        for i, v in enumerate(cast(list[Point3D], self.vertices)):
+        for i, v in enumerate(cast(List[Point3D], self.vertices)):
             if not self.is_higher_order():
                 normals[i] = backend.normal_2d(v[0], v[1])
             else:

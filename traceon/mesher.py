@@ -576,11 +576,12 @@ class Mesh(Saveable, GeometricObject):
             lines = np.empty( (0, 4), dtype=np.uint64)
         elif len(lines) and lines.shape[1] == 2:
             new_points, new_lines = Mesh._lines_to_higher_order(points, lines)
-        
+            points, lines = new_points.astype(np.float64), new_lines.astype(np.uint64)
+
         assert lines.shape == (len(lines), 4)
 
-        return Mesh(points=new_points,
-            lines=new_lines, physical_to_lines=self.physical_to_lines,
+        return Mesh(points=points,
+            lines=lines, physical_to_lines=self.physical_to_lines,
             triangles=triangles, physical_to_triangles=self.physical_to_triangles)
      
     def __str__(self) -> str:
@@ -652,13 +653,13 @@ class Mesh(Saveable, GeometricObject):
 
 ## Code related to checking connectivity  
 
-def _compute_vertex_to_indices(elements: LinesLike | TrianglesLike) -> dict[int, list[int]]:
+def _compute_vertex_to_indices(elements: LinesLike | TrianglesLike) -> Dict[int, List[int]]:
     # elements is either a list of line or triangles
     # containing indices into the points array
     
-    vertex_to_indices: dict[int, list] = {}
+    vertex_to_indices: Dict[int, list] = {}
 
-    for index, el in enumerate(cast(list[ArrayLikeInt1D], elements)):
+    for index, el in enumerate(cast(List[ArrayLikeInt1D], elements)):
         for vertex in el:
             if vertex not in vertex_to_indices:
                 vertex_to_indices[vertex] = []
@@ -1060,7 +1061,7 @@ def _mesh_subsections_to_quads(surface: Surface, mesh_size: float, start_depth: 
     points: list[Point3D] = []
     
     for s in surface._sections():
-        quads: list[QuadLike] = []
+        quads: List[QuadLike] = []
         pstack = PointStack(s, points=points)
         
         for i in range(pstack.get_number_of_indices(start_depth) - 1):

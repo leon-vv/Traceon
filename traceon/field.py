@@ -372,25 +372,10 @@ class Field(GeometricObject, ABC):
     # Return a field function implemented in C and a ctypes argument needed. 
     # See the field_fun variable in backend/__init__.py.
     # Note that by default it gives back a Python function, which gives no speedup.
-    def get_low_level_trace_function(self) -> tuple[Callable, Any, *tuple[Any, ...]]:
+    def get_low_level_trace_function(self) -> tuple[Callable, Any] | tuple[Callable, Any, list[Any]]:
         fun = lambda pos, vel: (self.electrostatic_field_at_point(pos), self.magnetostatic_field_at_point(pos))
         return backend.wrap_field_fun(fun), None
-    
-    # @abstractmethod
-    # def __add__(self, other: Field) -> Field:
-    #     ...
-
-    # @abstractmethod
-    # def __sub__(self, other: Field) -> Field:
-    #     ...
-
-    # @abstractmethod
-    # def __mul__(self, other: Field) -> Field:
-    #     ...
-    
-    # def __neg__(self, other: Field) -> Field:
-    #     ...
-    
+   
 class FieldBEM(Field, ABC):
     """An electrostatic field (resulting from surface charges) as computed from the Boundary Element Method. You should
     not initialize this class yourself, but it is used as a base class for the fields returned by the `solve_direct` function. 
@@ -823,7 +808,7 @@ def _quintic_spline_coefficients(z: ArrayLikeFloat1D, derivs: ArrayLikeFloat1D) 
     dz = z[1] - z[0]
     assert np.all(np.isclose(np.diff(z), dz)) # Equally spaced
      
-    for i, d in enumerate(cast(list[int], derivs)):
+    for i, d in enumerate(cast(List[int], derivs)):
         high_order = i + 2 < len(derivs)
         
         if high_order:
