@@ -137,7 +137,7 @@ class Path(GeometricObject):
         x = np.linspace(0, 1, len(points))
         interp = CubicSpline(x, points)
 
-        return Path.from_irregular_function(lambda u: np.array(interp(u), dtype=np.float64), N=N)
+        return Path.from_irregular_function(lambda u: np.array(interp(u), dtype=np.float64), N=N) #type: ignore
      
     def average(self, fun: Callable[[Point3D], float]) -> float:
         """Average a function along the path, by integrating 1/l * fun(path(l)) with 0 <= l <= path length.
