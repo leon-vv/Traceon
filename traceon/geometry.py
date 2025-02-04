@@ -788,7 +788,7 @@ class Path(GeometricObject):
         samples = np.linspace(t - self.path_length*1e-3, t + self.path_length*1e-3, 7) # Odd number to include t
         samples_on_path = [s for s in samples if 0 <= s <= self.path_length]
         assert len(samples_on_path), "Please supply a point that lies on the path"
-        return np.array(CubicSpline(samples_on_path, [self(s) for s in samples_on_path])(t, nu=1), dtype=float)
+        return np.array(CubicSpline(samples_on_path, [self(s) for s in samples_on_path])(t, nu=1), dtype=np.float64)
     
    
     def __add__(self, other: Path | PathCollection) -> PathCollection:

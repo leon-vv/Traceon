@@ -799,10 +799,10 @@ def _get_one_dimensional_high_order_ppoly(z: ArrayLikeFloat1D,
     bpoly = BPoly.from_derivatives(z, np.array([y, dydz, dydz2]).T)
     return PPoly.from_bernstein_basis(bpoly)        
 
-def _quintic_spline_coefficients(z: ArrayLikeFloat1D, derivs: ArrayLikeFloat1D) -> ArrayFloat3D:
+def _quintic_spline_coefficients(z_: ArrayLikeFloat1D, derivs: ArrayLikeFloat1D) -> ArrayFloat3D:
     # k is degree of polynomial
     #assert derivs.shape == (z.size, backend.DERIV_2D_MAX)
-    z = np.array(z, dtype=np.float64)
+    z = np.array(z_, dtype=np.float64)
     c = np.zeros( (z.size-1, 9, 6) )
     
     dz = z[1] - z[0]
