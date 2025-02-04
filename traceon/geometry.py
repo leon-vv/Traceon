@@ -119,7 +119,7 @@ class Path(GeometricObject):
         path_length = path_lengths[-1]
         breakpoints = breakpoints if breakpoints is not None else []
 
-        return Path(lambda pl: fun(interpolation(pl)), path_length, breakpoints=[b*path_length for b in breakpoints])
+        return Path(lambda pl: fun(interpolation([pl])), path_length, breakpoints=[b*path_length for b in breakpoints])
     
     @staticmethod
     def spline_through_points(points: Points3D, N: int = 100) -> Path:
@@ -137,7 +137,7 @@ class Path(GeometricObject):
         x = np.linspace(0, 1, len(points))
         interp = CubicSpline(x, points)
 
-        return Path.from_irregular_function(lambda u: np.array(interp(u), dtype=np.float64), N=N)
+        return Path.from_irregular_function(lambda u: np.array(interp([u]), dtype=np.float64), N=N)
      
     def average(self, fun: Callable[[Point3D], float]) -> float:
         """Average a function along the path, by integrating 1/l * fun(path(l)) with 0 <= l <= path length.
@@ -788,7 +788,7 @@ class Path(GeometricObject):
         samples = np.linspace(t - self.path_length*1e-3, t + self.path_length*1e-3, 7) # Odd number to include t
         samples_on_path = [s for s in samples if 0 <= s <= self.path_length]
         assert len(samples_on_path), "Please supply a point that lies on the path"
-        return np.array(CubicSpline(samples_on_path, [self(s) for s in samples_on_path])(t, nu=1), dtype=np.float64)
+        return np.array(CubicSpline(samples_on_path, [self(s) for s in samples_on_path])([t], nu=1), dtype=np.float64)
     
    
     def __add__(self, other: Path | PathCollection) -> PathCollection:
