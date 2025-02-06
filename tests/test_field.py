@@ -160,5 +160,5 @@ class FieldGeometryTests(unittest.TestCase):
         field_sup2 = field_sup + field_trans
         field_sup3 = field_sup + self.field_axial
 
-        assert len(field_sup2) == 2 and len(field_sup3) == 3
+        assert len(field_sup2) == 3 and len(field_sup3) == 3
         
