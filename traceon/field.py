@@ -115,7 +115,10 @@ class EffectivePointCharges:
         return -1*self
     
     def __sub__(self, other: EffectivePointCharges) -> EffectivePointCharges:
-        return self.__add__(-other)
+        if isinstance(other, EffectivePointCharges):
+            return self.__add__(-other)
+
+        return NotImplemented
      
     def __rmul__(self, other: float) -> EffectivePointCharges:
         return self.__mul__(other)
@@ -407,11 +410,14 @@ class Field(GeometricObject, ABC):
     def __rmul__(self, other: float) -> Field:
         return self.__mul__(other)
     
-    def __neg__(self) -> EffectivePointCharges:
+    def __neg__(self) -> Field:
         return -1*self
     
     def __sub__(self, other: Field) -> Field:
-        return self.__add__(-other)
+        if isinstance(other, Field):
+            return self.__add__(-other)
+
+        return NotImplemented
     
     # Following function can be implemented to get a speedup while tracing. 
     # Return a field function implemented in C and a ctypes argument needed. 
@@ -532,11 +538,8 @@ class FieldBEM(Field, ABC):
             and np.allclose(self._basis, other._basis))
 
 
-    def __add__(self, other: Field) -> FieldBEM | FieldSuperposition:
-        if not isinstance(other, (FieldBEM, FieldAxial)):
-            return NotImplemented
-        
-        if self._matches_geometry(other):
+    def __add__(self, other: Field) -> Field:
+        if isinstance(other, FieldBEM) and self._matches_geometry(other):
             other = cast(FieldBEM, other)
             field_copy = self.copy()
             field_copy.electrostatic_point_charges = self.electrostatic_point_charges + other.electrostatic_point_charges
@@ -544,18 +547,18 @@ class FieldBEM(Field, ABC):
             field_copy.current_point_charges = self.current_point_charges + other.current_point_charges
             return field_copy
         else:
-            return FieldSuperposition([self, other])
+            return super().__add__(other)
+    
+    def __sub__(self, other: Field) -> Field:
+        if isinstance(other, Field):
+            return self.__add__(-other)
         
-    def __sub__(self, other: Field) -> FieldBEM | FieldSuperposition:
-        if not isinstance(other, (FieldBEM, FieldAxial)):
-            return NotImplemented
-        
-        return self.__add__(-other)
+        return NotImplemented
 
-    def __radd__(self, other: Field) -> FieldBEM | FieldSuperposition:
+    def __radd__(self, other: Field) -> Field:
         return self.__add__(other)
         
-    def __mul__(self, other: float) -> FieldBEM:
+    def __mul__(self, other: float) -> Field:
         if _is_numeric(other):
            field_copy = self.copy()
            field_copy.electrostatic_point_charges = self.electrostatic_point_charges * other
@@ -563,7 +566,7 @@ class FieldBEM(Field, ABC):
            field_copy.current_point_charges = self.current_point_charges * other
            return field_copy
         else:
-            return NotImplemented
+            return super().__mul__(other)
     
     def __neg__(self) -> FieldBEM:
         return self.__class__(
@@ -571,7 +574,7 @@ class FieldBEM(Field, ABC):
             self.magnetostatic_point_charges.__neg__(),
             self.current_point_charges.__neg__())
      
-    def __rmul__(self, other: float) -> FieldBEM:
+    def __rmul__(self, other: float) -> Field:
         return self.__mul__(other)
       
     def area_of_elements(self, indices: ArrayLikeInt1D):
@@ -882,41 +885,38 @@ class FieldAxial(Field, ABC):
         name = self.__class__.__name__
         return f'<Traceon {name}, zmin={self.z[0]} mm, zmax={self.z[-1]} mm,\n\tNumber of samples on optical axis: {len(self.z)}>'
      
-    def __add__(self, other: Field) -> FieldAxial | FieldSuperposition:
-        if not isinstance(other, (FieldBEM, FieldAxial)):
-            return NotImplemented
-        
-        if self._matches_geometry(other):
+    def __add__(self, other: Field) -> Field:
+        if isinstance(other, FieldAxial) and self._matches_geometry(other):
             other = cast(FieldAxial, other)
             field_copy = self.copy()
             field_copy.electrostatic_coeffs = self.electrostatic_coeffs + other.electrostatic_coeffs
             field_copy.magnetostatic_coeffs = self.magnetostatic_coeffs + other.magnetostatic_coeffs
             return field_copy
         else:
-            return FieldSuperposition([self, other])
+            return super().__add__(other)
+    
+    def __sub__(self, other: Field) -> Field:
+        if isinstance(other, Field):
+            return self.__add__(-other)
 
-    def __sub__(self, other: Field) -> FieldAxial | FieldSuperposition:
-        if not isinstance(other, (FieldBEM, FieldAxial)): 
-            return NotImplemented
-        
-        return self.__add__(-other)
+        return NotImplemented
 
-    def __radd__(self, other: Field) -> FieldAxial | FieldSuperposition:
+    def __radd__(self, other: Field) -> Field:
         return self.__add__(other)
      
-    def __mul__(self, other: float) -> FieldAxial:
+    def __mul__(self, other: float) -> Field:
         if _is_numeric(other):
             field_copy = self.copy()
             field_copy.electrostatic_coeffs = other * self.electrostatic_coeffs
             field_copy.magnetostatic_coeffs = other * self.electrostatic_coeffs
             return field_copy
         else:
-            return NotImplemented
-    
-    def __neg__(self) -> FieldAxial:
+            return super().__mul__(other)
+     
+    def __neg__(self) -> Field:
         return -1*self
     
-    def __rmul__(self, other: float) -> FieldAxial:
+    def __rmul__(self, other: float) -> Field:
         return self.__mul__(other)
 
 def _get_one_dimensional_high_order_ppoly(z: ArrayLikeFloat1D, 
