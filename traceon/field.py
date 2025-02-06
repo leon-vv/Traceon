@@ -395,7 +395,7 @@ class FieldSuperposition(Field):
         return np.sum([f.magnetostatic_field_at_point(point) for f in self.fields], axis=0)
     
     def current_field_at_local_point(self, point: PointLike3D) -> Vector3D:
-        return np.sum([f.current_field_at_point(point) for f in self.fields if isinstance(f, FieldBEM)], axis=0) 
+        return np.sum([f.current_field_at_point(point) for f in self.fields], axis=0) 
 
     def electrostatic_potential_at_local_point(self, point: PointLike3D) -> float:
         return sum([f.electrostatic_potential_at_point(point) for f in self.fields])
