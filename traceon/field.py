@@ -445,6 +445,9 @@ class FieldSuperposition(Field):
             return FieldSuperposition(self.fields + other.fields, list(self.factors) + list(other.factors))
         else:
             return FieldSuperposition(self.fields + [other], list(self.factors) + [1.])
+
+    def __radd__(self, other: Field) -> FieldSuperposition:
+        return self.__add__(other)
      
     def __iadd__(self, other: Field) -> FieldSuperposition:
         self.fields = (self + other).fields
