@@ -946,6 +946,8 @@ class FieldRadialAxial(FieldAxial):
         """
         Produces a field which uses an axial interpolation to very quickly compute the field around the z-axis.
         Note that the approximation degrades as the point at which the field is computed is further from the z-axis.
+        Also note that the fields produced by current and the magnetizable material are merged into one interpolation,
+        so the method `current_field_at_point` will always return zero.
 
         Parameters
         -----------------------
