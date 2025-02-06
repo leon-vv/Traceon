@@ -18,6 +18,7 @@ import time
 from abc import ABC, abstractmethod
 import copy
 from itertools import product
+from typing import Iterable
 
 import numpy as np
 from scipy.interpolate import CubicSpline, BPoly, PPoly
@@ -378,9 +379,9 @@ class Field(GeometricObject, ABC):
 
 
 class FieldSuperposition(Field):
-    def __init__(self, fields: list[FieldBEM | FieldAxial]) -> None:
+    def __init__(self, fields: Iterable[FieldBEM | FieldAxial]) -> None:
         assert all([isinstance(f, Field) for f in fields])
-        self.fields = fields
+        self.fields = list(fields)
 
     def map_points(self, fun: Callable[[PointLike3D], Point3D]) -> FieldSuperposition:
         return FieldSuperposition([f.map_points(fun) for f in self.fields])
