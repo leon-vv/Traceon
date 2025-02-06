@@ -386,17 +386,6 @@ class FieldSuperposition(Field):
     def map_points(self, fun: Callable[[PointLike3D], Point3D]) -> FieldSuperposition:
         return FieldSuperposition([f.map_points(fun) for f in self.fields])
     
-    def potential_at_point(self, point: PointLike3D) -> float:
-        elec, mag = self.is_electrostatic(), self.is_magnetostatic()
-
-        if elec and not mag:
-            return self.electrostatic_potential_at_point(point)
-        elif not elec and mag:
-            return self.magnetostatic_potential_at_point(point)
-        
-        raise RuntimeError("Cannot use potential_at_point when both electric and magnetic fields are present, " \
-            "use electrostatic_potential_at_point or magnetostatic_potential_at_point")
-        
     def electrostatic_field_at_point(self, point: PointLike3D) -> Vector3D:
         return np.sum([f.electrostatic_field_at_point(point) for f in self.fields], axis=0)
 
