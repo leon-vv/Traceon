@@ -306,6 +306,26 @@ class Field(GeometricObject, ABC):
         else:
              return np.array([0.,0.,0.])
     
+    def current_field_at_point(self, point: PointLike3D) -> Vector3D:
+        """
+        Compute the magnetic field produced by currents \\( \\vec{H} \\)
+        
+        Parameters
+        ----------
+        point: (3,) array of float64
+            Position in global coordinate system at which to compute the field.
+             
+        Returns
+        -------
+        (3,) np.ndarray of float64 containing the field strength (in units of A/m) in the x, y and z directions.
+        """
+        local_point = self.map_points_to_local(point)
+        if self._within_field_bounds(local_point):
+            return self._basis @ self.current_field_at_local_point(local_point)
+        else:
+             return np.array([0.,0.,0.])
+
+    
     def electrostatic_potential_at_point(self, point: PointLike3D) -> float:
         """
         Compute the electrostatic potential.
@@ -361,6 +381,9 @@ class Field(GeometricObject, ABC):
     def magnetostatic_field_at_local_point(self, point) -> Vector3D:
         ...
     
+    def current_field_at_local_point(self, point) -> Vector3D:
+        return np.zeros(3)
+    
     @abstractmethod
     def electrostatic_potential_at_local_point(self, point) -> float:
         ...
@@ -398,6 +421,9 @@ class FieldSuperposition(Field):
 
     def magnetostatic_field_at_local_point(self, point: PointLike3D) -> Vector3D:
         return np.sum([fa*f.magnetostatic_field_at_point(point) for fa, f in zip(self.factors, self.fields)], axis=0)
+    
+    def current_field_at_local_point(self, point: PointLike3D) -> Vector3D:
+        return np.sum([fa*f.current_field_at_point(point) for fa, f in zip(self.factors, self.fields)], axis=0)
     
     def electrostatic_potential_at_local_point(self, point: PointLike3D) -> float:
         return sum([fa*f.electrostatic_potential_at_point(point) for fa, f in zip(self.factors, self.fields)])
