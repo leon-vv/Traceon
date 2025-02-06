@@ -1,11 +1,10 @@
 """The backend module is a small wrapper around code implemented in C. All performance critical code is 
 implemented in the C backend. As a user you should not use these functions directly yourself."""
-
+from __future__ import annotations
 import importlib
 import ctypes as C
 import os.path as path
 import platform
-from typing import Callable, Optional, Tuple, List
 
 from numpy.ctypeslib import ndpointer
 from numpy.typing import DTypeLike
@@ -14,6 +13,7 @@ from scipy import LowLevelCallable
 from scipy.integrate import quad
 
 from .. import logging
+from ..typing import *
 
 DEBUG = False
 
@@ -66,7 +66,7 @@ NU_MAX = C.c_int.in_dll(backend_lib, 'NU_MAX_SYM').value
 M_MAX = C.c_int.in_dll(backend_lib, 'M_MAX_SYM').value
 
 # Pass numpy array to C
-def arr(ndim=None, shape=None, dtype:DTypeLike=np.float64):
+def arr(ndim: int | None =None, shape: tuple[int, ...] | None = None, dtype: DTypeLike = np.float64):
     return ndpointer(ndim=ndim, shape=shape, dtype=dtype, flags=('C_CONTIGUOUS', 'ALIGNED')) # type: ignore
 
 # Pass one dimensional Numpy array to C
@@ -112,7 +112,7 @@ class EffectivePointCharges2D(C.Structure):
         ("N", C.c_size_t)
     ]
 
-    def __init__(self, eff, *args, **kwargs):
+    def __init__(self, eff: EffectivePointCharges, *args: Any, **kwargs: Any) -> None:
         assert eff.is_2d()
         super(EffectivePointCharges2D, self).__init__(*args, **kwargs)
 
@@ -135,7 +135,7 @@ class EffectivePointCharges3D(C.Structure):
         ("N", C.c_size_t)
     ]
     
-    def __init__(self, eff, *args, **kwargs):
+    def __init__(self, eff: EffectivePointCharges, *args: Any, **kwargs: Any) -> None:
         assert eff.is_3d()
         super().__init__(*args, **kwargs)
         
@@ -159,7 +159,7 @@ class EffectivePointCurrents3D(C.Structure):
         ("N", C.c_size_t)
     ]
     
-    def __init__(self, eff, *args, **kwargs):
+    def __init__(self, eff: EffectivePointCharges, *args: Any, **kwargs: Any) -> None:
         super(EffectivePointCurrents3D, self).__init__(*args, **kwargs)
 
         # In solver.py we use consistently the EffectivePointCharges class
@@ -170,7 +170,7 @@ class EffectivePointCurrents3D(C.Structure):
         assert currents.shape == (N,) and currents.dtype == np.double
         assert eff.jacobians.shape == (N, N_QUAD_2D) and eff.jacobians.dtype == np.double
         assert eff.positions.shape == (N, N_QUAD_2D, 3) and eff.positions.dtype == np.double
-        assert eff.directions.shape == (N, N_QUAD_2D, 3) and eff.directions.dtype == np.double
+        assert eff.directions is not None and eff.directions.shape == (N, N_QUAD_2D, 3) and eff.directions.dtype == np.double
 
         # Beware, we need to keep references to the arrays pointed to by the C.Structure
         # otherwise, they are garbage collected and bad things happen
@@ -195,7 +195,14 @@ class FieldEvaluationArgsRadial(C.Structure):
         ("bounds", C.POINTER(C.c_double))
     ]
 
-    def __init__(self, elec, mag, current, bounds, *args, **kwargs):
+    def __init__(self, 
+                 elec: EffectivePointCharges, 
+                 mag: EffectivePointCharges, 
+                 current: EffectivePointCharges, 
+                 bounds: Bounds3D | None, 
+                 *args: Any, 
+                 **kwargs: Any) -> None:
+        
         super().__init__(*args, **kwargs)
         assert bounds is None or bounds.shape == (3, 2)
         
@@ -223,7 +230,13 @@ class FieldEvaluationArgs3D(C.Structure):
         ("bounds", C.POINTER(C.c_double))
     ]
 
-    def __init__(self, elec, mag, currents, bounds, *args, **kwargs):
+    def __init__(self, elec : EffectivePointCharges, 
+                 mag: EffectivePointCharges, 
+                 currents: EffectivePointCharges, 
+                 bounds : Bounds3D | None, 
+                 *args : Any, 
+                 **kwargs: Any):
+        
         super().__init__(*args, **kwargs)
         assert bounds is None or bounds.shape == (3, 2)
         
@@ -345,36 +358,37 @@ ellipem1 = np.vectorize(backend_lib.ellipem1)
 ellipe = np.vectorize(backend_lib.ellipe)
 
 def kronrod_adaptive(fun: Callable[[float], float], a: float, b: float, 
-                     epsabs: float=1.49e-08, epsrel: float=1.49e-08) -> float:
+                     epsabs: float = 1.49e-08, epsrel: float = 1.49e-08) -> float:
     callback = integration_cb_1d(lambda x, _: fun(x))
     return backend_lib.kronrod_adaptive(callback, a, b, vp(None), epsabs, epsrel)
 
-def higher_order_normal_radial(alpha: float, vertices: np.ndarray) -> np.ndarray:
+def higher_order_normal_radial(alpha: float, vertices: LineVertices) -> Vector2D:
     assert vertices.shape == (4,3) 
     normal = np.zeros(2)
     backend_lib.higher_order_normal_radial(alpha, vertices[0], vertices[2], vertices[3], vertices[1], normal)
     assert np.isclose(np.linalg.norm(normal), 1.0)
     return normal
     
-def normal_2d(p1: np.ndarray, p2: np.ndarray) -> np.ndarray:
+def normal_2d(p1: Point2D, p2: Point2D) -> Vector2D:
     normal = np.zeros( (2,) )
     backend_lib.normal_2d(p1, p2, normal)
     return normal
 
-def normal_3d(tri: np.ndarray) -> np.ndarray:
+def normal_3d(tri: Points3D) -> Vector3D:
     normal = np.zeros( (3,) )
     backend_lib.normal_3d(tri, normal)
     return normal
 
-def trace_particle_wrapper(position_: np.ndarray, velocity_: np.ndarray, 
-                           fill_positions_fun: Callable[[np.ndarray, np.ndarray], int]) -> Tuple[np.ndarray, np.ndarray]:
+def trace_particle_wrapper(position_: Point3D, 
+                           velocity_: Vector3D, 
+                           fill_positions_fun: Callable[[Point3D, Vector3D], int]) -> tuple[ArrayFloat1D, ArrayFloat2D]:
     position = np.array(position_)
     velocity = np.array(velocity_)
     assert position.shape == (3,) and velocity.shape == (3,)
      
     N = TRACING_BLOCK_SIZE
-    pos_blocks: List[np.ndarray] = []
-    times_blocks: List[np.ndarray] = []
+    pos_blocks: list[np.ndarray] = []
+    times_blocks: list[np.ndarray] = []
      
     times = np.zeros(TRACING_BLOCK_SIZE)
     positions = np.zeros( (TRACING_BLOCK_SIZE, 6) )
@@ -407,7 +421,7 @@ def trace_particle_wrapper(position_: np.ndarray, velocity_: np.ndarray,
 
 
 
-def position_and_jacobian_3d(alpha: float, beta: float, triangle: np.ndarray) -> Tuple[float, np.ndarray]:
+def position_and_jacobian_3d(alpha: float, beta: float, triangle: Points3D) -> tuple[float, Point3D]:
     assert triangle.shape == (3, 3)
      
     pos = np.zeros(3)
@@ -417,8 +431,11 @@ def position_and_jacobian_3d(alpha: float, beta: float, triangle: np.ndarray) ->
         
     return jac.value, pos
 
-
-def position_and_jacobian_radial(alpha: float, v1: np.ndarray, v2: np.ndarray, v3: np.ndarray, v4: np.ndarray) -> Tuple[float, np.ndarray]:
+def position_and_jacobian_radial(alpha: float, 
+                                 v1: Point2D | Point3D, 
+                                 v2: Point2D | Point3D, 
+                                 v3: Point2D | Point3D, 
+                                 v4: Point2D | Point3D) -> tuple[float, Point2D]:
     assert v1.shape == (2,) or v1.shape == (3,)
     assert v2.shape == (2,) or v2.shape == (3,)
     assert v3.shape == (2,) or v3.shape == (3,)
@@ -433,7 +450,11 @@ def position_and_jacobian_radial(alpha: float, v1: np.ndarray, v2: np.ndarray, v
     
     return jac.value, pos
 
-def delta_position_and_jacobian_radial(alpha: float, v1: np.ndarray, v2: np.ndarray, v3: np.ndarray, v4: np.ndarray) -> Tuple[float, np.ndarray]:
+def delta_position_and_jacobian_radial(alpha: float, 
+                                       v1: Point2D | Point3D, 
+                                       v2: Point2D | Point3D, 
+                                       v3: Point2D | Point3D, 
+                                       v4: Point2D | Point3D) -> tuple[float, Point2D]:
     assert v1.shape == (2,) or v1.shape == (3,)
     assert v2.shape == (2,) or v2.shape == (3,)
     assert v3.shape == (2,) or v3.shape == (3,)
@@ -463,15 +484,26 @@ def wrap_field_fun(ff: Callable) -> Callable:
     
     return field_fun(field_fun_wrapper)
 
-def trace_particle(position: np.ndarray, velocity: np.ndarray, charge_over_mass: float, field, bounds: np.ndarray, atol: float, args =None) -> Tuple[np.ndarray, np.ndarray]:
+def trace_particle(position: Point3D, 
+                   velocity: Vector3D,
+                   charge_over_mass: float, 
+                   field: Field, 
+                   bounds: BoundsLike3D, 
+                   atol: float, 
+                   args: Any = None) -> tuple[ArrayFloat1D, ArrayFloat2D]:
     bounds = np.array(bounds)
      
     return trace_particle_wrapper(position, velocity,
         lambda T, P: backend_lib.trace_particle(T, P, charge_over_mass, field, bounds, atol, args))
 
-def trace_particle_radial_derivs(position: np.ndarray, velocity: np.ndarray, charge_over_mass: float, 
-                                 bounds: np.ndarray, atol: float, z: np.ndarray, 
-                                 elec_coeffs: np.ndarray, mag_coeffs: np.ndarray) -> Tuple[np.ndarray, np.ndarray]:
+def trace_particle_radial_derivs(position: Point3D, 
+                                 velocity: Vector3D, 
+                                 charge_over_mass: float, 
+                                 bounds: BoundsLike3D, 
+                                 atol: float, 
+                                 z: ArrayFloat1D, 
+                                 elec_coeffs: ArrayFloat3D, 
+                                 mag_coeffs: ArrayFloat3D) -> tuple[ArrayFloat1D, ArrayFloat2D]:
     assert elec_coeffs.shape == (len(z)-1, DERIV_2D_MAX, 6)
     assert mag_coeffs.shape == (len(z)-1, DERIV_2D_MAX, 6)
     
@@ -485,9 +517,14 @@ def trace_particle_radial_derivs(position: np.ndarray, velocity: np.ndarray, cha
     
     return times, positions
 
-def trace_particle_3d_derivs(position: np.ndarray, velocity: np.ndarray, charge_over_mass: float, 
-                             bounds: np.ndarray, atol: float, z: np.ndarray, 
-                             electrostatic_coeffs: np.ndarray, magnetostatic_coeffs: np.ndarray) -> Tuple[np.ndarray, np.ndarray]:
+def trace_particle_3d_derivs(position: Point3D, 
+                             velocity: Vector3D, 
+                             charge_over_mass: float, 
+                             bounds: BoundsLike3D, 
+                             atol: float, 
+                             z: ArrayFloat1D, 
+                             electrostatic_coeffs: ArrayFloat3D, 
+                             magnetostatic_coeffs: ArrayFloat3D) -> tuple[ArrayFloat1D, ArrayFloat2D]:
     assert electrostatic_coeffs.shape == (len(z)-1, 2, NU_MAX, M_MAX, 4)
     assert magnetostatic_coeffs.shape == (len(z)-1, 2, NU_MAX, M_MAX, 4)
     
@@ -505,7 +542,7 @@ def dr1_potential_radial_ring(r0: float, z0: float, delta_r: float, delta_z: flo
 def dz1_potential_radial_ring(r0: float, z0: float, delta_r: float, delta_z: float) -> float:
     return backend_lib.dz1_potential_radial_ring(r0, z0, delta_r, delta_z, None)
 
-def axial_derivatives_radial(z: np.ndarray, charges: np.ndarray, jac_buffer: np.ndarray, pos_buffer: np.ndarray) -> np.ndarray:
+def axial_derivatives_radial(z: ArrayFloat1D, charges: ArrayFloat1D, jac_buffer: ArrayFloat2D, pos_buffer: ArrayFloat3D) -> ArrayFloat1D:
     derivs = np.zeros( (z.size, DERIV_2D_MAX) )
     
     assert jac_buffer.shape == (len(charges), N_QUAD_2D)
@@ -515,21 +552,21 @@ def axial_derivatives_radial(z: np.ndarray, charges: np.ndarray, jac_buffer: np.
     backend_lib.axial_derivatives_radial(derivs,charges, jac_buffer, pos_buffer, len(charges), z, len(z))
     return derivs
 
-def potential_radial(point: np.ndarray, charges: np.ndarray, jac_buffer: np.ndarray, pos_buffer: np.ndarray) -> float:
+def potential_radial(point: Point3D, charges: ArrayFloat1D, jac_buffer: ArrayFloat2D, pos_buffer: ArrayFloat3D) -> float:
     assert point.shape == (3,)
     assert jac_buffer.shape == (len(charges), N_QUAD_2D)
     assert pos_buffer.shape == (len(charges), N_QUAD_2D, 2)
     return backend_lib.potential_radial(point.astype(np.float64), charges, jac_buffer, pos_buffer, len(charges))
 
-def potential_radial_derivs(point: np.ndarray, z: np.ndarray, coeffs: np.ndarray) -> float:
+def potential_radial_derivs(point: Point3D, z: ArrayFloat1D, coeffs: ArrayFloat3D) -> float:
     assert coeffs.shape == (len(z)-1, DERIV_2D_MAX, 6)
     return backend_lib.potential_radial_derivs(point.astype(np.float64), z, coeffs, len(z))
 
-def charge_radial(vertices: np.ndarray, charge: float) -> float:
+def charge_radial(vertices: Points3D, charge: float) -> float:
     assert vertices.shape == (len(vertices), 3)
     return backend_lib.charge_radial(vertices, charge)
 
-def field_radial(point: np.ndarray, charges: np.ndarray, jac_buffer: np.ndarray, pos_buffer: np.ndarray) -> np.ndarray:
+def field_radial(point: Point3D, charges: ArrayFloat1D, jac_buffer: ArrayFloat2D, pos_buffer: ArrayFloat2D) -> Vector3D:
     assert point.shape == (3,)
     assert jac_buffer.shape == (len(charges), N_QUAD_2D)
     assert pos_buffer.shape == (len(charges), N_QUAD_2D, 2)
@@ -539,7 +576,7 @@ def field_radial(point: np.ndarray, charges: np.ndarray, jac_buffer: np.ndarray,
     backend_lib.field_radial(point.astype(np.float64), field, charges, jac_buffer, pos_buffer, len(charges))
     return field
 
-def field_radial_derivs(point: np.ndarray, z: np.ndarray, coeffs: np.ndarray) -> np.ndarray:
+def field_radial_derivs(point: Point3D, z: ArrayFloat1D, coeffs: ArrayFloat3D) -> Vector3D:
     assert point.shape == (3,)
     assert coeffs.shape == (len(z)-1, DERIV_2D_MAX, 6)
     field = np.zeros( (3,) )
@@ -549,7 +586,7 @@ def field_radial_derivs(point: np.ndarray, z: np.ndarray, coeffs: np.ndarray) ->
 def flux_density_to_charge_factor(K: float) -> float:
     return backend_lib.flux_density_to_charge_factor(K)
 
-def axial_coefficients_3d(charges: np.ndarray, jacobian_buffer: np.ndarray, pos_buffer: np.ndarray, z: np.ndarray) -> np.ndarray:
+def axial_coefficients_3d(charges: ArrayFloat1D, jacobian_buffer: ArrayFloat2D, pos_buffer: ArrayFloat3D, z: ArrayFloat1D) -> ArrayFloat:
     if len(charges) == 0:
         return np.zeros( (len(z), 2, NU_MAX, M_MAX) )
      
@@ -566,7 +603,7 @@ def axial_coefficients_3d(charges: np.ndarray, jacobian_buffer: np.ndarray, pos_
       
     return output_coeffs
 
-def fill_jacobian_buffer_current_three_d(lines):
+def fill_jacobian_buffer_current_three_d(lines: LinesVertices) -> tuple[ArrayFloat2D, ArrayFloat3D, ArrayFloat3D]:
     assert lines.shape == (len(lines), 2, 3)
 
     jacobians = np.zeros( (len(lines), N_QUAD_2D) )
@@ -577,13 +614,13 @@ def fill_jacobian_buffer_current_three_d(lines):
 
     return jacobians, positions, directions
 
-def potential_3d_derivs(point: np.ndarray, z: np.ndarray, coeffs: np.ndarray) -> float:
+def potential_3d_derivs(point: Point3D, z: ArrayFloat1D, coeffs: ArrayFloat) -> float:
     assert coeffs.shape == (len(z)-1, 2, NU_MAX, M_MAX, 4)
     assert point.shape == (3,)
     
     return backend_lib.potential_3d_derivs(point.astype(np.float64), z, coeffs, len(z))
 
-def field_3d_derivs(point: np.ndarray, z: np.ndarray, coeffs: np.ndarray) -> np.ndarray:
+def field_3d_derivs(point: Point3D, z: ArrayFloat1D, coeffs: ArrayFloat) -> Vector3D:
     assert point.shape == (3,)
     assert coeffs.shape == (len(z)-1, 2, NU_MAX, M_MAX, 4)
 
@@ -594,7 +631,7 @@ def field_3d_derivs(point: np.ndarray, z: np.ndarray, coeffs: np.ndarray) -> np.
 def current_potential_axial_radial_ring(z0: float, r: float, z: float) -> float:
     return backend_lib.current_potential_axial_radial_ring(z0, r, z)
 
-def current_potential_axial(z: float, currents: np.ndarray, jac_buffer: np.ndarray, pos_buffer: np.ndarray) -> float:
+def current_potential_axial(z: float, currents: ArrayFloat1D, jac_buffer: ArrayFloat2D, pos_buffer: ArrayFloat3D) -> float:
     N = len(currents)
     assert currents.shape == (N,)
     assert jac_buffer.shape == (N, N_TRIANGLE_QUAD)
@@ -604,12 +641,12 @@ def current_potential_axial(z: float, currents: np.ndarray, jac_buffer: np.ndarr
     
     return backend_lib.current_potential_axial(z, currents, jac_buffer, pos_buffer, N)
 
-def current_field_radial_ring(x0: float, y0: float, x: float, y: float) -> np.ndarray:
+def current_field_radial_ring(x0: float, y0: float, x: float, y: float) -> Vector2D:
     res = np.zeros((2,))
     backend_lib.current_field_radial_ring(x0, y0, x, y, res)
     return res
 
-def current_field_radial(p0: np.ndarray, currents: np.ndarray, jac_buffer: np.ndarray, pos_buffer: np.ndarray) -> np.ndarray:
+def current_field_radial(p0: Point3D, currents: ArrayFloat1D, jac_buffer: ArrayFloat2D, pos_buffer: ArrayFloat3D) -> Vector3D:
     assert p0.shape == (3,)
     N = len(currents)
     assert currents.shape == (N,)
@@ -622,7 +659,7 @@ def current_field_radial(p0: np.ndarray, currents: np.ndarray, jac_buffer: np.nd
     backend_lib.current_field_radial(p0, result, currents, jac_buffer, pos_buffer, N)
     return result
 
-def current_axial_derivatives_radial(z: np.ndarray, currents: np.ndarray, jac_buffer: np.ndarray, pos_buffer: np.ndarray) -> np.ndarray:
+def current_axial_derivatives_radial(z: ArrayFloat1D, currents: ArrayFloat1D, jac_buffer: ArrayFloat2D, pos_buffer: ArrayFloat3D) -> ArrayFloat2D:
     N_z = len(z)
     N_vertices = len(currents)
 
@@ -636,7 +673,7 @@ def current_axial_derivatives_radial(z: np.ndarray, currents: np.ndarray, jac_bu
     return derivs
 
 
-def fill_jacobian_buffer_radial(vertices: np.ndarray) -> Tuple[np.ndarray, np.ndarray]:
+def fill_jacobian_buffer_radial(vertices: LinesVertices) -> tuple[ArrayFloat2D, ArrayFloat3D]:
     assert vertices.shape == (len(vertices), 4, 3)
     assert np.all(vertices[:, :, 1] == 0.)
         
@@ -648,7 +685,7 @@ def fill_jacobian_buffer_radial(vertices: np.ndarray) -> Tuple[np.ndarray, np.nd
     
     return jac_buffer, pos_buffer
 
-def self_potential_radial(vertices: np.ndarray) -> float:
+def self_potential_radial(vertices: LineVertices) -> float:
     assert vertices.shape == (4,3) and vertices.dtype == np.double
     user_data = vertices.ctypes.data_as(C.c_void_p)
     low_level = LowLevelCallable(backend_lib.self_potential_radial, user_data=user_data) # type: ignore
@@ -657,7 +694,7 @@ def self_potential_radial(vertices: np.ndarray) -> float:
 class SelfFieldDotNormalRadialArgs(C.Structure):
     _fields_ = [("line_points", C.POINTER(C.c_double)), ("K", C.c_double)]
 
-def self_field_dot_normal_radial(vertices: np.ndarray, K: float) -> float:
+def self_field_dot_normal_radial(vertices: LineVertices, K: float) -> float:
     assert vertices.shape == (4,3) and vertices.dtype == np.double
     user_data = vertices.ctypes.data_as(C.c_void_p)
 
@@ -672,13 +709,14 @@ def self_field_dot_normal_radial(vertices: np.ndarray, K: float) -> float:
 
 
 
-def fill_matrix_radial(matrix: np.ndarray,
-                    lines: np.ndarray,
-                    excitation_types: np.ndarray,
-                    excitation_values: np.ndarray,
-                    jac_buffer: np.ndarray,
-                    pos_buffer: np.ndarray,
-                    start_index: int, end_index: int):
+def fill_matrix_radial(matrix: ArrayFloat2D,
+                    lines: LinesVertices,
+                    excitation_types: ArrayInt1D,
+                    excitation_values: ArrayFloat1D,
+                    jac_buffer: ArrayFloat2D,
+                    pos_buffer: ArrayFloat3D,
+                    start_index: int, 
+                    end_index: int) -> None:
     N = len(lines)
     assert np.all(lines[:, :, 1] == 0.0)
     assert matrix.shape == (N, N)
@@ -691,7 +729,7 @@ def fill_matrix_radial(matrix: np.ndarray,
      
     backend_lib.fill_matrix_radial(matrix, lines, excitation_types, excitation_values, jac_buffer, pos_buffer, N, matrix.shape[0], start_index, end_index)
 
-def fill_jacobian_buffer_3d(vertices: np.ndarray) -> Tuple[np.ndarray, np.ndarray]:
+def fill_jacobian_buffer_3d(vertices: TrianglesVertices) -> tuple[ArrayFloat2D, ArrayFloat3D]:
     N = len(vertices)
     assert vertices.shape == (N, 3, 3)
     jac_buffer = np.zeros( (N, N_TRIANGLE_QUAD) )
@@ -702,13 +740,15 @@ def fill_jacobian_buffer_3d(vertices: np.ndarray) -> Tuple[np.ndarray, np.ndarra
     return jac_buffer, pos_buffer
 
 
-def fill_matrix_3d(matrix: np.ndarray,
-                vertices: np.ndarray,
-                excitation_types: np.ndarray,
-                excitation_values: np.ndarray,
-                jac_buffer: np.ndarray,
-                pos_buffer: np.ndarray,
-                start_index: int, end_index: int):
+def fill_matrix_3d(matrix: ArrayFloat2D,
+                vertices: TrianglesVertices,
+                excitation_types: ArrayInt1D,
+                excitation_values: ArrayFloat1D,
+                jac_buffer: ArrayFloat2D,
+                pos_buffer: ArrayFloat3D,
+                start_index: int, 
+                end_index: int):
+    
     N = len(vertices)
     assert matrix.shape[0] == N and matrix.shape[1] == N and matrix.shape[0] == matrix.shape[1]
     assert vertices.shape == (N, 3, 3)
@@ -720,7 +760,7 @@ def fill_matrix_3d(matrix: np.ndarray,
      
     backend_lib.fill_matrix_3d(matrix, vertices, excitation_types, excitation_values, jac_buffer, pos_buffer, N, matrix.shape[0], start_index, end_index)
 
-def plane_intersection(positions: np.ndarray, p0: np.ndarray, normal: np.ndarray) -> np.ndarray:
+def plane_intersection(positions: ArrayFloat2D, p0: Point3D, normal: Vector3D) -> ArrayFloat1D:
     assert p0.shape == (3,)
     assert normal.shape == (3,)
     assert positions.shape == (len(positions), 6)
@@ -733,7 +773,7 @@ def plane_intersection(positions: np.ndarray, p0: np.ndarray, normal: np.ndarray
      
     return result
 
-def triangle_areas(triangles: np.ndarray) -> np.ndarray:
+def triangle_areas(triangles: ArrayFloat3D) -> ArrayFloat1D:
     assert triangles.shape == (len(triangles), 3, 3)
     out = np.zeros(len(triangles))
     backend_lib.triangle_areas(triangles, out, len(triangles))
