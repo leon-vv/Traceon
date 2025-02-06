@@ -20,7 +20,15 @@ from scipy.constants import m_e, e, mu_0
 from . import backend
 from . import logging
 
-def velocity_vec(eV, direction_):
+def _convert_velocity_to_SI(velocity, mass):
+    # Convert a velocity vector expressed in eV (see functions above)
+    # to one expressed in m/s.
+    speed_eV = np.linalg.norm(velocity)
+    speed = sqrt(2*speed_eV*e/mass)
+    direction = velocity / speed_eV
+    return speed * direction
+
+def velocity_vec(eV, direction_, mass=m_e):
     """Compute an initial velocity vector in the correct units and direction.
     
     Parameters
@@ -44,7 +52,7 @@ def velocity_vec(eV, direction_):
     if eV > 40000:
         logging.log_warning(f'Velocity vector with large energy ({eV} eV) requested. Note that relativistic tracing is not yet implemented.')
     
-    return eV * np.array(direction)/np.linalg.norm(direction)
+    return _convert_velocity_to_SI(eV * np.array(direction)/np.linalg.norm(direction), mass)
 
 def velocity_vec_spherical(eV, theta, phi):
     """Compute initial velocity vector given energy and direction computed from spherical coordinates.
@@ -92,13 +100,7 @@ def _z_to_bounds(z1, z2):
     else:
         return (min(z1, z2)-1, max(z1, z2)+1)
 
-def _convert_velocity_to_SI(velocity, mass):
-    # Convert a velocity vector expressed in eV (see functions above)
-    # to one expressed in m/s.
-    speed_eV = np.linalg.norm(velocity)
-    speed = sqrt(2*speed_eV*e/mass)
-    direction = velocity / speed_eV
-    return speed * direction
+
 
 class Tracer:
     """General tracer class for charged particles. Can trace charged particles given any field class from `traceon.solver`.
@@ -167,7 +169,6 @@ class Tracer:
         The last three elements in `positions[i]` contain the vx,vy,vz velocities.
         """
         charge_over_mass = charge / mass
-        velocity = _convert_velocity_to_SI(velocity, mass)
 
         return backend.trace_particle(
                 position,

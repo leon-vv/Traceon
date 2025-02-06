@@ -60,9 +60,7 @@ class TestTracing(unittest.TestCase):
 
         tracer = T.Tracer(ConstantField(), bounds)
          
-        speed = 3.
-        eV = (0.5 * m_e * speed**2)/e
-        result = tracer.trace_multiple([np.zeros(3), np.zeros(3)], T.velocity_vec(eV, [0., 0., 1.]))
+        result = tracer.trace_multiple([np.zeros(3), np.zeros(3)], [0., 0., 3.])
         
         for times, positions in result:
             correct_x = 3/2*times**2
@@ -121,7 +119,7 @@ class TestTracing(unittest.TestCase):
         tracer = T.Tracer(CustomField(), bounds)
         
         # Note that we transform velocity to eV, since it's being converted back to m/s in the Tracer.__call__ function
-        times, positions = tracer(p0, v0*4.020347574230144e-12, atol=1e-10)
+        times, positions = tracer(p0, v0, atol=1e-10)
          
         sol = solve_ivp(acceleration, (0, 30), np.hstack( (p0, v0) ), method='DOP853', rtol=1e-10, atol=1e-10)
 
