@@ -391,6 +391,27 @@ class Field(GeometricObject, ABC):
     @abstractmethod
     def magnetostatic_potential_at_local_point(self, point) -> float:
         ...
+         
+    def __add__(self, other: Field) -> Field:
+        if isinstance(other, Field) and not isinstance(other, FieldSuperposition):
+            return FieldSuperposition([self, other])
+
+        return NotImplemented
+    
+    def __mul__(self, other: float) -> Field:
+        if _is_numeric(other):
+            return FieldSuperposition([self], [other])
+        
+        return NotImplemented
+    
+    def __rmul__(self, other: float) -> Field:
+        return self.__mul__(other)
+    
+    def __neg__(self) -> EffectivePointCharges:
+        return -1*self
+    
+    def __sub__(self, other: Field) -> Field:
+        return self.__add__(-other)
     
     # Following function can be implemented to get a speedup while tracing. 
     # Return a field function implemented in C and a ctypes argument needed. 
