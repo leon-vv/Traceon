@@ -620,18 +620,6 @@ class FieldBEM(Field, ABC):
             f'\tNumber of magnetizable points: {len(self.magnetostatic_point_charges)}\n' \
             f'\tNumber of current rings: {len(self.current_point_charges)}>'
     
-    def current_field_at_point(self, point: PointLike3D) -> Vector3D:
-        local_point = self.map_points_to_local(point)
-        if (self.field_bounds is None or np.all((self.field_bounds[:, 0] <= local_point) 
-                                                & (local_point <= self.field_bounds[:, 1]))):
-            return self.current_field_at_local_point(local_point)
-        else:
-             return np.zeros(3)
-
-    @abstractmethod
-    def current_field_at_local_point(self, point: PointLike3D) -> Point3D:
-        ...
-
     
 class FieldRadialBEM(FieldBEM):
     """A radially symmetric electrostatic field. The field is a result of the surface charges as computed by the
