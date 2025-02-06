@@ -18,7 +18,7 @@ import time
 from abc import ABC, abstractmethod
 import copy
 from itertools import product
-from typing import Iterable
+from typing import Iterable, List
 
 import numpy as np
 from scipy.interpolate import CubicSpline, BPoly, PPoly
@@ -379,29 +379,31 @@ class Field(GeometricObject, ABC):
 
 
 class FieldSuperposition(Field):
-    def __init__(self, fields: Iterable[FieldBEM | FieldAxial]) -> None:
+    def __init__(self, fields: Iterable[Field], factors: Iterable[float] | None = None) -> None:
         super().__init__()
         
         assert all([isinstance(f, Field) for f in fields])
-        self.fields = list(fields)
+        self.fields: List[Field] = list(fields)
+
+        if factors is None:
+            self.factors = np.ones(len(self.fields))
+        else:
+            self.factors: ArrayFloat1D = np.array(factors)
 
     def map_points(self, fun: Callable[[PointLike3D], Point3D]) -> FieldSuperposition:
-        return FieldSuperposition([f.map_points(fun) for f in self.fields])
+        return FieldSuperposition([f.map_points(fun) for f in self.fields], self.factors)
     
     def electrostatic_field_at_local_point(self, point: PointLike3D) -> Vector3D:
-        return np.sum([f.electrostatic_field_at_point(point) for f in self.fields], axis=0)
+        return np.sum([fa*f.electrostatic_field_at_point(point) for fa, f in zip(self.factors, self.fields)], axis=0)
 
     def magnetostatic_field_at_local_point(self, point: PointLike3D) -> Vector3D:
-        return np.sum([f.magnetostatic_field_at_point(point) for f in self.fields], axis=0)
+        return np.sum([fa*f.magnetostatic_field_at_point(point) for fa, f in zip(self.factors, self.fields)], axis=0)
     
-    def current_field_at_local_point(self, point: PointLike3D) -> Vector3D:
-        return np.sum([f.current_field_at_point(point) for f in self.fields], axis=0) 
-
     def electrostatic_potential_at_local_point(self, point: PointLike3D) -> float:
-        return sum([f.electrostatic_potential_at_point(point) for f in self.fields])
+        return sum([fa*f.electrostatic_potential_at_point(point) for fa, f in zip(self.factors, self.fields)])
 
     def magnetostatic_potential_at_local_point(self, point: PointLike3D) -> float:
-        return sum([f.magnetostatic_potential_at_point(point) for f in self.fields])
+        return sum([fa*f.magnetostatic_potential_at_point(point) for fa, f in zip(self.factors, self.fields)])
     
     def is_electrostatic(self) -> bool:
         return any(f.is_electrostatic() for f in self.fields)
@@ -412,48 +414,41 @@ class FieldSuperposition(Field):
     def get_tracer(self, bounds: BoundsLike3D) -> Tracer:
         return T.Tracer(self, bounds)
 
-    def __add__(self, other: FieldBEM | FieldAxial | FieldSuperposition) -> FieldSuperposition:
-        if isinstance(other, (FieldBEM, FieldAxial, FieldSuperposition)):
-            other_fields = other.fields if isinstance(other, FieldSuperposition) else [other]
-            fields_copy = self.fields.copy()
-            for of in other_fields:
-                for i, f in enumerate(self.fields):
-                    if f._matches_geometry(of):
-                        fields_copy[i] = cast(Union[FieldBEM, FieldAxial], f + of)
-                        break
-                else:
-                    fields_copy.append(of)
-
-            return FieldSuperposition(fields_copy)
+    def __add__(self, other: Field) -> FieldSuperposition:
+        if isinstance(other, FieldSuperposition):
+            return FieldSuperposition(self.fields + other.fields, list(self.factors) + list(other.factors))
         else:
-            return NotImplemented
-    
-    def __iadd__(self, other: FieldBEM | FieldAxial | FieldSuperposition) -> FieldSuperposition:
+            return FieldSuperposition(self.fields + [other], list(self.factors) + [1.])
+     
+    def __iadd__(self, other: Field) -> FieldSuperposition:
         self.fields = (self + other).fields
         return self
 
     def __mul__(self, other: float) -> FieldSuperposition:
         if _is_numeric(other):
-            return FieldSuperposition([f.__mul__(other) for f in self.fields])
+            return FieldSuperposition(self.fields, other*self.factors)
         else:
             return NotImplemented
     
     def __rmul__(self, other: float) -> FieldSuperposition :
         return self.__mul__(other)
     
-    def __getitem__(self, index: int | slice) -> FieldBEM | FieldAxial | FieldSuperposition:
-        selection = np.array(self.fields, dtype=object).__getitem__(index)
-        if isinstance(selection, np.ndarray):
-            return FieldSuperposition(cast(list[FieldBEM | FieldAxial], selection.tolist()))
-        else:
-            return selection
-    
+    def __getitem__(self, index: int | slice) -> Field:
+        if isinstance(index, slice):
+            fields: List[Field] = np.array(self.fields, dtype=object).__getitem__(index).tolist()
+            return FieldSuperposition(fields, self.factors[index])
+        elif isinstance(index, int):
+            return self.factors[index] * self.fields[index]
+
+        return NotImplemented
+     
     def __len__(self) -> int:
         return len(self.fields)
 
     def __iter__(self) -> Iterator[Field]:
-        return iter(self.fields)
-    
+        for fa, f in zip(self.factors, self.fields):
+            yield fa*f
+     
     def __str__(self) -> str:
         field_strs = '\n'.join(str(f) for f in self.fields)
         return f"<FieldSuperposition with fields:\n{field_strs}>"
