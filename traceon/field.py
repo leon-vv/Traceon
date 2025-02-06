@@ -380,41 +380,28 @@ class Field(GeometricObject, ABC):
 
 class FieldSuperposition(Field):
     def __init__(self, fields: Iterable[FieldBEM | FieldAxial]) -> None:
+        super().__init__()
+        
         assert all([isinstance(f, Field) for f in fields])
         self.fields = list(fields)
 
     def map_points(self, fun: Callable[[PointLike3D], Point3D]) -> FieldSuperposition:
         return FieldSuperposition([f.map_points(fun) for f in self.fields])
     
-    def electrostatic_field_at_point(self, point: PointLike3D) -> Vector3D:
+    def electrostatic_field_at_local_point(self, point: PointLike3D) -> Vector3D:
         return np.sum([f.electrostatic_field_at_point(point) for f in self.fields], axis=0)
 
-    def magnetostatic_field_at_point(self, point: PointLike3D) -> Vector3D:
+    def magnetostatic_field_at_local_point(self, point: PointLike3D) -> Vector3D:
         return np.sum([f.magnetostatic_field_at_point(point) for f in self.fields], axis=0)
     
-    def current_field_at_point(self, point: PointLike3D) -> Vector3D:
+    def current_field_at_local_point(self, point: PointLike3D) -> Vector3D:
         return np.sum([f.current_field_at_point(point) for f in self.fields if isinstance(f, FieldBEM)], axis=0) 
 
-    def electrostatic_potential_at_point(self, point: PointLike3D) -> float:
+    def electrostatic_potential_at_local_point(self, point: PointLike3D) -> float:
         return sum([f.electrostatic_potential_at_point(point) for f in self.fields])
 
-    def magnetostatic_potential_at_point(self, point: PointLike3D) -> float:
-        return sum([f.magnetostatic_potential_at_point(point) for f in self.fields])
-    
-    def electrostatic_field_at_local_point(self, point: PointLike3D) -> Vector3D:
-        return self.electrostatic_field_at_point(point)
-
-    def magnetostatic_field_at_local_point(self, point: PointLike3D) -> Vector3D:
-        return self.magnetostatic_field_at_point(point)
-    
-    def current_field_at_local_point(self, point: PointLike3D) -> Vector3D:
-        return self.current_field_at_point(point)
-
-    def electrostatic_potential_at_local_point(self, point: PointLike3D) -> float:
-        return self.electrostatic_potential_at_point(point)
-
     def magnetostatic_potential_at_local_point(self, point: PointLike3D) -> float:
-        return self.magnetostatic_potential_at_point(point)
+        return sum([f.magnetostatic_potential_at_point(point) for f in self.fields])
     
     def is_electrostatic(self) -> bool:
         return any(f.is_electrostatic() for f in self.fields)
