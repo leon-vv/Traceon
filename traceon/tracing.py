@@ -20,7 +20,15 @@ from scipy.constants import m_e, e, mu_0
 from . import backend
 from . import logging
 
-def velocity_vec(eV, direction_):
+def _convert_velocity_to_SI(velocity, mass):
+    # Convert a velocity vector expressed in eV (see functions above)
+    # to one expressed in m/s.
+    speed_eV = np.linalg.norm(velocity)
+    speed = sqrt(2*speed_eV*e/mass)
+    direction = velocity / speed_eV
+    return speed * direction
+
+def velocity_vec(eV, direction_, mass=m_e):
     """Compute an initial velocity vector in the correct units and direction.
     
     Parameters
@@ -44,7 +52,7 @@ def velocity_vec(eV, direction_):
     if eV > 40000:
         logging.log_warning(f'Velocity vector with large energy ({eV} eV) requested. Note that relativistic tracing is not yet implemented.')
     
-    return eV * np.array(direction)/np.linalg.norm(direction)
+    return _convert_velocity_to_SI(eV * np.array(direction)/np.linalg.norm(direction), mass)
 
 def velocity_vec_spherical(eV, theta, phi):
     """Compute initial velocity vector given energy and direction computed from spherical coordinates.
@@ -92,13 +100,7 @@ def _z_to_bounds(z1, z2):
     else:
         return (min(z1, z2)-1, max(z1, z2)+1)
 
-def _convert_velocity_to_SI(velocity, mass):
-    # Convert a velocity vector expressed in eV (see functions above)
-    # to one expressed in m/s.
-    speed_eV = np.linalg.norm(velocity)
-    speed = sqrt(2*speed_eV*e/mass)
-    direction = velocity / speed_eV
-    return speed * direction
+
 
 class Tracer:
     """General tracer class for charged particles. Can trace charged particles given any field class from `traceon.solver`.
@@ -137,8 +139,11 @@ class Tracer:
         bounds_str = ' '.join([f'({bmin:.2f}, {bmax:.2f})' for bmin, bmax in self.bounds])
         return f'<Traceon Tracer of {field_name},\n\t' \
             + 'Bounds: ' + bounds_str + ' mm >'
+
+    def __call__(self, *args, **kwargs):
+        return self.trace_single(*args, **kwargs)
     
-    def __call__(self, position, velocity, mass=m_e, charge=-e, atol=1e-8):
+    def trace_single(self, position, velocity, mass=m_e, charge=-e, atol=1e-8):
         """Trace a charged particle.
 
         Parameters
@@ -164,7 +169,6 @@ class Tracer:
         The last three elements in `positions[i]` contain the vx,vy,vz velocities.
         """
         charge_over_mass = charge / mass
-        velocity = _convert_velocity_to_SI(velocity, mass)
 
         return backend.trace_particle(
                 position,
@@ -174,6 +178,61 @@ class Tracer:
                 self.bounds,
                 atol,
                 self.trace_args)
+    
+    @staticmethod
+    def _normalize_input_shapes(position, velocity, mass, charge):
+        position = np.array(position, dtype=np.float64)
+        velocity = np.array(velocity, dtype=np.float64)
+        mass = np.array(mass, dtype=np.float64)
+        charge = np.array(charge, dtype=np.float64)
+
+        if position.shape == (3,):
+            position = position[np.newaxis] # Ensure position has shape (N, 3) with N=1
+
+        # Normalize shape against one another
+        # So that they both have shape (N, 3)
+        position, velocity = np.broadcast_arrays(position, velocity)
+
+        N = len(position)
+
+        mass = np.broadcast_to(mass, shape=(N,))
+        charge = np.broadcast_to(charge, shape=(N,))
+        
+        return [np.copy(backend.ensure_contiguous_aligned(arr)) for arr in [position, velocity, mass, charge]]
+    
+    def trace_multiple(self, position, velocity, mass=m_e, charge=-e, atol=1e-8):
+        """Trace multiple charged particles. Numpy broadcasting rules apply if one 
+        of the inputs does not have enough elements. For example, if all particles have the
+        same charge simply pass in a float for the 'charge' input.
+        
+        Parameters
+        ----------
+        position: (N, 3) np.ndarray of float64
+            Initial positions of the particle.
+        velocity: (N, 3) np.ndarray of float64
+            Initial velocities (expressed in a vector whose magnitude has units of eV). Use one of the utility functions documented
+            above to create the initial velocity vector.
+        mass: float or (N,)
+            Particle masses in kilogram (kg). The default value is the electron mass: m_e = 9.1093837015e-31 kg.
+        charge: float or (N,)
+            Particle charges in Coulomb (C). The default value is the electron charge: -1 * e = -1.602176634e-19 C.
+        atol: float
+            Absolute tolerance determining the accuracy of the trace.
+        
+        Returns
+        -------
+        list of (times, positions)
+            See documentation of `Tracer.trace_single`
+        """
+
+        positions, velocities, masses, charges = Tracer._normalize_input_shapes(position, velocity, mass, charge)
+
+        N = len(positions)
+
+        assert positions.shape == (N, 3) and velocities.shape == (N, 3), "Position or velocity array has unexpected shape"
+        assert masses.shape == (N,) and charges.shape == (N,), "mass or charge input has unexpected shape"
+
+        return [self.trace_single(p, v, mass=m, charge=c, atol=atol) for p, v, m, c in zip(positions, velocities, masses, charges)]
 
 def plane_intersection(positions, p0, normal):
     """Compute the intersection of a trajectory with a general plane in 3D. The plane is specified
