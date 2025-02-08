@@ -433,11 +433,8 @@ class FieldSuperposition(Field):
         
         assert all([isinstance(f, Field) for f in fields])
         self.fields: List[Field] = list(fields)
-
-        if factors is None:
-            self.factors = np.ones(len(self.fields))
-        else:
-            self.factors: ArrayFloat1D = np.array(factors)
+         
+        self.factors: ArrayFloat1D = np.ones(len(self.fields)) if factors is None else np.array(factors)
 
     def map_points(self, fun: Callable[[PointLike3D], Point3D]) -> FieldSuperposition:
         return FieldSuperposition([f.map_points(fun) for f in self.fields], self.factors)
