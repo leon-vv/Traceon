@@ -535,7 +535,7 @@ class FieldBEM(Field, ABC):
 
 
     def __add__(self, other: Field) -> Field:
-        if isinstance(other, FieldBEM) and self._matches_geometry(other):
+        if self._matches_geometry(other):
             other = cast(FieldBEM, other)
             field_copy = self.copy()
             field_copy.electrostatic_point_charges = self.electrostatic_point_charges + other.electrostatic_point_charges
@@ -870,7 +870,7 @@ class FieldAxial(Field, ABC):
         return f'<Traceon {name}, zmin={self.z[0]} mm, zmax={self.z[-1]} mm,\n\tNumber of samples on optical axis: {len(self.z)}>'
      
     def __add__(self, other: Field) -> Field:
-        if isinstance(other, FieldAxial) and self._matches_geometry(other):
+        if self._matches_geometry(other):
             other = cast(FieldAxial, other)
             field_copy = self.copy()
             field_copy.electrostatic_coeffs = self.electrostatic_coeffs + other.electrostatic_coeffs
