@@ -18,7 +18,6 @@ import time
 from abc import ABC, abstractmethod
 import copy
 from itertools import product
-from typing import Iterable, List
 
 import numpy as np
 from scipy.interpolate import CubicSpline, BPoly, PPoly
