@@ -408,8 +408,8 @@ class Field(GeometricObject, ABC):
     
     def __sub__(self, other: Field) -> Field:
         if isinstance(other, Field):
-            return self.__add__(-other)
-
+            return self + (-other)
+        
         return NotImplemented
     
     # Following function can be implemented to get a speedup while tracing. 
