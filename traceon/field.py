@@ -496,9 +496,8 @@ class FieldSuperposition(Field):
             yield fa*f
      
     def __str__(self) -> str:
-        field_strs = '\n'.join(str(f) for f in self.fields)
-        return f"<FieldSuperposition with fields:\n{field_strs}>"
-
+        field_strs = ''.join(f'\n\t{f.__class__.__name__} (times factor {fa})' for fa, f in zip(self.factors, self.fields))
+        return f"<FieldSuperposition with fields: {field_strs}>"
 
 class FieldBEM(Field, ABC):
     """An electrostatic field (resulting from surface charges) as computed from the Boundary Element Method. You should
