@@ -137,17 +137,6 @@ as `(N, 3)` NumPy array of `float` or sequence of `PointLike3D` objects."""
 
 #: 2.3 Bounds
 
-#: 2.3.1 Two-dimensional
-Bounds2D: TypeAlias = ArrayFloat2D
-"""Two-dimensional bounds `[(x_min, x_max), (y_min, y_max)]` 
-as `(2, 2)` NumPy array of `float`."""
-
-BoundsLike2D: TypeAlias = ArrayLikeFloat2D
-"""Two-dimensional bounds `[(x_min, x_max), (y_min, y_max)]` 
-as `(2, 2)` NumPy array of `float` or a sequence of  objects."""
-
-
-#: 2.3.2 Three-dimensional
 Bounds3D: TypeAlias = ArrayFloat2D
 """Three-dimensional bounds `[(x_min, x_max), (y_min, y_max), (z_min, z_max)]` 
 as `(3, 2)` NumPy array of `float`."""
