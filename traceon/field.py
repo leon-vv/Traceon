@@ -422,13 +422,17 @@ class Field(GeometricObject, ABC):
 
 
 class FieldSuperposition(Field):
-    def __init__(self, fields: Iterable[Field], factors: Iterable[float] | None = None) -> None:
+    def __init__(self, fields: Iterable[Field], factors: Iterable[float] | Iterable[np.floating] | None = None) -> None:
         super().__init__()
         
         assert all([isinstance(f, Field) for f in fields])
         self.fields: List[Field] = list(fields)
          
-        self.factors: ArrayFloat1D = np.ones(len(self.fields)) if factors is None else np.array(factors)
+        self.factors: ArrayFloat1D = np.ones(len(self.fields)) if factors is None else np.array(factors, dtype=np.float64)
+
+    @staticmethod
+    def _concat_factors(f1: ArrayFloat1D, f2: ArrayFloat1D) -> ArrayFloat1D:
+        return np.concatenate( (f1, f2) )
 
     def map_points(self, fun: Callable[[PointLike3D], Point3D]) -> FieldSuperposition:
         return FieldSuperposition([f.map_points(fun) for f in self.fields], self.factors)
@@ -443,10 +447,10 @@ class FieldSuperposition(Field):
         return np.sum([fa*f.current_field_at_point(point) for fa, f in zip(self.factors, self.fields)], axis=0)
     
     def electrostatic_potential_at_local_point(self, point: PointLike3D) -> float:
-        return sum([fa*f.electrostatic_potential_at_point(point) for fa, f in zip(self.factors, self.fields)])
+        return sum([fa.item()*f.electrostatic_potential_at_point(point) for fa, f in zip(self.factors, self.fields)])
 
     def magnetostatic_potential_at_local_point(self, point: PointLike3D) -> float:
-        return sum([fa*f.magnetostatic_potential_at_point(point) for fa, f in zip(self.factors, self.fields)])
+        return sum([fa.item()*f.magnetostatic_potential_at_point(point) for fa, f in zip(self.factors, self.fields)])
     
     def is_electrostatic(self) -> bool:
         return any(f.is_electrostatic() for f in self.fields)
@@ -459,9 +463,9 @@ class FieldSuperposition(Field):
 
     def __add__(self, other: Field) -> FieldSuperposition:
         if isinstance(other, FieldSuperposition):
-            return FieldSuperposition(self.fields + other.fields, list(self.factors) + list(other.factors))
+            return FieldSuperposition(self.fields + other.fields, FieldSuperposition._concat_factors(self.factors, other.factors) )
         else:
-            return FieldSuperposition(self.fields + [other], list(self.factors) + [1.])
+            return FieldSuperposition(self.fields + [other], FieldSuperposition._concat_factors(self.factors, np.array([1.])))
 
     def __radd__(self, other: Field) -> FieldSuperposition:
         return FieldSuperposition([other]+self.fields, [1.0]+list(self.factors))
@@ -481,7 +485,7 @@ class FieldSuperposition(Field):
     
     def __getitem__(self, index: int | slice) -> Field:
         if isinstance(index, slice):
-            fields: List[Field] = np.array(self.fields, dtype=object).__getitem__(index).tolist()
+            fields: List[Field] = np.array(self.fields, dtype=object).__getitem__(index).tolist() # type: ignore
             return FieldSuperposition(fields, self.factors[index])
         elif isinstance(index, int):
             return self.factors[index] * self.fields[index]
@@ -493,7 +497,7 @@ class FieldSuperposition(Field):
 
     def __iter__(self) -> Iterator[Field]:
         for fa, f in zip(self.factors, self.fields):
-            yield fa*f
+            yield f*fa.item()
      
     def __str__(self) -> str:
         field_strs = ''.join(f'\n\t{f.__class__.__name__} (times factor {fa})' for fa, f in zip(self.factors, self.fields))
