@@ -367,33 +367,27 @@ class Field(GeometricObject, ABC):
         else:
              return 0.
 
-    @abstractmethod
     def is_electrostatic(self) -> bool:
-        ...
-    
-    @abstractmethod
+        return False
+     
     def is_magnetostatic(self) -> bool:
-        ...
-    
-    @abstractmethod
+        return False
+     
     def electrostatic_field_at_local_point(self, point) -> Vector3D:
-        ...
-
-    @abstractmethod
-    def magnetostatic_field_at_local_point(self, point) -> Vector3D:
-        ...
+        return np.zeros(3)
     
+    def magnetostatic_field_at_local_point(self, point) -> Vector3D:
+        return np.zeros(3)
+     
     def current_field_at_local_point(self, point) -> Vector3D:
         return np.zeros(3)
     
-    @abstractmethod
     def electrostatic_potential_at_local_point(self, point) -> float:
-        ...
+        return 0.0
     
-    @abstractmethod
     def magnetostatic_potential_at_local_point(self, point) -> float:
-        ...
-         
+        return 0.0
+     
     def __add__(self, other: Field) -> Field:
         if isinstance(other, Field) and not isinstance(other, FieldSuperposition):
             return FieldSuperposition([self, other])
