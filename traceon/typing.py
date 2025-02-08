@@ -7,6 +7,10 @@ import numpy as np
 
 from numpy.typing import NDArray
 
+#: 1 Array and array-like
+
+#: 1.1 Floating-point
+
 #: 1.1.1 Array
 ArrayFloat: TypeAlias = NDArray[np.floating]
 ArrayFloat1D: TypeAlias = NDArray[np.floating]
