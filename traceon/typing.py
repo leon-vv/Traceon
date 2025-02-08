@@ -260,6 +260,6 @@ if TYPE_CHECKING:
     from .field import EffectivePointCharges, Field, FieldBEM, FieldRadialBEM
     from .tracing import Tracer
     try:
-        from traceon_pro.field import Field3DBEM  # type: ignore
+        from traceon_pro.field import Field3D_BEM  # type: ignore
     except ImportError:
-        Field3DBEM = None  # Fallback for unavailable import
+        Field3D_BEM = None  # Fallback for unavailable import
