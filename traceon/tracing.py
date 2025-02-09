@@ -184,7 +184,7 @@ class Tracer:
                 self.trace_args)
     
     @staticmethod
-    def _normalize_input_shapes(position: PointLike3D, velocity: VectorLike3D, mass: float | ArrayFloat1D, charge: float | ArrayFloat1D) \
+    def _normalize_input_shapes(position: PointLike3D, velocity: VectorLike3D, mass: float | ArrayLikeFloat1D, charge: float | ArrayLikeFloat1D) \
             -> tuple[ArrayFloat2D, ArrayFloat2D, ArrayFloat1D, ArrayFloat1D]:
         
         position_ = np.array(position, dtype=np.float64)
@@ -207,7 +207,7 @@ class Tracer:
         # The following fails to type check, as the length of the tuple cannot be inferred
         return tuple(np.copy(backend.ensure_contiguous_aligned(arr)) for arr in [position_, velocity_, mass_, charge_]) # type: ignore
     
-    def trace_multiple(self, position: PointLike3D, velocity: VectorLike3D, mass: float | ArrayFloat1D = m_e, charge: float | ArrayFloat1D = -e, atol: float =1e-8) \
+    def trace_multiple(self, position: PointLike3D, velocity: VectorLike3D, mass: float | ArrayLikeFloat1D = m_e, charge: float | ArrayLikeFloat1D = -e, atol: float =1e-8) \
             -> list[tuple[ArrayFloat1D, ArrayFloat2D]]:
         
         """Trace multiple charged particles. Numpy broadcasting rules apply if one 
