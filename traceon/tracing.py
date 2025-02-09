@@ -21,7 +21,7 @@ from . import backend
 from . import logging
 
 def _convert_velocity_to_SI(velocity, mass):
-    # Convert a velocity vector expressed in eV (see functions above)
+    # Convert a velocity vector expressed in eV (see functions below)
     # to one expressed in m/s.
     speed_eV = np.linalg.norm(velocity)
     speed = sqrt(2*speed_eV*e/mass)
