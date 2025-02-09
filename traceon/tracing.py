@@ -179,11 +179,13 @@ class Tracer:
                 self.trace_args)
     
     @staticmethod
-    def _normalize_input_shapes(position, velocity, mass, charge):
-        position = np.array(position, dtype=np.float64)
-        velocity = np.array(velocity, dtype=np.float64)
-        mass = np.array(mass, dtype=np.float64)
-        charge = np.array(charge, dtype=np.float64)
+    def _normalize_input_shapes(position_: PointLike3D, velocity_: VectorLike3D, mass_: float | ArrayFloat1D, charge_: float | ArrayFloat1D) \
+            -> Tuple[ArrayFloat2D, ArrayFloat2D, ArrayFloat1D, ArrayFloat1D]:
+        
+        position = np.array(position_, dtype=np.float64)
+        velocity = np.array(velocity_, dtype=np.float64)
+        mass = np.array(mass_, dtype=np.float64)
+        charge = np.array(charge_, dtype=np.float64)
 
         if position.shape == (3,):
             position = position[np.newaxis] # Ensure position has shape (N, 3) with N=1
@@ -197,9 +199,12 @@ class Tracer:
         mass = np.broadcast_to(mass, shape=(N,))
         charge = np.broadcast_to(charge, shape=(N,))
         
-        return [np.copy(backend.ensure_contiguous_aligned(arr)) for arr in [position, velocity, mass, charge]]
+        # The following fails to type check, as the length of the tuple cannot be inferred
+        return tuple(np.copy(backend.ensure_contiguous_aligned(arr)) for arr in [position, velocity, mass, charge]) # type: ignore
     
-    def trace_multiple(self, position, velocity, mass=m_e, charge=-e, atol=1e-8):
+    def trace_multiple(self, position: PointLike3D, velocity: VectorLike3D, mass: float | ArrayFloat1D=m_e, charge: float | ArrayFloat1D =-e, atol: float=1e-8) \
+            -> List[Tuple[ArrayFloat1D, ArrayFloat2D]]:
+        
         """Trace multiple charged particles. Numpy broadcasting rules apply if one 
         of the inputs does not have enough elements. For example, if all particles have the
         same charge simply pass in a float for the 'charge' input.
@@ -231,7 +236,8 @@ class Tracer:
         assert positions.shape == (N, 3) and velocities.shape == (N, 3), "Position or velocity array has unexpected shape"
         assert masses.shape == (N,) and charges.shape == (N,), "mass or charge input has unexpected shape"
 
-        return [self.trace_single(p, v, mass=m, charge=c, atol=atol) for p, v, m, c in zip(positions, velocities, masses, charges)]
+        # The following fails to type check, as p, v are incorrectly inferred as np.floating
+        return [self.trace_single(p, v, mass=m.item(), charge=c.item(), atol=atol) for p, v, m, c in zip(positions, velocities, masses, charges)] # type: ignore
 
 def plane_intersection(positions: ArrayLikeFloat2D, p0: PointLike3D, normal: VectorLike3D) -> ArrayFloat1D:
     """Compute the intersection of a trajectory with a general plane in 3D. The plane is specified
