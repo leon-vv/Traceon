@@ -21,12 +21,12 @@ from . import backend
 from . import logging
 from .typing import *
 
-def _convert_velocity_to_SI(velocity: Vector3D, mass: float) -> Vector3D:
+def _convert_velocity_to_SI(velocity: VectorLike3D, mass: float) -> Vector3D:
     # Convert a velocity vector expressed in eV (see functions below)
     # to one expressed in m/s.
     speed_eV = np.linalg.norm(velocity)
     speed = sqrt(2*speed_eV*e/mass)
-    direction = velocity / speed_eV
+    direction = np.array(velocity) / speed_eV
     return speed * direction
 
 def velocity_vec(eV: float, direction_: VectorLike3D, mass: float=m_e) -> Vector3D:
