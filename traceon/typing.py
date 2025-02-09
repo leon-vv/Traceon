@@ -7,6 +7,10 @@ import numpy as np
 
 from numpy.typing import NDArray
 
+#: 1 Array and array-like
+
+#: 1.1 Floating-point
+
 #: 1.1.1 Array
 ArrayFloat: TypeAlias = NDArray[np.floating]
 ArrayFloat1D: TypeAlias = NDArray[np.floating]
@@ -260,6 +264,6 @@ if TYPE_CHECKING:
     from .field import EffectivePointCharges, Field, FieldBEM, FieldRadialBEM
     from .tracing import Tracer
     try:
-        from traceon_pro.field import Field3DBEM  # type: ignore
+        from traceon_pro.field import Field3D_BEM  # type: ignore
     except ImportError:
-        Field3DBEM = None  # Fallback for unavailable import
+        Field3D_BEM = None  # Fallback for unavailable import

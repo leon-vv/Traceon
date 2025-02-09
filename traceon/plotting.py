@@ -168,7 +168,7 @@ class Figure:
             raise RuntimeError("Trying to plot empty mesh.")
         
         if len(mesh.triangles):
-            # assert isinstance(field, Field3DBEM)
+            assert isinstance(field, Field3D_BEM)
             meshes = _get_vedo_charge_density_3d(excitation, field, color_map)
             self.to_plot.append(meshes)
             
@@ -313,7 +313,7 @@ def _get_vedo_triangles_and_normals(mesh: Mesh, **phys_colors: str) -> tuple[lis
     return meshes, arrows
 
 # TODO: Move to Traceon Pro
-def _get_vedo_charge_density_3d(excitation: Excitation, field: Field3DBEM, color_map: str) -> list[vedo.Mesh]:
+def _get_vedo_charge_density_3d(excitation: Excitation, field: Field3D_BEM, color_map: str) -> list[vedo.Mesh]:
     
     if excitation.is_electrostatic():
         all_vertices, name = excitation.get_electrostatic_active_elements()
