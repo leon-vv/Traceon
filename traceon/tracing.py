@@ -146,7 +146,7 @@ class Tracer:
             velocity: VectorLike3D,
             mass: float = m_e,
             charge: float = -e,
-            atol: float = 1e-8) -> Tuple[ArrayFloat1D, ArrayFloat2D]:
+            atol: float = 1e-8) -> tuple[ArrayFloat1D, ArrayFloat2D]:
         """Trace a charged particle.
 
         Parameters
@@ -185,7 +185,7 @@ class Tracer:
     
     @staticmethod
     def _normalize_input_shapes(position: PointLike3D, velocity: VectorLike3D, mass: float | ArrayFloat1D, charge: float | ArrayFloat1D) \
-            -> Tuple[ArrayFloat2D, ArrayFloat2D, ArrayFloat1D, ArrayFloat1D]:
+            -> tuple[ArrayFloat2D, ArrayFloat2D, ArrayFloat1D, ArrayFloat1D]:
         
         position_ = np.array(position, dtype=np.float64)
         velocity_ = np.array(velocity, dtype=np.float64)
@@ -208,7 +208,7 @@ class Tracer:
         return tuple(np.copy(backend.ensure_contiguous_aligned(arr)) for arr in [position_, velocity_, mass_, charge_]) # type: ignore
     
     def trace_multiple(self, position: PointLike3D, velocity: VectorLike3D, mass: float | ArrayFloat1D = m_e, charge: float | ArrayFloat1D = -e, atol: float =1e-8) \
-            -> List[Tuple[ArrayFloat1D, ArrayFloat2D]]:
+            -> list[tuple[ArrayFloat1D, ArrayFloat2D]]:
         
         """Trace multiple charged particles. Numpy broadcasting rules apply if one 
         of the inputs does not have enough elements. For example, if all particles have the
