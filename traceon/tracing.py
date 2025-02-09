@@ -29,7 +29,7 @@ def _convert_velocity_to_SI(velocity: VectorLike3D, mass: float) -> Vector3D:
     direction = np.array(velocity) / speed_eV
     return speed * direction
 
-def velocity_vec(eV: float, direction_: VectorLike3D, mass: float=m_e) -> Vector3D:
+def velocity_vec(eV: float, direction_: VectorLike3D, mass: float = m_e) -> Vector3D:
     """Compute an initial velocity vector in the correct units and direction.
     
     Parameters
@@ -141,7 +141,12 @@ class Tracer:
     def __call__(self, *args, **kwargs):
         return self.trace_single(*args, **kwargs)
     
-    def trace_single(self, position: PointLike3D, velocity: VectorLike3D, mass: float=m_e, charge: float=-e, atol: float=1e-8) -> Tuple[ArrayFloat1D, ArrayFloat2D]:
+    def trace_single(self,
+            position: PointLike3D,
+            velocity: VectorLike3D,
+            mass: float = m_e,
+            charge: float = -e,
+            atol: float = 1e-8) -> Tuple[ArrayFloat1D, ArrayFloat2D]:
         """Trace a charged particle.
 
         Parameters
@@ -202,7 +207,7 @@ class Tracer:
         # The following fails to type check, as the length of the tuple cannot be inferred
         return tuple(np.copy(backend.ensure_contiguous_aligned(arr)) for arr in [position, velocity, mass, charge]) # type: ignore
     
-    def trace_multiple(self, position: PointLike3D, velocity: VectorLike3D, mass: float | ArrayFloat1D=m_e, charge: float | ArrayFloat1D =-e, atol: float=1e-8) \
+    def trace_multiple(self, position: PointLike3D, velocity: VectorLike3D, mass: float | ArrayFloat1D = m_e, charge: float | ArrayFloat1D = -e, atol: float =1e-8) \
             -> List[Tuple[ArrayFloat1D, ArrayFloat2D]]:
         
         """Trace multiple charged particles. Numpy broadcasting rules apply if one 
