@@ -29,7 +29,7 @@ def _convert_velocity_to_SI(velocity: VectorLike3D, mass: float) -> Vector3D:
     direction = np.array(velocity) / speed_eV
     return speed * direction
 
-def velocity_vec(eV: float, direction_: VectorLike3D, mass: float = m_e) -> Vector3D:
+def velocity_vec(eV: float, direction: VectorLike3D, mass: float = m_e) -> Vector3D:
     """Compute an initial velocity vector in the correct units and direction.
     
     Parameters
@@ -47,13 +47,13 @@ def velocity_vec(eV: float, direction_: VectorLike3D, mass: float = m_e) -> Vect
     """
     assert eV > 0.0, "Please provide a positive energy in eV"
 
-    direction = np.array(direction_)
-    assert direction.shape == (3,), "Please provide a three dimensional direction vector"
+    direction_ = np.array(direction)
+    assert direction_.shape == (3,), "Please provide a three dimensional direction vector"
     
     if eV > 40000:
         logging.log_warning(f'Velocity vector with large energy ({eV} eV) requested. Note that relativistic tracing is not yet implemented.')
     
-    return _convert_velocity_to_SI(eV * np.array(direction)/np.linalg.norm(direction), mass)
+    return _convert_velocity_to_SI(eV * np.array(direction_)/np.linalg.norm(direction_), mass)
 
 def velocity_vec_spherical(eV: float, theta: float, phi: float) -> Vector3D:
     """Compute initial velocity vector given energy and direction computed from spherical coordinates.
@@ -184,28 +184,28 @@ class Tracer:
                 self.trace_args)
     
     @staticmethod
-    def _normalize_input_shapes(position_: PointLike3D, velocity_: VectorLike3D, mass_: float | ArrayFloat1D, charge_: float | ArrayFloat1D) \
+    def _normalize_input_shapes(position: PointLike3D, velocity: VectorLike3D, mass: float | ArrayFloat1D, charge: float | ArrayFloat1D) \
             -> Tuple[ArrayFloat2D, ArrayFloat2D, ArrayFloat1D, ArrayFloat1D]:
         
-        position = np.array(position_, dtype=np.float64)
-        velocity = np.array(velocity_, dtype=np.float64)
-        mass = np.array(mass_, dtype=np.float64)
-        charge = np.array(charge_, dtype=np.float64)
+        position_ = np.array(position, dtype=np.float64)
+        velocity_ = np.array(velocity, dtype=np.float64)
+        mass_ = np.array(mass, dtype=np.float64)
+        charge_ = np.array(charge, dtype=np.float64)
 
-        if position.shape == (3,):
-            position = position[np.newaxis] # Ensure position has shape (N, 3) with N=1
+        if position_.shape == (3,):
+            position_ = position_[np.newaxis] # Ensure position has shape (N, 3) with N=1
 
         # Normalize shape against one another
         # So that they both have shape (N, 3)
-        position, velocity = np.broadcast_arrays(position, velocity)
+        position_, velocity_ = np.broadcast_arrays(position, velocity_)
 
-        N = len(position)
+        N = len(position_)
 
-        mass = np.broadcast_to(mass, shape=(N,))
-        charge = np.broadcast_to(charge, shape=(N,))
+        mass_ = np.broadcast_to(mass_, shape=(N,))
+        charge_ = np.broadcast_to(charge_, shape=(N,))
         
         # The following fails to type check, as the length of the tuple cannot be inferred
-        return tuple(np.copy(backend.ensure_contiguous_aligned(arr)) for arr in [position, velocity, mass, charge]) # type: ignore
+        return tuple(np.copy(backend.ensure_contiguous_aligned(arr)) for arr in [position_, velocity_, mass_, charge_]) # type: ignore
     
     def trace_multiple(self, position: PointLike3D, velocity: VectorLike3D, mass: float | ArrayFloat1D = m_e, charge: float | ArrayFloat1D = -e, atol: float =1e-8) \
             -> List[Tuple[ArrayFloat1D, ArrayFloat2D]]:
