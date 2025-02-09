@@ -17,13 +17,19 @@ import numpy as np
 import scipy
 from scipy.constants import m_e, e, mu_0
     
-
 from . import backend
 from . import logging
+from .typing import *
 
-from .typing import * 
+def _convert_velocity_to_SI(velocity: VectorLike3D, mass: float) -> Vector3D:
+    # Convert a velocity vector expressed in eV (see functions below)
+    # to one expressed in m/s.
+    speed_eV = np.linalg.norm(velocity)
+    speed = sqrt(2*speed_eV*e/mass)
+    direction = np.array(velocity) / speed_eV
+    return speed * direction
 
-def velocity_vec(eV: float, direction_: VectorLike3D) -> Vector3D:
+def velocity_vec(eV: float, direction: VectorLike3D, mass: float = m_e) -> Vector3D:
     """Compute an initial velocity vector in the correct units and direction.
     
     Parameters
@@ -41,13 +47,13 @@ def velocity_vec(eV: float, direction_: VectorLike3D) -> Vector3D:
     """
     assert eV > 0.0, "Please provide a positive energy in eV"
 
-    direction = np.array(direction_)
-    assert direction.shape == (3,), "Please provide a three dimensional direction vector"
+    direction_ = np.array(direction)
+    assert direction_.shape == (3,), "Please provide a three dimensional direction vector"
     
     if eV > 40000:
         logging.log_warning(f'Velocity vector with large energy ({eV} eV) requested. Note that relativistic tracing is not yet implemented.')
     
-    return eV * np.array(direction)/np.linalg.norm(direction)
+    return _convert_velocity_to_SI(eV * np.array(direction_)/np.linalg.norm(direction_), mass)
 
 def velocity_vec_spherical(eV: float, theta: float, phi: float) -> Vector3D:
     """Compute initial velocity vector given energy and direction computed from spherical coordinates.
@@ -95,15 +101,6 @@ def _z_to_bounds(z1: float, z2: float) -> tuple[float, float]:
     else:
         return (min(z1, z2)-1, max(z1, z2)+1)
 
-def _convert_velocity_to_SI(velocity: VectorLike3D, mass: float) -> Vector3D:
-    # Convert a velocity vector expressed in eV (see functions above)
-    # to one expressed in m/s.
-    velocity = np.array(velocity)
-    speed_eV = np.linalg.norm(velocity)
-    speed = sqrt(2*speed_eV*e/mass)
-    direction = velocity / speed_eV
-    return speed * direction
-
 class Tracer:
     """General tracer class for charged particles. Can trace charged particles given any field class from `traceon.solver`.
 
@@ -140,13 +137,16 @@ class Tracer:
         bounds_str = ' '.join([f'({bmin:.2f}, {bmax:.2f})' for bmin, bmax in self.bounds])
         return f'<Traceon Tracer of {field_name},\n\t' \
             + 'Bounds: ' + bounds_str + ' mm >'
+
+    def __call__(self, *args, **kwargs):
+        return self.trace_single(*args, **kwargs)
     
-    def __call__(self, 
-                 position: PointLike3D, 
-                 velocity: VectorLike3D, 
-                 mass: float = m_e, 
-                 charge: float = -e, 
-                 atol: float = 1e-8) -> tuple[ArrayFloat1D, ArrayFloat2D]:
+    def trace_single(self,
+            position: PointLike3D,
+            velocity: VectorLike3D,
+            mass: float = m_e,
+            charge: float = -e,
+            atol: float = 1e-8) -> tuple[ArrayFloat1D, ArrayFloat2D]:
         """Trace a charged particle.
 
         Parameters
@@ -173,16 +173,76 @@ class Tracer:
         """
         position = np.array(position)
         charge_over_mass = charge / mass
-        velocity = _convert_velocity_to_SI(velocity, mass)
 
         return backend.trace_particle(
                 position,
-                velocity,
+                np.array(velocity),
                 charge_over_mass, 
                 self.trace_fun, #type:ignore
                 self.bounds,
                 atol,
                 self.trace_args)
+    
+    @staticmethod
+    def _normalize_input_shapes(position: PointLike3D, velocity: VectorLike3D, mass: float | ArrayLikeFloat1D, charge: float | ArrayLikeFloat1D) \
+            -> tuple[ArrayFloat2D, ArrayFloat2D, ArrayFloat1D, ArrayFloat1D]:
+        
+        position_ = np.array(position, dtype=np.float64)
+        velocity_ = np.array(velocity, dtype=np.float64)
+        mass_ = np.array(mass, dtype=np.float64)
+        charge_ = np.array(charge, dtype=np.float64)
+
+        if position_.shape == (3,):
+            position_ = position_[np.newaxis] # Ensure position has shape (N, 3) with N=1
+
+        # Normalize shape against one another
+        # So that they both have shape (N, 3)
+        position_, velocity_ = np.broadcast_arrays(position, velocity_)
+
+        N = len(position_)
+
+        mass_ = np.broadcast_to(mass_, shape=(N,))
+        charge_ = np.broadcast_to(charge_, shape=(N,))
+        
+        # The following fails to type check, as the length of the tuple cannot be inferred
+        return tuple(np.copy(backend.ensure_contiguous_aligned(arr)) for arr in [position_, velocity_, mass_, charge_]) # type: ignore
+    
+    def trace_multiple(self, position: PointLike3D, velocity: VectorLike3D, mass: float | ArrayLikeFloat1D = m_e, charge: float | ArrayLikeFloat1D = -e, atol: float =1e-8) \
+            -> list[tuple[ArrayFloat1D, ArrayFloat2D]]:
+        
+        """Trace multiple charged particles. Numpy broadcasting rules apply if one 
+        of the inputs does not have enough elements. For example, if all particles have the
+        same charge simply pass in a float for the 'charge' input.
+        
+        Parameters
+        ----------
+        position: (N, 3) np.ndarray of float64
+            Initial positions of the particle.
+        velocity: (N, 3) np.ndarray of float64
+            Initial velocities (expressed in a vector whose magnitude has units of eV). Use one of the utility functions documented
+            above to create the initial velocity vector.
+        mass: float or (N,)
+            Particle masses in kilogram (kg). The default value is the electron mass: m_e = 9.1093837015e-31 kg.
+        charge: float or (N,)
+            Particle charges in Coulomb (C). The default value is the electron charge: -1 * e = -1.602176634e-19 C.
+        atol: float
+            Absolute tolerance determining the accuracy of the trace.
+        
+        Returns
+        -------
+        list of (times, positions)
+            See documentation of `Tracer.trace_single`
+        """
+
+        positions, velocities, masses, charges = Tracer._normalize_input_shapes(position, velocity, mass, charge)
+
+        N = len(positions)
+
+        assert positions.shape == (N, 3) and velocities.shape == (N, 3), "Position or velocity array has unexpected shape"
+        assert masses.shape == (N,) and charges.shape == (N,), "mass or charge input has unexpected shape"
+
+        # The following fails to type check, as p, v are incorrectly inferred as np.floating
+        return [self.trace_single(p, v, mass=m.item(), charge=c.item(), atol=atol) for p, v, m, c in zip(positions, velocities, masses, charges)] # type: ignore
 
 def plane_intersection(positions: ArrayLikeFloat2D, p0: PointLike3D, normal: VectorLike3D) -> ArrayFloat1D:
     """Compute the intersection of a trajectory with a general plane in 3D. The plane is specified

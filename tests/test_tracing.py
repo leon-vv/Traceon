@@ -11,6 +11,7 @@ import traceon.geometry as G
 import traceon.excitation as E
 import traceon.backend as B
 import traceon.solver as S
+import traceon.field as F
 import traceon.tracing as T
 from traceon.field import *
 
@@ -38,7 +39,38 @@ class TestTracing(unittest.TestCase):
 
         assert np.allclose(correct_x, positions[:, 0])
         assert np.allclose(correct_z, positions[:, 2])
+    
+    def test_tracing_multiple_constant_acceleration(self):
+        # Same test as above but using a custom field and the trace_many function
 
+        class ConstantField(F.Field):
+            def is_electrostatic(self):
+                return True
+            def is_magnetostatic(self):
+                return False
+            def magnetostatic_field_at_local_point(self, point):
+                return np.zeros(3)
+            def magnetostatic_potential_at_local_point(self, point):
+                return 0.0
+            def electrostatic_potential_at_local_point(self):
+                return 0.0
+            def electrostatic_field_at_local_point(self, point):
+                acceleration = np.array([3., 0., 0.])
+                return acceleration * m_e/(-e)
+        
+        bounds = ((-2.0, 2.0), (-2.0, 2.0), (-2.0, np.sqrt(12)+1))
+
+        tracer = T.Tracer(ConstantField(), bounds)
+         
+        result = tracer.trace_multiple([np.zeros(3), np.zeros(3)], [0., 0., 3.])
+        
+        for times, positions in result:
+            correct_x = 3/2*times**2
+            correct_z = 3*times
+            
+            assert np.allclose(correct_x, positions[:, 0])
+            assert np.allclose(correct_z, positions[:, 2])
+    
     def test_tracing_helix_against_scipy(self):
         def acceleration(_, y):
             v = y[3:]
@@ -92,7 +124,7 @@ class TestTracing(unittest.TestCase):
         tracer = T.Tracer(CustomField(), bounds)
         
         # Note that we transform velocity to eV, since it's being converted back to m/s in the Tracer.__call__ function
-        times, positions = tracer(p0, v0*4.020347574230144e-12, atol=1e-10)
+        times, positions = tracer(p0, v0, atol=1e-10)
          
         sol = solve_ivp(acceleration, (0, 30), np.hstack( (p0, v0) ), method='DOP853', rtol=1e-10, atol=1e-10)
 
