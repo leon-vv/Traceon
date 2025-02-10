@@ -18,6 +18,7 @@ The core of Traceon is completely free to use and open source, and distributed u
 | 3D solver using fast multipole method  | | ✅|
 | 3D particle tracing | | ✅|
 | 3D axial interpolation (fast tracing) | | ✅|
+| Coulomb interaction | | ✅|
 
 
 
@@ -27,9 +28,9 @@ The core of Traceon is completely free to use and open source, and distributed u
 
 [Examples](https://github.com/leon-vv/Traceon/tree/main/examples)
 
-[API documentation v0.9.0](https://traceon.org/docs/v0.9.0/traceon/index.html)
+[API documentation v0.10.0](https://traceon.org/docs/v0.10.0/traceon/index.html)
 
-[API documentation v0.8.0](https://traceon.org/docs/v0.8.0/index.html)
+[API documentation v0.9.0](https://traceon.org/docs/v0.9.0/traceon/index.html)
 
 ## Citation
 
