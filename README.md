@@ -71,6 +71,15 @@ Don't worry. You can reach me.
 
 ## Release notes
 
+### v0.10.0
+- Make Field a GeometricObject (which can be moved, rotated, etc)
+- Introduce FieldSuperposition class to represent summation of arbitrary fields
+- Add type hints throughout codebase
+- Add initial support for couloumb interactions while tracing (pro only)
+
+**Breaking changes**
+- `Tracer.__call__` now takes velocities with unit m/s instead of eV
+
 ### v0.9.0
 - Add permanent magnets
 - Small improvements to geometry module (add annulus methods)
