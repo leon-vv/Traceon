@@ -18,6 +18,7 @@ The core of Traceon is completely free to use and open source, and distributed u
 | 3D solver using fast multipole method  | | ✅|
 | 3D particle tracing | | ✅|
 | 3D axial interpolation (fast tracing) | | ✅|
+| Coulomb interaction | | ✅|
 
 
 
@@ -27,17 +28,9 @@ The core of Traceon is completely free to use and open source, and distributed u
 
 [Examples](https://github.com/leon-vv/Traceon/tree/main/examples)
 
+[API documentation v0.10.0](https://traceon.org/docs/v0.10.0/traceon/index.html)
+
 [API documentation v0.9.0](https://traceon.org/docs/v0.9.0/traceon/index.html)
-
-[API documentation v0.8.0](https://traceon.org/docs/v0.8.0/index.html)
-
-## Citation
-
-Please cite the software as follows:
-
-```
-L.B. van Velzen. Traceon software (version 0.9.0). 2024. https://doi.org/10.5281/zenodo.14606886
-```
 
 ## Installation
 
@@ -77,6 +70,15 @@ Don't worry. You can reach me.
 ![Image of Einzel lens traces](https://raw.githubusercontent.com/leon-vv/traceon/main/images/einzel-lens-traces.png)
 
 ## Release notes
+
+### v0.10.0
+- Make Field a GeometricObject (which can be moved, rotated, etc)
+- Introduce FieldSuperposition class to represent summation of arbitrary fields
+- Add type hints throughout codebase
+- Add initial support for couloumb interactions while tracing (pro only)
+
+**Breaking changes**
+- `Tracer.__call__` now takes velocities with unit m/s instead of eV
 
 ### v0.9.0
 - Add permanent magnets

@@ -1,6 +1,7 @@
-from math import cos
+from math import cos, sqrt
 
 import numpy as np
+from scipy.constants import e, m_e
 
 import traceon.geometry as G
 import traceon.excitation as E
@@ -55,7 +56,10 @@ class SphericalCapacitor(Validation):
     
     def compute_value_of_interest(self, mesh, field):
         position = np.array([0.0, 0.0, 10.0]) 
-        vel = np.array([np.cos(angle), 0.0, -np.sin(angle)])
+          
+        speed = sqrt(2*e/m_e) # corresponding to 1eV
+        vel = speed*np.array([np.cos(angle), 0.0, -np.sin(angle)])
+        
         tracer = field.get_tracer( [(-0.1, 12.5), (-0.1, 0.1), (-12.5, 12.5)] )
         print('Starting electron trace...')
         times, pos = tracer(position, vel)
