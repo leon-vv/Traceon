@@ -30,9 +30,7 @@ from .typing import *
 
 __pdoc__ = {}
 __pdoc__['EffectivePointCharges'] = False
-__pdoc__['ElectrostaticSolver'] = False
 __pdoc__['ElectrostaticSolverRadial'] = False
-__pdoc__['MagnetostaticSolver'] = False
 __pdoc__['MagnetostaticSolverRadial'] = False
 __pdoc__['SolverRadial'] = False
 __pdoc__['Solver'] = False

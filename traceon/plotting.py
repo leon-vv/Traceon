@@ -78,7 +78,7 @@ class Figure:
 
         Parameters
         -------------------------------------
-        field: `traceon.solver.Field`
+        field: `traceon.field.Field`
             The field used to compute the potential values (note that any field returned from the solver can be used)
         surface: `traceon.geometry.Surface`
             The surface in 3D space which will be 'colored in'
@@ -157,7 +157,7 @@ class Figure:
         ---------------------
         excitation: `traceon.excitation.Excitation`
             Excitation applied
-        field: `traceon.solver.FieldBEM`
+        field: `traceon.field.FieldBEM`
             Field that resulted after solving for the applied excitation
         color_map: str
             Name of the color map to use to color the charge density values

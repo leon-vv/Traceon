@@ -422,6 +422,9 @@ class Field(GeometricObject, ABC):
 
 
 class FieldSuperposition(Field):
+    """Representing a linear combination of fields (superposition). Will be automatically created if fields are added
+    together (field1 + field2) and the underlying field classes do not implement a specialized add method."""
+    
     def __init__(self, fields: Iterable[Field], factors: Iterable[float] | Iterable[np.floating] | None = None) -> None:
         super().__init__()
         

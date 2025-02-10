@@ -42,7 +42,6 @@ __pdoc__['util'] = False
 __pdoc__['backend'] = False
 __pdoc__['data'] = False
 __pdoc__['traceon.tracing.Tracer.__call__'] = True
-__pdoc__['_typing'] = False
 
 warnings.filterwarnings('ignore', '.*The value of the smallest subnormal for.* type is zero.')
 
