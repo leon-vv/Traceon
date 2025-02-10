@@ -32,14 +32,6 @@ The core of Traceon is completely free to use and open source, and distributed u
 
 [API documentation v0.9.0](https://traceon.org/docs/v0.9.0/traceon/index.html)
 
-## Citation
-
-Please cite the software as follows:
-
-```
-L.B. van Velzen. Traceon software (version 0.9.0). 2024. https://doi.org/10.5281/zenodo.14606886
-```
-
 ## Installation
 
 Install using the Python package manager:
