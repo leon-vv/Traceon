@@ -1,0 +1,612 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, minimum-scale=1">
+  <meta name="generator" content="pdoc3 0.11.5">
+
+
+
+    <title>traceon.typing API documentation</title>
+    <meta name="description" content="">
+
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/10up-sanitize.css/13.0.0/sanitize.min.css" integrity="sha512-y1dtMcuvtTMJc1yPgEqF0ZjQbhnc/bFhyvIyVNb9Zk5mIGtqVaAB1Ttl28su8AvFMOY0EwRbAe+HCLqj6W7/KA==" crossorigin>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/10up-sanitize.css/13.0.0/typography.min.css" integrity="sha512-Y1DYSb995BAfxobCkKepB1BqJJTPrOp3zPL74AWFugHHmmdcvO+C48WLrUOlhGMc0QG7AE3f7gmvvcrmX2fDoA==" crossorigin>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/default.min.css" crossorigin>
+
+  
+  <style>:root{--highlight-color:#fe9}.flex{display:flex !important}body{line-height:1.5em}#content{padding:20px}#content .doc-image{padding:0px;display:block;margin:0px auto}#sidebar{padding:1.5em;padding-left:2.5em;overflow:hidden}#sidebar > *:last-child{margin-bottom:2cm}#sidebar .title{font-weight:bold}.http-server-breadcrumbs{font-size:130%;margin:0 0 15px 0}#footer{font-size:.75em;padding:5px 30px;border-top:1px solid #ddd;text-align:right}#footer p{margin:0 0 0 1em;display:inline-block}#footer p:last-child{margin-right:30px}h1,h2,h3,h4,h5{font-weight:300}h1{font-size:2.5em;line-height:1.1em}h2{font-size:1.75em;margin:2em 0 .50em 0}h3{font-size:1.4em;margin:1.6em 0 .7em 0}h4{margin:0;font-size:105%}h1:target,h2:target,h3:target,h4:target,h5:target,h6:target{background:var(--highlight-color);padding:.2em 0}a{color:#058;text-decoration:none;transition:color .2s ease-in-out}a:visited{color:#503}a:hover{color:#b62}.title code{font-weight:bold}h2[id^="header-"]{margin-top:2em}.ident{color:#900;font-weight:bold}pre code{font-size:.8em;line-height:1.4em;padding:1em;display:block}code{background:#f3f3f3;font-family:"DejaVu Sans Mono",monospace;padding:1px 4px;overflow-wrap:break-word}h1 code{background:transparent}pre{border-top:1px solid #ccc;border-bottom:1px solid #ccc;margin:1em 0}#http-server-module-list{display:flex;flex-flow:column}#http-server-module-list div{display:flex}#http-server-module-list dt{min-width:10%}#http-server-module-list p{margin-top:0}.toc ul,#index{list-style-type:none;margin:0;padding:0}#index code{background:transparent}#index .selected{background:transparent;font-weight:bold}#index a{color:#058}#index h3{border-bottom:1px solid #ddd}#index ul{padding:0}#index h4{margin-top:.6em;font-weight:bold}@media (min-width:200ex){#index .two-column{column-count:2}}@media (min-width:300ex){#index .two-column{column-count:3}}dl{margin-bottom:2em}dl dl:last-child{margin-bottom:4em}dd{margin:0 0 1em 3em}#header-classes + dl > dd{margin-bottom:3em}dd dd{margin-left:2em}dd p{margin:10px 0}.name{background:#eee;font-size:.85em;padding:5px 10px;display:inline-block;min-width:40%}.name:hover{background:#e0e0e0}dt:target .name{background:var(--highlight-color)}.name > span:first-child{white-space:nowrap}.name.class > span:nth-child(2){margin-left:.4em}.inherited{color:#999;border-left:5px solid #eee;padding-left:1em}.inheritance em{font-style:normal;font-weight:bold}.desc h2{font-weight:400;font-size:1.25em}.desc h3{font-size:1em}.desc dt code{background:inherit}.source > summary,.git-link-div{color:#666;text-align:right;font-weight:400;font-size:.8em;text-transform:uppercase}.source summary > *{white-space:nowrap;cursor:pointer}.git-link{color:inherit;margin-left:1em}.source pre{max-height:500px;overflow:auto;margin:0}.source pre code{font-size:12px;overflow:visible;min-width:max-content}.hlist{list-style:none}.hlist li{display:inline}.hlist li:after{content:',\2002'}.hlist li:last-child:after{content:none}.hlist .hlist{display:inline;padding-left:1em}img{max-width:100%}td{padding:0 .5em}.admonition{padding:.1em 1em;margin:1em 0}.admonition-title{font-weight:bold}.admonition.note,.admonition.info,.admonition.important{background:#aef}.admonition.todo,.admonition.versionadded,.admonition.tip,.admonition.hint{background:#dfd}.admonition.warning,.admonition.versionchanged,.admonition.deprecated{background:#fd4}.admonition.error,.admonition.danger,.admonition.caution{background:lightpink}</style>
+  <style media="screen and (min-width: 700px)">@media screen and (min-width:700px){#sidebar{width:29%;min-width:525px;height:100vh;overflow:auto;position:sticky;top:0}#content{width:80%;max-width:110ch;padding:3em 6em;border-left:1px solid #ddd}pre code{font-size:1em}.name{font-size:1em}main{display:flex;flex-direction:row-reverse;justify-content:flex-end}.toc ul ul,#index ul ul{padding-left:1em}.toc > ul > li{margin-top:.5em}}</style>
+  <style media="print">@media print{#sidebar h1{page-break-before:always}.source{display:none}}@media print{*{background:transparent !important;color:#000 !important;box-shadow:none !important;text-shadow:none !important}a[href]:after{content:" (" attr(href) ")";font-size:90%}a[href][title]:after{content:none}abbr[title]:after{content:" (" attr(title) ")"}.ir a:after,a[href^="javascript:"]:after,a[href^="#"]:after{content:""}pre,blockquote{border:1px solid #999;page-break-inside:avoid}thead{display:table-header-group}tr,img{page-break-inside:avoid}img{max-width:100% !important}@page{margin:0.5cm}p,h2,h3{orphans:3;widows:3}h1,h2,h3,h4,h5,h6{page-break-after:avoid}}</style>
+
+
+
+    <script type="text/x-mathjax-config">MathJax.Hub.Config({ tex2jax: { inlineMath: [ ['$','$'], ["\\(","\\)"] ], processEscapes: true } });</script>
+    <script async src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.7/latest.js?config=TeX-AMS_CHTML" integrity="sha256-kZafAc6mZvK3W3v1pHOcUix30OHQN6pU/NO2oFkqZVw=" crossorigin></script>
+
+    <script defer src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js" integrity="sha512-D9gUyxqja7hBtkWpPWGt9wfbfaMGVt9gnyCvYa+jojwwPHLCzUm5i8rpk7vD7wNee9bA35eYIjobYPaQuKS1MQ==" crossorigin></script>
+    <script>window.addEventListener('DOMContentLoaded', () => {
+        hljs.configure({languages: ['bash', 'css', 'diff', 'graphql', 'ini', 'javascript', 'json', 'plaintext', 'python', 'python-repl', 'rust', 'shell', 'sql', 'typescript', 'xml', 'yaml']});
+        hljs.highlightAll();
+        /* Collapse source docstrings */
+        setTimeout(() => {
+            [...document.querySelectorAll('.hljs.language-python > .hljs-string')]
+                .filter(el => el.innerHTML.length > 200 && ['"""', "'''"].includes(el.innerHTML.substring(0, 3)))
+                .forEach(el => {
+                    let d = document.createElement('details');
+                    d.classList.add('hljs-string');
+                    d.innerHTML = '<summary>"""</summary>' + el.innerHTML.substring(3);
+                    el.replaceWith(d);
+                });
+        }, 100);
+    })</script>
+
+  
+</head>
+<body>
+<main>
+    <article id="content">
+      
+  
+
+  
+
+  <header>
+  <h1 class="title">Module <code>traceon.typing</code></h1>
+  </header>
+
+  <section id="section-intro">
+  
+  </section>
+
+  <section>
+  </section>
+	
+  <section>
+    <h2 class="section-title" id="header-variables">Global variables</h2>
+    <dl>
+      
+      <dt id="traceon.typing.ActiveLines"><code class="name">var <span class="ident">ActiveLines</span></code></dt>
+      <dd>
+  
+  
+
+  <div class="desc"><p>Active lines in a mesh 
+as a tuple of <code><a title="traceon.typing.LinesVertices" href="#traceon.typing.LinesVertices">LinesVertices</a></code>, an <code>(N, 4, 3)</code> NumPy array of <code>float</code> representing the line, 
+and a dictionary mapping the names of the physical groups to an <code>(N,)</code> NumPy array of <code>int</code> 
+representing the line indices.</p></div>
+</dd>
+      
+      <dt id="traceon.typing.ActiveTriangles"><code class="name">var <span class="ident">ActiveTriangles</span></code></dt>
+      <dd>
+  
+  
+
+  <div class="desc"><p>Active triangles in a mesh 
+as a tuple of <code><a title="traceon.typing.TrianglesVertices" href="#traceon.typing.TrianglesVertices">TrianglesVertices</a></code>, an <code>(N, 3, 3)</code> NumPy array of <code>float</code> points representing the triangles, 
+and a dictionary mapping the names of the physical groups to an <code>(N,)</code> NumPy array of <code>int</code> 
+representing the triangle indices.</p></div>
+</dd>
+      
+      <dt id="traceon.typing.ArrayFloat"><code class="name">var <span class="ident">ArrayFloat</span></code></dt>
+      <dd>
+  
+  
+
+  <div class="desc"><p>1.1.1 Array</p></div>
+</dd>
+      
+      <dt id="traceon.typing.ArrayInt"><code class="name">var <span class="ident">ArrayInt</span></code></dt>
+      <dd>
+  
+  
+
+  <div class="desc"><p>1.2.1 Array</p></div>
+</dd>
+      
+      <dt id="traceon.typing.ArrayLikeFloat"><code class="name">var <span class="ident">ArrayLikeFloat</span></code></dt>
+      <dd>
+  
+  
+
+  <div class="desc"><p>A NumPy array of <code>float</code> with arbitrary shape 
+or a sequence of <code>float</code>.</p></div>
+</dd>
+      
+      <dt id="traceon.typing.ArrayLikeFloat1D"><code class="name">var <span class="ident">ArrayLikeFloat1D</span></code></dt>
+      <dd>
+  
+  
+
+  <div class="desc"><p>A one-dimensional NumPy array of <code>float</code> 
+or a sequence of <code>float</code>.</p></div>
+</dd>
+      
+      <dt id="traceon.typing.ArrayLikeFloat2D"><code class="name">var <span class="ident">ArrayLikeFloat2D</span></code></dt>
+      <dd>
+  
+  
+
+  <div class="desc"><p>A two-dimensional NumPy array of <code>float</code>
+or a sequence of one-dimensional <code><a title="traceon.typing.ArrayLikeFloat1D" href="#traceon.typing.ArrayLikeFloat1D">ArrayLikeFloat1D</a></code>.</p></div>
+</dd>
+      
+      <dt id="traceon.typing.ArrayLikeFloat3D"><code class="name">var <span class="ident">ArrayLikeFloat3D</span></code></dt>
+      <dd>
+  
+  
+
+  <div class="desc"><p>A three-dimensional NumPy array of <code>float</code> 
+or a sequence of <code><a title="traceon.typing.ArrayLikeFloat2D" href="#traceon.typing.ArrayLikeFloat2D">ArrayLikeFloat2D</a></code>.</p></div>
+</dd>
+      
+      <dt id="traceon.typing.ArrayLikeInt"><code class="name">var <span class="ident">ArrayLikeInt</span></code></dt>
+      <dd>
+  
+  
+
+  <div class="desc"><p>A NumPy array of <code>int</code> with arbitrary shape 
+or a sequence of <code>int</code>.</p></div>
+</dd>
+      
+      <dt id="traceon.typing.ArrayLikeInt1D"><code class="name">var <span class="ident">ArrayLikeInt1D</span></code></dt>
+      <dd>
+  
+  
+
+  <div class="desc"><p>A one-dimensional NumPy array of <code>int</code> 
+or a sequence of <code>int</code>.</p></div>
+</dd>
+      
+      <dt id="traceon.typing.ArrayLikeInt2D"><code class="name">var <span class="ident">ArrayLikeInt2D</span></code></dt>
+      <dd>
+  
+  
+
+  <div class="desc"><p>A two-dimensional NumPy array of <code>int</code> 
+or a sequence of <code><a title="traceon.typing.ArrayLikeInt1D" href="#traceon.typing.ArrayLikeInt1D">ArrayLikeInt1D</a></code>.</p></div>
+</dd>
+      
+      <dt id="traceon.typing.ArrayLikeInt3D"><code class="name">var <span class="ident">ArrayLikeInt3D</span></code></dt>
+      <dd>
+  
+  
+
+  <div class="desc"><p>A three-dimensional NumPy array of <code>int</code>
+or a sequence of <code><a title="traceon.typing.ArrayLikeInt2D" href="#traceon.typing.ArrayLikeInt2D">ArrayLikeInt2D</a></code>.</p></div>
+</dd>
+      
+      <dt id="traceon.typing.Bounds3D"><code class="name">var <span class="ident">Bounds3D</span></code></dt>
+      <dd>
+  
+  
+
+  <div class="desc"><p>Three-dimensional bounds <code>[(x_min, x_max), (y_min, y_max), (z_min, z_max)]</code> 
+as <code>(3, 2)</code> NumPy array of <code>float</code>.</p></div>
+</dd>
+      
+      <dt id="traceon.typing.BoundsLike3D"><code class="name">var <span class="ident">BoundsLike3D</span></code></dt>
+      <dd>
+  
+  
+
+  <div class="desc"><p>Three-dimensional bounds <code>[(x_min, x_max), (y_min, y_max), (z_min, z_max)]</code> 
+as <code>(3, 2)</code> NumPy array of <code>float</code> or a sequence of <code>_BoundLike</code> objects.</p></div>
+</dd>
+      
+      <dt id="traceon.typing.Line"><code class="name">var <span class="ident">Line</span></code></dt>
+      <dd>
+  
+  
+
+  <div class="desc"><p>Index representation of a line 
+as <code>(2,)</code> or <code>(4,)</code> NumPy array of <code>int</code> 
+for regular and higher-order lines respectively.</p></div>
+</dd>
+      
+      <dt id="traceon.typing.LineLike"><code class="name">var <span class="ident">LineLike</span></code></dt>
+      <dd>
+  
+  
+
+  <div class="desc"><p>Index representation of a line 
+as <code>(2,)</code> or <code>(4,)</code> NumPy array or sequence of <code>int</code>
+for regular and higher-order lines respectively.</p></div>
+</dd>
+      
+      <dt id="traceon.typing.LineVertices"><code class="name">var <span class="ident">LineVertices</span></code></dt>
+      <dd>
+  
+  
+
+  <div class="desc"><p>Vertex representation of a line 
+as <code>(2, 3)</code> or <code>(4, 3)</code> NumPy array of <code>float</code> 
+for regular and higher-order lines respectively.</p></div>
+</dd>
+      
+      <dt id="traceon.typing.Lines"><code class="name">var <span class="ident">Lines</span></code></dt>
+      <dd>
+  
+  
+
+  <div class="desc"><p>Index representation of a batch of lines 
+as <code>(N, 2)</code> or <code>(N, 4)</code> NumPy array of <code>int</code> 
+for regular and higher-order lines respectively.</p></div>
+</dd>
+      
+      <dt id="traceon.typing.LinesLike"><code class="name">var <span class="ident">LinesLike</span></code></dt>
+      <dd>
+  
+  
+
+  <div class="desc"><p>Index representation of a batch of lines 
+as <code>(N, 2)</code> or <code>(N, 4)</code> NumPy array or sequence of <code><a title="traceon.typing.LineLike" href="#traceon.typing.LineLike">LineLike</a></code> objects
+for regular and higher-order lines respectively.</p></div>
+</dd>
+      
+      <dt id="traceon.typing.LinesVertices"><code class="name">var <span class="ident">LinesVertices</span></code></dt>
+      <dd>
+  
+  
+
+  <div class="desc"><p>Vertex representation of a batch of lines 
+as <code>(N, 2, 3)</code> or <code>(N, 4, 3)</code> NumPy array of <code>float</code> 
+for regular and higher-order lines respectively.</p></div>
+</dd>
+      
+      <dt id="traceon.typing.Point2D"><code class="name">var <span class="ident">Point2D</span></code></dt>
+      <dd>
+  
+  
+
+  <div class="desc"><p>Two-dimensional point 
+as <code>(2,)</code> NumPy array of <code>float</code>.</p></div>
+</dd>
+      
+      <dt id="traceon.typing.Point3D"><code class="name">var <span class="ident">Point3D</span></code></dt>
+      <dd>
+  
+  
+
+  <div class="desc"><p>A three-dimensional point 
+as <code>(3,)</code> NumPy array of <code>float</code>.</p></div>
+</dd>
+      
+      <dt id="traceon.typing.PointLike2D"><code class="name">var <span class="ident">PointLike2D</span></code></dt>
+      <dd>
+  
+  
+
+  <div class="desc"><p>Two-dimensional point 
+as <code>(2,)</code> NumPy array or sequence of <code>float</code>.</p></div>
+</dd>
+      
+      <dt id="traceon.typing.PointLike3D"><code class="name">var <span class="ident">PointLike3D</span></code></dt>
+      <dd>
+  
+  
+
+  <div class="desc"><p>A three-dimensional point 
+as <code>(3,)</code> NumPy array or sequence of <code>float</code>.</p></div>
+</dd>
+      
+      <dt id="traceon.typing.Points2D"><code class="name">var <span class="ident">Points2D</span></code></dt>
+      <dd>
+  
+  
+
+  <div class="desc"><p>Batch of two-dimensional points 
+as <code>(N, 2)</code> NumPy array of <code>float</code>.</p></div>
+</dd>
+      
+      <dt id="traceon.typing.Points3D"><code class="name">var <span class="ident">Points3D</span></code></dt>
+      <dd>
+  
+  
+
+  <div class="desc"><p>Batch of three-dimensional points 
+as <code>(N, 3)</code> NumPy array of <code>float</code>.</p></div>
+</dd>
+      
+      <dt id="traceon.typing.PointsLike2D"><code class="name">var <span class="ident">PointsLike2D</span></code></dt>
+      <dd>
+  
+  
+
+  <div class="desc"><p>Batch of two-dimensional points 
+as <code>(N, 2)</code> NumPy array of <code>float</code> or sequence of two-dimensional <code>Pointlike2D</code> objects.</p></div>
+</dd>
+      
+      <dt id="traceon.typing.PointsLike3D"><code class="name">var <span class="ident">PointsLike3D</span></code></dt>
+      <dd>
+  
+  
+
+  <div class="desc"><p>Batch of three-dimensional points 
+as <code>(N, 3)</code> NumPy array of <code>float</code> or sequence of <code><a title="traceon.typing.PointLike3D" href="#traceon.typing.PointLike3D">PointLike3D</a></code> objects.</p></div>
+</dd>
+      
+      <dt id="traceon.typing.Quad"><code class="name">var <span class="ident">Quad</span></code></dt>
+      <dd>
+  
+  
+
+  <div class="desc"><p>Index representation of quadrilaterals <code>(depth, i0, i1, j1, j2)</code> 
+as <code>(5,)</code> NumPy array of <code>int</code>.</p></div>
+</dd>
+      
+      <dt id="traceon.typing.QuadLike"><code class="name">var <span class="ident">QuadLike</span></code></dt>
+      <dd>
+  
+  
+
+  <div class="desc"><p>Index representation of quadrilaterals <code>(depth, i0, i1, j1, j2)</code> 
+as <code>(5,)</code> NumPy array or sequence of <code>int</code>.</p></div>
+</dd>
+      
+      <dt id="traceon.typing.Quads"><code class="name">var <span class="ident">Quads</span></code></dt>
+      <dd>
+  
+  
+
+  <div class="desc"><p>Index representation of a batch of quadrilaterals <code>(depth, i0, i1, j1, j2)</code> 
+as <code>(N, 5)</code> NumPy array of <code>int</code>.</p></div>
+</dd>
+      
+      <dt id="traceon.typing.QuadsLike"><code class="name">var <span class="ident">QuadsLike</span></code></dt>
+      <dd>
+  
+  
+
+  <div class="desc"><p>Index representation of a batch of quadrilaterals <code>(depth, i0, i1, j1, j2)</code>
+as <code>(N, 5)</code> NumPy array of <code>int</code> or sequence of <code><a title="traceon.typing.QuadLike" href="#traceon.typing.QuadLike">QuadLike</a></code> objects.</p></div>
+</dd>
+      
+      <dt id="traceon.typing.Triangle"><code class="name">var <span class="ident">Triangle</span></code></dt>
+      <dd>
+  
+  
+
+  <div class="desc"><p>Index representation of a triangle as <code>(3,)</code> or <code>(6,)</code> NumPy array of <code>int</code> 
+for regular and higher-order triangles respectively.</p></div>
+</dd>
+      
+      <dt id="traceon.typing.TriangleLike"><code class="name">var <span class="ident">TriangleLike</span></code></dt>
+      <dd>
+  
+  
+
+  <div class="desc"><p>Index representation of a triangle 
+as <code>(3,)</code> or <code>(6,)</code> NumPy array or sequence of <code>int</code>
+for regular and higher-order triangles respectively.</p></div>
+</dd>
+      
+      <dt id="traceon.typing.TriangleVertices"><code class="name">var <span class="ident">TriangleVertices</span></code></dt>
+      <dd>
+  
+  
+
+  <div class="desc"><p>Vertex representation of a triangle 
+as <code>(3, 3)</code> or <code>(6, 3)</code> NumPy array of <code>float</code> 
+for regular and higher-order triangles respectively.</p></div>
+</dd>
+      
+      <dt id="traceon.typing.Triangles"><code class="name">var <span class="ident">Triangles</span></code></dt>
+      <dd>
+  
+  
+
+  <div class="desc"><p>Index representation of a batch of triangles 
+as <code>(N, 3)</code> or <code>(N, 6)</code> NumPy array of <code>int</code> 
+for regular and higher-order triangles respectively.</p></div>
+</dd>
+      
+      <dt id="traceon.typing.TrianglesLike"><code class="name">var <span class="ident">TrianglesLike</span></code></dt>
+      <dd>
+  
+  
+
+  <div class="desc"><p>Index representation of a batch of triangles 
+as <code>(N, 3)</code> or <code>(N, 6)</code> NumPy array of <code>int</code> or sequence of <code><a title="traceon.typing.TriangleLike" href="#traceon.typing.TriangleLike">TriangleLike</a></code> objects
+for regular and higher-order triangles respectively.</p></div>
+</dd>
+      
+      <dt id="traceon.typing.TrianglesVertices"><code class="name">var <span class="ident">TrianglesVertices</span></code></dt>
+      <dd>
+  
+  
+
+  <div class="desc"><p>Vertex representation of a batch of triangles 
+as <code>(N, 3, 3)</code> or <code>(N, 6, 3)</code> NumPy array of <code>float</code> 
+for regular and higher-order triangles respectively.</p></div>
+</dd>
+      
+      <dt id="traceon.typing.Vector2D"><code class="name">var <span class="ident">Vector2D</span></code></dt>
+      <dd>
+  
+  
+
+  <div class="desc"><p>Two-dimensional vector 
+as <code>(2,)</code> NumPy array of <code>float</code>.</p></div>
+</dd>
+      
+      <dt id="traceon.typing.Vector3D"><code class="name">var <span class="ident">Vector3D</span></code></dt>
+      <dd>
+  
+  
+
+  <div class="desc"><p>Three-dimensional vector 
+as <code>(3,)</code> NumPy array of <code>float</code>.</p></div>
+</dd>
+      
+      <dt id="traceon.typing.VectorLike2D"><code class="name">var <span class="ident">VectorLike2D</span></code></dt>
+      <dd>
+  
+  
+
+  <div class="desc"><p>Two-dimensional vector 
+as <code>(2,)</code> NumPy array or sequence of <code>float</code>.</p></div>
+</dd>
+      
+      <dt id="traceon.typing.VectorLike3D"><code class="name">var <span class="ident">VectorLike3D</span></code></dt>
+      <dd>
+  
+  
+
+  <div class="desc"><p>Three-dimensional vector 
+as <code>(3,)</code> NumPy array or sequence of <code>float</code>.</p></div>
+</dd>
+      
+      <dt id="traceon.typing.Vectors2D"><code class="name">var <span class="ident">Vectors2D</span></code></dt>
+      <dd>
+  
+  
+
+  <div class="desc"><p>Batch of two-dimensional vectors 
+as <code>(N, 2)</code> NumPy array of <code>float</code>.</p></div>
+</dd>
+      
+      <dt id="traceon.typing.Vectors3D"><code class="name">var <span class="ident">Vectors3D</span></code></dt>
+      <dd>
+  
+  
+
+  <div class="desc"><p>Batch of three-dimensional vectors 
+as <code>(N, 3)</code> NumPy array of <code>float</code>.</p></div>
+</dd>
+      
+      <dt id="traceon.typing.VectorsLike2D"><code class="name">var <span class="ident">VectorsLike2D</span></code></dt>
+      <dd>
+  
+  
+
+  <div class="desc"><p>Batch of two-dimensional vectors 
+as <code>(N, 2)</code> NumPy array of <code>float</code> or sequence of <code><a title="traceon.typing.VectorLike2D" href="#traceon.typing.VectorLike2D">VectorLike2D</a></code> objects.</p></div>
+</dd>
+      
+      <dt id="traceon.typing.VectorsLike3D"><code class="name">var <span class="ident">VectorsLike3D</span></code></dt>
+      <dd>
+  
+  
+
+  <div class="desc"><p>Batch of three-dimensional vectors 
+as <code>(N, 3)</code> NumPy array of <code>float</code> or sequence of <code><a title="traceon.typing.VectorLike3D" href="#traceon.typing.VectorLike3D">VectorLike3D</a></code> objects.</p></div>
+</dd>
+    </dl>
+  </section>
+
+  <section>
+  </section>
+
+  <section>
+  </section>
+
+    </article>
+    
+  
+  <nav id="sidebar">
+
+    
+
+	<h1 class='title'><a href='index.html' style='color:black'>Traceon</a></h1>
+	
+    <ul id="index">
+	
+	<li><h3><a href="#header-submodules">Examples</a></h3>
+      <ul>
+			<li><code><a href="../traceon/einzel-lens.html">Einzel lens</a></code></li>
+      </ul>
+    </li>
+		
+    <li><h3><a href="#header-submodules">Traceon</a></h3>
+      <ul>
+        <li><code ><a title="traceon.excitation" href="excitation.html">traceon.excitation</a></code></li>
+        <li><code ><a title="traceon.field" href="field.html">traceon.field</a></code></li>
+        <li><code ><a title="traceon.focus" href="focus.html">traceon.focus</a></code></li>
+        <li><code ><a title="traceon.geometry" href="geometry.html">traceon.geometry</a></code></li>
+        <li><code ><a title="traceon.logging" href="logging.html">traceon.logging</a></code></li>
+        <li><code ><a title="traceon.mesher" href="mesher.html">traceon.mesher</a></code></li>
+        <li><code ><a title="traceon.plotting" href="plotting.html">traceon.plotting</a></code></li>
+        <li><code ><a title="traceon.solver" href="solver.html">traceon.solver</a></code></li>
+        <li><code ><a title="traceon.tracing" href="tracing.html">traceon.tracing</a></code></li>
+        <li><code class='selected'><a title="traceon.typing" href="#traceon.typing">traceon.typing</a></code></li>
+      </ul>
+    </li>
+		
+	<li><h3><a href="#header-submodules">Traceon Pro</a></h3>
+      <ul>
+			<li><code ><a title="traceon_pro.field" href="../traceon_pro/field.html">traceon_pro.field</a></code></li>
+			<li><code ><a title="traceon_pro.solver" href="../traceon_pro/solver.html">traceon_pro.solver</a></code></li>
+			<li><code ><a title="traceon_pro.tracing" href="../traceon_pro/tracing.html">traceon_pro.tracing</a></code></li>
+      </ul>
+    </li>
+
+
+    <li><h3><a href="#header-variables">Global variables</a></h3>
+      
+  
+  <ul class="two-column">
+    <li><code><a title="traceon.typing.ActiveLines" href="#traceon.typing.ActiveLines">ActiveLines</a></code></li>
+    <li><code><a title="traceon.typing.ActiveTriangles" href="#traceon.typing.ActiveTriangles">ActiveTriangles</a></code></li>
+    <li><code><a title="traceon.typing.ArrayFloat" href="#traceon.typing.ArrayFloat">ArrayFloat</a></code></li>
+    <li><code><a title="traceon.typing.ArrayInt" href="#traceon.typing.ArrayInt">ArrayInt</a></code></li>
+    <li><code><a title="traceon.typing.ArrayLikeFloat" href="#traceon.typing.ArrayLikeFloat">ArrayLikeFloat</a></code></li>
+    <li><code><a title="traceon.typing.ArrayLikeFloat1D" href="#traceon.typing.ArrayLikeFloat1D">ArrayLikeFloat1D</a></code></li>
+    <li><code><a title="traceon.typing.ArrayLikeFloat2D" href="#traceon.typing.ArrayLikeFloat2D">ArrayLikeFloat2D</a></code></li>
+    <li><code><a title="traceon.typing.ArrayLikeFloat3D" href="#traceon.typing.ArrayLikeFloat3D">ArrayLikeFloat3D</a></code></li>
+    <li><code><a title="traceon.typing.ArrayLikeInt" href="#traceon.typing.ArrayLikeInt">ArrayLikeInt</a></code></li>
+    <li><code><a title="traceon.typing.ArrayLikeInt1D" href="#traceon.typing.ArrayLikeInt1D">ArrayLikeInt1D</a></code></li>
+    <li><code><a title="traceon.typing.ArrayLikeInt2D" href="#traceon.typing.ArrayLikeInt2D">ArrayLikeInt2D</a></code></li>
+    <li><code><a title="traceon.typing.ArrayLikeInt3D" href="#traceon.typing.ArrayLikeInt3D">ArrayLikeInt3D</a></code></li>
+    <li><code><a title="traceon.typing.Bounds3D" href="#traceon.typing.Bounds3D">Bounds3D</a></code></li>
+    <li><code><a title="traceon.typing.BoundsLike3D" href="#traceon.typing.BoundsLike3D">BoundsLike3D</a></code></li>
+    <li><code><a title="traceon.typing.Line" href="#traceon.typing.Line">Line</a></code></li>
+    <li><code><a title="traceon.typing.LineLike" href="#traceon.typing.LineLike">LineLike</a></code></li>
+    <li><code><a title="traceon.typing.LineVertices" href="#traceon.typing.LineVertices">LineVertices</a></code></li>
+    <li><code><a title="traceon.typing.Lines" href="#traceon.typing.Lines">Lines</a></code></li>
+    <li><code><a title="traceon.typing.LinesLike" href="#traceon.typing.LinesLike">LinesLike</a></code></li>
+    <li><code><a title="traceon.typing.LinesVertices" href="#traceon.typing.LinesVertices">LinesVertices</a></code></li>
+    <li><code><a title="traceon.typing.Point2D" href="#traceon.typing.Point2D">Point2D</a></code></li>
+    <li><code><a title="traceon.typing.Point3D" href="#traceon.typing.Point3D">Point3D</a></code></li>
+    <li><code><a title="traceon.typing.PointLike2D" href="#traceon.typing.PointLike2D">PointLike2D</a></code></li>
+    <li><code><a title="traceon.typing.PointLike3D" href="#traceon.typing.PointLike3D">PointLike3D</a></code></li>
+    <li><code><a title="traceon.typing.Points2D" href="#traceon.typing.Points2D">Points2D</a></code></li>
+    <li><code><a title="traceon.typing.Points3D" href="#traceon.typing.Points3D">Points3D</a></code></li>
+    <li><code><a title="traceon.typing.PointsLike2D" href="#traceon.typing.PointsLike2D">PointsLike2D</a></code></li>
+    <li><code><a title="traceon.typing.PointsLike3D" href="#traceon.typing.PointsLike3D">PointsLike3D</a></code></li>
+    <li><code><a title="traceon.typing.Quad" href="#traceon.typing.Quad">Quad</a></code></li>
+    <li><code><a title="traceon.typing.QuadLike" href="#traceon.typing.QuadLike">QuadLike</a></code></li>
+    <li><code><a title="traceon.typing.Quads" href="#traceon.typing.Quads">Quads</a></code></li>
+    <li><code><a title="traceon.typing.QuadsLike" href="#traceon.typing.QuadsLike">QuadsLike</a></code></li>
+    <li><code><a title="traceon.typing.Triangle" href="#traceon.typing.Triangle">Triangle</a></code></li>
+    <li><code><a title="traceon.typing.TriangleLike" href="#traceon.typing.TriangleLike">TriangleLike</a></code></li>
+    <li><code><a title="traceon.typing.TriangleVertices" href="#traceon.typing.TriangleVertices">TriangleVertices</a></code></li>
+    <li><code><a title="traceon.typing.Triangles" href="#traceon.typing.Triangles">Triangles</a></code></li>
+    <li><code><a title="traceon.typing.TrianglesLike" href="#traceon.typing.TrianglesLike">TrianglesLike</a></code></li>
+    <li><code><a title="traceon.typing.TrianglesVertices" href="#traceon.typing.TrianglesVertices">TrianglesVertices</a></code></li>
+    <li><code><a title="traceon.typing.Vector2D" href="#traceon.typing.Vector2D">Vector2D</a></code></li>
+    <li><code><a title="traceon.typing.Vector3D" href="#traceon.typing.Vector3D">Vector3D</a></code></li>
+    <li><code><a title="traceon.typing.VectorLike2D" href="#traceon.typing.VectorLike2D">VectorLike2D</a></code></li>
+    <li><code><a title="traceon.typing.VectorLike3D" href="#traceon.typing.VectorLike3D">VectorLike3D</a></code></li>
+    <li><code><a title="traceon.typing.Vectors2D" href="#traceon.typing.Vectors2D">Vectors2D</a></code></li>
+    <li><code><a title="traceon.typing.Vectors3D" href="#traceon.typing.Vectors3D">Vectors3D</a></code></li>
+    <li><code><a title="traceon.typing.VectorsLike2D" href="#traceon.typing.VectorsLike2D">VectorsLike2D</a></code></li>
+    <li><code><a title="traceon.typing.VectorsLike3D" href="#traceon.typing.VectorsLike3D">VectorsLike3D</a></code></li>
+  </ul>
+
+    </li>
+
+
+
+    </ul>
+  </nav>
+
+</main>
+
+<footer id="footer">
+    
+    <p>Generated by <a href="https://pdoc3.github.io/pdoc" title="pdoc: Python API documentation generator"><cite>pdoc</cite> 0.11.5</a>.</p>
+</footer>
+
+</body>
+</html>

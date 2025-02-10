@@ -94,11 +94,100 @@ very efficiently compute the axial derivatives of the potential.</p>
         <summary>
             <span>Expand source code</span>
         </summary>
-        <pre><code class="python">class Field(ABC):
-    &#34;&#34;&#34;The abstract `Field` class provides the method definitions that all field classes should implement. Note that
-    any child clas of the `Field` class can be passed to `traceon.tracing.Tracer` to trace particles through the field.&#34;&#34;&#34;
+        <pre><code class="python">class Field(GeometricObject, ABC):
+    def __init__(self) -&gt; None:
+        self._origin = np.array([0,0,0], dtype=np.float64)
+        self._basis = np.eye(3, dtype=np.float64)
+        self._update_inverse_transformation_matrix()
 
-    def field_at_point(self, point):
+        self.field_bounds: Bounds3D | None = None
+
+    def get_origin(self) -&gt; Point3D:
+        &#34;&#34;&#34;
+        Get the origin of the field in the global coordinate system. This is the position
+        that the origin (0, 0, 0) was transformed to by using methods from `traceon.mesher.GeometricObject`.
+
+        Returns
+        -----------------------------
+        numpy.ndarray
+            Float array of shape (3,)
+        &#34;&#34;&#34;
+        return self._origin.copy()
+    
+    def get_basis(self) -&gt; ArrayFloat2D:
+        return self._basis.copy()
+
+    def _update_inverse_transformation_matrix(self) -&gt; None:
+        transformation_matrix = np.eye(4)
+        transformation_matrix[:3, :3] = self._basis
+        transformation_matrix[:3, 3] = self._origin
+
+        assert np.linalg.det(transformation_matrix) != 0, (&#34;Transformations of field have resulted in a two-dimensional coordinate system. &#34;
+                                                           &#34;Please only use affine transformations.&#34;)
+        self._inverse_transformation_matrix = np.linalg.inv(transformation_matrix)
+
+    def copy(self) -&gt; Self:
+        return copy.copy(self)
+    
+    def map_points(self, fun: Callable[[PointLike3D], Point3D]) -&gt; Self:
+        field_copy = self.copy()
+        
+        field_copy._origin = fun(self._origin).astype(np.float64)
+        assert field_copy._origin.shape == (3,), &#34;Transformation of field did not map origin to a 3D point&#34;
+        
+        field_copy._basis = np.array([fun(b + self._origin) - field_copy._origin for b in self._basis])
+        assert field_copy._basis.shape == (3,3), &#34;Transformation of field did not map unit vectors to a 3D vector&#34;
+        
+        field_copy._update_inverse_transformation_matrix()
+        return field_copy
+
+    def map_points_to_local(self, point: PointLike3D) -&gt; Point3D:
+        &#34;&#34;&#34;Converts a point from the global coordinate system to the local coordinate system of the field. 
+    
+        Parameters
+        ---------------------
+        point: (3,) np.ndarray of float64
+            The coordinates of the point in the global coordinate system.
+
+        Returns
+        ---------------------
+        (3,) np.ndarray of float64
+            The coordinates of the point in the local coordinate system.&#34;&#34;&#34;
+        # represent the point in homogenous coordinates so we can do the inverse 
+        # affine transformation with a single matrix multiplication.
+        global_point_homogeneous = np.array([*point, 1.], dtype=np.float64)
+        local_point_homogeneous = self._inverse_transformation_matrix @ global_point_homogeneous
+        assert np.isclose(local_point_homogeneous[3], 1.)
+        return local_point_homogeneous[:3]
+
+    def set_bounds(self, bounds: BoundsLike3D, global_coordinates: bool = False) -&gt; None:
+        &#34;&#34;&#34;Set the field bounds. Outside the field bounds the field always returns zero (i.e. no field). Note
+        that even in 2D the field bounds needs to be specified for x,y and z axis. The trajectories in the presence
+        of magnetostatic field are in general 3D even in radial symmetric geometries.
+        
+        Parameters
+        -------------------
+        bounds: (3, 2) np.ndarray of float64
+            The min, max value of x, y, z respectively within the field is still computed.
+        global_coordinates: bool
+            If `True` the given bounds are in global coordinates and transformed to the fields local system internally.
+        &#34;&#34;&#34;
+        bounds = np.array(bounds, dtype=np.float64)
+        assert bounds.shape == (3,2)
+
+        if global_coordinates:
+            transformed_corners = np.array([self.map_points_to_local(corner) for corner in product(*bounds)])
+            bounds = np.column_stack((transformed_corners.min(axis=0), transformed_corners.max(axis=0)))
+
+        self.field_bounds = bounds
+    
+    def _within_field_bounds(self, point: PointLike3D) -&gt; bool:
+        return bool(self.field_bounds is None or np.all((self.field_bounds[:, 0] &lt;= point) &amp; (point &lt;= self.field_bounds[:, 1])))
+
+    def _matches_geometry(self, other: Field) -&gt; bool:
+        return False
+    
+    def field_at_point(self, point: PointLike3D) -&gt; Vector3D:
         &#34;&#34;&#34;Convenience function for getting the field in the case that the field is purely electrostatic
         or magneotstatic. Automatically picks one of `electrostatic_field_at_point` or `magnetostatic_field_at_point`.
         Throws an exception when the field is both electrostatic and magnetostatic.
@@ -119,9 +208,9 @@ very efficiently compute the axial derivatives of the potential.</p>
             return self.magnetostatic_field_at_point(point)
          
         raise RuntimeError(&#34;Cannot use field_at_point when both electric and magnetic fields are present, &#34; \
-            &#34;use electrostatic_field_at_point or magnetostatic_potential_at_point&#34;)
+            &#34;use electrostatic_field_at_point or magnetostatic_field_at_point&#34;)
      
-    def potential_at_point(self, point):
+    def potential_at_point(self, point: Point3D) -&gt; float:
         &#34;&#34;&#34;Convenience function for getting the potential in the case that the field is purely electrostatic
         or magneotstatic. Automatically picks one of `electrostatic_potential_at_point` or `magnetostatic_potential_at_point`.
         Throws an exception when the field is both electrostatic and magnetostatic.
@@ -139,47 +228,170 @@ very efficiently compute the axial derivatives of the potential.</p>
         if elec and not mag:
             return self.electrostatic_potential_at_point(point)
         elif not elec and mag:
-            return self.magnetostatic_potential_at_point(point) # type: ignore
+            return self.magnetostatic_potential_at_point(point)
          
         raise RuntimeError(&#34;Cannot use potential_at_point when both electric and magnetic fields are present, &#34; \
             &#34;use electrostatic_potential_at_point or magnetostatic_potential_at_point&#34;)
 
-    @abstractmethod
-    def is_electrostatic(self):
-        ...
+    def electrostatic_field_at_point(self, point: PointLike3D) -&gt; Vector3D:
+        &#34;&#34;&#34;
+        Compute the electric field, \\( \\vec{E} = -\\nabla \\phi \\)
+        
+        Parameters
+        ----------
+        point: (3,) array of float64
+            Position in global coordinate system at which to compute the field.
+        
+        Returns
+        -------
+        (3,) array of float64, containing the field strengths (units of V/m)
+        &#34;&#34;&#34;
+        local_point = self.map_points_to_local(point)
+
+        if self._within_field_bounds(local_point):
+            return self._basis @ self.electrostatic_field_at_local_point(local_point)
+        else:
+             return np.array([0.,0.,0.])
+        
+    def magnetostatic_field_at_point(self, point: PointLike3D) -&gt; Vector3D:
+        &#34;&#34;&#34;
+        Compute the magnetic field \\( \\vec{H} \\)
+        
+        Parameters
+        ----------
+        point: (3,) array of float64
+            Position in global coordinate system at which to compute the field.
+             
+        Returns
+        -------
+        (3,) np.ndarray of float64 containing the field strength (in units of A/m) in the x, y and z directions.
+        &#34;&#34;&#34;
+        local_point = self.map_points_to_local(point)
+        if self._within_field_bounds(local_point):
+            return self._basis @ self.magnetostatic_field_at_local_point(local_point)
+        else:
+             return np.array([0.,0.,0.])
     
-    @abstractmethod
-    def is_magnetostatic(self):
-        ...
+    def current_field_at_point(self, point: PointLike3D) -&gt; Vector3D:
+        &#34;&#34;&#34;
+        Compute the magnetic field produced by currents \\( \\vec{H} \\)
+        
+        Parameters
+        ----------
+        point: (3,) array of float64
+            Position in global coordinate system at which to compute the field.
+             
+        Returns
+        -------
+        (3,) np.ndarray of float64 containing the field strength (in units of A/m) in the x, y and z directions.
+        &#34;&#34;&#34;
+        local_point = self.map_points_to_local(point)
+        if self._within_field_bounds(local_point):
+            return self._basis @ self.current_field_at_local_point(local_point)
+        else:
+             return np.array([0.,0.,0.])
+
     
-    @abstractmethod
-    def electrostatic_potential_at_point(self, point):
-        ...
+    def electrostatic_potential_at_point(self, point: PointLike3D) -&gt; float:
+        &#34;&#34;&#34;
+        Compute the electrostatic potential.
+        
+        Parameters
+        ----------
+        point: (3,) array of float64
+            Position in global coordinate system at which to compute the field.
+        
+        Returns
+        -------
+        Potential as a float value (in units of V).
+        &#34;&#34;&#34;
+        local_point = self.map_points_to_local(point)
+        
+        if self._within_field_bounds(local_point):
+            return self.electrostatic_potential_at_local_point(local_point)
+        else:
+             return 0.
+
+    def magnetostatic_potential_at_point(self, point: PointLike3D) -&gt; float:
+        &#34;&#34;&#34;
+        Compute the magnetostatic scalar potential (satisfying \\(\\vec{H} = -\\nabla \\phi \\))
+        
+        Parameters
+        ----------
+        point: (3,) array of float64
+            Position in global coordinate system in local coordinate system at which to compute the field.
+        
+        Returns
+        -------
+        Potential as a float value (in units of A).
+        &#34;&#34;&#34;
+        local_point = self.map_points_to_local(point)
+        if self._within_field_bounds(local_point):
+            return self.magnetostatic_potential_at_local_point(local_point)
+        else:
+             return 0.
+
+    def is_electrostatic(self) -&gt; bool:
+        return False
+     
+    def is_magnetostatic(self) -&gt; bool:
+        return False
+     
+    def electrostatic_field_at_local_point(self, point) -&gt; Vector3D:
+        return np.zeros(3)
     
-    @abstractmethod
-    def magnetostatic_field_at_point(self, point):
-        ...
+    def magnetostatic_field_at_local_point(self, point) -&gt; Vector3D:
+        return np.zeros(3)
+     
+    def current_field_at_local_point(self, point) -&gt; Vector3D:
+        return np.zeros(3)
     
-    @abstractmethod
-    def electrostatic_field_at_point(self, point):
-        ...
+    def electrostatic_potential_at_local_point(self, point) -&gt; float:
+        return 0.0
     
-    # Following function can be implemented to
-    # get a speedup while tracing. Return a 
-    # field function implemented in C and a ctypes
-    # argument needed. See the field_fun variable in backend/__init__.py 
-    # Note that by default it gives back a Python function, which gives no speedup
-    def get_low_level_trace_function(self):
+    def magnetostatic_potential_at_local_point(self, point) -&gt; float:
+        return 0.0
+     
+    def __add__(self, other: Field) -&gt; Field:
+        if isinstance(other, Field) and not isinstance(other, FieldSuperposition):
+            return FieldSuperposition([self, other])
+
+        return NotImplemented
+    
+    def __mul__(self, other: float) -&gt; Field:
+        if _is_numeric(other):
+            return FieldSuperposition([self], [other])
+        
+        return NotImplemented
+    
+    def __rmul__(self, other: float) -&gt; Field:
+        return self.__mul__(other)
+    
+    def __neg__(self) -&gt; Field:
+        return -1*self
+    
+    def __sub__(self, other: Field) -&gt; Field:
+        if isinstance(other, Field):
+            return self + (-other)
+        
+        return NotImplemented
+    
+    # Following function can be implemented to get a speedup while tracing. 
+    # Return a field function implemented in C and a ctypes argument needed. 
+    # See the field_fun variable in backend/__init__.py.
+    # Note that by default it gives back a Python function, which gives no speedup.
+    def get_low_level_trace_function(self) -&gt; tuple[Callable, Any] | tuple[Callable, Any, list[Any]]:
         fun = lambda pos, vel: (self.electrostatic_field_at_point(pos), self.magnetostatic_field_at_point(pos))
         return backend.wrap_field_fun(fun), None</code></pre>
       </details>
 
-  <div class="desc"><p>The abstract <code><a title="traceon.field.Field" href="#traceon.field.Field">Field</a></code> class provides the method definitions that all field classes should implement. Note that
-any child clas of the <code><a title="traceon.field.Field" href="#traceon.field.Field">Field</a></code> class can be passed to <code><a title="traceon.tracing.Tracer" href="tracing.html#traceon.tracing.Tracer">Tracer</a></code> to trace particles through the field.</p></div>
+  <div class="desc"><p>The Mesh class (and the classes defined in <code><a title="traceon.geometry" href="geometry.html">traceon.geometry</a></code>) are subclasses
+of <code><a title="traceon.mesher.GeometricObject" href="mesher.html#traceon.mesher.GeometricObject">GeometricObject</a></code>. This means that they all can be moved, rotated, mirrored.</p></div>
 
 
           <h3>Ancestors</h3>
           <ul class="hlist">
+              <li><a title="traceon.mesher.GeometricObject" href="mesher.html#traceon.mesher.GeometricObject">GeometricObject</a></li>
               <li>abc.ABC</li>
           </ul>
 
@@ -187,9 +399,93 @@ any child clas of the <code><a title="traceon.field.Field" href="#traceon.field.
           <ul class="hlist">
               <li><a title="traceon.field.FieldAxial" href="#traceon.field.FieldAxial">FieldAxial</a></li>
               <li><a title="traceon.field.FieldBEM" href="#traceon.field.FieldBEM">FieldBEM</a></li>
+              <li><a title="traceon.field.FieldSuperposition" href="#traceon.field.FieldSuperposition">FieldSuperposition</a></li>
           </ul>
           <h3>Methods</h3>
           <dl>
+              
+    <dt id="traceon.field.Field.current_field_at_local_point"><code class="name flex">
+        
+        <span>def <span class="ident">current_field_at_local_point</span></span>(<span>self, point)</span>
+    </code></dt>
+    <dd>
+  
+  
+    
+      <details class="source">
+        <summary>
+            <span>Expand source code</span>
+        </summary>
+        <pre><code class="python">def current_field_at_local_point(self, point) -&gt; Vector3D:
+    return np.zeros(3)</code></pre>
+      </details>
+
+  <div class="desc"></div>
+</dd>
+  
+              
+    <dt id="traceon.field.Field.current_field_at_point"><code class="name flex">
+        
+        <span>def <span class="ident">current_field_at_point</span></span>(<span>self, point)</span>
+    </code></dt>
+    <dd>
+  
+  
+    
+      <details class="source">
+        <summary>
+            <span>Expand source code</span>
+        </summary>
+        <pre><code class="python">def current_field_at_point(self, point: PointLike3D) -&gt; Vector3D:
+    &#34;&#34;&#34;
+    Compute the magnetic field produced by currents \\( \\vec{H} \\)
+    
+    Parameters
+    ----------
+    point: (3,) array of float64
+        Position in global coordinate system at which to compute the field.
+         
+    Returns
+    -------
+    (3,) np.ndarray of float64 containing the field strength (in units of A/m) in the x, y and z directions.
+    &#34;&#34;&#34;
+    local_point = self.map_points_to_local(point)
+    if self._within_field_bounds(local_point):
+        return self._basis @ self.current_field_at_local_point(local_point)
+    else:
+         return np.array([0.,0.,0.])</code></pre>
+      </details>
+
+  <div class="desc"><p>Compute the magnetic field produced by currents <span><span class="MathJax_Preview"> \vec{H} </span><script type="math/tex"> \vec{H} </script></span></p>
+<h2 id="parameters">Parameters</h2>
+<dl>
+<dt><strong><code>point</code></strong> :&ensp;<code>(3,) array</code> of <code>float64</code></dt>
+<dd>Position in global coordinate system at which to compute the field.</dd>
+</dl>
+<h2 id="returns">Returns</h2>
+<p>(3,) np.ndarray of float64 containing the field strength (in units of A/m) in the x, y and z directions.</p></div>
+</dd>
+  
+              
+    <dt id="traceon.field.Field.electrostatic_field_at_local_point"><code class="name flex">
+        
+        <span>def <span class="ident">electrostatic_field_at_local_point</span></span>(<span>self, point)</span>
+    </code></dt>
+    <dd>
+  
+  
+    
+      <details class="source">
+        <summary>
+            <span>Expand source code</span>
+        </summary>
+        <pre><code class="python">def electrostatic_field_at_local_point(self, point) -&gt; Vector3D:
+    return np.zeros(3)</code></pre>
+      </details>
+
+  <div class="desc"></div>
+</dd>
+  
               
     <dt id="traceon.field.Field.electrostatic_field_at_point"><code class="name flex">
         
@@ -203,9 +499,52 @@ any child clas of the <code><a title="traceon.field.Field" href="#traceon.field.
         <summary>
             <span>Expand source code</span>
         </summary>
-        <pre><code class="python">@abstractmethod
-def electrostatic_field_at_point(self, point):
-    ...</code></pre>
+        <pre><code class="python">def electrostatic_field_at_point(self, point: PointLike3D) -&gt; Vector3D:
+    &#34;&#34;&#34;
+    Compute the electric field, \\( \\vec{E} = -\\nabla \\phi \\)
+    
+    Parameters
+    ----------
+    point: (3,) array of float64
+        Position in global coordinate system at which to compute the field.
+    
+    Returns
+    -------
+    (3,) array of float64, containing the field strengths (units of V/m)
+    &#34;&#34;&#34;
+    local_point = self.map_points_to_local(point)
+
+    if self._within_field_bounds(local_point):
+        return self._basis @ self.electrostatic_field_at_local_point(local_point)
+    else:
+         return np.array([0.,0.,0.])</code></pre>
+      </details>
+
+  <div class="desc"><p>Compute the electric field, <span><span class="MathJax_Preview"> \vec{E} = -\nabla \phi </span><script type="math/tex"> \vec{E} = -\nabla \phi </script></span></p>
+<h2 id="parameters">Parameters</h2>
+<dl>
+<dt><strong><code>point</code></strong> :&ensp;<code>(3,) array</code> of <code>float64</code></dt>
+<dd>Position in global coordinate system at which to compute the field.</dd>
+</dl>
+<h2 id="returns">Returns</h2>
+<p>(3,) array of float64, containing the field strengths (units of V/m)</p></div>
+</dd>
+  
+              
+    <dt id="traceon.field.Field.electrostatic_potential_at_local_point"><code class="name flex">
+        
+        <span>def <span class="ident">electrostatic_potential_at_local_point</span></span>(<span>self, point)</span>
+    </code></dt>
+    <dd>
+  
+  
+    
+      <details class="source">
+        <summary>
+            <span>Expand source code</span>
+        </summary>
+        <pre><code class="python">def electrostatic_potential_at_local_point(self, point) -&gt; float:
+    return 0.0</code></pre>
       </details>
 
   <div class="desc"></div>
@@ -224,12 +563,35 @@ def electrostatic_field_at_point(self, point):
         <summary>
             <span>Expand source code</span>
         </summary>
-        <pre><code class="python">@abstractmethod
-def electrostatic_potential_at_point(self, point):
-    ...</code></pre>
+        <pre><code class="python">def electrostatic_potential_at_point(self, point: PointLike3D) -&gt; float:
+    &#34;&#34;&#34;
+    Compute the electrostatic potential.
+    
+    Parameters
+    ----------
+    point: (3,) array of float64
+        Position in global coordinate system at which to compute the field.
+    
+    Returns
+    -------
+    Potential as a float value (in units of V).
+    &#34;&#34;&#34;
+    local_point = self.map_points_to_local(point)
+    
+    if self._within_field_bounds(local_point):
+        return self.electrostatic_potential_at_local_point(local_point)
+    else:
+         return 0.</code></pre>
       </details>
 
-  <div class="desc"></div>
+  <div class="desc"><p>Compute the electrostatic potential.</p>
+<h2 id="parameters">Parameters</h2>
+<dl>
+<dt><strong><code>point</code></strong> :&ensp;<code>(3,) array</code> of <code>float64</code></dt>
+<dd>Position in global coordinate system at which to compute the field.</dd>
+</dl>
+<h2 id="returns">Returns</h2>
+<p>Potential as a float value (in units of V).</p></div>
 </dd>
   
               
@@ -245,7 +607,7 @@ def electrostatic_potential_at_point(self, point):
         <summary>
             <span>Expand source code</span>
         </summary>
-        <pre><code class="python">def field_at_point(self, point):
+        <pre><code class="python">def field_at_point(self, point: PointLike3D) -&gt; Vector3D:
     &#34;&#34;&#34;Convenience function for getting the field in the case that the field is purely electrostatic
     or magneotstatic. Automatically picks one of `electrostatic_field_at_point` or `magnetostatic_field_at_point`.
     Throws an exception when the field is both electrostatic and magnetostatic.
@@ -266,7 +628,7 @@ def electrostatic_potential_at_point(self, point):
         return self.magnetostatic_field_at_point(point)
      
     raise RuntimeError(&#34;Cannot use field_at_point when both electric and magnetic fields are present, &#34; \
-        &#34;use electrostatic_field_at_point or magnetostatic_potential_at_point&#34;)</code></pre>
+        &#34;use electrostatic_field_at_point or magnetostatic_field_at_point&#34;)</code></pre>
       </details>
 
   <div class="desc"><p>Convenience function for getting the field in the case that the field is purely electrostatic
@@ -282,6 +644,61 @@ Throws an exception when the field is both electrostatic and magnetostatic.</p>
 </dd>
   
               
+    <dt id="traceon.field.Field.get_basis"><code class="name flex">
+        
+        <span>def <span class="ident">get_basis</span></span>(<span>self)</span>
+    </code></dt>
+    <dd>
+  
+  
+    
+      <details class="source">
+        <summary>
+            <span>Expand source code</span>
+        </summary>
+        <pre><code class="python">def get_basis(self) -&gt; ArrayFloat2D:
+    return self._basis.copy()</code></pre>
+      </details>
+
+  <div class="desc"></div>
+</dd>
+  
+              
+    <dt id="traceon.field.Field.get_origin"><code class="name flex">
+        
+        <span>def <span class="ident">get_origin</span></span>(<span>self)</span>
+    </code></dt>
+    <dd>
+  
+  
+    
+      <details class="source">
+        <summary>
+            <span>Expand source code</span>
+        </summary>
+        <pre><code class="python">def get_origin(self) -&gt; Point3D:
+    &#34;&#34;&#34;
+    Get the origin of the field in the global coordinate system. This is the position
+    that the origin (0, 0, 0) was transformed to by using methods from `traceon.mesher.GeometricObject`.
+
+    Returns
+    -----------------------------
+    numpy.ndarray
+        Float array of shape (3,)
+    &#34;&#34;&#34;
+    return self._origin.copy()</code></pre>
+      </details>
+
+  <div class="desc"><p>Get the origin of the field in the global coordinate system. This is the position
+that the origin (0, 0, 0) was transformed to by using methods from <code><a title="traceon.mesher.GeometricObject" href="mesher.html#traceon.mesher.GeometricObject">GeometricObject</a></code>.</p>
+<h2 id="returns">Returns</h2>
+<dl>
+<dt><code>numpy.ndarray</code></dt>
+<dd>Float array of shape (3,)</dd>
+</dl></div>
+</dd>
+  
+              
     <dt id="traceon.field.Field.is_electrostatic"><code class="name flex">
         
         <span>def <span class="ident">is_electrostatic</span></span>(<span>self)</span>
@@ -294,9 +711,8 @@ Throws an exception when the field is both electrostatic and magnetostatic.</p>
         <summary>
             <span>Expand source code</span>
         </summary>
-        <pre><code class="python">@abstractmethod
-def is_electrostatic(self):
-    ...</code></pre>
+        <pre><code class="python">def is_electrostatic(self) -&gt; bool:
+    return False</code></pre>
       </details>
 
   <div class="desc"></div>
@@ -315,9 +731,28 @@ def is_electrostatic(self):
         <summary>
             <span>Expand source code</span>
         </summary>
-        <pre><code class="python">@abstractmethod
-def is_magnetostatic(self):
-    ...</code></pre>
+        <pre><code class="python">def is_magnetostatic(self) -&gt; bool:
+    return False</code></pre>
+      </details>
+
+  <div class="desc"></div>
+</dd>
+  
+              
+    <dt id="traceon.field.Field.magnetostatic_field_at_local_point"><code class="name flex">
+        
+        <span>def <span class="ident">magnetostatic_field_at_local_point</span></span>(<span>self, point)</span>
+    </code></dt>
+    <dd>
+  
+  
+    
+      <details class="source">
+        <summary>
+            <span>Expand source code</span>
+        </summary>
+        <pre><code class="python">def magnetostatic_field_at_local_point(self, point) -&gt; Vector3D:
+    return np.zeros(3)</code></pre>
       </details>
 
   <div class="desc"></div>
@@ -336,12 +771,141 @@ def is_magnetostatic(self):
         <summary>
             <span>Expand source code</span>
         </summary>
-        <pre><code class="python">@abstractmethod
-def magnetostatic_field_at_point(self, point):
-    ...</code></pre>
+        <pre><code class="python">def magnetostatic_field_at_point(self, point: PointLike3D) -&gt; Vector3D:
+    &#34;&#34;&#34;
+    Compute the magnetic field \\( \\vec{H} \\)
+    
+    Parameters
+    ----------
+    point: (3,) array of float64
+        Position in global coordinate system at which to compute the field.
+         
+    Returns
+    -------
+    (3,) np.ndarray of float64 containing the field strength (in units of A/m) in the x, y and z directions.
+    &#34;&#34;&#34;
+    local_point = self.map_points_to_local(point)
+    if self._within_field_bounds(local_point):
+        return self._basis @ self.magnetostatic_field_at_local_point(local_point)
+    else:
+         return np.array([0.,0.,0.])</code></pre>
+      </details>
+
+  <div class="desc"><p>Compute the magnetic field <span><span class="MathJax_Preview"> \vec{H} </span><script type="math/tex"> \vec{H} </script></span></p>
+<h2 id="parameters">Parameters</h2>
+<dl>
+<dt><strong><code>point</code></strong> :&ensp;<code>(3,) array</code> of <code>float64</code></dt>
+<dd>Position in global coordinate system at which to compute the field.</dd>
+</dl>
+<h2 id="returns">Returns</h2>
+<p>(3,) np.ndarray of float64 containing the field strength (in units of A/m) in the x, y and z directions.</p></div>
+</dd>
+  
+              
+    <dt id="traceon.field.Field.magnetostatic_potential_at_local_point"><code class="name flex">
+        
+        <span>def <span class="ident">magnetostatic_potential_at_local_point</span></span>(<span>self, point)</span>
+    </code></dt>
+    <dd>
+  
+  
+    
+      <details class="source">
+        <summary>
+            <span>Expand source code</span>
+        </summary>
+        <pre><code class="python">def magnetostatic_potential_at_local_point(self, point) -&gt; float:
+    return 0.0</code></pre>
       </details>
 
   <div class="desc"></div>
+</dd>
+  
+              
+    <dt id="traceon.field.Field.magnetostatic_potential_at_point"><code class="name flex">
+        
+        <span>def <span class="ident">magnetostatic_potential_at_point</span></span>(<span>self, point)</span>
+    </code></dt>
+    <dd>
+  
+  
+    
+      <details class="source">
+        <summary>
+            <span>Expand source code</span>
+        </summary>
+        <pre><code class="python">def magnetostatic_potential_at_point(self, point: PointLike3D) -&gt; float:
+    &#34;&#34;&#34;
+    Compute the magnetostatic scalar potential (satisfying \\(\\vec{H} = -\\nabla \\phi \\))
+    
+    Parameters
+    ----------
+    point: (3,) array of float64
+        Position in global coordinate system in local coordinate system at which to compute the field.
+    
+    Returns
+    -------
+    Potential as a float value (in units of A).
+    &#34;&#34;&#34;
+    local_point = self.map_points_to_local(point)
+    if self._within_field_bounds(local_point):
+        return self.magnetostatic_potential_at_local_point(local_point)
+    else:
+         return 0.</code></pre>
+      </details>
+
+  <div class="desc"><p>Compute the magnetostatic scalar potential (satisfying <span><span class="MathJax_Preview">\vec{H} = -\nabla \phi </span><script type="math/tex">\vec{H} = -\nabla \phi </script></span>)</p>
+<h2 id="parameters">Parameters</h2>
+<dl>
+<dt><strong><code>point</code></strong> :&ensp;<code>(3,) array</code> of <code>float64</code></dt>
+<dd>Position in global coordinate system in local coordinate system at which to compute the field.</dd>
+</dl>
+<h2 id="returns">Returns</h2>
+<p>Potential as a float value (in units of A).</p></div>
+</dd>
+  
+              
+    <dt id="traceon.field.Field.map_points_to_local"><code class="name flex">
+        
+        <span>def <span class="ident">map_points_to_local</span></span>(<span>self, point)</span>
+    </code></dt>
+    <dd>
+  
+  
+    
+      <details class="source">
+        <summary>
+            <span>Expand source code</span>
+        </summary>
+        <pre><code class="python">def map_points_to_local(self, point: PointLike3D) -&gt; Point3D:
+    &#34;&#34;&#34;Converts a point from the global coordinate system to the local coordinate system of the field. 
+
+    Parameters
+    ---------------------
+    point: (3,) np.ndarray of float64
+        The coordinates of the point in the global coordinate system.
+
+    Returns
+    ---------------------
+    (3,) np.ndarray of float64
+        The coordinates of the point in the local coordinate system.&#34;&#34;&#34;
+    # represent the point in homogenous coordinates so we can do the inverse 
+    # affine transformation with a single matrix multiplication.
+    global_point_homogeneous = np.array([*point, 1.], dtype=np.float64)
+    local_point_homogeneous = self._inverse_transformation_matrix @ global_point_homogeneous
+    assert np.isclose(local_point_homogeneous[3], 1.)
+    return local_point_homogeneous[:3]</code></pre>
+      </details>
+
+  <div class="desc"><p>Converts a point from the global coordinate system to the local coordinate system of the field. </p>
+<h2 id="parameters">Parameters</h2>
+<dl>
+<dt><strong><code>point</code></strong> :&ensp;<code>(3,) np.ndarray</code> of <code>float64</code></dt>
+<dd>The coordinates of the point in the global coordinate system.</dd>
+</dl>
+<h2 id="returns">Returns</h2>
+<p>(3,) np.ndarray of float64
+    The coordinates of the point in the local coordinate system.</p></div>
 </dd>
   
               
@@ -357,7 +921,7 @@ def magnetostatic_field_at_point(self, point):
         <summary>
             <span>Expand source code</span>
         </summary>
-        <pre><code class="python">def potential_at_point(self, point):
+        <pre><code class="python">def potential_at_point(self, point: Point3D) -&gt; float:
     &#34;&#34;&#34;Convenience function for getting the potential in the case that the field is purely electrostatic
     or magneotstatic. Automatically picks one of `electrostatic_potential_at_point` or `magnetostatic_potential_at_point`.
     Throws an exception when the field is both electrostatic and magnetostatic.
@@ -375,7 +939,7 @@ def magnetostatic_field_at_point(self, point):
     if elec and not mag:
         return self.electrostatic_potential_at_point(point)
     elif not elec and mag:
-        return self.magnetostatic_potential_at_point(point) # type: ignore
+        return self.magnetostatic_potential_at_point(point)
      
     raise RuntimeError(&#34;Cannot use potential_at_point when both electric and magnetic fields are present, &#34; \
         &#34;use electrostatic_potential_at_point or magnetostatic_potential_at_point&#34;)</code></pre>
@@ -396,15 +960,77 @@ Throws an exception when the field is both electrostatic and magnetostatic.</p>
 </dl></div>
 </dd>
   
+              
+    <dt id="traceon.field.Field.set_bounds"><code class="name flex">
+        
+        <span>def <span class="ident">set_bounds</span></span>(<span>self, bounds, global_coordinates=False)</span>
+    </code></dt>
+    <dd>
+  
+  
+    
+      <details class="source">
+        <summary>
+            <span>Expand source code</span>
+        </summary>
+        <pre><code class="python">def set_bounds(self, bounds: BoundsLike3D, global_coordinates: bool = False) -&gt; None:
+    &#34;&#34;&#34;Set the field bounds. Outside the field bounds the field always returns zero (i.e. no field). Note
+    that even in 2D the field bounds needs to be specified for x,y and z axis. The trajectories in the presence
+    of magnetostatic field are in general 3D even in radial symmetric geometries.
+    
+    Parameters
+    -------------------
+    bounds: (3, 2) np.ndarray of float64
+        The min, max value of x, y, z respectively within the field is still computed.
+    global_coordinates: bool
+        If `True` the given bounds are in global coordinates and transformed to the fields local system internally.
+    &#34;&#34;&#34;
+    bounds = np.array(bounds, dtype=np.float64)
+    assert bounds.shape == (3,2)
+
+    if global_coordinates:
+        transformed_corners = np.array([self.map_points_to_local(corner) for corner in product(*bounds)])
+        bounds = np.column_stack((transformed_corners.min(axis=0), transformed_corners.max(axis=0)))
+
+    self.field_bounds = bounds</code></pre>
+      </details>
+
+  <div class="desc"><p>Set the field bounds. Outside the field bounds the field always returns zero (i.e. no field). Note
+that even in 2D the field bounds needs to be specified for x,y and z axis. The trajectories in the presence
+of magnetostatic field are in general 3D even in radial symmetric geometries.</p>
+<h2 id="parameters">Parameters</h2>
+<dl>
+<dt><strong><code>bounds</code></strong> :&ensp;<code>(3, 2) np.ndarray</code> of <code>float64</code></dt>
+<dd>The min, max value of x, y, z respectively within the field is still computed.</dd>
+<dt><strong><code>global_coordinates</code></strong> :&ensp;<code>bool</code></dt>
+<dd>If <code>True</code> the given bounds are in global coordinates and transformed to the fields local system internally.</dd>
+</dl></div>
+</dd>
+  
           </dl>
 
           
+              <h3>Inherited members</h3>
+              <ul class="hlist">
+                  <li><code><b><a title="traceon.mesher.GeometricObject" href="mesher.html#traceon.mesher.GeometricObject">GeometricObject</a></b></code>:
+                      <ul class="hlist">
+                              <li><code><a title="traceon.mesher.GeometricObject.map_points" href="mesher.html#traceon.mesher.GeometricObject.map_points">map_points</a></code></li>
+                              <li><code><a title="traceon.mesher.GeometricObject.mirror_xy" href="mesher.html#traceon.mesher.GeometricObject.mirror_xy">mirror_xy</a></code></li>
+                              <li><code><a title="traceon.mesher.GeometricObject.mirror_xz" href="mesher.html#traceon.mesher.GeometricObject.mirror_xz">mirror_xz</a></code></li>
+                              <li><code><a title="traceon.mesher.GeometricObject.mirror_yz" href="mesher.html#traceon.mesher.GeometricObject.mirror_yz">mirror_yz</a></code></li>
+                              <li><code><a title="traceon.mesher.GeometricObject.move" href="mesher.html#traceon.mesher.GeometricObject.move">move</a></code></li>
+                              <li><code><a title="traceon.mesher.GeometricObject.rotate" href="mesher.html#traceon.mesher.GeometricObject.rotate">rotate</a></code></li>
+                              <li><code><a title="traceon.mesher.GeometricObject.rotate_around_axis" href="mesher.html#traceon.mesher.GeometricObject.rotate_around_axis">rotate_around_axis</a></code></li>
+                      </ul>
+
+                  </li>
+              </ul>
 
       </dd>
       
       <dt id="traceon.field.FieldAxial"><code class="flex name class">
           <span>class <span class="ident">FieldAxial</span></span>
-              <span>(</span><span>z, electrostatic_coeffs=None, magnetostatic_coeffs=None)</span>
+              <span>(</span><span>field, z, electrostatic_coeffs=None, magnetostatic_coeffs=None)</span>
       </code></dt>
 
       <dd>
@@ -420,7 +1046,18 @@ Throws an exception when the field is both electrostatic and magnetostatic.</p>
     not initialize this class yourself, but it is used as a base class for the fields returned by the `axial_derivative_interpolation` methods. 
     This base class overloads the +,*,- operators so it is very easy to take a superposition of different fields.&#34;&#34;&#34;
     
-    def __init__(self, z, electrostatic_coeffs=None, magnetostatic_coeffs=None):
+    def __init__(self, 
+                 field: FieldBEM, 
+                 z: ArrayFloat1D, 
+                 electrostatic_coeffs: ArrayFloat3D | None = None, 
+                 magnetostatic_coeffs: ArrayFloat3D | None = None):
+        
+        super().__init__()
+        self.field = field
+        self._origin = field._origin
+        self._basis = field._basis
+        self._update_inverse_transformation_matrix()
+
         N = len(z)
         assert z.shape == (N,)
         assert electrostatic_coeffs is None or len(electrostatic_coeffs)== N-1
@@ -428,49 +1065,65 @@ Throws an exception when the field is both electrostatic and magnetostatic.</p>
         assert electrostatic_coeffs is not None or magnetostatic_coeffs is not None
         
         assert z[0] &lt; z[-1], &#34;z values in axial interpolation should be ascending&#34;
-         
+
         self.z = z
         self.electrostatic_coeffs = electrostatic_coeffs if electrostatic_coeffs is not None else np.zeros_like(magnetostatic_coeffs)
         self.magnetostatic_coeffs = magnetostatic_coeffs if magnetostatic_coeffs is not None else np.zeros_like(electrostatic_coeffs)
         
-        self.has_electrostatic = np.any(self.electrostatic_coeffs != 0.)
-        self.has_magnetostatic = np.any(self.magnetostatic_coeffs != 0.)
+        self.has_electrostatic = bool(np.any(self.electrostatic_coeffs != 0.))
+        self.has_magnetostatic = bool(np.any(self.magnetostatic_coeffs != 0.))
      
-    def is_electrostatic(self):
+    def is_electrostatic(self) -&gt; bool:
         return self.has_electrostatic
 
-    def is_magnetostatic(self):
+    def is_magnetostatic(self) -&gt; bool:
         return self.has_magnetostatic
-     
-    def __str__(self):
+    
+    def _matches_geometry(self, other: Field) -&gt; bool:
+        if (self.__class__ != other.__class__):
+            return False
+        else:
+            other = cast(FieldAxial, other)
+            return(np.allclose(self._origin, other._origin) 
+                and np.allclose(self._basis, other._basis)
+                and self.z.shape == other.z.shape and np.allclose(self.z, other.z))
+    
+    def __str__(self) -&gt; str:
         name = self.__class__.__name__
         return f&#39;&lt;Traceon {name}, zmin={self.z[0]} mm, zmax={self.z[-1]} mm,\n\tNumber of samples on optical axis: {len(self.z)}&gt;&#39;
      
-    def __add__(self, other):
-        if isinstance(other, FieldAxial):
-            assert np.array_equal(self.z, other.z), &#34;Cannot add FieldAxial if optical axis sampling is different.&#34;
-            assert self.electrostatic_coeffs.shape == other.electrostatic_coeffs.shape, &#34;Cannot add FieldAxial if shape of axial coefficients is unequal.&#34;
-            assert self.magnetostatic_coeffs.shape == other.magnetostatic_coeffs.shape, &#34;Cannot add FieldAxial if shape of axial coefficients is unequal.&#34;
-            return self.__class__(self.z, self.electrostatic_coeffs+other.electrostatic_coeffs, self.magnetostatic_coeffs + other.magnetostatic_coeffs)
-         
+    def __add__(self, other: Field) -&gt; Field:
+        if self._matches_geometry(other):
+            other = cast(FieldAxial, other)
+            field_copy = self.copy()
+            field_copy.electrostatic_coeffs = self.electrostatic_coeffs + other.electrostatic_coeffs
+            field_copy.magnetostatic_coeffs = self.magnetostatic_coeffs + other.magnetostatic_coeffs
+            return field_copy
+        else:
+            return super().__add__(other)
+    
+    def __sub__(self, other: Field) -&gt; Field:
+        if isinstance(other, Field):
+            return self.__add__(-other)
+
         return NotImplemented
-    
-    def __sub__(self, other):
-        return self.__add__(-other)
-    
-    def __radd__(self, other):
+
+    def __radd__(self, other: Field) -&gt; Field:
         return self.__add__(other)
      
-    def __mul__(self, other):
-        if isinstance(other, int) or isinstance(other, float):
-            return self.__class__(self.z, other*self.electrostatic_coeffs, other*self.magnetostatic_coeffs)
-         
-        return NotImplemented
-    
-    def __neg__(self):
+    def __mul__(self, other: float) -&gt; Field:
+        if _is_numeric(other):
+            field_copy = self.copy()
+            field_copy.electrostatic_coeffs = other * self.electrostatic_coeffs
+            field_copy.magnetostatic_coeffs = other * self.electrostatic_coeffs
+            return field_copy
+        else:
+            return super().__mul__(other)
+     
+    def __neg__(self) -&gt; Field:
         return -1*self
     
-    def __rmul__(self, other):
+    def __rmul__(self, other: float) -&gt; Field:
         return self.__mul__(other)</code></pre>
       </details>
 
@@ -482,6 +1135,7 @@ This base class overloads the +,*,- operators so it is very easy to take a super
           <h3>Ancestors</h3>
           <ul class="hlist">
               <li><a title="traceon.field.Field" href="#traceon.field.Field">Field</a></li>
+              <li><a title="traceon.mesher.GeometricObject" href="mesher.html#traceon.mesher.GeometricObject">GeometricObject</a></li>
               <li>abc.ABC</li>
           </ul>
 
@@ -505,7 +1159,7 @@ This base class overloads the +,*,- operators so it is very easy to take a super
         <summary>
             <span>Expand source code</span>
         </summary>
-        <pre><code class="python">def is_electrostatic(self):
+        <pre><code class="python">def is_electrostatic(self) -&gt; bool:
     return self.has_electrostatic</code></pre>
       </details>
 
@@ -525,7 +1179,7 @@ This base class overloads the +,*,- operators so it is very easy to take a super
         <summary>
             <span>Expand source code</span>
         </summary>
-        <pre><code class="python">def is_magnetostatic(self):
+        <pre><code class="python">def is_magnetostatic(self) -&gt; bool:
     return self.has_magnetostatic</code></pre>
       </details>
 
@@ -539,8 +1193,23 @@ This base class overloads the +,*,- operators so it is very easy to take a super
               <ul class="hlist">
                   <li><code><b><a title="traceon.field.Field" href="#traceon.field.Field">Field</a></b></code>:
                       <ul class="hlist">
+                              <li><code><a title="traceon.field.Field.current_field_at_point" href="#traceon.field.Field.current_field_at_point">current_field_at_point</a></code></li>
+                              <li><code><a title="traceon.field.Field.electrostatic_field_at_point" href="#traceon.field.Field.electrostatic_field_at_point">electrostatic_field_at_point</a></code></li>
+                              <li><code><a title="traceon.field.Field.electrostatic_potential_at_point" href="#traceon.field.Field.electrostatic_potential_at_point">electrostatic_potential_at_point</a></code></li>
                               <li><code><a title="traceon.field.Field.field_at_point" href="#traceon.field.Field.field_at_point">field_at_point</a></code></li>
+                              <li><code><a title="traceon.field.Field.get_origin" href="#traceon.field.Field.get_origin">get_origin</a></code></li>
+                              <li><code><a title="traceon.field.Field.magnetostatic_field_at_point" href="#traceon.field.Field.magnetostatic_field_at_point">magnetostatic_field_at_point</a></code></li>
+                              <li><code><a title="traceon.field.Field.magnetostatic_potential_at_point" href="#traceon.field.Field.magnetostatic_potential_at_point">magnetostatic_potential_at_point</a></code></li>
+                              <li><code><a title="traceon.field.Field.map_points" href="mesher.html#traceon.mesher.GeometricObject.map_points">map_points</a></code></li>
+                              <li><code><a title="traceon.field.Field.map_points_to_local" href="#traceon.field.Field.map_points_to_local">map_points_to_local</a></code></li>
+                              <li><code><a title="traceon.field.Field.mirror_xy" href="mesher.html#traceon.mesher.GeometricObject.mirror_xy">mirror_xy</a></code></li>
+                              <li><code><a title="traceon.field.Field.mirror_xz" href="mesher.html#traceon.mesher.GeometricObject.mirror_xz">mirror_xz</a></code></li>
+                              <li><code><a title="traceon.field.Field.mirror_yz" href="mesher.html#traceon.mesher.GeometricObject.mirror_yz">mirror_yz</a></code></li>
+                              <li><code><a title="traceon.field.Field.move" href="mesher.html#traceon.mesher.GeometricObject.move">move</a></code></li>
                               <li><code><a title="traceon.field.Field.potential_at_point" href="#traceon.field.Field.potential_at_point">potential_at_point</a></code></li>
+                              <li><code><a title="traceon.field.Field.rotate" href="mesher.html#traceon.mesher.GeometricObject.rotate">rotate</a></code></li>
+                              <li><code><a title="traceon.field.Field.rotate_around_axis" href="mesher.html#traceon.mesher.GeometricObject.rotate_around_axis">rotate_around_axis</a></code></li>
+                              <li><code><a title="traceon.field.Field.set_bounds" href="#traceon.field.Field.set_bounds">set_bounds</a></code></li>
                       </ul>
 
                   </li>
@@ -566,71 +1235,69 @@ This base class overloads the +,*,- operators so it is very easy to take a super
     not initialize this class yourself, but it is used as a base class for the fields returned by the `solve_direct` function. 
     This base class overloads the +,*,- operators so it is very easy to take a superposition of different fields.&#34;&#34;&#34;
     
-    def __init__(self, electrostatic_point_charges, magnetostatic_point_charges, current_point_charges):
-        assert all([isinstance(eff, EffectivePointCharges) for eff in [electrostatic_point_charges,
-                                                                       magnetostatic_point_charges,
-                                                                       current_point_charges]])
+    def __init__(self, 
+                 electrostatic_point_charges: EffectivePointCharges, 
+                 magnetostatic_point_charges: EffectivePointCharges, 
+                 current_point_charges: EffectivePointCharges):
+        
+        super().__init__()
+        
         self.electrostatic_point_charges = electrostatic_point_charges
         self.magnetostatic_point_charges = magnetostatic_point_charges
         self.current_point_charges = current_point_charges
-        self.field_bounds = None
-     
-    def set_bounds(self, bounds):
-        &#34;&#34;&#34;Set the field bounds. Outside the field bounds the field always returns zero (i.e. no field). Note
-        that even in 2D the field bounds needs to be specified for x,y and z axis. The trajectories in the presence
-        of magnetostatic field are in general 3D even in radial symmetric geometries.
         
-        Parameters
-        -------------------
-        bounds: (3, 2) np.ndarray of float64
-            The min, max value of x, y, z respectively within the field is still computed.
-        &#34;&#34;&#34;
-        self.field_bounds = np.array(bounds, dtype=np.float64)
-        assert self.field_bounds.shape == (3,2)
-    
-    def is_electrostatic(self):
+    def is_electrostatic(self) -&gt; bool:
         return len(self.electrostatic_point_charges) &gt; 0
 
-    def is_magnetostatic(self):
+    def is_magnetostatic(self) -&gt; bool:
         return len(self.magnetostatic_point_charges) &gt; 0 or len(self.current_point_charges) &gt; 0 
-     
-    def __add__(self, other):
-        return self.__class__(
-            self.electrostatic_point_charges.__add__(other.electrostatic_point_charges),
-            self.magnetostatic_point_charges.__add__(other.magnetostatic_point_charges),
-            self.current_point_charges.__add__(other.current_point_charges))
-     
-    def __sub__(self, other):
-        return self.__class__(
-            self.electrostatic_point_charges.__sub__(other.electrostatic_point_charges),
-            self.magnetostatic_point_charges.__sub__(other.magnetostatic_point_charges),
-            self.current_point_charges.__sub__(other.current_point_charges))
     
-    def __radd__(self, other):
-        return self.__class__(
-            self.electrostatic_point_charges.__radd__(other.electrostatic_point_charges),
-            self.magnetostatic_point_charges.__radd__(other.magnetostatic_point_charges),
-            self.current_point_charges.__radd__(other.current_point_charges))
+    def _matches_geometry(self, other: Field) -&gt; bool:
+        return (self.__class__ == other.__class__
+            and np.allclose(self._origin, other._origin) 
+            and np.allclose(self._basis, other._basis))
+
+
+    def __add__(self, other: Field) -&gt; Field:
+        if self._matches_geometry(other):
+            other = cast(FieldBEM, other)
+            field_copy = self.copy()
+            field_copy.electrostatic_point_charges = self.electrostatic_point_charges + other.electrostatic_point_charges
+            field_copy.magnetostatic_point_charges = self.magnetostatic_point_charges + other.magnetostatic_point_charges
+            field_copy.current_point_charges = self.current_point_charges + other.current_point_charges
+            return field_copy
+        else:
+            return super().__add__(other)
     
-    def __mul__(self, other):
-        if not _is_numeric(other):
-            return NotImplemented
-         
-        return self.__class__(
-            self.electrostatic_point_charges.__mul__(other),
-            self.magnetostatic_point_charges.__mul__(other),
-            self.current_point_charges.__mul__(other))
+    def __sub__(self, other: Field) -&gt; Field:
+        if isinstance(other, Field):
+            return self.__add__(-other)
+        
+        return NotImplemented
+
+    def __radd__(self, other: Field) -&gt; Field:
+        return self.__add__(other)
+        
+    def __mul__(self, other: float) -&gt; Field:
+        if _is_numeric(other):
+           field_copy = self.copy()
+           field_copy.electrostatic_point_charges = self.electrostatic_point_charges * other
+           field_copy.magnetostatic_point_charges = self.magnetostatic_point_charges * other
+           field_copy.current_point_charges = self.current_point_charges * other
+           return field_copy
+        else:
+            return super().__mul__(other)
     
-    def __neg__(self):
+    def __neg__(self) -&gt; FieldBEM:
         return self.__class__(
             self.electrostatic_point_charges.__neg__(),
             self.magnetostatic_point_charges.__neg__(),
             self.current_point_charges.__neg__())
      
-    def __rmul__(self, other):
+    def __rmul__(self, other: float) -&gt; Field:
         return self.__mul__(other)
       
-    def area_of_elements(self, indices):
+    def area_of_elements(self, indices: ArrayLikeInt1D):
         &#34;&#34;&#34;Compute the total area of the elements at the given indices.
         
         Parameters
@@ -648,10 +1315,10 @@ This base class overloads the +,*,- operators so it is very easy to take a super
     def area_of_element(self, i: int) -&gt; float:
         ...
     
-    def charge_on_element(self, i):
+    def charge_on_element(self, i: int) -&gt; float:
         return self.area_of_element(i) * self.electrostatic_point_charges.charges[i]
     
-    def charge_on_elements(self, indices):
+    def charge_on_elements(self, indices: ArrayLikeInt1D) -&gt; float:
         &#34;&#34;&#34;Compute the sum of the charges present on the elements with the given indices. To
         get the total charge of a physical group use `names[&#39;name&#39;]` for indices where `names` 
         is returned by `traceon.excitation.Excitation.get_electrostatic_active_elements()`.
@@ -666,16 +1333,12 @@ This base class overloads the +,*,- operators so it is very easy to take a super
         The sum of the charge. See the note about units on the front page.&#34;&#34;&#34;
         return sum(self.charge_on_element(i) for i in indices)
     
-    def __str__(self):
+    def __str__(self) -&gt; str:
         name = self.__class__.__name__
         return f&#39;&lt;Traceon {name}\n&#39; \
             f&#39;\tNumber of electrostatic points: {len(self.electrostatic_point_charges)}\n&#39; \
             f&#39;\tNumber of magnetizable points: {len(self.magnetostatic_point_charges)}\n&#39; \
-            f&#39;\tNumber of current rings: {len(self.current_point_charges)}&gt;&#39;
-    
-    @abstractmethod
-    def current_field_at_point(self, point_):
-        ...</code></pre>
+            f&#39;\tNumber of current rings: {len(self.current_point_charges)}&gt;&#39;</code></pre>
       </details>
 
   <div class="desc"><p>An electrostatic field (resulting from surface charges) as computed from the Boundary Element Method. You should
@@ -686,6 +1349,7 @@ This base class overloads the +,*,- operators so it is very easy to take a super
           <h3>Ancestors</h3>
           <ul class="hlist">
               <li><a title="traceon.field.Field" href="#traceon.field.Field">Field</a></li>
+              <li><a title="traceon.mesher.GeometricObject" href="mesher.html#traceon.mesher.GeometricObject">GeometricObject</a></li>
               <li>abc.ABC</li>
           </ul>
 
@@ -699,7 +1363,7 @@ This base class overloads the +,*,- operators so it is very easy to take a super
               
     <dt id="traceon.field.FieldBEM.area_of_element"><code class="name flex">
         
-        <span>def <span class="ident">area_of_element</span></span>(<span>self, i: int) ‑> float</span>
+        <span>def <span class="ident">area_of_element</span></span>(<span>self, i)</span>
     </code></dt>
     <dd>
   
@@ -730,7 +1394,7 @@ def area_of_element(self, i: int) -&gt; float:
         <summary>
             <span>Expand source code</span>
         </summary>
-        <pre><code class="python">def area_of_elements(self, indices):
+        <pre><code class="python">def area_of_elements(self, indices: ArrayLikeInt1D):
     &#34;&#34;&#34;Compute the total area of the elements at the given indices.
     
     Parameters
@@ -768,7 +1432,7 @@ def area_of_element(self, i: int) -&gt; float:
         <summary>
             <span>Expand source code</span>
         </summary>
-        <pre><code class="python">def charge_on_element(self, i):
+        <pre><code class="python">def charge_on_element(self, i: int) -&gt; float:
     return self.area_of_element(i) * self.electrostatic_point_charges.charges[i]</code></pre>
       </details>
 
@@ -788,7 +1452,7 @@ def area_of_element(self, i: int) -&gt; float:
         <summary>
             <span>Expand source code</span>
         </summary>
-        <pre><code class="python">def charge_on_elements(self, indices):
+        <pre><code class="python">def charge_on_elements(self, indices: ArrayLikeInt1D) -&gt; float:
     &#34;&#34;&#34;Compute the sum of the charges present on the elements with the given indices. To
     get the total charge of a physical group use `names[&#39;name&#39;]` for indices where `names` 
     is returned by `traceon.excitation.Excitation.get_electrostatic_active_elements()`.
@@ -817,27 +1481,6 @@ is returned by <code><a title="traceon.excitation.Excitation.get_electrostatic_a
 </dd>
   
               
-    <dt id="traceon.field.FieldBEM.current_field_at_point"><code class="name flex">
-        
-        <span>def <span class="ident">current_field_at_point</span></span>(<span>self, point_)</span>
-    </code></dt>
-    <dd>
-  
-  
-    
-      <details class="source">
-        <summary>
-            <span>Expand source code</span>
-        </summary>
-        <pre><code class="python">@abstractmethod
-def current_field_at_point(self, point_):
-    ...</code></pre>
-      </details>
-
-  <div class="desc"></div>
-</dd>
-  
-              
     <dt id="traceon.field.FieldBEM.is_electrostatic"><code class="name flex">
         
         <span>def <span class="ident">is_electrostatic</span></span>(<span>self)</span>
@@ -850,7 +1493,7 @@ def current_field_at_point(self, point_):
         <summary>
             <span>Expand source code</span>
         </summary>
-        <pre><code class="python">def is_electrostatic(self):
+        <pre><code class="python">def is_electrostatic(self) -&gt; bool:
     return len(self.electrostatic_point_charges) &gt; 0</code></pre>
       </details>
 
@@ -870,48 +1513,11 @@ def current_field_at_point(self, point_):
         <summary>
             <span>Expand source code</span>
         </summary>
-        <pre><code class="python">def is_magnetostatic(self):
+        <pre><code class="python">def is_magnetostatic(self) -&gt; bool:
     return len(self.magnetostatic_point_charges) &gt; 0 or len(self.current_point_charges) &gt; 0 </code></pre>
       </details>
 
   <div class="desc"></div>
-</dd>
-  
-              
-    <dt id="traceon.field.FieldBEM.set_bounds"><code class="name flex">
-        
-        <span>def <span class="ident">set_bounds</span></span>(<span>self, bounds)</span>
-    </code></dt>
-    <dd>
-  
-  
-    
-      <details class="source">
-        <summary>
-            <span>Expand source code</span>
-        </summary>
-        <pre><code class="python">def set_bounds(self, bounds):
-    &#34;&#34;&#34;Set the field bounds. Outside the field bounds the field always returns zero (i.e. no field). Note
-    that even in 2D the field bounds needs to be specified for x,y and z axis. The trajectories in the presence
-    of magnetostatic field are in general 3D even in radial symmetric geometries.
-    
-    Parameters
-    -------------------
-    bounds: (3, 2) np.ndarray of float64
-        The min, max value of x, y, z respectively within the field is still computed.
-    &#34;&#34;&#34;
-    self.field_bounds = np.array(bounds, dtype=np.float64)
-    assert self.field_bounds.shape == (3,2)</code></pre>
-      </details>
-
-  <div class="desc"><p>Set the field bounds. Outside the field bounds the field always returns zero (i.e. no field). Note
-that even in 2D the field bounds needs to be specified for x,y and z axis. The trajectories in the presence
-of magnetostatic field are in general 3D even in radial symmetric geometries.</p>
-<h2 id="parameters">Parameters</h2>
-<dl>
-<dt><strong><code>bounds</code></strong> :&ensp;<code>(3, 2) np.ndarray</code> of <code>float64</code></dt>
-<dd>The min, max value of x, y, z respectively within the field is still computed.</dd>
-</dl></div>
 </dd>
   
           </dl>
@@ -921,8 +1527,23 @@ of magnetostatic field are in general 3D even in radial symmetric geometries.</p
               <ul class="hlist">
                   <li><code><b><a title="traceon.field.Field" href="#traceon.field.Field">Field</a></b></code>:
                       <ul class="hlist">
+                              <li><code><a title="traceon.field.Field.current_field_at_point" href="#traceon.field.Field.current_field_at_point">current_field_at_point</a></code></li>
+                              <li><code><a title="traceon.field.Field.electrostatic_field_at_point" href="#traceon.field.Field.electrostatic_field_at_point">electrostatic_field_at_point</a></code></li>
+                              <li><code><a title="traceon.field.Field.electrostatic_potential_at_point" href="#traceon.field.Field.electrostatic_potential_at_point">electrostatic_potential_at_point</a></code></li>
                               <li><code><a title="traceon.field.Field.field_at_point" href="#traceon.field.Field.field_at_point">field_at_point</a></code></li>
+                              <li><code><a title="traceon.field.Field.get_origin" href="#traceon.field.Field.get_origin">get_origin</a></code></li>
+                              <li><code><a title="traceon.field.Field.magnetostatic_field_at_point" href="#traceon.field.Field.magnetostatic_field_at_point">magnetostatic_field_at_point</a></code></li>
+                              <li><code><a title="traceon.field.Field.magnetostatic_potential_at_point" href="#traceon.field.Field.magnetostatic_potential_at_point">magnetostatic_potential_at_point</a></code></li>
+                              <li><code><a title="traceon.field.Field.map_points" href="mesher.html#traceon.mesher.GeometricObject.map_points">map_points</a></code></li>
+                              <li><code><a title="traceon.field.Field.map_points_to_local" href="#traceon.field.Field.map_points_to_local">map_points_to_local</a></code></li>
+                              <li><code><a title="traceon.field.Field.mirror_xy" href="mesher.html#traceon.mesher.GeometricObject.mirror_xy">mirror_xy</a></code></li>
+                              <li><code><a title="traceon.field.Field.mirror_xz" href="mesher.html#traceon.mesher.GeometricObject.mirror_xz">mirror_xz</a></code></li>
+                              <li><code><a title="traceon.field.Field.mirror_yz" href="mesher.html#traceon.mesher.GeometricObject.mirror_yz">mirror_yz</a></code></li>
+                              <li><code><a title="traceon.field.Field.move" href="mesher.html#traceon.mesher.GeometricObject.move">move</a></code></li>
                               <li><code><a title="traceon.field.Field.potential_at_point" href="#traceon.field.Field.potential_at_point">potential_at_point</a></code></li>
+                              <li><code><a title="traceon.field.Field.rotate" href="mesher.html#traceon.mesher.GeometricObject.rotate">rotate</a></code></li>
+                              <li><code><a title="traceon.field.Field.rotate_around_axis" href="mesher.html#traceon.mesher.GeometricObject.rotate_around_axis">rotate_around_axis</a></code></li>
+                              <li><code><a title="traceon.field.Field.set_bounds" href="#traceon.field.Field.set_bounds">set_bounds</a></code></li>
                       </ul>
 
                   </li>
@@ -944,10 +1565,12 @@ of magnetostatic field are in general 3D even in radial symmetric geometries.</p
             <span>Expand source code</span>
         </summary>
         <pre><code class="python">class FieldRadialAxial(FieldAxial):
-    def __init__(self, field, zmin, zmax, N=None):
+    def __init__(self, field: FieldRadialBEM, zmin: float, zmax: float, N: int | None = None) -&gt; None:
         &#34;&#34;&#34;
         Produces a field which uses an axial interpolation to very quickly compute the field around the z-axis.
         Note that the approximation degrades as the point at which the field is computed is further from the z-axis.
+        Also note that the fields produced by current and the magnetizable material are merged into one interpolation,
+        so the method `current_field_at_point` will always return zero.
 
         Parameters
         -----------------------
@@ -966,13 +1589,17 @@ of magnetostatic field are in general 3D even in radial symmetric geometries.</p
 
         z, electrostatic_coeffs, magnetostatic_coeffs = FieldRadialAxial._get_interpolation_coefficients(field, zmin, zmax, N=N)
         
-        super().__init__(z, electrostatic_coeffs, magnetostatic_coeffs)
-        
+        super().__init__(field, z, electrostatic_coeffs, magnetostatic_coeffs)
+
         assert self.electrostatic_coeffs.shape == (len(z)-1, backend.DERIV_2D_MAX, 6)
         assert self.magnetostatic_coeffs.shape == (len(z)-1, backend.DERIV_2D_MAX, 6)
     
     @staticmethod
-    def _get_interpolation_coefficients(field: FieldRadialBEM, zmin, zmax, N=None):
+    def _get_interpolation_coefficients(field: FieldRadialBEM, 
+                                        zmin: float, 
+                                        zmax: float, 
+                                        N: int | None = None) -&gt; tuple[ArrayFloat1D, ArrayFloat3D, ArrayFloat3D]:
+        
         assert zmax &gt; zmin, &#34;zmax should be bigger than zmin&#34;
 
         N_charges = max(len(field.electrostatic_point_charges.charges), len(field.magnetostatic_point_charges.charges))
@@ -990,78 +1617,78 @@ of magnetostatic field are in general 3D even in radial symmetric geometries.</p
 
         return z, elec_coeffs, mag_coeffs
      
-    def electrostatic_field_at_point(self, point_):
+    def electrostatic_field_at_local_point(self, point: PointLike3D) -&gt; Vector3D:
         &#34;&#34;&#34;
         Compute the electric field, \\( \\vec{E} = -\\nabla \\phi \\)
         
         Parameters
         ----------
-        point: (2,) array of float64
-            Position at which to compute the field.
+        point: (3,) array of float64
+            Position in local coordinate system at which to compute the field.
              
         Returns
         -------
         Numpy array containing the field strengths (in units of V/mm) in the r and z directions.
         &#34;&#34;&#34;
-        point = np.array(point_)
+        point = np.array(point, dtype=np.float64)
         assert point.shape == (3,), &#34;Please supply a three dimensional point&#34;
         return backend.field_radial_derivs(point, self.z, self.electrostatic_coeffs)
     
-    def magnetostatic_field_at_point(self, point_):
+    def magnetostatic_field_at_local_point(self, point: PointLike3D) -&gt; Vector3D:
         &#34;&#34;&#34;
         Compute the magnetic field \\( \\vec{H} \\)
         
         Parameters
         ----------
-        point: (2,) array of float64
-            Position at which to compute the field.
+        point: (3,) array of float64
+            Position in local coordinate system at which to compute the field.
              
         Returns
         -------
-        (2,) np.ndarray of float64 containing the field strength (in units of A/m) in the x, y and z directions.
+        (3,) np.ndarray of float64 containing the field strength (in units of A/m) in the x, y and z directions.
         &#34;&#34;&#34;
-        point = np.array(point_)
+        point = np.array(point, dtype=np.float64)
         assert point.shape == (3,), &#34;Please supply a three dimensional point&#34;
         return backend.field_radial_derivs(point, self.z, self.magnetostatic_coeffs)
      
-    def electrostatic_potential_at_point(self, point_):
+    def electrostatic_potential_at_local_point(self, point: PointLike3D) -&gt; float:
         &#34;&#34;&#34;
         Compute the electrostatic potential (close to the axis).
 
         Parameters
         ----------
-        point: (2,) array of float64
+        point: (3,) array of float64
             Position at which to compute the potential.
         
         Returns
         -------
         Potential as a float value (in units of V).
         &#34;&#34;&#34;
-        point = np.array(point_)
+        point = np.array(point)
         assert point.shape == (3,), &#34;Please supply a three dimensional point&#34;
         return backend.potential_radial_derivs(point, self.z, self.electrostatic_coeffs)
     
-    def magnetostatic_potential_at_point(self, point_):
+    def magnetostatic_potential_at_local_point(self, point: PointLike3D) -&gt; float:
         &#34;&#34;&#34;
         Compute the magnetostatic scalar potential (satisfying \\(\\vec{H} = -\\nabla \\phi \\)) close to the axis
         
         Parameters
         ----------
-        point: (2,) array of float64
-            Position at which to compute the field.
+        point: (3,) array of float64
+            Position in local coordinate system at which to compute the potential.
         
         Returns
         -------
         Potential as a float value (in units of A).
         &#34;&#34;&#34;
-        point = np.array(point_)
+        point = np.array(point, dtype=np.float64)
         assert point.shape == (3,), &#34;Please supply a three dimensional point&#34;
         return backend.potential_radial_derivs(point, self.z, self.magnetostatic_coeffs)
     
-    def get_tracer(self, bounds):
+    def get_tracer(self, bounds: BoundsLike3D) -&gt; Tracer:
         return T.Tracer(self, bounds)
     
-    def get_low_level_trace_function(self):
+    def get_low_level_trace_function(self) -&gt; tuple[Callable, Any]:
         args = backend.FieldDerivsArgs(self.z, self.electrostatic_coeffs, self.magnetostatic_coeffs)
         return backend.field_fun((&#34;field_radial_derivs_traceable&#34;, backend.backend_lib)), args</code></pre>
       </details>
@@ -1070,7 +1697,9 @@ of magnetostatic field are in general 3D even in radial symmetric geometries.</p
 not initialize this class yourself, but it is used as a base class for the fields returned by the <code>axial_derivative_interpolation</code> methods. 
 This base class overloads the +,*,- operators so it is very easy to take a superposition of different fields.</p>
 <p>Produces a field which uses an axial interpolation to very quickly compute the field around the z-axis.
-Note that the approximation degrades as the point at which the field is computed is further from the z-axis.</p>
+Note that the approximation degrades as the point at which the field is computed is further from the z-axis.
+Also note that the fields produced by current and the magnetizable material are merged into one interpolation,
+so the method <code>current_field_at_point</code> will always return zero.</p>
 <h2 id="parameters">Parameters</h2>
 <dl>
 <dt><strong><code>field</code></strong> :&ensp;<code><a title="traceon.field.FieldRadialBEM" href="#traceon.field.FieldRadialBEM">FieldRadialBEM</a></code></dt>
@@ -1090,15 +1719,16 @@ is determined by taking into account the number of elements in the mesh.</dd>
           <ul class="hlist">
               <li><a title="traceon.field.FieldAxial" href="#traceon.field.FieldAxial">FieldAxial</a></li>
               <li><a title="traceon.field.Field" href="#traceon.field.Field">Field</a></li>
+              <li><a title="traceon.mesher.GeometricObject" href="mesher.html#traceon.mesher.GeometricObject">GeometricObject</a></li>
               <li>abc.ABC</li>
           </ul>
 
           <h3>Methods</h3>
           <dl>
               
-    <dt id="traceon.field.FieldRadialAxial.electrostatic_field_at_point"><code class="name flex">
+    <dt id="traceon.field.FieldRadialAxial.electrostatic_field_at_local_point"><code class="name flex">
         
-        <span>def <span class="ident">electrostatic_field_at_point</span></span>(<span>self, point_)</span>
+        <span>def <span class="ident">electrostatic_field_at_local_point</span></span>(<span>self, point)</span>
     </code></dt>
     <dd>
   
@@ -1108,20 +1738,20 @@ is determined by taking into account the number of elements in the mesh.</dd>
         <summary>
             <span>Expand source code</span>
         </summary>
-        <pre><code class="python">def electrostatic_field_at_point(self, point_):
+        <pre><code class="python">def electrostatic_field_at_local_point(self, point: PointLike3D) -&gt; Vector3D:
     &#34;&#34;&#34;
     Compute the electric field, \\( \\vec{E} = -\\nabla \\phi \\)
     
     Parameters
     ----------
-    point: (2,) array of float64
-        Position at which to compute the field.
+    point: (3,) array of float64
+        Position in local coordinate system at which to compute the field.
          
     Returns
     -------
     Numpy array containing the field strengths (in units of V/mm) in the r and z directions.
     &#34;&#34;&#34;
-    point = np.array(point_)
+    point = np.array(point, dtype=np.float64)
     assert point.shape == (3,), &#34;Please supply a three dimensional point&#34;
     return backend.field_radial_derivs(point, self.z, self.electrostatic_coeffs)</code></pre>
       </details>
@@ -1129,17 +1759,17 @@ is determined by taking into account the number of elements in the mesh.</dd>
   <div class="desc"><p>Compute the electric field, <span><span class="MathJax_Preview"> \vec{E} = -\nabla \phi </span><script type="math/tex"> \vec{E} = -\nabla \phi </script></span></p>
 <h2 id="parameters">Parameters</h2>
 <dl>
-<dt><strong><code>point</code></strong> :&ensp;<code>(2,) array</code> of <code>float64</code></dt>
-<dd>Position at which to compute the field.</dd>
+<dt><strong><code>point</code></strong> :&ensp;<code>(3,) array</code> of <code>float64</code></dt>
+<dd>Position in local coordinate system at which to compute the field.</dd>
 </dl>
 <h2 id="returns">Returns</h2>
 <p>Numpy array containing the field strengths (in units of V/mm) in the r and z directions.</p></div>
 </dd>
   
               
-    <dt id="traceon.field.FieldRadialAxial.electrostatic_potential_at_point"><code class="name flex">
+    <dt id="traceon.field.FieldRadialAxial.electrostatic_potential_at_local_point"><code class="name flex">
         
-        <span>def <span class="ident">electrostatic_potential_at_point</span></span>(<span>self, point_)</span>
+        <span>def <span class="ident">electrostatic_potential_at_local_point</span></span>(<span>self, point)</span>
     </code></dt>
     <dd>
   
@@ -1149,20 +1779,20 @@ is determined by taking into account the number of elements in the mesh.</dd>
         <summary>
             <span>Expand source code</span>
         </summary>
-        <pre><code class="python">def electrostatic_potential_at_point(self, point_):
+        <pre><code class="python">def electrostatic_potential_at_local_point(self, point: PointLike3D) -&gt; float:
     &#34;&#34;&#34;
     Compute the electrostatic potential (close to the axis).
 
     Parameters
     ----------
-    point: (2,) array of float64
+    point: (3,) array of float64
         Position at which to compute the potential.
     
     Returns
     -------
     Potential as a float value (in units of V).
     &#34;&#34;&#34;
-    point = np.array(point_)
+    point = np.array(point)
     assert point.shape == (3,), &#34;Please supply a three dimensional point&#34;
     return backend.potential_radial_derivs(point, self.z, self.electrostatic_coeffs)</code></pre>
       </details>
@@ -1170,7 +1800,7 @@ is determined by taking into account the number of elements in the mesh.</dd>
   <div class="desc"><p>Compute the electrostatic potential (close to the axis).</p>
 <h2 id="parameters">Parameters</h2>
 <dl>
-<dt><strong><code>point</code></strong> :&ensp;<code>(2,) array</code> of <code>float64</code></dt>
+<dt><strong><code>point</code></strong> :&ensp;<code>(3,) array</code> of <code>float64</code></dt>
 <dd>Position at which to compute the potential.</dd>
 </dl>
 <h2 id="returns">Returns</h2>
@@ -1190,7 +1820,7 @@ is determined by taking into account the number of elements in the mesh.</dd>
         <summary>
             <span>Expand source code</span>
         </summary>
-        <pre><code class="python">def get_tracer(self, bounds):
+        <pre><code class="python">def get_tracer(self, bounds: BoundsLike3D) -&gt; Tracer:
     return T.Tracer(self, bounds)</code></pre>
       </details>
 
@@ -1198,9 +1828,9 @@ is determined by taking into account the number of elements in the mesh.</dd>
 </dd>
   
               
-    <dt id="traceon.field.FieldRadialAxial.magnetostatic_field_at_point"><code class="name flex">
+    <dt id="traceon.field.FieldRadialAxial.magnetostatic_field_at_local_point"><code class="name flex">
         
-        <span>def <span class="ident">magnetostatic_field_at_point</span></span>(<span>self, point_)</span>
+        <span>def <span class="ident">magnetostatic_field_at_local_point</span></span>(<span>self, point)</span>
     </code></dt>
     <dd>
   
@@ -1210,20 +1840,20 @@ is determined by taking into account the number of elements in the mesh.</dd>
         <summary>
             <span>Expand source code</span>
         </summary>
-        <pre><code class="python">def magnetostatic_field_at_point(self, point_):
+        <pre><code class="python">def magnetostatic_field_at_local_point(self, point: PointLike3D) -&gt; Vector3D:
     &#34;&#34;&#34;
     Compute the magnetic field \\( \\vec{H} \\)
     
     Parameters
     ----------
-    point: (2,) array of float64
-        Position at which to compute the field.
+    point: (3,) array of float64
+        Position in local coordinate system at which to compute the field.
          
     Returns
     -------
-    (2,) np.ndarray of float64 containing the field strength (in units of A/m) in the x, y and z directions.
+    (3,) np.ndarray of float64 containing the field strength (in units of A/m) in the x, y and z directions.
     &#34;&#34;&#34;
-    point = np.array(point_)
+    point = np.array(point, dtype=np.float64)
     assert point.shape == (3,), &#34;Please supply a three dimensional point&#34;
     return backend.field_radial_derivs(point, self.z, self.magnetostatic_coeffs)</code></pre>
       </details>
@@ -1231,17 +1861,17 @@ is determined by taking into account the number of elements in the mesh.</dd>
   <div class="desc"><p>Compute the magnetic field <span><span class="MathJax_Preview"> \vec{H} </span><script type="math/tex"> \vec{H} </script></span></p>
 <h2 id="parameters">Parameters</h2>
 <dl>
-<dt><strong><code>point</code></strong> :&ensp;<code>(2,) array</code> of <code>float64</code></dt>
-<dd>Position at which to compute the field.</dd>
+<dt><strong><code>point</code></strong> :&ensp;<code>(3,) array</code> of <code>float64</code></dt>
+<dd>Position in local coordinate system at which to compute the field.</dd>
 </dl>
 <h2 id="returns">Returns</h2>
-<p>(2,) np.ndarray of float64 containing the field strength (in units of A/m) in the x, y and z directions.</p></div>
+<p>(3,) np.ndarray of float64 containing the field strength (in units of A/m) in the x, y and z directions.</p></div>
 </dd>
   
               
-    <dt id="traceon.field.FieldRadialAxial.magnetostatic_potential_at_point"><code class="name flex">
+    <dt id="traceon.field.FieldRadialAxial.magnetostatic_potential_at_local_point"><code class="name flex">
         
-        <span>def <span class="ident">magnetostatic_potential_at_point</span></span>(<span>self, point_)</span>
+        <span>def <span class="ident">magnetostatic_potential_at_local_point</span></span>(<span>self, point)</span>
     </code></dt>
     <dd>
   
@@ -1251,20 +1881,20 @@ is determined by taking into account the number of elements in the mesh.</dd>
         <summary>
             <span>Expand source code</span>
         </summary>
-        <pre><code class="python">def magnetostatic_potential_at_point(self, point_):
+        <pre><code class="python">def magnetostatic_potential_at_local_point(self, point: PointLike3D) -&gt; float:
     &#34;&#34;&#34;
     Compute the magnetostatic scalar potential (satisfying \\(\\vec{H} = -\\nabla \\phi \\)) close to the axis
     
     Parameters
     ----------
-    point: (2,) array of float64
-        Position at which to compute the field.
+    point: (3,) array of float64
+        Position in local coordinate system at which to compute the potential.
     
     Returns
     -------
     Potential as a float value (in units of A).
     &#34;&#34;&#34;
-    point = np.array(point_)
+    point = np.array(point, dtype=np.float64)
     assert point.shape == (3,), &#34;Please supply a three dimensional point&#34;
     return backend.potential_radial_derivs(point, self.z, self.magnetostatic_coeffs)</code></pre>
       </details>
@@ -1272,8 +1902,8 @@ is determined by taking into account the number of elements in the mesh.</dd>
   <div class="desc"><p>Compute the magnetostatic scalar potential (satisfying <span><span class="MathJax_Preview">\vec{H} = -\nabla \phi </span><script type="math/tex">\vec{H} = -\nabla \phi </script></span>) close to the axis</p>
 <h2 id="parameters">Parameters</h2>
 <dl>
-<dt><strong><code>point</code></strong> :&ensp;<code>(2,) array</code> of <code>float64</code></dt>
-<dd>Position at which to compute the field.</dd>
+<dt><strong><code>point</code></strong> :&ensp;<code>(3,) array</code> of <code>float64</code></dt>
+<dd>Position in local coordinate system at which to compute the potential.</dd>
 </dl>
 <h2 id="returns">Returns</h2>
 <p>Potential as a float value (in units of A).</p></div>
@@ -1286,8 +1916,23 @@ is determined by taking into account the number of elements in the mesh.</dd>
               <ul class="hlist">
                   <li><code><b><a title="traceon.field.FieldAxial" href="#traceon.field.FieldAxial">FieldAxial</a></b></code>:
                       <ul class="hlist">
+                              <li><code><a title="traceon.field.FieldAxial.current_field_at_point" href="#traceon.field.Field.current_field_at_point">current_field_at_point</a></code></li>
+                              <li><code><a title="traceon.field.FieldAxial.electrostatic_field_at_point" href="#traceon.field.Field.electrostatic_field_at_point">electrostatic_field_at_point</a></code></li>
+                              <li><code><a title="traceon.field.FieldAxial.electrostatic_potential_at_point" href="#traceon.field.Field.electrostatic_potential_at_point">electrostatic_potential_at_point</a></code></li>
                               <li><code><a title="traceon.field.FieldAxial.field_at_point" href="#traceon.field.Field.field_at_point">field_at_point</a></code></li>
+                              <li><code><a title="traceon.field.FieldAxial.get_origin" href="#traceon.field.Field.get_origin">get_origin</a></code></li>
+                              <li><code><a title="traceon.field.FieldAxial.magnetostatic_field_at_point" href="#traceon.field.Field.magnetostatic_field_at_point">magnetostatic_field_at_point</a></code></li>
+                              <li><code><a title="traceon.field.FieldAxial.magnetostatic_potential_at_point" href="#traceon.field.Field.magnetostatic_potential_at_point">magnetostatic_potential_at_point</a></code></li>
+                              <li><code><a title="traceon.field.FieldAxial.map_points" href="mesher.html#traceon.mesher.GeometricObject.map_points">map_points</a></code></li>
+                              <li><code><a title="traceon.field.FieldAxial.map_points_to_local" href="#traceon.field.Field.map_points_to_local">map_points_to_local</a></code></li>
+                              <li><code><a title="traceon.field.FieldAxial.mirror_xy" href="mesher.html#traceon.mesher.GeometricObject.mirror_xy">mirror_xy</a></code></li>
+                              <li><code><a title="traceon.field.FieldAxial.mirror_xz" href="mesher.html#traceon.mesher.GeometricObject.mirror_xz">mirror_xz</a></code></li>
+                              <li><code><a title="traceon.field.FieldAxial.mirror_yz" href="mesher.html#traceon.mesher.GeometricObject.mirror_yz">mirror_yz</a></code></li>
+                              <li><code><a title="traceon.field.FieldAxial.move" href="mesher.html#traceon.mesher.GeometricObject.move">move</a></code></li>
                               <li><code><a title="traceon.field.FieldAxial.potential_at_point" href="#traceon.field.Field.potential_at_point">potential_at_point</a></code></li>
+                              <li><code><a title="traceon.field.FieldAxial.rotate" href="mesher.html#traceon.mesher.GeometricObject.rotate">rotate</a></code></li>
+                              <li><code><a title="traceon.field.FieldAxial.rotate_around_axis" href="mesher.html#traceon.mesher.GeometricObject.rotate_around_axis">rotate_around_axis</a></code></li>
+                              <li><code><a title="traceon.field.FieldAxial.set_bounds" href="#traceon.field.Field.set_bounds">set_bounds</a></code></li>
                       </ul>
 
                   </li>
@@ -1312,19 +1957,26 @@ is determined by taking into account the number of elements in the mesh.</dd>
     &#34;&#34;&#34;A radially symmetric electrostatic field. The field is a result of the surface charges as computed by the
     `solve_direct` function. See the comments in `FieldBEM`.&#34;&#34;&#34;
     
-    def __init__(self, electrostatic_point_charges=None, magnetostatic_point_charges=None, current_point_charges=None):
+    def __init__(self, 
+                 electrostatic_point_charges: EffectivePointCharges | None = None, 
+                 magnetostatic_point_charges: EffectivePointCharges | None = None, 
+                 current_point_charges: EffectivePointCharges | None = None) -&gt; None:
+        
         if electrostatic_point_charges is None:
             electrostatic_point_charges = EffectivePointCharges.empty_2d()
         if magnetostatic_point_charges is None:
             magnetostatic_point_charges = EffectivePointCharges.empty_2d()
         if current_point_charges is None:
             current_point_charges = EffectivePointCharges.empty_3d()
-         
+        
+        assert all([isinstance(eff, EffectivePointCharges) for eff in [electrostatic_point_charges,
+                                                                       magnetostatic_point_charges,
+                                                                       current_point_charges]])
         self.symmetry = E.Symmetry.RADIAL
         super().__init__(electrostatic_point_charges, magnetostatic_point_charges, current_point_charges)
          
-    def current_field_at_point(self, point_):
-        point = np.array(point_, dtype=np.double)
+    def current_field_at_local_point(self, point: PointLike3D) -&gt; Vector3D:
+        point = np.array(point, dtype=np.float64)
         assert point.shape == (3,), &#34;Please supply a three dimensional point&#34;
             
         currents = self.current_point_charges.charges
@@ -1332,61 +1984,41 @@ is determined by taking into account the number of elements in the mesh.</dd>
         positions = self.current_point_charges.positions
         return backend.current_field_radial(point, currents, jacobians, positions)
      
-    def electrostatic_field_at_point(self, point_):
+    def electrostatic_field_at_local_point(self, point: PointLike3D) -&gt; Vector3D:
         &#34;&#34;&#34;
         Compute the electric field, \\( \\vec{E} = -\\nabla \\phi \\)
         
         Parameters
         ----------
         point: (3,) array of float64
-            Position at which to compute the field.
+            Position in local coordinate system at which to compute the field.
         
         Returns
         -------
         (3,) array of float64, containing the field strengths (units of V/m)
         &#34;&#34;&#34;
-        point = np.array(point_)
+        point = np.array(point, dtype=np.float64)
         assert point.shape == (3,), &#34;Please supply a three dimensional point&#34;
           
         charges = self.electrostatic_point_charges.charges
         jacobians = self.electrostatic_point_charges.jacobians
         positions = self.electrostatic_point_charges.positions
         return backend.field_radial(point, charges, jacobians, positions)
-     
-    def electrostatic_potential_at_point(self, point_):
-        &#34;&#34;&#34;
-        Compute the electrostatic potential.
-        
-        Parameters
-        ----------
-        point: (3,) array of float64
-            Position at which to compute the field.
-        
-        Returns
-        -------
-        Potential as a float value (in units of V).
-        &#34;&#34;&#34;
-        point = np.array(point_)
-        assert point.shape == (3,), &#34;Please supply a three dimensional point&#34;
-        charges = self.electrostatic_point_charges.charges
-        jacobians = self.electrostatic_point_charges.jacobians
-        positions = self.electrostatic_point_charges.positions
-        return backend.potential_radial(point, charges, jacobians, positions)
     
-    def magnetostatic_field_at_point(self, point_):
+    def magnetostatic_field_at_local_point(self, point: PointLike3D) -&gt; Vector3D:
         &#34;&#34;&#34;
         Compute the magnetic field \\( \\vec{H} \\)
         
         Parameters
         ----------
         point: (3,) array of float64
-            Position at which to compute the field.
+            Position in local coordinate system at which to compute the field.
              
         Returns
         -------
         (3,) np.ndarray of float64 containing the field strength (in units of A/m) in the x, y and z directions.
         &#34;&#34;&#34;
-        point = np.array(point_)
+        point = np.array(point, dtype=np.float64)
         assert point.shape == (3,), &#34;Please supply a three dimensional point&#34;
         current_field = self.current_field_at_point(point)
         
@@ -1398,34 +2030,54 @@ is determined by taking into account the number of elements in the mesh.</dd>
 
         return current_field + mag_field
 
-    def magnetostatic_potential_at_point(self, point_):
+    def electrostatic_potential_at_local_point(self, point: PointLike3D) -&gt; float:
+        &#34;&#34;&#34;
+        Compute the electrostatic potential.
+        
+        Parameters
+        ----------
+        point: (3,) array of float64
+            Position in local coordinate system at which to compute the field.
+        
+        Returns
+        -------
+        Potential as a float value (in units of V).
+        &#34;&#34;&#34;
+        point = np.array(point, dtype=np.float64)
+        assert point.shape == (3,), &#34;Please supply a three dimensional point&#34;
+        charges = self.electrostatic_point_charges.charges
+        jacobians = self.electrostatic_point_charges.jacobians
+        positions = self.electrostatic_point_charges.positions
+        return backend.potential_radial(point, charges, jacobians, positions)
+     
+    def magnetostatic_potential_at_local_point(self, point: PointLike3D) -&gt; float:
         &#34;&#34;&#34;
         Compute the magnetostatic scalar potential (satisfying \\(\\vec{H} = -\\nabla \\phi \\))
         
         Parameters
         ----------
         point: (3,) array of float64
-            Position at which to compute the field.
+            Position in local coordinate system in local coordinate system at which to compute the field.
         
         Returns
         -------
         Potential as a float value (in units of A).
         &#34;&#34;&#34;
-        point = np.array(point_)
+        point = np.array(point, dtype=np.float64)
         assert point.shape == (3,), &#34;Please supply a three dimensional point&#34;
         charges = self.magnetostatic_point_charges.charges
         jacobians = self.magnetostatic_point_charges.jacobians
         positions = self.magnetostatic_point_charges.positions
         return backend.potential_radial(point, charges, jacobians, positions)
     
-    def current_potential_axial(self, z):
+    def current_potential_axial(self, z: float) -&gt; float:
         assert isinstance(z, float)
         currents = self.current_point_charges.charges
         jacobians = self.current_point_charges.jacobians
         positions = self.current_point_charges.positions
         return backend.current_potential_axial(z, currents, jacobians, positions)
      
-    def get_electrostatic_axial_potential_derivatives(self, z):
+    def get_electrostatic_axial_potential_derivatives(self, z: ArrayLikeFloat1D) -&gt; ArrayFloat2D:
         &#34;&#34;&#34;
         Compute the derivatives of the electrostatic potential a points on the optical axis (z-axis). 
          
@@ -1439,6 +2091,7 @@ is determined by taking into account the number of elements in the mesh.</dd>
         Numpy array of shape (N, 9) containing the derivatives. At index i one finds the i-th derivative (so
         at position 0 the potential itself is returned). The highest derivative returned is a 
         constant currently set to 9.&#34;&#34;&#34;
+        z = np.array(z, dtype=np.float64)
         charges = self.electrostatic_point_charges.charges
         jacobians = self.electrostatic_point_charges.jacobians
         positions = self.electrostatic_point_charges.positions
@@ -1466,7 +2119,7 @@ is determined by taking into account the number of elements in the mesh.</dd>
         derivs_current = self.get_current_axial_potential_derivatives(z)
         return derivs_magnetic + derivs_current
      
-    def get_current_axial_potential_derivatives(self, z):
+    def get_current_axial_potential_derivatives(self, z: ArrayLikeFloat1D) -&gt; ArrayFloat2D:
         &#34;&#34;&#34;
         Compute the derivatives of the current magnetostatic scalar potential at points on the optical axis.
          
@@ -1480,21 +2133,21 @@ is determined by taking into account the number of elements in the mesh.</dd>
         Numpy array of shape (N, 9) containing the derivatives. At index i one finds the i-th derivative (so
         at position 0 the potential itself is returned). The highest derivative returned is a 
         constant currently set to 9.&#34;&#34;&#34;
-
+        z = np.array(z, dtype=np.float64)
         currents = self.current_point_charges.charges
         jacobians = self.current_point_charges.jacobians
         positions = self.current_point_charges.positions
         return backend.current_axial_derivatives_radial(z, currents, jacobians, positions)
       
-    def area_of_element(self, i):
+    def area_of_element(self, i: int) -&gt; float:
         jacobians = self.electrostatic_point_charges.jacobians
         positions = self.electrostatic_point_charges.positions
         return 2*np.pi*np.sum(jacobians[i] * positions[i, :, 0])
     
-    def get_tracer(self, bounds):
+    def get_tracer(self, bounds: BoundsLike3D)-&gt; Tracer:
         return T.Tracer(self, bounds)
     
-    def get_low_level_trace_function(self):
+    def get_low_level_trace_function(self) -&gt; tuple[Callable, Any]:
         args = backend.FieldEvaluationArgsRadial(self.electrostatic_point_charges, self.magnetostatic_point_charges, self.current_point_charges, self.field_bounds)
         return backend.field_fun((&#34;field_radial_traceable&#34;, backend.backend_lib)), args</code></pre>
       </details>
@@ -1507,6 +2160,7 @@ is determined by taking into account the number of elements in the mesh.</dd>
           <ul class="hlist">
               <li><a title="traceon.field.FieldBEM" href="#traceon.field.FieldBEM">FieldBEM</a></li>
               <li><a title="traceon.field.Field" href="#traceon.field.Field">Field</a></li>
+              <li><a title="traceon.mesher.GeometricObject" href="mesher.html#traceon.mesher.GeometricObject">GeometricObject</a></li>
               <li>abc.ABC</li>
           </ul>
 
@@ -1525,7 +2179,7 @@ is determined by taking into account the number of elements in the mesh.</dd>
         <summary>
             <span>Expand source code</span>
         </summary>
-        <pre><code class="python">def area_of_element(self, i):
+        <pre><code class="python">def area_of_element(self, i: int) -&gt; float:
     jacobians = self.electrostatic_point_charges.jacobians
     positions = self.electrostatic_point_charges.positions
     return 2*np.pi*np.sum(jacobians[i] * positions[i, :, 0])</code></pre>
@@ -1535,9 +2189,9 @@ is determined by taking into account the number of elements in the mesh.</dd>
 </dd>
   
               
-    <dt id="traceon.field.FieldRadialBEM.current_field_at_point"><code class="name flex">
+    <dt id="traceon.field.FieldRadialBEM.current_field_at_local_point"><code class="name flex">
         
-        <span>def <span class="ident">current_field_at_point</span></span>(<span>self, point_)</span>
+        <span>def <span class="ident">current_field_at_local_point</span></span>(<span>self, point)</span>
     </code></dt>
     <dd>
   
@@ -1547,8 +2201,8 @@ is determined by taking into account the number of elements in the mesh.</dd>
         <summary>
             <span>Expand source code</span>
         </summary>
-        <pre><code class="python">def current_field_at_point(self, point_):
-    point = np.array(point_, dtype=np.double)
+        <pre><code class="python">def current_field_at_local_point(self, point: PointLike3D) -&gt; Vector3D:
+    point = np.array(point, dtype=np.float64)
     assert point.shape == (3,), &#34;Please supply a three dimensional point&#34;
         
     currents = self.current_point_charges.charges
@@ -1573,7 +2227,7 @@ is determined by taking into account the number of elements in the mesh.</dd>
         <summary>
             <span>Expand source code</span>
         </summary>
-        <pre><code class="python">def current_potential_axial(self, z):
+        <pre><code class="python">def current_potential_axial(self, z: float) -&gt; float:
     assert isinstance(z, float)
     currents = self.current_point_charges.charges
     jacobians = self.current_point_charges.jacobians
@@ -1585,9 +2239,9 @@ is determined by taking into account the number of elements in the mesh.</dd>
 </dd>
   
               
-    <dt id="traceon.field.FieldRadialBEM.electrostatic_field_at_point"><code class="name flex">
+    <dt id="traceon.field.FieldRadialBEM.electrostatic_field_at_local_point"><code class="name flex">
         
-        <span>def <span class="ident">electrostatic_field_at_point</span></span>(<span>self, point_)</span>
+        <span>def <span class="ident">electrostatic_field_at_local_point</span></span>(<span>self, point)</span>
     </code></dt>
     <dd>
   
@@ -1597,20 +2251,20 @@ is determined by taking into account the number of elements in the mesh.</dd>
         <summary>
             <span>Expand source code</span>
         </summary>
-        <pre><code class="python">def electrostatic_field_at_point(self, point_):
+        <pre><code class="python">def electrostatic_field_at_local_point(self, point: PointLike3D) -&gt; Vector3D:
     &#34;&#34;&#34;
     Compute the electric field, \\( \\vec{E} = -\\nabla \\phi \\)
     
     Parameters
     ----------
     point: (3,) array of float64
-        Position at which to compute the field.
+        Position in local coordinate system at which to compute the field.
     
     Returns
     -------
     (3,) array of float64, containing the field strengths (units of V/m)
     &#34;&#34;&#34;
-    point = np.array(point_)
+    point = np.array(point, dtype=np.float64)
     assert point.shape == (3,), &#34;Please supply a three dimensional point&#34;
       
     charges = self.electrostatic_point_charges.charges
@@ -1623,16 +2277,16 @@ is determined by taking into account the number of elements in the mesh.</dd>
 <h2 id="parameters">Parameters</h2>
 <dl>
 <dt><strong><code>point</code></strong> :&ensp;<code>(3,) array</code> of <code>float64</code></dt>
-<dd>Position at which to compute the field.</dd>
+<dd>Position in local coordinate system at which to compute the field.</dd>
 </dl>
 <h2 id="returns">Returns</h2>
 <p>(3,) array of float64, containing the field strengths (units of V/m)</p></div>
 </dd>
   
               
-    <dt id="traceon.field.FieldRadialBEM.electrostatic_potential_at_point"><code class="name flex">
+    <dt id="traceon.field.FieldRadialBEM.electrostatic_potential_at_local_point"><code class="name flex">
         
-        <span>def <span class="ident">electrostatic_potential_at_point</span></span>(<span>self, point_)</span>
+        <span>def <span class="ident">electrostatic_potential_at_local_point</span></span>(<span>self, point)</span>
     </code></dt>
     <dd>
   
@@ -1642,20 +2296,20 @@ is determined by taking into account the number of elements in the mesh.</dd>
         <summary>
             <span>Expand source code</span>
         </summary>
-        <pre><code class="python">def electrostatic_potential_at_point(self, point_):
+        <pre><code class="python">def electrostatic_potential_at_local_point(self, point: PointLike3D) -&gt; float:
     &#34;&#34;&#34;
     Compute the electrostatic potential.
     
     Parameters
     ----------
     point: (3,) array of float64
-        Position at which to compute the field.
+        Position in local coordinate system at which to compute the field.
     
     Returns
     -------
     Potential as a float value (in units of V).
     &#34;&#34;&#34;
-    point = np.array(point_)
+    point = np.array(point, dtype=np.float64)
     assert point.shape == (3,), &#34;Please supply a three dimensional point&#34;
     charges = self.electrostatic_point_charges.charges
     jacobians = self.electrostatic_point_charges.jacobians
@@ -1667,7 +2321,7 @@ is determined by taking into account the number of elements in the mesh.</dd>
 <h2 id="parameters">Parameters</h2>
 <dl>
 <dt><strong><code>point</code></strong> :&ensp;<code>(3,) array</code> of <code>float64</code></dt>
-<dd>Position at which to compute the field.</dd>
+<dd>Position in local coordinate system at which to compute the field.</dd>
 </dl>
 <h2 id="returns">Returns</h2>
 <p>Potential as a float value (in units of V).</p></div>
@@ -1686,7 +2340,7 @@ is determined by taking into account the number of elements in the mesh.</dd>
         <summary>
             <span>Expand source code</span>
         </summary>
-        <pre><code class="python">def get_current_axial_potential_derivatives(self, z):
+        <pre><code class="python">def get_current_axial_potential_derivatives(self, z: ArrayLikeFloat1D) -&gt; ArrayFloat2D:
     &#34;&#34;&#34;
     Compute the derivatives of the current magnetostatic scalar potential at points on the optical axis.
      
@@ -1700,7 +2354,7 @@ is determined by taking into account the number of elements in the mesh.</dd>
     Numpy array of shape (N, 9) containing the derivatives. At index i one finds the i-th derivative (so
     at position 0 the potential itself is returned). The highest derivative returned is a 
     constant currently set to 9.&#34;&#34;&#34;
-
+    z = np.array(z, dtype=np.float64)
     currents = self.current_point_charges.charges
     jacobians = self.current_point_charges.jacobians
     positions = self.current_point_charges.positions
@@ -1732,7 +2386,7 @@ constant currently set to 9.</p></div>
         <summary>
             <span>Expand source code</span>
         </summary>
-        <pre><code class="python">def get_electrostatic_axial_potential_derivatives(self, z):
+        <pre><code class="python">def get_electrostatic_axial_potential_derivatives(self, z: ArrayLikeFloat1D) -&gt; ArrayFloat2D:
     &#34;&#34;&#34;
     Compute the derivatives of the electrostatic potential a points on the optical axis (z-axis). 
      
@@ -1746,6 +2400,7 @@ constant currently set to 9.</p></div>
     Numpy array of shape (N, 9) containing the derivatives. At index i one finds the i-th derivative (so
     at position 0 the potential itself is returned). The highest derivative returned is a 
     constant currently set to 9.&#34;&#34;&#34;
+    z = np.array(z, dtype=np.float64)
     charges = self.electrostatic_point_charges.charges
     jacobians = self.electrostatic_point_charges.jacobians
     positions = self.electrostatic_point_charges.positions
@@ -1825,7 +2480,7 @@ constant currently set to 9.</p></div>
         <summary>
             <span>Expand source code</span>
         </summary>
-        <pre><code class="python">def get_tracer(self, bounds):
+        <pre><code class="python">def get_tracer(self, bounds: BoundsLike3D)-&gt; Tracer:
     return T.Tracer(self, bounds)</code></pre>
       </details>
 
@@ -1833,9 +2488,9 @@ constant currently set to 9.</p></div>
 </dd>
   
               
-    <dt id="traceon.field.FieldRadialBEM.magnetostatic_field_at_point"><code class="name flex">
+    <dt id="traceon.field.FieldRadialBEM.magnetostatic_field_at_local_point"><code class="name flex">
         
-        <span>def <span class="ident">magnetostatic_field_at_point</span></span>(<span>self, point_)</span>
+        <span>def <span class="ident">magnetostatic_field_at_local_point</span></span>(<span>self, point)</span>
     </code></dt>
     <dd>
   
@@ -1845,20 +2500,20 @@ constant currently set to 9.</p></div>
         <summary>
             <span>Expand source code</span>
         </summary>
-        <pre><code class="python">def magnetostatic_field_at_point(self, point_):
+        <pre><code class="python">def magnetostatic_field_at_local_point(self, point: PointLike3D) -&gt; Vector3D:
     &#34;&#34;&#34;
     Compute the magnetic field \\( \\vec{H} \\)
     
     Parameters
     ----------
     point: (3,) array of float64
-        Position at which to compute the field.
+        Position in local coordinate system at which to compute the field.
          
     Returns
     -------
     (3,) np.ndarray of float64 containing the field strength (in units of A/m) in the x, y and z directions.
     &#34;&#34;&#34;
-    point = np.array(point_)
+    point = np.array(point, dtype=np.float64)
     assert point.shape == (3,), &#34;Please supply a three dimensional point&#34;
     current_field = self.current_field_at_point(point)
     
@@ -1875,16 +2530,16 @@ constant currently set to 9.</p></div>
 <h2 id="parameters">Parameters</h2>
 <dl>
 <dt><strong><code>point</code></strong> :&ensp;<code>(3,) array</code> of <code>float64</code></dt>
-<dd>Position at which to compute the field.</dd>
+<dd>Position in local coordinate system at which to compute the field.</dd>
 </dl>
 <h2 id="returns">Returns</h2>
 <p>(3,) np.ndarray of float64 containing the field strength (in units of A/m) in the x, y and z directions.</p></div>
 </dd>
   
               
-    <dt id="traceon.field.FieldRadialBEM.magnetostatic_potential_at_point"><code class="name flex">
+    <dt id="traceon.field.FieldRadialBEM.magnetostatic_potential_at_local_point"><code class="name flex">
         
-        <span>def <span class="ident">magnetostatic_potential_at_point</span></span>(<span>self, point_)</span>
+        <span>def <span class="ident">magnetostatic_potential_at_local_point</span></span>(<span>self, point)</span>
     </code></dt>
     <dd>
   
@@ -1894,20 +2549,20 @@ constant currently set to 9.</p></div>
         <summary>
             <span>Expand source code</span>
         </summary>
-        <pre><code class="python">def magnetostatic_potential_at_point(self, point_):
+        <pre><code class="python">def magnetostatic_potential_at_local_point(self, point: PointLike3D) -&gt; float:
     &#34;&#34;&#34;
     Compute the magnetostatic scalar potential (satisfying \\(\\vec{H} = -\\nabla \\phi \\))
     
     Parameters
     ----------
     point: (3,) array of float64
-        Position at which to compute the field.
+        Position in local coordinate system in local coordinate system at which to compute the field.
     
     Returns
     -------
     Potential as a float value (in units of A).
     &#34;&#34;&#34;
-    point = np.array(point_)
+    point = np.array(point, dtype=np.float64)
     assert point.shape == (3,), &#34;Please supply a three dimensional point&#34;
     charges = self.magnetostatic_point_charges.charges
     jacobians = self.magnetostatic_point_charges.jacobians
@@ -1919,7 +2574,7 @@ constant currently set to 9.</p></div>
 <h2 id="parameters">Parameters</h2>
 <dl>
 <dt><strong><code>point</code></strong> :&ensp;<code>(3,) array</code> of <code>float64</code></dt>
-<dd>Position at which to compute the field.</dd>
+<dd>Position in local coordinate system in local coordinate system at which to compute the field.</dd>
 </dl>
 <h2 id="returns">Returns</h2>
 <p>Potential as a float value (in units of A).</p></div>
@@ -1934,9 +2589,326 @@ constant currently set to 9.</p></div>
                       <ul class="hlist">
                               <li><code><a title="traceon.field.FieldBEM.area_of_elements" href="#traceon.field.FieldBEM.area_of_elements">area_of_elements</a></code></li>
                               <li><code><a title="traceon.field.FieldBEM.charge_on_elements" href="#traceon.field.FieldBEM.charge_on_elements">charge_on_elements</a></code></li>
+                              <li><code><a title="traceon.field.FieldBEM.current_field_at_point" href="#traceon.field.Field.current_field_at_point">current_field_at_point</a></code></li>
+                              <li><code><a title="traceon.field.FieldBEM.electrostatic_field_at_point" href="#traceon.field.Field.electrostatic_field_at_point">electrostatic_field_at_point</a></code></li>
+                              <li><code><a title="traceon.field.FieldBEM.electrostatic_potential_at_point" href="#traceon.field.Field.electrostatic_potential_at_point">electrostatic_potential_at_point</a></code></li>
                               <li><code><a title="traceon.field.FieldBEM.field_at_point" href="#traceon.field.Field.field_at_point">field_at_point</a></code></li>
+                              <li><code><a title="traceon.field.FieldBEM.get_origin" href="#traceon.field.Field.get_origin">get_origin</a></code></li>
+                              <li><code><a title="traceon.field.FieldBEM.magnetostatic_field_at_point" href="#traceon.field.Field.magnetostatic_field_at_point">magnetostatic_field_at_point</a></code></li>
+                              <li><code><a title="traceon.field.FieldBEM.magnetostatic_potential_at_point" href="#traceon.field.Field.magnetostatic_potential_at_point">magnetostatic_potential_at_point</a></code></li>
+                              <li><code><a title="traceon.field.FieldBEM.map_points" href="mesher.html#traceon.mesher.GeometricObject.map_points">map_points</a></code></li>
+                              <li><code><a title="traceon.field.FieldBEM.map_points_to_local" href="#traceon.field.Field.map_points_to_local">map_points_to_local</a></code></li>
+                              <li><code><a title="traceon.field.FieldBEM.mirror_xy" href="mesher.html#traceon.mesher.GeometricObject.mirror_xy">mirror_xy</a></code></li>
+                              <li><code><a title="traceon.field.FieldBEM.mirror_xz" href="mesher.html#traceon.mesher.GeometricObject.mirror_xz">mirror_xz</a></code></li>
+                              <li><code><a title="traceon.field.FieldBEM.mirror_yz" href="mesher.html#traceon.mesher.GeometricObject.mirror_yz">mirror_yz</a></code></li>
+                              <li><code><a title="traceon.field.FieldBEM.move" href="mesher.html#traceon.mesher.GeometricObject.move">move</a></code></li>
                               <li><code><a title="traceon.field.FieldBEM.potential_at_point" href="#traceon.field.Field.potential_at_point">potential_at_point</a></code></li>
-                              <li><code><a title="traceon.field.FieldBEM.set_bounds" href="#traceon.field.FieldBEM.set_bounds">set_bounds</a></code></li>
+                              <li><code><a title="traceon.field.FieldBEM.rotate" href="mesher.html#traceon.mesher.GeometricObject.rotate">rotate</a></code></li>
+                              <li><code><a title="traceon.field.FieldBEM.rotate_around_axis" href="mesher.html#traceon.mesher.GeometricObject.rotate_around_axis">rotate_around_axis</a></code></li>
+                              <li><code><a title="traceon.field.FieldBEM.set_bounds" href="#traceon.field.Field.set_bounds">set_bounds</a></code></li>
+                      </ul>
+
+                  </li>
+              </ul>
+
+      </dd>
+      
+      <dt id="traceon.field.FieldSuperposition"><code class="flex name class">
+          <span>class <span class="ident">FieldSuperposition</span></span>
+              <span>(</span><span>fields, factors=None)</span>
+      </code></dt>
+
+      <dd>
+  
+  
+    
+      <details class="source">
+        <summary>
+            <span>Expand source code</span>
+        </summary>
+        <pre><code class="python">class FieldSuperposition(Field):
+    &#34;&#34;&#34;Representing a linear combination of fields (superposition). Will be automatically created if fields are added
+    together (field1 + field2) and the underlying field classes do not implement a specialized add method.&#34;&#34;&#34;
+    
+    def __init__(self, fields: Iterable[Field], factors: Iterable[float] | Iterable[np.floating] | None = None) -&gt; None:
+        super().__init__()
+        
+        assert all([isinstance(f, Field) for f in fields])
+        self.fields: List[Field] = list(fields)
+         
+        self.factors: ArrayFloat1D = np.ones(len(self.fields)) if factors is None else np.array(factors, dtype=np.float64)
+
+    @staticmethod
+    def _concat_factors(f1: ArrayFloat1D, f2: ArrayFloat1D) -&gt; ArrayFloat1D:
+        return np.concatenate( (f1, f2) )
+
+    def map_points(self, fun: Callable[[PointLike3D], Point3D]) -&gt; FieldSuperposition:
+        return FieldSuperposition([f.map_points(fun) for f in self.fields], self.factors)
+    
+    def electrostatic_field_at_local_point(self, point: PointLike3D) -&gt; Vector3D:
+        return np.sum([fa*f.electrostatic_field_at_point(point) for fa, f in zip(self.factors, self.fields)], axis=0)
+
+    def magnetostatic_field_at_local_point(self, point: PointLike3D) -&gt; Vector3D:
+        return np.sum([fa*f.magnetostatic_field_at_point(point) for fa, f in zip(self.factors, self.fields)], axis=0)
+    
+    def current_field_at_local_point(self, point: PointLike3D) -&gt; Vector3D:
+        return np.sum([fa*f.current_field_at_point(point) for fa, f in zip(self.factors, self.fields)], axis=0)
+    
+    def electrostatic_potential_at_local_point(self, point: PointLike3D) -&gt; float:
+        return sum([fa.item()*f.electrostatic_potential_at_point(point) for fa, f in zip(self.factors, self.fields)])
+
+    def magnetostatic_potential_at_local_point(self, point: PointLike3D) -&gt; float:
+        return sum([fa.item()*f.magnetostatic_potential_at_point(point) for fa, f in zip(self.factors, self.fields)])
+    
+    def is_electrostatic(self) -&gt; bool:
+        return any(f.is_electrostatic() for f in self.fields)
+    
+    def is_magnetostatic(self) -&gt; bool:
+        return any(f.is_magnetostatic() for f in self.fields)
+
+    def get_tracer(self, bounds: BoundsLike3D) -&gt; Tracer:
+        return T.Tracer(self, bounds)
+
+    def __add__(self, other: Field) -&gt; FieldSuperposition:
+        if isinstance(other, FieldSuperposition):
+            return FieldSuperposition(self.fields + other.fields, FieldSuperposition._concat_factors(self.factors, other.factors) )
+        else:
+            return FieldSuperposition(self.fields + [other], FieldSuperposition._concat_factors(self.factors, np.array([1.])))
+
+    def __radd__(self, other: Field) -&gt; FieldSuperposition:
+        return FieldSuperposition([other]+self.fields, [1.0]+list(self.factors))
+     
+    def __iadd__(self, other: Field) -&gt; FieldSuperposition:
+        self.fields = (self + other).fields
+        return self
+
+    def __mul__(self, other: float) -&gt; FieldSuperposition:
+        if _is_numeric(other):
+            return FieldSuperposition(self.fields, other*self.factors)
+        else:
+            return NotImplemented
+    
+    def __rmul__(self, other: float) -&gt; FieldSuperposition :
+        return self.__mul__(other)
+    
+    def __getitem__(self, index: int | slice) -&gt; Field:
+        if isinstance(index, slice):
+            fields: List[Field] = np.array(self.fields, dtype=object).__getitem__(index).tolist() # type: ignore
+            return FieldSuperposition(fields, self.factors[index])
+        elif isinstance(index, int):
+            return self.factors[index] * self.fields[index]
+
+        return NotImplemented
+     
+    def __len__(self) -&gt; int:
+        return len(self.fields)
+
+    def __iter__(self) -&gt; Iterator[Field]:
+        for fa, f in zip(self.factors, self.fields):
+            yield f*fa.item()
+     
+    def __str__(self) -&gt; str:
+        field_strs = &#39;&#39;.join(f&#39;\n\t{f.__class__.__name__} (times factor {fa})&#39; for fa, f in zip(self.factors, self.fields))
+        return f&#34;&lt;FieldSuperposition with fields: {field_strs}&gt;&#34;</code></pre>
+      </details>
+
+  <div class="desc"><p>Representing a linear combination of fields (superposition). Will be automatically created if fields are added
+together (field1 + field2) and the underlying field classes do not implement a specialized add method.</p></div>
+
+
+          <h3>Ancestors</h3>
+          <ul class="hlist">
+              <li><a title="traceon.field.Field" href="#traceon.field.Field">Field</a></li>
+              <li><a title="traceon.mesher.GeometricObject" href="mesher.html#traceon.mesher.GeometricObject">GeometricObject</a></li>
+              <li>abc.ABC</li>
+          </ul>
+
+          <h3>Methods</h3>
+          <dl>
+              
+    <dt id="traceon.field.FieldSuperposition.current_field_at_local_point"><code class="name flex">
+        
+        <span>def <span class="ident">current_field_at_local_point</span></span>(<span>self, point)</span>
+    </code></dt>
+    <dd>
+  
+  
+    
+      <details class="source">
+        <summary>
+            <span>Expand source code</span>
+        </summary>
+        <pre><code class="python">def current_field_at_local_point(self, point: PointLike3D) -&gt; Vector3D:
+    return np.sum([fa*f.current_field_at_point(point) for fa, f in zip(self.factors, self.fields)], axis=0)</code></pre>
+      </details>
+
+  <div class="desc"></div>
+</dd>
+  
+              
+    <dt id="traceon.field.FieldSuperposition.electrostatic_field_at_local_point"><code class="name flex">
+        
+        <span>def <span class="ident">electrostatic_field_at_local_point</span></span>(<span>self, point)</span>
+    </code></dt>
+    <dd>
+  
+  
+    
+      <details class="source">
+        <summary>
+            <span>Expand source code</span>
+        </summary>
+        <pre><code class="python">def electrostatic_field_at_local_point(self, point: PointLike3D) -&gt; Vector3D:
+    return np.sum([fa*f.electrostatic_field_at_point(point) for fa, f in zip(self.factors, self.fields)], axis=0)</code></pre>
+      </details>
+
+  <div class="desc"></div>
+</dd>
+  
+              
+    <dt id="traceon.field.FieldSuperposition.electrostatic_potential_at_local_point"><code class="name flex">
+        
+        <span>def <span class="ident">electrostatic_potential_at_local_point</span></span>(<span>self, point)</span>
+    </code></dt>
+    <dd>
+  
+  
+    
+      <details class="source">
+        <summary>
+            <span>Expand source code</span>
+        </summary>
+        <pre><code class="python">def electrostatic_potential_at_local_point(self, point: PointLike3D) -&gt; float:
+    return sum([fa.item()*f.electrostatic_potential_at_point(point) for fa, f in zip(self.factors, self.fields)])</code></pre>
+      </details>
+
+  <div class="desc"></div>
+</dd>
+  
+              
+    <dt id="traceon.field.FieldSuperposition.get_tracer"><code class="name flex">
+        
+        <span>def <span class="ident">get_tracer</span></span>(<span>self, bounds)</span>
+    </code></dt>
+    <dd>
+  
+  
+    
+      <details class="source">
+        <summary>
+            <span>Expand source code</span>
+        </summary>
+        <pre><code class="python">def get_tracer(self, bounds: BoundsLike3D) -&gt; Tracer:
+    return T.Tracer(self, bounds)</code></pre>
+      </details>
+
+  <div class="desc"></div>
+</dd>
+  
+              
+    <dt id="traceon.field.FieldSuperposition.is_electrostatic"><code class="name flex">
+        
+        <span>def <span class="ident">is_electrostatic</span></span>(<span>self)</span>
+    </code></dt>
+    <dd>
+  
+  
+    
+      <details class="source">
+        <summary>
+            <span>Expand source code</span>
+        </summary>
+        <pre><code class="python">def is_electrostatic(self) -&gt; bool:
+    return any(f.is_electrostatic() for f in self.fields)</code></pre>
+      </details>
+
+  <div class="desc"></div>
+</dd>
+  
+              
+    <dt id="traceon.field.FieldSuperposition.is_magnetostatic"><code class="name flex">
+        
+        <span>def <span class="ident">is_magnetostatic</span></span>(<span>self)</span>
+    </code></dt>
+    <dd>
+  
+  
+    
+      <details class="source">
+        <summary>
+            <span>Expand source code</span>
+        </summary>
+        <pre><code class="python">def is_magnetostatic(self) -&gt; bool:
+    return any(f.is_magnetostatic() for f in self.fields)</code></pre>
+      </details>
+
+  <div class="desc"></div>
+</dd>
+  
+              
+    <dt id="traceon.field.FieldSuperposition.magnetostatic_field_at_local_point"><code class="name flex">
+        
+        <span>def <span class="ident">magnetostatic_field_at_local_point</span></span>(<span>self, point)</span>
+    </code></dt>
+    <dd>
+  
+  
+    
+      <details class="source">
+        <summary>
+            <span>Expand source code</span>
+        </summary>
+        <pre><code class="python">def magnetostatic_field_at_local_point(self, point: PointLike3D) -&gt; Vector3D:
+    return np.sum([fa*f.magnetostatic_field_at_point(point) for fa, f in zip(self.factors, self.fields)], axis=0)</code></pre>
+      </details>
+
+  <div class="desc"></div>
+</dd>
+  
+              
+    <dt id="traceon.field.FieldSuperposition.magnetostatic_potential_at_local_point"><code class="name flex">
+        
+        <span>def <span class="ident">magnetostatic_potential_at_local_point</span></span>(<span>self, point)</span>
+    </code></dt>
+    <dd>
+  
+  
+    
+      <details class="source">
+        <summary>
+            <span>Expand source code</span>
+        </summary>
+        <pre><code class="python">def magnetostatic_potential_at_local_point(self, point: PointLike3D) -&gt; float:
+    return sum([fa.item()*f.magnetostatic_potential_at_point(point) for fa, f in zip(self.factors, self.fields)])</code></pre>
+      </details>
+
+  <div class="desc"></div>
+</dd>
+  
+          </dl>
+
+          
+              <h3>Inherited members</h3>
+              <ul class="hlist">
+                  <li><code><b><a title="traceon.field.Field" href="#traceon.field.Field">Field</a></b></code>:
+                      <ul class="hlist">
+                              <li><code><a title="traceon.field.Field.current_field_at_point" href="#traceon.field.Field.current_field_at_point">current_field_at_point</a></code></li>
+                              <li><code><a title="traceon.field.Field.electrostatic_field_at_point" href="#traceon.field.Field.electrostatic_field_at_point">electrostatic_field_at_point</a></code></li>
+                              <li><code><a title="traceon.field.Field.electrostatic_potential_at_point" href="#traceon.field.Field.electrostatic_potential_at_point">electrostatic_potential_at_point</a></code></li>
+                              <li><code><a title="traceon.field.Field.field_at_point" href="#traceon.field.Field.field_at_point">field_at_point</a></code></li>
+                              <li><code><a title="traceon.field.Field.get_origin" href="#traceon.field.Field.get_origin">get_origin</a></code></li>
+                              <li><code><a title="traceon.field.Field.magnetostatic_field_at_point" href="#traceon.field.Field.magnetostatic_field_at_point">magnetostatic_field_at_point</a></code></li>
+                              <li><code><a title="traceon.field.Field.magnetostatic_potential_at_point" href="#traceon.field.Field.magnetostatic_potential_at_point">magnetostatic_potential_at_point</a></code></li>
+                              <li><code><a title="traceon.field.Field.map_points" href="mesher.html#traceon.mesher.GeometricObject.map_points">map_points</a></code></li>
+                              <li><code><a title="traceon.field.Field.map_points_to_local" href="#traceon.field.Field.map_points_to_local">map_points_to_local</a></code></li>
+                              <li><code><a title="traceon.field.Field.mirror_xy" href="mesher.html#traceon.mesher.GeometricObject.mirror_xy">mirror_xy</a></code></li>
+                              <li><code><a title="traceon.field.Field.mirror_xz" href="mesher.html#traceon.mesher.GeometricObject.mirror_xz">mirror_xz</a></code></li>
+                              <li><code><a title="traceon.field.Field.mirror_yz" href="mesher.html#traceon.mesher.GeometricObject.mirror_yz">mirror_yz</a></code></li>
+                              <li><code><a title="traceon.field.Field.move" href="mesher.html#traceon.mesher.GeometricObject.move">move</a></code></li>
+                              <li><code><a title="traceon.field.Field.potential_at_point" href="#traceon.field.Field.potential_at_point">potential_at_point</a></code></li>
+                              <li><code><a title="traceon.field.Field.rotate" href="mesher.html#traceon.mesher.GeometricObject.rotate">rotate</a></code></li>
+                              <li><code><a title="traceon.field.Field.rotate_around_axis" href="mesher.html#traceon.mesher.GeometricObject.rotate_around_axis">rotate_around_axis</a></code></li>
+                              <li><code><a title="traceon.field.Field.set_bounds" href="#traceon.field.Field.set_bounds">set_bounds</a></code></li>
                       </ul>
 
                   </li>
@@ -1974,6 +2946,7 @@ constant currently set to 9.</p></div>
         <li><code ><a title="traceon.plotting" href="plotting.html">traceon.plotting</a></code></li>
         <li><code ><a title="traceon.solver" href="solver.html">traceon.solver</a></code></li>
         <li><code ><a title="traceon.tracing" href="tracing.html">traceon.tracing</a></code></li>
+        <li><code ><a title="traceon.typing" href="typing.html">traceon.typing</a></code></li>
       </ul>
     </li>
 		
@@ -1981,6 +2954,7 @@ constant currently set to 9.</p></div>
       <ul>
 			<li><code ><a title="traceon_pro.field" href="../traceon_pro/field.html">traceon_pro.field</a></code></li>
 			<li><code ><a title="traceon_pro.solver" href="../traceon_pro/solver.html">traceon_pro.solver</a></code></li>
+			<li><code ><a title="traceon_pro.tracing" href="../traceon_pro/tracing.html">traceon_pro.tracing</a></code></li>
       </ul>
     </li>
 
@@ -1995,13 +2969,24 @@ constant currently set to 9.</p></div>
           
   
   <ul class="">
+    <li><code><a title="traceon.field.Field.current_field_at_local_point" href="#traceon.field.Field.current_field_at_local_point">current_field_at_local_point</a></code></li>
+    <li><code><a title="traceon.field.Field.current_field_at_point" href="#traceon.field.Field.current_field_at_point">current_field_at_point</a></code></li>
+    <li><code><a title="traceon.field.Field.electrostatic_field_at_local_point" href="#traceon.field.Field.electrostatic_field_at_local_point">electrostatic_field_at_local_point</a></code></li>
     <li><code><a title="traceon.field.Field.electrostatic_field_at_point" href="#traceon.field.Field.electrostatic_field_at_point">electrostatic_field_at_point</a></code></li>
+    <li><code><a title="traceon.field.Field.electrostatic_potential_at_local_point" href="#traceon.field.Field.electrostatic_potential_at_local_point">electrostatic_potential_at_local_point</a></code></li>
     <li><code><a title="traceon.field.Field.electrostatic_potential_at_point" href="#traceon.field.Field.electrostatic_potential_at_point">electrostatic_potential_at_point</a></code></li>
     <li><code><a title="traceon.field.Field.field_at_point" href="#traceon.field.Field.field_at_point">field_at_point</a></code></li>
+    <li><code><a title="traceon.field.Field.get_basis" href="#traceon.field.Field.get_basis">get_basis</a></code></li>
+    <li><code><a title="traceon.field.Field.get_origin" href="#traceon.field.Field.get_origin">get_origin</a></code></li>
     <li><code><a title="traceon.field.Field.is_electrostatic" href="#traceon.field.Field.is_electrostatic">is_electrostatic</a></code></li>
     <li><code><a title="traceon.field.Field.is_magnetostatic" href="#traceon.field.Field.is_magnetostatic">is_magnetostatic</a></code></li>
+    <li><code><a title="traceon.field.Field.magnetostatic_field_at_local_point" href="#traceon.field.Field.magnetostatic_field_at_local_point">magnetostatic_field_at_local_point</a></code></li>
     <li><code><a title="traceon.field.Field.magnetostatic_field_at_point" href="#traceon.field.Field.magnetostatic_field_at_point">magnetostatic_field_at_point</a></code></li>
+    <li><code><a title="traceon.field.Field.magnetostatic_potential_at_local_point" href="#traceon.field.Field.magnetostatic_potential_at_local_point">magnetostatic_potential_at_local_point</a></code></li>
+    <li><code><a title="traceon.field.Field.magnetostatic_potential_at_point" href="#traceon.field.Field.magnetostatic_potential_at_point">magnetostatic_potential_at_point</a></code></li>
+    <li><code><a title="traceon.field.Field.map_points_to_local" href="#traceon.field.Field.map_points_to_local">map_points_to_local</a></code></li>
     <li><code><a title="traceon.field.Field.potential_at_point" href="#traceon.field.Field.potential_at_point">potential_at_point</a></code></li>
+    <li><code><a title="traceon.field.Field.set_bounds" href="#traceon.field.Field.set_bounds">set_bounds</a></code></li>
   </ul>
 
         </li>
@@ -2021,15 +3006,13 @@ constant currently set to 9.</p></div>
         
           
   
-  <ul class="">
+  <ul class="two-column">
     <li><code><a title="traceon.field.FieldBEM.area_of_element" href="#traceon.field.FieldBEM.area_of_element">area_of_element</a></code></li>
     <li><code><a title="traceon.field.FieldBEM.area_of_elements" href="#traceon.field.FieldBEM.area_of_elements">area_of_elements</a></code></li>
     <li><code><a title="traceon.field.FieldBEM.charge_on_element" href="#traceon.field.FieldBEM.charge_on_element">charge_on_element</a></code></li>
     <li><code><a title="traceon.field.FieldBEM.charge_on_elements" href="#traceon.field.FieldBEM.charge_on_elements">charge_on_elements</a></code></li>
-    <li><code><a title="traceon.field.FieldBEM.current_field_at_point" href="#traceon.field.FieldBEM.current_field_at_point">current_field_at_point</a></code></li>
     <li><code><a title="traceon.field.FieldBEM.is_electrostatic" href="#traceon.field.FieldBEM.is_electrostatic">is_electrostatic</a></code></li>
     <li><code><a title="traceon.field.FieldBEM.is_magnetostatic" href="#traceon.field.FieldBEM.is_magnetostatic">is_magnetostatic</a></code></li>
-    <li><code><a title="traceon.field.FieldBEM.set_bounds" href="#traceon.field.FieldBEM.set_bounds">set_bounds</a></code></li>
   </ul>
 
         </li>
@@ -2039,11 +3022,11 @@ constant currently set to 9.</p></div>
           
   
   <ul class="">
-    <li><code><a title="traceon.field.FieldRadialAxial.electrostatic_field_at_point" href="#traceon.field.FieldRadialAxial.electrostatic_field_at_point">electrostatic_field_at_point</a></code></li>
-    <li><code><a title="traceon.field.FieldRadialAxial.electrostatic_potential_at_point" href="#traceon.field.FieldRadialAxial.electrostatic_potential_at_point">electrostatic_potential_at_point</a></code></li>
+    <li><code><a title="traceon.field.FieldRadialAxial.electrostatic_field_at_local_point" href="#traceon.field.FieldRadialAxial.electrostatic_field_at_local_point">electrostatic_field_at_local_point</a></code></li>
+    <li><code><a title="traceon.field.FieldRadialAxial.electrostatic_potential_at_local_point" href="#traceon.field.FieldRadialAxial.electrostatic_potential_at_local_point">electrostatic_potential_at_local_point</a></code></li>
     <li><code><a title="traceon.field.FieldRadialAxial.get_tracer" href="#traceon.field.FieldRadialAxial.get_tracer">get_tracer</a></code></li>
-    <li><code><a title="traceon.field.FieldRadialAxial.magnetostatic_field_at_point" href="#traceon.field.FieldRadialAxial.magnetostatic_field_at_point">magnetostatic_field_at_point</a></code></li>
-    <li><code><a title="traceon.field.FieldRadialAxial.magnetostatic_potential_at_point" href="#traceon.field.FieldRadialAxial.magnetostatic_potential_at_point">magnetostatic_potential_at_point</a></code></li>
+    <li><code><a title="traceon.field.FieldRadialAxial.magnetostatic_field_at_local_point" href="#traceon.field.FieldRadialAxial.magnetostatic_field_at_local_point">magnetostatic_field_at_local_point</a></code></li>
+    <li><code><a title="traceon.field.FieldRadialAxial.magnetostatic_potential_at_local_point" href="#traceon.field.FieldRadialAxial.magnetostatic_potential_at_local_point">magnetostatic_potential_at_local_point</a></code></li>
   </ul>
 
         </li>
@@ -2054,16 +3037,33 @@ constant currently set to 9.</p></div>
   
   <ul class="">
     <li><code><a title="traceon.field.FieldRadialBEM.area_of_element" href="#traceon.field.FieldRadialBEM.area_of_element">area_of_element</a></code></li>
-    <li><code><a title="traceon.field.FieldRadialBEM.current_field_at_point" href="#traceon.field.FieldRadialBEM.current_field_at_point">current_field_at_point</a></code></li>
+    <li><code><a title="traceon.field.FieldRadialBEM.current_field_at_local_point" href="#traceon.field.FieldRadialBEM.current_field_at_local_point">current_field_at_local_point</a></code></li>
     <li><code><a title="traceon.field.FieldRadialBEM.current_potential_axial" href="#traceon.field.FieldRadialBEM.current_potential_axial">current_potential_axial</a></code></li>
-    <li><code><a title="traceon.field.FieldRadialBEM.electrostatic_field_at_point" href="#traceon.field.FieldRadialBEM.electrostatic_field_at_point">electrostatic_field_at_point</a></code></li>
-    <li><code><a title="traceon.field.FieldRadialBEM.electrostatic_potential_at_point" href="#traceon.field.FieldRadialBEM.electrostatic_potential_at_point">electrostatic_potential_at_point</a></code></li>
+    <li><code><a title="traceon.field.FieldRadialBEM.electrostatic_field_at_local_point" href="#traceon.field.FieldRadialBEM.electrostatic_field_at_local_point">electrostatic_field_at_local_point</a></code></li>
+    <li><code><a title="traceon.field.FieldRadialBEM.electrostatic_potential_at_local_point" href="#traceon.field.FieldRadialBEM.electrostatic_potential_at_local_point">electrostatic_potential_at_local_point</a></code></li>
     <li><code><a title="traceon.field.FieldRadialBEM.get_current_axial_potential_derivatives" href="#traceon.field.FieldRadialBEM.get_current_axial_potential_derivatives">get_current_axial_potential_derivatives</a></code></li>
     <li><code><a title="traceon.field.FieldRadialBEM.get_electrostatic_axial_potential_derivatives" href="#traceon.field.FieldRadialBEM.get_electrostatic_axial_potential_derivatives">get_electrostatic_axial_potential_derivatives</a></code></li>
     <li><code><a title="traceon.field.FieldRadialBEM.get_magnetostatic_axial_potential_derivatives" href="#traceon.field.FieldRadialBEM.get_magnetostatic_axial_potential_derivatives">get_magnetostatic_axial_potential_derivatives</a></code></li>
     <li><code><a title="traceon.field.FieldRadialBEM.get_tracer" href="#traceon.field.FieldRadialBEM.get_tracer">get_tracer</a></code></li>
-    <li><code><a title="traceon.field.FieldRadialBEM.magnetostatic_field_at_point" href="#traceon.field.FieldRadialBEM.magnetostatic_field_at_point">magnetostatic_field_at_point</a></code></li>
-    <li><code><a title="traceon.field.FieldRadialBEM.magnetostatic_potential_at_point" href="#traceon.field.FieldRadialBEM.magnetostatic_potential_at_point">magnetostatic_potential_at_point</a></code></li>
+    <li><code><a title="traceon.field.FieldRadialBEM.magnetostatic_field_at_local_point" href="#traceon.field.FieldRadialBEM.magnetostatic_field_at_local_point">magnetostatic_field_at_local_point</a></code></li>
+    <li><code><a title="traceon.field.FieldRadialBEM.magnetostatic_potential_at_local_point" href="#traceon.field.FieldRadialBEM.magnetostatic_potential_at_local_point">magnetostatic_potential_at_local_point</a></code></li>
+  </ul>
+
+        </li>
+        <li>
+        <h4><code><a title="traceon.field.FieldSuperposition" href="#traceon.field.FieldSuperposition">FieldSuperposition</a></code></h4>
+        
+          
+  
+  <ul class="">
+    <li><code><a title="traceon.field.FieldSuperposition.current_field_at_local_point" href="#traceon.field.FieldSuperposition.current_field_at_local_point">current_field_at_local_point</a></code></li>
+    <li><code><a title="traceon.field.FieldSuperposition.electrostatic_field_at_local_point" href="#traceon.field.FieldSuperposition.electrostatic_field_at_local_point">electrostatic_field_at_local_point</a></code></li>
+    <li><code><a title="traceon.field.FieldSuperposition.electrostatic_potential_at_local_point" href="#traceon.field.FieldSuperposition.electrostatic_potential_at_local_point">electrostatic_potential_at_local_point</a></code></li>
+    <li><code><a title="traceon.field.FieldSuperposition.get_tracer" href="#traceon.field.FieldSuperposition.get_tracer">get_tracer</a></code></li>
+    <li><code><a title="traceon.field.FieldSuperposition.is_electrostatic" href="#traceon.field.FieldSuperposition.is_electrostatic">is_electrostatic</a></code></li>
+    <li><code><a title="traceon.field.FieldSuperposition.is_magnetostatic" href="#traceon.field.FieldSuperposition.is_magnetostatic">is_magnetostatic</a></code></li>
+    <li><code><a title="traceon.field.FieldSuperposition.magnetostatic_field_at_local_point" href="#traceon.field.FieldSuperposition.magnetostatic_field_at_local_point">magnetostatic_field_at_local_point</a></code></li>
+    <li><code><a title="traceon.field.FieldSuperposition.magnetostatic_potential_at_local_point" href="#traceon.field.FieldSuperposition.magnetostatic_potential_at_local_point">magnetostatic_potential_at_local_point</a></code></li>
   </ul>
 
         </li>

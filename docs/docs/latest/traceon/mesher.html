@@ -89,7 +89,7 @@
     of `traceon.mesher.GeometricObject`. This means that they all can be moved, rotated, mirrored.&#34;&#34;&#34;
     
     @abstractmethod
-    def map_points(self, fun: Callable[[np.ndarray], np.ndarray]) -&gt; Any:
+    def map_points(self, fun: Callable[[PointLike3D], Point3D]) -&gt; Self:
         &#34;&#34;&#34;Create a new geometric object, by mapping each point by a function.
         
         Parameters
@@ -105,7 +105,7 @@
         This function returns the same type as the object on which this method was called.&#34;&#34;&#34;
         ...
     
-    def move(self, dx=0., dy=0., dz=0.):
+    def move(self, dx: float = 0., dy: float = 0., dz: float = 0.) -&gt; Self:
         &#34;&#34;&#34;Move along x, y or z axis.
 
         Parameters
@@ -126,7 +126,7 @@
         assert all([isinstance(d, float) or isinstance(d, int) for d in [dx, dy, dz]])
         return self.map_points(lambda p: p + np.array([dx, dy, dz]))
      
-    def rotate(self, Rx=0., Ry=0., Rz=0., origin=[0., 0., 0.]):
+    def rotate(self, Rx: float = 0., Ry: float = 0., Rz: float = 0., origin: PointLike3D = (0, 0, 0)) -&gt; Self:
         &#34;&#34;&#34;Rotate counterclockwise around the x, y or z axis. Only one axis supported at the same time
         (rotations do not commute).
 
@@ -156,9 +156,11 @@
         if Rz !=0.:
             return self.rotate_around_axis([0,0,1], angle=Rz, origin=origin)
         
+        else: 
+            return self.map_points(lambda x : np.array(x))
 
     
-    def rotate_around_axis(self, axis=[0., 0, 1.], angle=0., origin=[0., 0., 0.]):
+    def rotate_around_axis(self, axis: VectorLike3D = (0, 0, 1), angle: float = 0., origin: VectorLike3D = (0, 0, 0)) -&gt; Self:
         &#34;&#34;&#34;
         Rotate  counterclockwise around a general axis defined by a vector.
         
@@ -184,7 +186,7 @@
         axis = axis / np.linalg.norm(axis)
 
         if angle == 0:
-            return self.map_points(lambda x: x)
+            return self.map_points(lambda x: np.array(x))
         
         # Rotation is implemented using Rodrigues&#39; rotation formula
         # See: https://en.wikipedia.org/wiki/Rodrigues%27_rotation_formula
@@ -199,7 +201,7 @@
 
         return self.map_points(lambda p: origin + R @ (p - origin))
 
-    def mirror_xz(self):
+    def mirror_xz(self) -&gt; Self:
         &#34;&#34;&#34;Mirror object in the XZ plane.
 
         Returns
@@ -209,7 +211,7 @@
         This function returns the same type as the object on which this method was called.&#34;&#34;&#34;
         return self.map_points(lambda p: np.array([p[0], -p[1], p[2]]))
      
-    def mirror_yz(self):
+    def mirror_yz(self) -&gt; Self:
         &#34;&#34;&#34;Mirror object in the YZ plane.
 
         Returns
@@ -218,7 +220,7 @@
         This function returns the same type as the object on which this method was called.&#34;&#34;&#34;
         return self.map_points(lambda p: np.array([-p[0], p[1], p[2]]))
     
-    def mirror_xy(self):
+    def mirror_xy(self) -&gt; Self:
         &#34;&#34;&#34;Mirror object in the XY plane.
 
         Returns
@@ -240,6 +242,7 @@ of <code><a title="traceon.mesher.GeometricObject" href="#traceon.mesher.Geometr
 
           <h3>Subclasses</h3>
           <ul class="hlist">
+              <li><a title="traceon.field.Field" href="field.html#traceon.field.Field">Field</a></li>
               <li><a title="traceon.geometry.Path" href="geometry.html#traceon.geometry.Path">Path</a></li>
               <li><a title="traceon.geometry.PathCollection" href="geometry.html#traceon.geometry.PathCollection">PathCollection</a></li>
               <li><a title="traceon.geometry.Surface" href="geometry.html#traceon.geometry.Surface">Surface</a></li>
@@ -251,7 +254,7 @@ of <code><a title="traceon.mesher.GeometricObject" href="#traceon.mesher.Geometr
               
     <dt id="traceon.mesher.GeometricObject.map_points"><code class="name flex">
         
-        <span>def <span class="ident">map_points</span></span>(<span>self, fun: Callable[[numpy.ndarray], numpy.ndarray]) ‑> Any</span>
+        <span>def <span class="ident">map_points</span></span>(<span>self, fun)</span>
     </code></dt>
     <dd>
   
@@ -262,7 +265,7 @@ of <code><a title="traceon.mesher.GeometricObject" href="#traceon.mesher.Geometr
             <span>Expand source code</span>
         </summary>
         <pre><code class="python">@abstractmethod
-def map_points(self, fun: Callable[[np.ndarray], np.ndarray]) -&gt; Any:
+def map_points(self, fun: Callable[[PointLike3D], Point3D]) -&gt; Self:
     &#34;&#34;&#34;Create a new geometric object, by mapping each point by a function.
     
     Parameters
@@ -307,7 +310,7 @@ three dimensional point.</dd>
         <summary>
             <span>Expand source code</span>
         </summary>
-        <pre><code class="python">def mirror_xy(self):
+        <pre><code class="python">def mirror_xy(self) -&gt; Self:
     &#34;&#34;&#34;Mirror object in the XY plane.
 
     Returns
@@ -340,7 +343,7 @@ three dimensional point.</dd>
         <summary>
             <span>Expand source code</span>
         </summary>
-        <pre><code class="python">def mirror_xz(self):
+        <pre><code class="python">def mirror_xz(self) -&gt; Self:
     &#34;&#34;&#34;Mirror object in the XZ plane.
 
     Returns
@@ -373,7 +376,7 @@ three dimensional point.</dd>
         <summary>
             <span>Expand source code</span>
         </summary>
-        <pre><code class="python">def mirror_yz(self):
+        <pre><code class="python">def mirror_yz(self) -&gt; Self:
     &#34;&#34;&#34;Mirror object in the YZ plane.
 
     Returns
@@ -405,7 +408,7 @@ three dimensional point.</dd>
         <summary>
             <span>Expand source code</span>
         </summary>
-        <pre><code class="python">def move(self, dx=0., dy=0., dz=0.):
+        <pre><code class="python">def move(self, dx: float = 0., dy: float = 0., dz: float = 0.) -&gt; Self:
     &#34;&#34;&#34;Move along x, y or z axis.
 
     Parameters
@@ -448,7 +451,7 @@ three dimensional point.</dd>
               
     <dt id="traceon.mesher.GeometricObject.rotate"><code class="name flex">
         
-        <span>def <span class="ident">rotate</span></span>(<span>self, Rx=0.0, Ry=0.0, Rz=0.0, origin=[0.0, 0.0, 0.0])</span>
+        <span>def <span class="ident">rotate</span></span>(<span>self, Rx=0.0, Ry=0.0, Rz=0.0, origin=(0, 0, 0))</span>
     </code></dt>
     <dd>
   
@@ -458,7 +461,7 @@ three dimensional point.</dd>
         <summary>
             <span>Expand source code</span>
         </summary>
-        <pre><code class="python">def rotate(self, Rx=0., Ry=0., Rz=0., origin=[0., 0., 0.]):
+        <pre><code class="python">def rotate(self, Rx: float = 0., Ry: float = 0., Rz: float = 0., origin: PointLike3D = (0, 0, 0)) -&gt; Self:
     &#34;&#34;&#34;Rotate counterclockwise around the x, y or z axis. Only one axis supported at the same time
     (rotations do not commute).
 
@@ -486,7 +489,10 @@ three dimensional point.</dd>
     if Ry !=0.:
         return self.rotate_around_axis([0,1,0], angle=Ry, origin=origin)
     if Rz !=0.:
-        return self.rotate_around_axis([0,0,1], angle=Rz, origin=origin)</code></pre>
+        return self.rotate_around_axis([0,0,1], angle=Rz, origin=origin)
+    
+    else: 
+        return self.map_points(lambda x : np.array(x))</code></pre>
       </details>
 
   <div class="desc"><p>Rotate counterclockwise around the x, y or z axis. Only one axis supported at the same time
@@ -513,7 +519,7 @@ three dimensional point.</dd>
               
     <dt id="traceon.mesher.GeometricObject.rotate_around_axis"><code class="name flex">
         
-        <span>def <span class="ident">rotate_around_axis</span></span>(<span>self, axis=[0.0, 0, 1.0], angle=0.0, origin=[0.0, 0.0, 0.0])</span>
+        <span>def <span class="ident">rotate_around_axis</span></span>(<span>self, axis=(0, 0, 1), angle=0.0, origin=(0, 0, 0))</span>
     </code></dt>
     <dd>
   
@@ -523,7 +529,7 @@ three dimensional point.</dd>
         <summary>
             <span>Expand source code</span>
         </summary>
-        <pre><code class="python">def rotate_around_axis(self, axis=[0., 0, 1.], angle=0., origin=[0., 0., 0.]):
+        <pre><code class="python">def rotate_around_axis(self, axis: VectorLike3D = (0, 0, 1), angle: float = 0., origin: VectorLike3D = (0, 0, 0)) -&gt; Self:
     &#34;&#34;&#34;
     Rotate  counterclockwise around a general axis defined by a vector.
     
@@ -549,7 +555,7 @@ three dimensional point.</dd>
     axis = axis / np.linalg.norm(axis)
 
     if angle == 0:
-        return self.map_points(lambda x: x)
+        return self.map_points(lambda x: np.array(x))
     
     # Rotation is implemented using Rodrigues&#39; rotation formula
     # See: https://en.wikipedia.org/wiki/Rodrigues%27_rotation_formula
@@ -591,7 +597,7 @@ three dimensional point.</dd>
       
       <dt id="traceon.mesher.Mesh"><code class="flex name class">
           <span>class <span class="ident">Mesh</span></span>
-              <span>(</span><span>points=[],<br>lines=[],<br>triangles=[],<br>physical_to_lines={},<br>physical_to_triangles={},<br>ensure_outward_normals=True)</span>
+              <span>(</span><span>points=None,<br>lines=None,<br>triangles=None,<br>physical_to_lines=None,<br>physical_to_triangles=None,<br>ensure_outward_normals=True)</span>
       </code></dt>
 
       <dd>
@@ -609,31 +615,31 @@ three dimensional point.</dd>
     `traceon.mesher.GeometricObject`, and therefore can be easily moved and rotated.&#34;&#34;&#34;
      
     def __init__(self,
-            points=[],
-            lines=[],
-            triangles=[],
-            physical_to_lines={},
-            physical_to_triangles={},
-            ensure_outward_normals=True):
+            points: PointsLike3D | None = None,
+            lines: LinesLike | None = None,
+            triangles: TrianglesLike | None = None,
+            physical_to_lines: Mapping[str, Lines] | None = None,
+            physical_to_triangles: Mapping[str, Triangles] | None = None,
+            ensure_outward_normals: bool = True):
         
         # Ensure the correct shape even if empty arrays
-        if len(points):
+        if points is not None and len(points) &gt; 0:
             self.points = np.array(points, dtype=np.float64)
         else:
             self.points = np.empty((0,3), dtype=np.float64)
          
-        if len(lines) or (isinstance(lines, np.ndarray) and len(lines.shape)==2):
+        if lines is not None and len(lines) &gt; 0 or (isinstance(lines, np.ndarray) and len(lines.shape)==2):
             self.lines = np.array(lines, dtype=np.uint64)
         else:
             self.lines = np.empty((0,2), dtype=np.uint64)
     
-        if len(triangles):
+        if triangles is not None and len(triangles) &gt; 0:
             self.triangles = np.array(triangles, dtype=np.uint64)
         else:
             self.triangles = np.empty((0, 3), dtype=np.uint64)
          
-        self.physical_to_lines = physical_to_lines.copy()
-        self.physical_to_triangles = physical_to_triangles.copy()
+        self.physical_to_lines = dict(physical_to_lines) if physical_to_lines is not None else {}
+        self.physical_to_triangles = dict(physical_to_triangles) if physical_to_triangles is not None else {}
 
         self._remove_degenerate_triangles()
         self._deduplicate_points()
@@ -649,7 +655,7 @@ three dimensional point.</dd>
         assert not len(self.lines) or self.lines.shape[1] in [2,4], &#34;Lines should contain either 2 or 4 points.&#34;
         assert not len(self.triangles) or self.triangles.shape[1] in [3,6], &#34;Triangles should contain either 3 or 6 points&#34;
     
-    def is_higher_order(self):
+    def is_higher_order(self) -&gt; bool:
         &#34;&#34;&#34;Whether the mesh contains higher order elements.
 
         Returns
@@ -657,7 +663,7 @@ three dimensional point.</dd>
         bool&#34;&#34;&#34;
         return isinstance(self.lines, np.ndarray) and len(self.lines.shape) == 2 and self.lines.shape[1] == 4
     
-    def map_points(self, fun):
+    def map_points(self, fun: Callable[[PointLike3D], Point3D]) -&gt; Mesh:
         &#34;&#34;&#34;See `GeometricObject`
 
         &#34;&#34;&#34;
@@ -682,7 +688,7 @@ three dimensional point.</dd>
         if np.any(degenerate):
             log_debug(f&#39;Removed {sum(degenerate)} degenerate triangles&#39;)
 
-    def _deduplicate_points(self):
+    def _deduplicate_points(self) -&gt; None:
         if not len(self.points):
             return
          
@@ -717,7 +723,7 @@ three dimensional point.</dd>
             self.lines = old_to_new_indices[self.lines]
     
     @staticmethod
-    def _merge_dicts(dict1, dict2):
+    def _merge_dicts(dict1: Mapping[str, np.ndarray], dict2: Mapping[str, np.ndarray]) -&gt; dict[str, np.ndarray]:
         dict_: dict[str, np.ndarray] = {}
         
         for (k, v) in chain(dict1.items(), dict2.items()):
@@ -728,7 +734,7 @@ three dimensional point.</dd>
 
         return dict_
      
-    def __add__(self, other):
+    def __add__(self, other: Mesh) -&gt; Mesh:
         &#34;&#34;&#34;Add meshes together, using the + operator (mesh1 + mesh2).
         
         Returns
@@ -759,7 +765,7 @@ three dimensional point.</dd>
                     physical_to_lines=physical_lines,
                     physical_to_triangles=physical_triangles)
      
-    def extract_physical_group(self, name):
+    def extract_physical_group(self, name: str) -&gt; Mesh:
         &#34;&#34;&#34;Extract a named group from the mesh.
 
         Parameters
@@ -772,7 +778,6 @@ three dimensional point.</dd>
         Mesh
 
         Subset of the mesh consisting only of the elements with the given name.&#34;&#34;&#34;
-        assert name in self.physical_to_lines or name in self.physical_to_triangles, &#34;Physical group not in mesh, so cannot extract&#34;
 
         if name in self.physical_to_lines:
             elements = self.lines
@@ -796,9 +801,11 @@ three dimensional point.</dd>
             return Mesh(points=points, lines=elements, physical_to_lines=physical_to_elements)
         elif name in self.physical_to_triangles:
             return Mesh(points=points, triangles=elements, physical_to_triangles=physical_to_elements)
-     
+        else:
+            raise RuntimeError(f&#39; Cannot extract Physical group {name} since it is not present in the mesh.&#39;)
+    
     @staticmethod
-    def read_file(filename,  name=None):
+    def read_file(filename: str, name: str | None = None) -&gt; Mesh:
         &#34;&#34;&#34;Create a mesh from a given file. All formats supported by meshio are accepted.
 
         Parameters
@@ -820,7 +827,7 @@ three dimensional point.</dd>
          
         return mesh
      
-    def write_file(self, filename):
+    def write_file(self, filename: str) -&gt; None:
         &#34;&#34;&#34;Write a mesh to a given file. The format is determined from the file extension.
         All formats supported by meshio are supported.
 
@@ -831,11 +838,11 @@ three dimensional point.</dd>
         meshio_obj = self.to_meshio()
         meshio_obj.write(filename)
     
-    def write(self, filename):
+    def write(self, filename: str) -&gt; None:
         self.write_file(filename)
         
      
-    def to_meshio(self):
+    def to_meshio(self) -&gt; meshio.Mesh:
         &#34;&#34;&#34;Convert the Mesh to a meshio object.
 
         Returns
@@ -854,7 +861,7 @@ three dimensional point.</dd>
         return meshio.Mesh(self.points, to_write)
      
     @staticmethod
-    def from_meshio(mesh: meshio.Mesh):
+    def from_meshio(mesh: meshio.Mesh) -&gt; Mesh:
         &#34;&#34;&#34;Create a Traceon mesh from a meshio.Mesh object.
 
         Parameters
@@ -887,7 +894,7 @@ three dimensional point.</dd>
             lines=lines, physical_to_lines=physical_lines,
             triangles=triangles, physical_to_triangles=physical_triangles)
      
-    def is_3d(self):
+    def is_3d(self) -&gt; bool:
         &#34;&#34;&#34;Check if the mesh is three dimensional by checking whether any z coordinate is non-zero.
 
         Returns
@@ -895,9 +902,9 @@ three dimensional point.</dd>
         bool
 
         Whether the mesh is three dimensional&#34;&#34;&#34;
-        return np.any(self.points[:, 1] != 0.)
+        return bool(np.any(self.points[:, 1] != 0.))
     
-    def is_2d(self):
+    def is_2d(self) -&gt; bool:
         &#34;&#34;&#34;Check if the mesh is two dimensional, by checking that all z coordinates are zero.
         
         Returns
@@ -905,9 +912,9 @@ three dimensional point.</dd>
         bool
 
         Whether the mesh is two dimensional&#34;&#34;&#34;
-        return np.all(self.points[:, 1] == 0.)
+        return bool(np.all(self.points[:, 1] == 0.))
     
-    def flip_normals(self):
+    def flip_normals(self) -&gt; Mesh:
         &#34;&#34;&#34;Flip the normals in the mesh by inverting the &#39;orientation&#39; of the elements.
 
         Returns
@@ -936,7 +943,7 @@ three dimensional point.</dd>
             physical_to_lines=self.physical_to_lines,
             physical_to_triangles=self.physical_to_triangles)
      
-    def remove_lines(self):
+    def remove_lines(self) -&gt; Mesh:
         &#34;&#34;&#34;Remove all the lines from the mesh.
 
         Returns
@@ -952,7 +959,7 @@ three dimensional point.</dd>
         Mesh&#34;&#34;&#34;
         return Mesh(self.points, lines=self.lines, physical_to_lines=self.physical_to_lines)
      
-    def get_electrodes(self):
+    def get_electrodes(self) -&gt; list[str]:
         &#34;&#34;&#34;Get the names of all the named groups (i.e. electrodes) in the mesh
          
         Returns
@@ -964,10 +971,13 @@ three dimensional point.</dd>
         return list(self.physical_to_lines.keys()) + list(self.physical_to_triangles.keys())
      
     @staticmethod
-    def _lines_to_higher_order(points, elements):
+    def _lines_to_higher_order(points_: PointsLike3D, elements_: LinesLike) -&gt; tuple[Points3D, Lines]:
+        points = np.array(points_, dtype=np.float64)
+        elements = np.array(elements_, dtype=np.uint64)
+        
         N_elements = len(elements)
         N_points = len(points)
-         
+        
         v0, v1 = elements.T
         p2 = points[v0] + (points[v1] - points[v0]) * 1/3
         p3 = points[v0] + (points[v1] - points[v0]) * 2/3
@@ -980,29 +990,30 @@ three dimensional point.</dd>
             elements[:, 0], elements[:, 1], 
             np.arange(N_points, N_points + N_elements, dtype=np.uint64),
             np.arange(N_points + N_elements, N_points + 2*N_elements, dtype=np.uint64)]).T
-         
+        
         assert np.allclose(p2, points[elements[:, 2]]) and np.allclose(p3, points[elements[:, 3]])
         return points, elements
 
 
-    def _to_higher_order_mesh(self):
+    def _to_higher_order_mesh(self) -&gt; Mesh:
         # The matrix solver currently only works with higher order meshes.
         # We can however convert a simple mesh easily to a higher order mesh, and solve that.
         
         points, lines, triangles = self.points, self.lines, self.triangles
 
         if not len(lines):
-            lines = np.empty( (0, 4), dtype=np.float64)
+            lines = np.empty( (0, 4), dtype=np.uint64)
         elif len(lines) and lines.shape[1] == 2:
-            points, lines = Mesh._lines_to_higher_order(points, lines)
-        
+            new_points, new_lines = Mesh._lines_to_higher_order(points, lines)
+            points, lines = new_points.astype(np.float64), new_lines.astype(np.uint64)
+
         assert lines.shape == (len(lines), 4)
 
         return Mesh(points=points,
             lines=lines, physical_to_lines=self.physical_to_lines,
             triangles=triangles, physical_to_triangles=self.physical_to_triangles)
      
-    def __str__(self):
+    def __str__(self) -&gt; str:
         physical_lines = &#39;, &#39;.join(self.physical_to_lines.keys())
         physical_lines_nums = &#39;, &#39;.join([str(len(self.physical_to_lines[n])) for n in self.physical_to_lines.keys()])
         physical_triangles = &#39;, &#39;.join(self.physical_to_triangles.keys())
@@ -1017,7 +1028,7 @@ three dimensional point.</dd>
             f&#39;\tPhysical triangles: {physical_triangles}\n&#39; \
             f&#39;\tElements in physical triangle groups: {physical_triangles_nums}&gt;&#39;
 
-    def _ensure_normal_orientation_triangles(self, electrode, outwards):
+    def _ensure_normal_orientation_triangles(self, electrode: str, outwards: bool) -&gt; None:
         assert electrode in self.physical_to_triangles, &#34;electrode should be part of mesh&#34;
         
         triangle_indices = self.physical_to_triangles[electrode]
@@ -1035,7 +1046,7 @@ three dimensional point.</dd>
 
         self.triangles[triangle_indices] = electrode_triangles
      
-    def _ensure_normal_orientation_lines(self, electrode, outwards):
+    def _ensure_normal_orientation_lines(self, electrode: str, outwards: bool) -&gt; None:
         assert electrode in self.physical_to_lines, &#34;electrode should be part of mesh&#34;
         
         line_indices = self.physical_to_lines[electrode]
@@ -1053,14 +1064,14 @@ three dimensional point.</dd>
 
         self.lines[line_indices] = electrode_lines
      
-    def ensure_outward_normals(self, electrode):
+    def ensure_outward_normals(self, electrode: str) -&gt; None:
         if electrode in self.physical_to_triangles:
             self._ensure_normal_orientation_triangles(electrode, True)
         
         if electrode in self.physical_to_lines:
             self._ensure_normal_orientation_lines(electrode, True)
      
-    def ensure_inward_normals(self, electrode):
+    def ensure_inward_normals(self, electrode: str) -&gt; None:
         if electrode in self.physical_to_triangles:
             self._ensure_normal_orientation_triangles(electrode, False)
          
@@ -1086,7 +1097,7 @@ in which case they are represented by four points per element.  Note that <code>
               
     <dt id="traceon.mesher.Mesh.from_meshio"><code class="name flex">
         
-        <span>def <span class="ident">from_meshio</span></span>(<span>mesh: meshio._mesh.Mesh)</span>
+        <span>def <span class="ident">from_meshio</span></span>(<span>mesh)</span>
     </code></dt>
     <dd>
   
@@ -1097,7 +1108,7 @@ in which case they are represented by four points per element.  Note that <code>
             <span>Expand source code</span>
         </summary>
         <pre><code class="python">@staticmethod
-def from_meshio(mesh: meshio.Mesh):
+def from_meshio(mesh: meshio.Mesh) -&gt; Mesh:
     &#34;&#34;&#34;Create a Traceon mesh from a meshio.Mesh object.
 
     Parameters
@@ -1158,7 +1169,7 @@ def from_meshio(mesh: meshio.Mesh):
             <span>Expand source code</span>
         </summary>
         <pre><code class="python">@staticmethod
-def read_file(filename,  name=None):
+def read_file(filename: str, name: str | None = None) -&gt; Mesh:
     &#34;&#34;&#34;Create a mesh from a given file. All formats supported by meshio are accepted.
 
     Parameters
@@ -1212,7 +1223,7 @@ def read_file(filename,  name=None):
         <summary>
             <span>Expand source code</span>
         </summary>
-        <pre><code class="python">def __add__(self, other):
+        <pre><code class="python">def __add__(self, other: Mesh) -&gt; Mesh:
     &#34;&#34;&#34;Add meshes together, using the + operator (mesh1 + mesh2).
     
     Returns
@@ -1267,7 +1278,7 @@ def read_file(filename,  name=None):
         <summary>
             <span>Expand source code</span>
         </summary>
-        <pre><code class="python">def ensure_inward_normals(self, electrode):
+        <pre><code class="python">def ensure_inward_normals(self, electrode: str) -&gt; None:
     if electrode in self.physical_to_triangles:
         self._ensure_normal_orientation_triangles(electrode, False)
      
@@ -1291,7 +1302,7 @@ def read_file(filename,  name=None):
         <summary>
             <span>Expand source code</span>
         </summary>
-        <pre><code class="python">def ensure_outward_normals(self, electrode):
+        <pre><code class="python">def ensure_outward_normals(self, electrode: str) -&gt; None:
     if electrode in self.physical_to_triangles:
         self._ensure_normal_orientation_triangles(electrode, True)
     
@@ -1315,7 +1326,7 @@ def read_file(filename,  name=None):
         <summary>
             <span>Expand source code</span>
         </summary>
-        <pre><code class="python">def extract_physical_group(self, name):
+        <pre><code class="python">def extract_physical_group(self, name: str) -&gt; Mesh:
     &#34;&#34;&#34;Extract a named group from the mesh.
 
     Parameters
@@ -1328,7 +1339,6 @@ def read_file(filename,  name=None):
     Mesh
 
     Subset of the mesh consisting only of the elements with the given name.&#34;&#34;&#34;
-    assert name in self.physical_to_lines or name in self.physical_to_triangles, &#34;Physical group not in mesh, so cannot extract&#34;
 
     if name in self.physical_to_lines:
         elements = self.lines
@@ -1351,7 +1361,9 @@ def read_file(filename,  name=None):
     if name in self.physical_to_lines:
         return Mesh(points=points, lines=elements, physical_to_lines=physical_to_elements)
     elif name in self.physical_to_triangles:
-        return Mesh(points=points, triangles=elements, physical_to_triangles=physical_to_elements)</code></pre>
+        return Mesh(points=points, triangles=elements, physical_to_triangles=physical_to_elements)
+    else:
+        raise RuntimeError(f&#39; Cannot extract Physical group {name} since it is not present in the mesh.&#39;)</code></pre>
       </details>
 
   <div class="desc"><p>Extract a named group from the mesh.</p>
@@ -1381,7 +1393,7 @@ def read_file(filename,  name=None):
         <summary>
             <span>Expand source code</span>
         </summary>
-        <pre><code class="python">def flip_normals(self):
+        <pre><code class="python">def flip_normals(self) -&gt; Mesh:
     &#34;&#34;&#34;Flip the normals in the mesh by inverting the &#39;orientation&#39; of the elements.
 
     Returns
@@ -1432,7 +1444,7 @@ def read_file(filename,  name=None):
         <summary>
             <span>Expand source code</span>
         </summary>
-        <pre><code class="python">def get_electrodes(self):
+        <pre><code class="python">def get_electrodes(self) -&gt; list[str]:
     &#34;&#34;&#34;Get the names of all the named groups (i.e. electrodes) in the mesh
      
     Returns
@@ -1467,7 +1479,7 @@ def read_file(filename,  name=None):
         <summary>
             <span>Expand source code</span>
         </summary>
-        <pre><code class="python">def is_2d(self):
+        <pre><code class="python">def is_2d(self) -&gt; bool:
     &#34;&#34;&#34;Check if the mesh is two dimensional, by checking that all z coordinates are zero.
     
     Returns
@@ -1475,7 +1487,7 @@ def read_file(filename,  name=None):
     bool
 
     Whether the mesh is two dimensional&#34;&#34;&#34;
-    return np.all(self.points[:, 1] == 0.)</code></pre>
+    return bool(np.all(self.points[:, 1] == 0.))</code></pre>
       </details>
 
   <div class="desc"><p>Check if the mesh is two dimensional, by checking that all z coordinates are zero.</p>
@@ -1501,7 +1513,7 @@ def read_file(filename,  name=None):
         <summary>
             <span>Expand source code</span>
         </summary>
-        <pre><code class="python">def is_3d(self):
+        <pre><code class="python">def is_3d(self) -&gt; bool:
     &#34;&#34;&#34;Check if the mesh is three dimensional by checking whether any z coordinate is non-zero.
 
     Returns
@@ -1509,7 +1521,7 @@ def read_file(filename,  name=None):
     bool
 
     Whether the mesh is three dimensional&#34;&#34;&#34;
-    return np.any(self.points[:, 1] != 0.)</code></pre>
+    return bool(np.any(self.points[:, 1] != 0.))</code></pre>
       </details>
 
   <div class="desc"><p>Check if the mesh is three dimensional by checking whether any z coordinate is non-zero.</p>
@@ -1535,7 +1547,7 @@ def read_file(filename,  name=None):
         <summary>
             <span>Expand source code</span>
         </summary>
-        <pre><code class="python">def is_higher_order(self):
+        <pre><code class="python">def is_higher_order(self) -&gt; bool:
     &#34;&#34;&#34;Whether the mesh contains higher order elements.
 
     Returns
@@ -1565,7 +1577,7 @@ def read_file(filename,  name=None):
         <summary>
             <span>Expand source code</span>
         </summary>
-        <pre><code class="python">def map_points(self, fun):
+        <pre><code class="python">def map_points(self, fun: Callable[[PointLike3D], Point3D]) -&gt; Mesh:
     &#34;&#34;&#34;See `GeometricObject`
 
     &#34;&#34;&#34;
@@ -1593,7 +1605,7 @@ def read_file(filename,  name=None):
         <summary>
             <span>Expand source code</span>
         </summary>
-        <pre><code class="python">def remove_lines(self):
+        <pre><code class="python">def remove_lines(self) -&gt; Mesh:
     &#34;&#34;&#34;Remove all the lines from the mesh.
 
     Returns
@@ -1653,7 +1665,7 @@ def read_file(filename,  name=None):
         <summary>
             <span>Expand source code</span>
         </summary>
-        <pre><code class="python">def to_meshio(self):
+        <pre><code class="python">def to_meshio(self) -&gt; meshio.Mesh:
     &#34;&#34;&#34;Convert the Mesh to a meshio object.
 
     Returns
@@ -1693,7 +1705,7 @@ def read_file(filename,  name=None):
         <summary>
             <span>Expand source code</span>
         </summary>
-        <pre><code class="python">def write(self, filename):
+        <pre><code class="python">def write(self, filename: str) -&gt; None:
     self.write_file(filename)</code></pre>
       </details>
 
@@ -1719,7 +1731,7 @@ to save the Geometry object.</p>
         <summary>
             <span>Expand source code</span>
         </summary>
-        <pre><code class="python">def write_file(self, filename):
+        <pre><code class="python">def write_file(self, filename: str) -&gt; None:
     &#34;&#34;&#34;Write a mesh to a given file. The format is determined from the file extension.
     All formats supported by meshio are supported.
 
@@ -1790,6 +1802,7 @@ All formats supported by meshio are supported.</p>
         <li><code ><a title="traceon.plotting" href="plotting.html">traceon.plotting</a></code></li>
         <li><code ><a title="traceon.solver" href="solver.html">traceon.solver</a></code></li>
         <li><code ><a title="traceon.tracing" href="tracing.html">traceon.tracing</a></code></li>
+        <li><code ><a title="traceon.typing" href="typing.html">traceon.typing</a></code></li>
       </ul>
     </li>
 		
@@ -1797,6 +1810,7 @@ All formats supported by meshio are supported.</p>
       <ul>
 			<li><code ><a title="traceon_pro.field" href="../traceon_pro/field.html">traceon_pro.field</a></code></li>
 			<li><code ><a title="traceon_pro.solver" href="../traceon_pro/solver.html">traceon_pro.solver</a></code></li>
+			<li><code ><a title="traceon_pro.tracing" href="../traceon_pro/tracing.html">traceon_pro.tracing</a></code></li>
       </ul>
     </li>
 

@@ -85,7 +85,7 @@ or any file format supported by meshio.</p>
       
       <dt id="traceon.geometry.Path"><code class="flex name class">
           <span>class <span class="ident">Path</span></span>
-              <span>(</span><span>fun, path_length, breakpoints=[], name=None)</span>
+              <span>(</span><span>fun, path_length, breakpoints=None, name=None)</span>
       </code></dt>
 
       <dd>
@@ -100,16 +100,21 @@ or any file format supported by meshio.</p>
     &#34;&#34;&#34;A path is a mapping from a number in the range [0, path_length] to a three dimensional point. Note that `Path` is a
     subclass of `traceon.mesher.GeometricObject`, and therefore can be easily moved and rotated.&#34;&#34;&#34;
     
-    def __init__(self, fun, path_length, breakpoints=[], name=None):
+    def __init__(self, 
+            fun: Callable[[float], Point3D], 
+            path_length: float, 
+            breakpoints: list[float] | None = None, 
+            name: str | None = None) -&gt; None:
+        
         # Assumption: fun takes in p, the path length
         # and returns the point on the path
         self.fun = fun
         self.path_length = path_length
-        self.breakpoints = breakpoints
+        self.breakpoints = breakpoints if breakpoints is not None else []
         self.name = name
     
     @staticmethod
-    def from_irregular_function(to_point, N=100, breakpoints=[]):
+    def from_irregular_function(to_point: Callable[[float], Point3D], N: int = 100, breakpoints: list[float] | None = None) -&gt; Path:
         &#34;&#34;&#34;Construct a path from a function that is of the form u -&gt; point, where 0 &lt;= u &lt;= 1.
         The length of the path is determined by integration.
 
@@ -138,11 +143,12 @@ or any file format supported by meshio.</p>
         interpolation = CubicSpline(path_lengths, u) # Path length to [0,1]
 
         path_length = path_lengths[-1]
-        
-        return Path(lambda pl: fun(interpolation(pl)), path_length, breakpoints=[b*path_length for b in breakpoints])
+        breakpoints = breakpoints if breakpoints is not None else []
+
+        return Path(lambda pl: fun(interpolation(pl)), path_length, breakpoints=[b*path_length for b in breakpoints]) # type: ignore
     
     @staticmethod
-    def spline_through_points(points, N=100):
+    def spline_through_points(points: Points3D, N: int = 100) -&gt; Path:
         &#34;&#34;&#34;Construct a path by fitting a cubic spline through the given points.
 
         Parameters
@@ -156,9 +162,10 @@ or any file format supported by meshio.</p>
 
         x = np.linspace(0, 1, len(points))
         interp = CubicSpline(x, points)
-        return Path.from_irregular_function(interp, N=N)
+
+        return Path.from_irregular_function(lambda u: np.array(interp(u), dtype=np.float64), N=N) #type: ignore
      
-    def average(self, fun):
+    def average(self, fun: Callable[[Point3D], float]) -&gt; float:
         &#34;&#34;&#34;Average a function along the path, by integrating 1/l * fun(path(l)) with 0 &lt;= l &lt;= path length.
 
         Parameters
@@ -173,7 +180,7 @@ or any file format supported by meshio.</p>
         The average value of the function along the point.&#34;&#34;&#34;
         return quad(lambda s: fun(self(s)), 0, self.path_length, points=self.breakpoints)[0]/self.path_length
      
-    def map_points(self, fun):
+    def map_points(self, fun: Callable[[PointLike3D], Point3D]) -&gt; Path:
         &#34;&#34;&#34;Return a new function by mapping a function over points along the path (see `traceon.mesher.GeometricObject`).
         The path length is assumed to stay the same after this operation.
         
@@ -188,7 +195,7 @@ or any file format supported by meshio.</p>
         Path&#34;&#34;&#34;
         return Path(lambda u: fun(self(u)), self.path_length, self.breakpoints, name=self.name)
      
-    def __call__(self, t):
+    def __call__(self, t: float) -&gt; Point3D:
         &#34;&#34;&#34;Evaluate a point along the path.
 
         Parameters
@@ -203,7 +210,7 @@ or any file format supported by meshio.</p>
         Three dimensional point.&#34;&#34;&#34;
         return self.fun(t)
      
-    def is_closed(self):
+    def is_closed(self) -&gt; bool:
         &#34;&#34;&#34;Determine whether the path is closed, by comparing the starting and endpoint.
 
         Returns
@@ -211,7 +218,7 @@ or any file format supported by meshio.</p>
         bool: True if the path is closed, False otherwise.&#34;&#34;&#34;
         return _points_close(self.starting_point(), self.endpoint())
     
-    def add_phase(self, l):
+    def add_phase(self, l: float) -&gt; Path:
         &#34;&#34;&#34;Add a phase to a closed path. A path is closed when the starting point is equal to the
         end point. A phase of length l means that the path starts &#39;further down&#39; the closed path.
 
@@ -231,7 +238,7 @@ or any file format supported by meshio.</p>
         
         return Path(fun, self.path_length, sorted([(b-l)%self.path_length for b in self.breakpoints + [0.]]), name=self.name)
      
-    def __rshift__(self, other):
+    def __rshift__(self, other: Path) -&gt; Path:
         &#34;&#34;&#34;Combine two paths to create a single path. The endpoint of the first path needs
         to match the starting point of the second path. This common point is marked as a breakpoint and
         always included in the mesh. To use this function use the right shift operator (p1 &gt;&gt; p2).
@@ -261,7 +268,7 @@ or any file format supported by meshio.</p>
         
         return Path(f, total, self.breakpoints + [self.path_length] + other.breakpoints, name=self.name)
 
-    def starting_point(self):
+    def starting_point(self) -&gt; Point3D:
         &#34;&#34;&#34;Returns the starting point of the path.
 
         Returns
@@ -271,7 +278,7 @@ or any file format supported by meshio.</p>
         The starting point of the path.&#34;&#34;&#34;
         return self(0.)
     
-    def middle_point(self):
+    def middle_point(self) -&gt; Point3D:
         &#34;&#34;&#34;Returns the midpoint of the path (in terms of length along the path.)
 
         Returns
@@ -281,7 +288,7 @@ or any file format supported by meshio.</p>
         The point at the middle of the path.&#34;&#34;&#34;
         return self(self.path_length/2)
     
-    def endpoint(self):
+    def endpoint(self) -&gt; Point3D:
         &#34;&#34;&#34;Returns the endpoint of the path.
 
         Returns
@@ -291,29 +298,7 @@ or any file format supported by meshio.</p>
         The endpoint of the path.&#34;&#34;&#34;
         return self(self.path_length)
     
-    def line_to(self, point):
-        &#34;&#34;&#34;Extend the current path by a line from the current endpoint to the given point.
-        The given point is marked a breakpoint.
-
-        Parameters
-        ----------------------
-        point: (3,) float
-            The new endpoint.
-
-        Returns
-        ---------------------
-        Path&#34;&#34;&#34;
-        warnings.warn(&#34;line_to() is deprecated and will be removed in version 0.8.0.&#34;
-        &#34;Use extend_with_line() instead.&#34;,
-        DeprecationWarning,
-        stacklevel=2)
-
-        point = np.array(point)
-        assert point.shape == (3,), &#34;Please supply a three dimensional point to .line_to(...)&#34;
-        l = Path.line(self.endpoint(), point)
-        return self &gt;&gt; l
-    
-    def extend_with_line(self, point):
+    def extend_with_line(self, point: PointLike3D) -&gt; Path:
         &#34;&#34;&#34;Extend the current path by a line from the current endpoint to the given point.
         The given point is marked a breakpoint.
 
@@ -331,7 +316,7 @@ or any file format supported by meshio.</p>
         return self &gt;&gt; l
      
     @staticmethod
-    def circle_xz(x0, z0, radius, angle=2*pi):
+    def circle_xz(x0: float, z0: float, radius: float, angle: float = 2*pi) -&gt; Path:
         &#34;&#34;&#34;Returns (part of) a circle in the XZ plane around the x-axis. Starting on the positive x-axis.
         
         Parameters
@@ -348,13 +333,13 @@ or any file format supported by meshio.</p>
         Returns
         ---------------------------------
         Path&#34;&#34;&#34;
-        def f(u):
+        def f(u: float) -&gt; Point3D:
             theta = u / radius 
             return np.array([radius*cos(theta), 0., radius*sin(theta)])
         return Path(f, angle*radius).move(dx=x0, dz=z0)
     
     @staticmethod
-    def circle_yz(y0, z0, radius, angle=2*pi):
+    def circle_yz(y0: float, z0 : float, radius: float , angle: float = 2*pi) -&gt; Path:
         &#34;&#34;&#34;Returns (part of) a circle in the YZ plane around the x-axis. Starting on the positive y-axis.
         
         Parameters
@@ -371,13 +356,13 @@ or any file format supported by meshio.</p>
         Returns
         ---------------------------------
         Path&#34;&#34;&#34;
-        def f(u):
+        def f(u: float) -&gt; Point3D:
             theta = u / radius 
             return np.array([0., radius*cos(theta), radius*sin(theta)])
         return Path(f, angle*radius).move(dy=y0, dz=z0)
     
     @staticmethod
-    def circle_xy(x0, y0, radius, angle=2*pi):
+    def circle_xy(x0: float, y0: float, radius: float, angle: float = 2*pi) -&gt; Path:
         &#34;&#34;&#34;Returns (part of) a circle in the XY plane around the z-axis. Starting on the positive X-axis.
         
         Parameters
@@ -394,34 +379,12 @@ or any file format supported by meshio.</p>
         Returns
         ---------------------------------
         Path&#34;&#34;&#34;
-        def f(u):
+        def f(u: float) -&gt; Point3D:
             theta = u / radius 
             return np.array([radius*cos(theta), radius*sin(theta), 0.])
         return Path(f, angle*radius).move(dx=x0, dy=y0)
-     
-    def arc_to(self, center, end, reverse=False):
-        &#34;&#34;&#34;Extend the current path using an arc.
 
-        Parameters
-        ----------------------------
-        center: (3,) float
-            The center point of the arc.
-        end: (3,) float
-            The endpoint of the arc, shoud lie on a circle determined
-            by the given centerpoint and the current endpoint.
-
-        Returns
-        -----------------------------
-        Path&#34;&#34;&#34;
-        warnings.warn(&#34;arc_to() is deprecated and will be removed in version 0.8.0.&#34;
-        &#34;Use extend_with_arc() instead.&#34;,
-        DeprecationWarning,
-        stacklevel=2)
-
-        start = self.endpoint()
-        return self &gt;&gt; Path.arc(center, start, end, reverse=reverse)
-    
-    def extend_with_arc(self, center, end, reverse=False):
+    def extend_with_arc(self, center: Point3D, end: Point3D, reverse: bool = False) -&gt; Path:
         &#34;&#34;&#34;Extend the current path using an arc.
 
         Parameters
@@ -439,7 +402,7 @@ or any file format supported by meshio.</p>
         return self &gt;&gt; Path.arc(center, start, end, reverse=reverse)
     
     @staticmethod
-    def arc(center, start, end, reverse=False):
+    def arc(center: PointLike3D, start: PointLike3D, end: PointLike3D, reverse: bool = False) -&gt; Path:
         &#34;&#34;&#34;Return an arc by specifying the center, start and end point.
 
         Parameters
@@ -470,7 +433,7 @@ or any file format supported by meshio.</p>
         if reverse:
             theta_max = theta_max - 2*pi
 
-        path_length = abs(theta_max * radius)
+        path_length = float(abs(theta_max * radius))
           
         def f(l):
             theta = l/path_length * theta_max
@@ -478,7 +441,7 @@ or any file format supported by meshio.</p>
         
         return Path(f, path_length)
      
-    def revolve_x(self, angle=2*pi):
+    def revolve_x(self, angle: float = 2*pi) -&gt; Surface:
         &#34;&#34;&#34;Create a surface by revolving the path anti-clockwise around the x-axis.
         
         Parameters
@@ -493,7 +456,7 @@ or any file format supported by meshio.</p>
         r_avg = self.average(lambda p: sqrt(p[1]**2 + p[2]**2))
         length2 = 2*pi*r_avg
          
-        def f(u, v):
+        def f(u: float, v: float) -&gt; Point3D:
             p = self(u)
             theta = atan2(p[2], p[1])
             r = sqrt(p[1]**2 + p[2]**2)
@@ -501,7 +464,7 @@ or any file format supported by meshio.</p>
          
         return Surface(f, self.path_length, length2, self.breakpoints, name=self.name)
     
-    def revolve_y(self, angle=2*pi):
+    def revolve_y(self, angle: float = 2*pi) -&gt; Surface:
         &#34;&#34;&#34;Create a surface by revolving the path anti-clockwise around the y-axis.
         
         Parameters
@@ -516,7 +479,7 @@ or any file format supported by meshio.</p>
         r_avg = self.average(lambda p: sqrt(p[0]**2 + p[2]**2))
         length2 = 2*pi*r_avg
          
-        def f(u, v):
+        def f(u: float, v: float) -&gt; Point3D:
             p = self(u)
             theta = atan2(p[2], p[0])
             r = sqrt(p[0]*p[0] + p[2]*p[2])
@@ -524,7 +487,7 @@ or any file format supported by meshio.</p>
          
         return Surface(f, self.path_length, length2, self.breakpoints, name=self.name)
     
-    def revolve_z(self, angle=2*pi):
+    def revolve_z(self, angle: float = 2*pi) -&gt; Surface:
         &#34;&#34;&#34;Create a surface by revolving the path anti-clockwise around the z-axis.
         
         Parameters
@@ -539,7 +502,7 @@ or any file format supported by meshio.</p>
         r_avg = self.average(lambda p: sqrt(p[0]**2 + p[1]**2))
         length2 = 2*pi*r_avg
         
-        def f(u, v):
+        def f(u: float, v: float) -&gt; Point3D:
             p = self(u)
             theta = atan2(p[1], p[0])
             r = sqrt(p[0]*p[0] + p[1]*p[1])
@@ -547,7 +510,7 @@ or any file format supported by meshio.</p>
         
         return Surface(f, self.path_length, length2, self.breakpoints, name=self.name)
      
-    def extrude(self, vector):
+    def extrude(self, vector: VectorLike3D) -&gt; Surface:
         &#34;&#34;&#34;Create a surface by extruding the path along a vector. The vector gives both
         the length and the direction of the extrusion.
 
@@ -560,14 +523,14 @@ or any file format supported by meshio.</p>
         -------------------------
         Surface&#34;&#34;&#34;
         vector = np.array(vector)
-        length = np.linalg.norm(vector)
+        length = float(np.linalg.norm(vector))
          
-        def f(u, v):
+        def f(u: float, v: float) -&gt; Point3D:
             return self(u) + v/length*vector
         
         return Surface(f, self.path_length, length, self.breakpoints, name=self.name)
     
-    def extrude_by_path(self, p2):
+    def extrude_by_path(self, p2: Path) -&gt; Surface:
         &#34;&#34;&#34;Create a surface by extruding the path along a second path. The second
         path does not need to start along the first path. Imagine the surface created
         by moving the first path along the second path.
@@ -582,12 +545,12 @@ or any file format supported by meshio.</p>
         Surface&#34;&#34;&#34;
         p0 = p2.starting_point()
          
-        def f(u, v):
+        def f(u: float, v: float) -&gt; Point3D:
             return self(u) + p2(v) - p0
 
         return Surface(f, self.path_length, p2.path_length, self.breakpoints, p2.breakpoints, name=self.name)
 
-    def close(self):
+    def close(self) -&gt; Path:
         &#34;&#34;&#34;Close the path, by making a straight line to the starting point.
 
         Returns
@@ -596,7 +559,7 @@ or any file format supported by meshio.</p>
         return self.extend_with_line(self.starting_point())
     
     @staticmethod
-    def ellipse(major, minor):
+    def ellipse(major: float, minor: float) -&gt; Path:
         &#34;&#34;&#34;Create a path along the outline of an ellipse. The ellipse lies
         in the XY plane, and the path starts on the positive x-axis.
 
@@ -613,12 +576,12 @@ or any file format supported by meshio.</p>
         # Crazy enough there is no closed formula
         # to go from path length to a point on the ellipse.
         # So we have to use `from_irregular_function`
-        def f(u):
+        def f(u: float) -&gt; Point3D:
             return np.array([major*cos(2*pi*u), minor*sin(2*pi*u), 0.])
         return Path.from_irregular_function(f)
     
     @staticmethod
-    def line(from_, to):
+    def line(from_: PointLike3D, to: PointLike3D) -&gt; Path:
         &#34;&#34;&#34;Create a straight line between two points.
 
         Parameters
@@ -632,10 +595,10 @@ or any file format supported by meshio.</p>
         ---------------------------
         Path&#34;&#34;&#34;
         from_, to = np.array(from_), np.array(to)
-        length = np.linalg.norm(from_ - to)
+        length = float(np.linalg.norm(from_ - to))
         return Path(lambda pl: (1-pl/length)*from_ + pl/length*to, length)
 
-    def cut(self, length):
+    def cut(self, length: float) -&gt; tuple[Path, Path]:
         &#34;&#34;&#34;Cut the path in two at a specific length along the path.
 
         Parameters
@@ -652,7 +615,7 @@ or any file format supported by meshio.</p>
                 Path(lambda l: self.fun(l + length), self.path_length - length, [b - length for b in self.breakpoints if b &gt;= length], name=self.name))
     
     @staticmethod
-    def rectangle_xz(xmin, xmax, zmin, zmax):
+    def rectangle_xz(xmin: float, xmax: float, zmin: float, zmax: float) -&gt; Path:
         &#34;&#34;&#34;Create a rectangle in the XZ plane. The path starts at (xmin, 0, zmin), and is 
         counter clockwise around the y-axis.
         
@@ -670,11 +633,11 @@ or any file format supported by meshio.</p>
         Returns
         -----------------------
         Path&#34;&#34;&#34;
-        return Path.line([xmin, 0., zmin], [xmax, 0, zmin]) \
-            .extend_with_line([xmax, 0, zmax]).extend_with_line([xmin, 0., zmax]).close()
+        return Path.line([xmin, 0., zmin], [xmax, 0., zmin]) \
+            .extend_with_line([xmax, 0., zmax]).extend_with_line([xmin, 0., zmax]).close()
      
     @staticmethod
-    def rectangle_yz(ymin, ymax, zmin, zmax):
+    def rectangle_yz(ymin: float, ymax: float, zmin: float, zmax: float) -&gt; Path:
         &#34;&#34;&#34;Create a rectangle in the YZ plane. The path starts at (0, ymin, zmin), and is 
         counter clockwise around the x-axis.
         
@@ -697,7 +660,7 @@ or any file format supported by meshio.</p>
             .extend_with_line([0., ymax, zmax]).extend_with_line([0., ymax, zmin]).close()
      
     @staticmethod
-    def rectangle_xy(xmin, xmax, ymin, ymax):
+    def rectangle_xy(xmin: float, xmax: float, ymin: float, ymax: float) -&gt; Path:
         &#34;&#34;&#34;Create a rectangle in the XY plane. The path starts at (xmin, ymin, 0), and is 
         counter clockwise around the z-axis.
         
@@ -719,7 +682,7 @@ or any file format supported by meshio.</p>
             .extend_with_line([xmax, ymax, 0.]).extend_with_line([xmax, ymin, 0.]).close()
     
     @staticmethod
-    def aperture(height, radius, extent, z=0.):
+    def aperture(height: float, radius: float, extent: float, z: float = 0.) -&gt; Path:
         &#34;&#34;&#34;Create an &#39;aperture&#39;. Note that in a radially symmetric geometry
         an aperture is basically a rectangle with the right side &#39;open&#39;. Revolving
         this path around the z-axis would generate a cylindircal hole in the center. 
@@ -743,7 +706,7 @@ or any file format supported by meshio.</p>
                 .extend_with_line([radius, 0., height/2]).extend_with_line([extent, 0., height/2]).move(dz=z)
 
     @staticmethod
-    def polar_arc(radius, angle, start, direction, plane_normal=[0,1,0]):
+    def polar_arc(radius: float, angle: float, start: PointLike3D, direction: VectorLike3D, plane_normal: VectorLike3D = (0, 1, 0)) -&gt; Path:
         &#34;&#34;&#34;Return an arc specified by polar coordinates. The arc lies in a plane defined by the 
         provided normal vector and curves from the start point in the specified direction 
         counterclockwise around the normal.
@@ -789,7 +752,7 @@ or any file format supported by meshio.</p>
         
         return Path(f, radius*angle)
     
-    def extend_with_polar_arc(self, radius, angle, plane_normal=[0, 1, 0]):
+    def extend_with_polar_arc(self, radius: float, angle: float, plane_normal: VectorLike3D = (0,1,0)) -&gt; Path:
         &#34;&#34;&#34;Extend the current path by a smooth arc using polar coordinates.
         The arc is defined by a specified radius and angle and rotates counterclockwise
          around around the normal that defines the arcing plane.
@@ -822,7 +785,7 @@ or any file format supported by meshio.</p>
         
         return self &gt;&gt; Path.polar_arc(radius, angle, start_point, direction, plane_normal)
 
-    def reverse(self):
+    def reverse(self) -&gt; Path:
         &#34;&#34;&#34;Generate a reversed version of the current path.
         The reversed path is created by inverting the traversal direction,
         such that the start becomes the end and vice versa.
@@ -833,7 +796,7 @@ or any file format supported by meshio.</p>
         return Path(lambda t: self(self.path_length-t), self.path_length, 
                     [self.path_length - b for b in self.breakpoints], self.name)
     
-    def velocity_vector(self, t):
+    def velocity_vector(self, t: float) -&gt; Vector3D:
         &#34;&#34;&#34;Calculate the velocity (tangent) vector at a specific point on the path 
         using cubic spline interpolation.
 
@@ -851,10 +814,10 @@ or any file format supported by meshio.</p>
         samples = np.linspace(t - self.path_length*1e-3, t + self.path_length*1e-3, 7) # Odd number to include t
         samples_on_path = [s for s in samples if 0 &lt;= s &lt;= self.path_length]
         assert len(samples_on_path), &#34;Please supply a point that lies on the path&#34;
-        return CubicSpline(samples_on_path, [self(s) for s in samples_on_path])(t, nu=1)
+        return np.array(CubicSpline(samples_on_path, [self(s) for s in samples_on_path])(t, nu=1), dtype=np.float64) # type: ignore
     
    
-    def __add__(self, other):
+    def __add__(self, other: Path | PathCollection) -&gt; PathCollection:
         &#34;&#34;&#34;Add two paths to create a PathCollection. Note that a PathCollection supports
         a subset of the methods of Path (for example, movement, rotation and meshing). Use
         the + operator to combine paths into a path collection: path1 + path2 + path3.
@@ -867,11 +830,16 @@ or any file format supported by meshio.</p>
             return PathCollection([self, other])
         
         if isinstance(other, PathCollection):
-            return PathCollection([self] + [other.paths])
+            return PathCollection([self] + other.paths)
 
         return NotImplemented
      
-    def mesh(self, mesh_size=None, mesh_size_factor=None, higher_order=False, name=None, ensure_outward_normals=True):
+    def mesh(self, 
+             mesh_size: float | None = None, 
+             mesh_size_factor: float | None = None, 
+             higher_order: bool = False, 
+             name: str | None = None, 
+             ensure_outward_normals: bool = True) -&gt; Mesh:
         &#34;&#34;&#34;Mesh the path, so it can be used in the BEM solver. The result of meshing a path
         are (possibly curved) line elements.
 
@@ -925,7 +893,7 @@ or any file format supported by meshio.</p>
         
         return Mesh(points=points, lines=lines, physical_to_lines=physical_to_lines, ensure_outward_normals=ensure_outward_normals)
 
-    def __str__(self):
+    def __str__(self) -&gt; str:
         return f&#34;&lt;Path name:{self.name}, length:{self.path_length:.1e}, number of breakpoints:{len(self.breakpoints)}&gt;&#34;</code></pre>
       </details>
 
@@ -955,7 +923,7 @@ subclass of <code><a title="traceon.mesher.GeometricObject" href="mesher.html#tr
             <span>Expand source code</span>
         </summary>
         <pre><code class="python">@staticmethod
-def aperture(height, radius, extent, z=0.):
+def aperture(height: float, radius: float, extent: float, z: float = 0.) -&gt; Path:
     &#34;&#34;&#34;Create an &#39;aperture&#39;. Note that in a radially symmetric geometry
     an aperture is basically a rectangle with the right side &#39;open&#39;. Revolving
     this path around the z-axis would generate a cylindircal hole in the center. 
@@ -1015,7 +983,7 @@ This is the most basic model of an aperture.</p>
             <span>Expand source code</span>
         </summary>
         <pre><code class="python">@staticmethod
-def arc(center, start, end, reverse=False):
+def arc(center: PointLike3D, start: PointLike3D, end: PointLike3D, reverse: bool = False) -&gt; Path:
     &#34;&#34;&#34;Return an arc by specifying the center, start and end point.
 
     Parameters
@@ -1046,7 +1014,7 @@ def arc(center, start, end, reverse=False):
     if reverse:
         theta_max = theta_max - 2*pi
 
-    path_length = abs(theta_max * radius)
+    path_length = float(abs(theta_max * radius))
       
     def f(l):
         theta = l/path_length * theta_max
@@ -1086,7 +1054,7 @@ def arc(center, start, end, reverse=False):
             <span>Expand source code</span>
         </summary>
         <pre><code class="python">@staticmethod
-def circle_xy(x0, y0, radius, angle=2*pi):
+def circle_xy(x0: float, y0: float, radius: float, angle: float = 2*pi) -&gt; Path:
     &#34;&#34;&#34;Returns (part of) a circle in the XY plane around the z-axis. Starting on the positive X-axis.
     
     Parameters
@@ -1103,7 +1071,7 @@ def circle_xy(x0, y0, radius, angle=2*pi):
     Returns
     ---------------------------------
     Path&#34;&#34;&#34;
-    def f(u):
+    def f(u: float) -&gt; Point3D:
         theta = u / radius 
         return np.array([radius*cos(theta), radius*sin(theta), 0.])
     return Path(f, angle*radius).move(dx=x0, dy=y0)</code></pre>
@@ -1142,7 +1110,7 @@ def circle_xy(x0, y0, radius, angle=2*pi):
             <span>Expand source code</span>
         </summary>
         <pre><code class="python">@staticmethod
-def circle_xz(x0, z0, radius, angle=2*pi):
+def circle_xz(x0: float, z0: float, radius: float, angle: float = 2*pi) -&gt; Path:
     &#34;&#34;&#34;Returns (part of) a circle in the XZ plane around the x-axis. Starting on the positive x-axis.
     
     Parameters
@@ -1159,7 +1127,7 @@ def circle_xz(x0, z0, radius, angle=2*pi):
     Returns
     ---------------------------------
     Path&#34;&#34;&#34;
-    def f(u):
+    def f(u: float) -&gt; Point3D:
         theta = u / radius 
         return np.array([radius*cos(theta), 0., radius*sin(theta)])
     return Path(f, angle*radius).move(dx=x0, dz=z0)</code></pre>
@@ -1198,7 +1166,7 @@ def circle_xz(x0, z0, radius, angle=2*pi):
             <span>Expand source code</span>
         </summary>
         <pre><code class="python">@staticmethod
-def circle_yz(y0, z0, radius, angle=2*pi):
+def circle_yz(y0: float, z0 : float, radius: float , angle: float = 2*pi) -&gt; Path:
     &#34;&#34;&#34;Returns (part of) a circle in the YZ plane around the x-axis. Starting on the positive y-axis.
     
     Parameters
@@ -1215,7 +1183,7 @@ def circle_yz(y0, z0, radius, angle=2*pi):
     Returns
     ---------------------------------
     Path&#34;&#34;&#34;
-    def f(u):
+    def f(u: float) -&gt; Point3D:
         theta = u / radius 
         return np.array([0., radius*cos(theta), radius*sin(theta)])
     return Path(f, angle*radius).move(dy=y0, dz=z0)</code></pre>
@@ -1254,7 +1222,7 @@ def circle_yz(y0, z0, radius, angle=2*pi):
             <span>Expand source code</span>
         </summary>
         <pre><code class="python">@staticmethod
-def ellipse(major, minor):
+def ellipse(major: float, minor: float) -&gt; Path:
     &#34;&#34;&#34;Create a path along the outline of an ellipse. The ellipse lies
     in the XY plane, and the path starts on the positive x-axis.
 
@@ -1271,7 +1239,7 @@ def ellipse(major, minor):
     # Crazy enough there is no closed formula
     # to go from path length to a point on the ellipse.
     # So we have to use `from_irregular_function`
-    def f(u):
+    def f(u: float) -&gt; Point3D:
         return np.array([major*cos(2*pi*u), minor*sin(2*pi*u), 0.])
     return Path.from_irregular_function(f)</code></pre>
       </details>
@@ -1295,7 +1263,7 @@ in the XY plane, and the path starts on the positive x-axis.</p>
               
     <dt id="traceon.geometry.Path.from_irregular_function"><code class="name flex">
         
-        <span>def <span class="ident">from_irregular_function</span></span>(<span>to_point, N=100, breakpoints=[])</span>
+        <span>def <span class="ident">from_irregular_function</span></span>(<span>to_point, N=100, breakpoints=None)</span>
     </code></dt>
     <dd>
   
@@ -1306,7 +1274,7 @@ in the XY plane, and the path starts on the positive x-axis.</p>
             <span>Expand source code</span>
         </summary>
         <pre><code class="python">@staticmethod
-def from_irregular_function(to_point, N=100, breakpoints=[]):
+def from_irregular_function(to_point: Callable[[float], Point3D], N: int = 100, breakpoints: list[float] | None = None) -&gt; Path:
     &#34;&#34;&#34;Construct a path from a function that is of the form u -&gt; point, where 0 &lt;= u &lt;= 1.
     The length of the path is determined by integration.
 
@@ -1335,8 +1303,9 @@ def from_irregular_function(to_point, N=100, breakpoints=[]):
     interpolation = CubicSpline(path_lengths, u) # Path length to [0,1]
 
     path_length = path_lengths[-1]
-    
-    return Path(lambda pl: fun(interpolation(pl)), path_length, breakpoints=[b*path_length for b in breakpoints])</code></pre>
+    breakpoints = breakpoints if breakpoints is not None else []
+
+    return Path(lambda pl: fun(interpolation(pl)), path_length, breakpoints=[b*path_length for b in breakpoints]) # type: ignore</code></pre>
       </details>
 
   <div class="desc"><p>Construct a path from a function that is of the form u -&gt; point, where 0 &lt;= u &lt;= 1.
@@ -1372,7 +1341,7 @@ are always included in the resulting mesh.</dd>
             <span>Expand source code</span>
         </summary>
         <pre><code class="python">@staticmethod
-def line(from_, to):
+def line(from_: PointLike3D, to: PointLike3D) -&gt; Path:
     &#34;&#34;&#34;Create a straight line between two points.
 
     Parameters
@@ -1386,7 +1355,7 @@ def line(from_, to):
     ---------------------------
     Path&#34;&#34;&#34;
     from_, to = np.array(from_), np.array(to)
-    length = np.linalg.norm(from_ - to)
+    length = float(np.linalg.norm(from_ - to))
     return Path(lambda pl: (1-pl/length)*from_ + pl/length*to, length)</code></pre>
       </details>
 
@@ -1408,7 +1377,7 @@ def line(from_, to):
               
     <dt id="traceon.geometry.Path.polar_arc"><code class="name flex">
         
-        <span>def <span class="ident">polar_arc</span></span>(<span>radius, angle, start, direction, plane_normal=[0, 1, 0])</span>
+        <span>def <span class="ident">polar_arc</span></span>(<span>radius, angle, start, direction, plane_normal=(0, 1, 0))</span>
     </code></dt>
     <dd>
   
@@ -1419,7 +1388,7 @@ def line(from_, to):
             <span>Expand source code</span>
         </summary>
         <pre><code class="python">@staticmethod
-def polar_arc(radius, angle, start, direction, plane_normal=[0,1,0]):
+def polar_arc(radius: float, angle: float, start: PointLike3D, direction: VectorLike3D, plane_normal: VectorLike3D = (0, 1, 0)) -&gt; Path:
     &#34;&#34;&#34;Return an arc specified by polar coordinates. The arc lies in a plane defined by the 
     provided normal vector and curves from the start point in the specified direction 
     counterclockwise around the normal.
@@ -1504,7 +1473,7 @@ Must lie in the specified plane. Does not need to be normalized.</dd>
             <span>Expand source code</span>
         </summary>
         <pre><code class="python">@staticmethod
-def rectangle_xy(xmin, xmax, ymin, ymax):
+def rectangle_xy(xmin: float, xmax: float, ymin: float, ymax: float) -&gt; Path:
     &#34;&#34;&#34;Create a rectangle in the XY plane. The path starts at (xmin, ymin, 0), and is 
     counter clockwise around the z-axis.
     
@@ -1560,7 +1529,7 @@ counter clockwise around the z-axis.</p>
             <span>Expand source code</span>
         </summary>
         <pre><code class="python">@staticmethod
-def rectangle_xz(xmin, xmax, zmin, zmax):
+def rectangle_xz(xmin: float, xmax: float, zmin: float, zmax: float) -&gt; Path:
     &#34;&#34;&#34;Create a rectangle in the XZ plane. The path starts at (xmin, 0, zmin), and is 
     counter clockwise around the y-axis.
     
@@ -1578,8 +1547,8 @@ def rectangle_xz(xmin, xmax, zmin, zmax):
     Returns
     -----------------------
     Path&#34;&#34;&#34;
-    return Path.line([xmin, 0., zmin], [xmax, 0, zmin]) \
-        .extend_with_line([xmax, 0, zmax]).extend_with_line([xmin, 0., zmax]).close()</code></pre>
+    return Path.line([xmin, 0., zmin], [xmax, 0., zmin]) \
+        .extend_with_line([xmax, 0., zmax]).extend_with_line([xmin, 0., zmax]).close()</code></pre>
       </details>
 
   <div class="desc"><p>Create a rectangle in the XZ plane. The path starts at (xmin, 0, zmin), and is 
@@ -1616,7 +1585,7 @@ counter clockwise around the y-axis.</p>
             <span>Expand source code</span>
         </summary>
         <pre><code class="python">@staticmethod
-def rectangle_yz(ymin, ymax, zmin, zmax):
+def rectangle_yz(ymin: float, ymax: float, zmin: float, zmax: float) -&gt; Path:
     &#34;&#34;&#34;Create a rectangle in the YZ plane. The path starts at (0, ymin, zmin), and is 
     counter clockwise around the x-axis.
     
@@ -1673,7 +1642,7 @@ counter clockwise around the x-axis.</p>
             <span>Expand source code</span>
         </summary>
         <pre><code class="python">@staticmethod
-def spline_through_points(points, N=100):
+def spline_through_points(points: Points3D, N: int = 100) -&gt; Path:
     &#34;&#34;&#34;Construct a path by fitting a cubic spline through the given points.
 
     Parameters
@@ -1687,7 +1656,8 @@ def spline_through_points(points, N=100):
 
     x = np.linspace(0, 1, len(points))
     interp = CubicSpline(x, points)
-    return Path.from_irregular_function(interp, N=N)</code></pre>
+
+    return Path.from_irregular_function(lambda u: np.array(interp(u), dtype=np.float64), N=N) #type: ignore</code></pre>
       </details>
 
   <div class="desc"><p>Construct a path by fitting a cubic spline through the given points.</p>
@@ -1719,7 +1689,7 @@ def spline_through_points(points, N=100):
         <summary>
             <span>Expand source code</span>
         </summary>
-        <pre><code class="python">def __add__(self, other):
+        <pre><code class="python">def __add__(self, other: Path | PathCollection) -&gt; PathCollection:
     &#34;&#34;&#34;Add two paths to create a PathCollection. Note that a PathCollection supports
     a subset of the methods of Path (for example, movement, rotation and meshing). Use
     the + operator to combine paths into a path collection: path1 + path2 + path3.
@@ -1732,7 +1702,7 @@ def spline_through_points(points, N=100):
         return PathCollection([self, other])
     
     if isinstance(other, PathCollection):
-        return PathCollection([self] + [other.paths])
+        return PathCollection([self] + other.paths)
 
     return NotImplemented</code></pre>
       </details>
@@ -1760,7 +1730,7 @@ the + operator to combine paths into a path collection: path1 + path2 + path3.</
         <summary>
             <span>Expand source code</span>
         </summary>
-        <pre><code class="python">def __call__(self, t):
+        <pre><code class="python">def __call__(self, t: float) -&gt; Point3D:
     &#34;&#34;&#34;Evaluate a point along the path.
 
     Parameters
@@ -1800,7 +1770,7 @@ the + operator to combine paths into a path collection: path1 + path2 + path3.</
         <summary>
             <span>Expand source code</span>
         </summary>
-        <pre><code class="python">def __rshift__(self, other):
+        <pre><code class="python">def __rshift__(self, other: Path) -&gt; Path:
     &#34;&#34;&#34;Combine two paths to create a single path. The endpoint of the first path needs
     to match the starting point of the second path. This common point is marked as a breakpoint and
     always included in the mesh. To use this function use the right shift operator (p1 &gt;&gt; p2).
@@ -1859,7 +1829,7 @@ always included in the mesh. To use this function use the right shift operator (
         <summary>
             <span>Expand source code</span>
         </summary>
-        <pre><code class="python">def add_phase(self, l):
+        <pre><code class="python">def add_phase(self, l: float) -&gt; Path:
     &#34;&#34;&#34;Add a phase to a closed path. A path is closed when the starting point is equal to the
     end point. A phase of length l means that the path starts &#39;further down&#39; the closed path.
 
@@ -1908,7 +1878,7 @@ original path.</dd>
         <summary>
             <span>Expand source code</span>
         </summary>
-        <pre><code class="python">def average(self, fun):
+        <pre><code class="python">def average(self, fun: Callable[[Point3D], float]) -&gt; float:
     &#34;&#34;&#34;Average a function along the path, by integrating 1/l * fun(path(l)) with 0 &lt;= l &lt;= path length.
 
     Parameters
@@ -1951,7 +1921,7 @@ original path.</dd>
         <summary>
             <span>Expand source code</span>
         </summary>
-        <pre><code class="python">def close(self):
+        <pre><code class="python">def close(self) -&gt; Path:
     &#34;&#34;&#34;Close the path, by making a straight line to the starting point.
 
     Returns
@@ -1981,7 +1951,7 @@ original path.</dd>
         <summary>
             <span>Expand source code</span>
         </summary>
-        <pre><code class="python">def cut(self, length):
+        <pre><code class="python">def cut(self, length: float) -&gt; tuple[Path, Path]:
     &#34;&#34;&#34;Cut the path in two at a specific length along the path.
 
     Parameters
@@ -2022,7 +1992,7 @@ original path.</dd>
         <summary>
             <span>Expand source code</span>
         </summary>
-        <pre><code class="python">def endpoint(self):
+        <pre><code class="python">def endpoint(self) -&gt; Point3D:
     &#34;&#34;&#34;Returns the endpoint of the path.
 
     Returns
@@ -2052,7 +2022,7 @@ original path.</dd>
         <summary>
             <span>Expand source code</span>
         </summary>
-        <pre><code class="python">def extend_with_arc(self, center, end, reverse=False):
+        <pre><code class="python">def extend_with_arc(self, center: Point3D, end: Point3D, reverse: bool = False) -&gt; Path:
     &#34;&#34;&#34;Extend the current path using an arc.
 
     Parameters
@@ -2099,7 +2069,7 @@ by the given centerpoint and the current endpoint.</dd>
         <summary>
             <span>Expand source code</span>
         </summary>
-        <pre><code class="python">def extend_with_line(self, point):
+        <pre><code class="python">def extend_with_line(self, point: PointLike3D) -&gt; Path:
     &#34;&#34;&#34;Extend the current path by a line from the current endpoint to the given point.
     The given point is marked a breakpoint.
 
@@ -2134,7 +2104,7 @@ The given point is marked a breakpoint.</p>
               
     <dt id="traceon.geometry.Path.extend_with_polar_arc"><code class="name flex">
         
-        <span>def <span class="ident">extend_with_polar_arc</span></span>(<span>self, radius, angle, plane_normal=[0, 1, 0])</span>
+        <span>def <span class="ident">extend_with_polar_arc</span></span>(<span>self, radius, angle, plane_normal=(0, 1, 0))</span>
     </code></dt>
     <dd>
   
@@ -2144,7 +2114,7 @@ The given point is marked a breakpoint.</p>
         <summary>
             <span>Expand source code</span>
         </summary>
-        <pre><code class="python">def extend_with_polar_arc(self, radius, angle, plane_normal=[0, 1, 0]):
+        <pre><code class="python">def extend_with_polar_arc(self, radius: float, angle: float, plane_normal: VectorLike3D = (0,1,0)) -&gt; Path:
     &#34;&#34;&#34;Extend the current path by a smooth arc using polar coordinates.
     The arc is defined by a specified radius and angle and rotates counterclockwise
      around around the normal that defines the arcing plane.
@@ -2210,7 +2180,7 @@ The arc is defined by a specified radius and angle and rotates counterclockwise
         <summary>
             <span>Expand source code</span>
         </summary>
-        <pre><code class="python">def extrude(self, vector):
+        <pre><code class="python">def extrude(self, vector: VectorLike3D) -&gt; Surface:
     &#34;&#34;&#34;Create a surface by extruding the path along a vector. The vector gives both
     the length and the direction of the extrusion.
 
@@ -2223,9 +2193,9 @@ The arc is defined by a specified radius and angle and rotates counterclockwise
     -------------------------
     Surface&#34;&#34;&#34;
     vector = np.array(vector)
-    length = np.linalg.norm(vector)
+    length = float(np.linalg.norm(vector))
      
-    def f(u, v):
+    def f(u: float, v: float) -&gt; Point3D:
         return self(u) + v/length*vector
     
     return Surface(f, self.path_length, length, self.breakpoints, name=self.name)</code></pre>
@@ -2258,7 +2228,7 @@ the length and the direction of the extrusion.</p>
         <summary>
             <span>Expand source code</span>
         </summary>
-        <pre><code class="python">def extrude_by_path(self, p2):
+        <pre><code class="python">def extrude_by_path(self, p2: Path) -&gt; Surface:
     &#34;&#34;&#34;Create a surface by extruding the path along a second path. The second
     path does not need to start along the first path. Imagine the surface created
     by moving the first path along the second path.
@@ -2273,7 +2243,7 @@ the length and the direction of the extrusion.</p>
     Surface&#34;&#34;&#34;
     p0 = p2.starting_point()
      
-    def f(u, v):
+    def f(u: float, v: float) -&gt; Point3D:
         return self(u) + p2(v) - p0
 
     return Surface(f, self.path_length, p2.path_length, self.breakpoints, p2.breakpoints, name=self.name)</code></pre>
@@ -2307,7 +2277,7 @@ by moving the first path along the second path.</p>
         <summary>
             <span>Expand source code</span>
         </summary>
-        <pre><code class="python">def is_closed(self):
+        <pre><code class="python">def is_closed(self) -&gt; bool:
     &#34;&#34;&#34;Determine whether the path is closed, by comparing the starting and endpoint.
 
     Returns
@@ -2334,7 +2304,7 @@ by moving the first path along the second path.</p>
         <summary>
             <span>Expand source code</span>
         </summary>
-        <pre><code class="python">def map_points(self, fun):
+        <pre><code class="python">def map_points(self, fun: Callable[[PointLike3D], Point3D]) -&gt; Path:
     &#34;&#34;&#34;Return a new function by mapping a function over points along the path (see `traceon.mesher.GeometricObject`).
     The path length is assumed to stay the same after this operation.
     
@@ -2374,7 +2344,12 @@ The path length is assumed to stay the same after this operation.</p>
         <summary>
             <span>Expand source code</span>
         </summary>
-        <pre><code class="python">def mesh(self, mesh_size=None, mesh_size_factor=None, higher_order=False, name=None, ensure_outward_normals=True):
+        <pre><code class="python">def mesh(self, 
+         mesh_size: float | None = None, 
+         mesh_size_factor: float | None = None, 
+         higher_order: bool = False, 
+         name: str | None = None, 
+         ensure_outward_normals: bool = True) -&gt; Mesh:
     &#34;&#34;&#34;Mesh the path, so it can be used in the BEM solver. The result of meshing a path
     are (possibly curved) line elements.
 
@@ -2465,7 +2440,7 @@ elements in radial symmetric geometries only.</dd>
         <summary>
             <span>Expand source code</span>
         </summary>
-        <pre><code class="python">def middle_point(self):
+        <pre><code class="python">def middle_point(self) -&gt; Point3D:
     &#34;&#34;&#34;Returns the midpoint of the path (in terms of length along the path.)
 
     Returns
@@ -2495,7 +2470,7 @@ elements in radial symmetric geometries only.</dd>
         <summary>
             <span>Expand source code</span>
         </summary>
-        <pre><code class="python">def reverse(self):
+        <pre><code class="python">def reverse(self) -&gt; Path:
     &#34;&#34;&#34;Generate a reversed version of the current path.
     The reversed path is created by inverting the traversal direction,
     such that the start becomes the end and vice versa.
@@ -2530,7 +2505,7 @@ such that the start becomes the end and vice versa.</p>
         <summary>
             <span>Expand source code</span>
         </summary>
-        <pre><code class="python">def revolve_x(self, angle=2*pi):
+        <pre><code class="python">def revolve_x(self, angle: float = 2*pi) -&gt; Surface:
     &#34;&#34;&#34;Create a surface by revolving the path anti-clockwise around the x-axis.
     
     Parameters
@@ -2545,7 +2520,7 @@ such that the start becomes the end and vice versa.</p>
     r_avg = self.average(lambda p: sqrt(p[1]**2 + p[2]**2))
     length2 = 2*pi*r_avg
      
-    def f(u, v):
+    def f(u: float, v: float) -&gt; Point3D:
         p = self(u)
         theta = atan2(p[2], p[1])
         r = sqrt(p[1]**2 + p[2]**2)
@@ -2580,7 +2555,7 @@ such that the start becomes the end and vice versa.</p>
         <summary>
             <span>Expand source code</span>
         </summary>
-        <pre><code class="python">def revolve_y(self, angle=2*pi):
+        <pre><code class="python">def revolve_y(self, angle: float = 2*pi) -&gt; Surface:
     &#34;&#34;&#34;Create a surface by revolving the path anti-clockwise around the y-axis.
     
     Parameters
@@ -2595,7 +2570,7 @@ such that the start becomes the end and vice versa.</p>
     r_avg = self.average(lambda p: sqrt(p[0]**2 + p[2]**2))
     length2 = 2*pi*r_avg
      
-    def f(u, v):
+    def f(u: float, v: float) -&gt; Point3D:
         p = self(u)
         theta = atan2(p[2], p[0])
         r = sqrt(p[0]*p[0] + p[2]*p[2])
@@ -2630,7 +2605,7 @@ such that the start becomes the end and vice versa.</p>
         <summary>
             <span>Expand source code</span>
         </summary>
-        <pre><code class="python">def revolve_z(self, angle=2*pi):
+        <pre><code class="python">def revolve_z(self, angle: float = 2*pi) -&gt; Surface:
     &#34;&#34;&#34;Create a surface by revolving the path anti-clockwise around the z-axis.
     
     Parameters
@@ -2645,7 +2620,7 @@ such that the start becomes the end and vice versa.</p>
     r_avg = self.average(lambda p: sqrt(p[0]**2 + p[1]**2))
     length2 = 2*pi*r_avg
     
-    def f(u, v):
+    def f(u: float, v: float) -&gt; Point3D:
         p = self(u)
         theta = atan2(p[1], p[0])
         r = sqrt(p[0]*p[0] + p[1]*p[1])
@@ -2680,7 +2655,7 @@ such that the start becomes the end and vice versa.</p>
         <summary>
             <span>Expand source code</span>
         </summary>
-        <pre><code class="python">def starting_point(self):
+        <pre><code class="python">def starting_point(self) -&gt; Point3D:
     &#34;&#34;&#34;Returns the starting point of the path.
 
     Returns
@@ -2710,7 +2685,7 @@ such that the start becomes the end and vice versa.</p>
         <summary>
             <span>Expand source code</span>
         </summary>
-        <pre><code class="python">def velocity_vector(self, t):
+        <pre><code class="python">def velocity_vector(self, t: float) -&gt; Vector3D:
     &#34;&#34;&#34;Calculate the velocity (tangent) vector at a specific point on the path 
     using cubic spline interpolation.
 
@@ -2728,7 +2703,7 @@ such that the start becomes the end and vice versa.</p>
     samples = np.linspace(t - self.path_length*1e-3, t + self.path_length*1e-3, 7) # Odd number to include t
     samples_on_path = [s for s in samples if 0 &lt;= s &lt;= self.path_length]
     assert len(samples_on_path), &#34;Please supply a point that lies on the path&#34;
-    return CubicSpline(samples_on_path, [self(s) for s in samples_on_path])(t, nu=1)</code></pre>
+    return np.array(CubicSpline(samples_on_path, [self(s) for s in samples_on_path])(t, nu=1), dtype=np.float64) # type: ignore</code></pre>
       </details>
 
   <div class="desc"><p>Calculate the velocity (tangent) vector at a specific point on the path 
@@ -2781,26 +2756,32 @@ using cubic spline interpolation.</p>
     &#34;&#34;&#34;A PathCollection is a collection of `Path`. It can be created using the + operator (for example path1+path2).
     Note that `PathCollection` is a subclass of `traceon.mesher.GeometricObject`, and therefore can be easily moved and rotated.&#34;&#34;&#34;
     
-    def __init__(self, paths):
+    def __init__(self, paths: list[Path]) -&gt; None:
         assert all([isinstance(p, Path) for p in paths])
         self.paths = paths
-        self._name = None
+        self._name: str | None = None
     
     @property
-    def name(self):
+    def name(self) -&gt; str | None:
         return self._name
 
     @name.setter
-    def name(self, name):
+    def name(self, name: str | None) -&gt; None:
         self._name = name
          
         for path in self.paths:
             path.name = name
      
-    def map_points(self, fun):
+    def map_points(self, fun: Callable[[PointLike3D], Point3D]) -&gt; PathCollection:
         return PathCollection([p.map_points(fun) for p in self.paths])
      
-    def mesh(self, mesh_size=None, mesh_size_factor=None, higher_order=False, name=None, ensure_outward_normals=True):
+    def mesh(self, 
+             mesh_size: float | None = None, 
+             mesh_size_factor: float | None = None, 
+             higher_order: bool = False, 
+             name: str | None = None, 
+             ensure_outward_normals: bool = True) -&gt; Mesh:
+        
         &#34;&#34;&#34;See `Path.mesh`&#34;&#34;&#34;
         mesh = Mesh()
         
@@ -2812,7 +2793,7 @@ using cubic spline interpolation.</p>
 
         return mesh
 
-    def _map_to_surfaces(self, f, *args, **kwargs):
+    def _map_to_surfaces(self, f: Callable[[Path, Any], Surface], *args: Any, **kwargs: Any) -&gt; SurfaceCollection:
         surfaces = []
 
         for p in self.paths:
@@ -2820,7 +2801,7 @@ using cubic spline interpolation.</p>
 
         return SurfaceCollection(surfaces)
     
-    def __add__(self, other):
+    def __add__(self, other: Path | PathCollection) -&gt; PathCollection:
         &#34;&#34;&#34;Allows you to combine paths and path collection using the + operator (path1 + path2).&#34;&#34;&#34;
         if isinstance(other, Path):
             return PathCollection(self.paths+[other])
@@ -2830,40 +2811,43 @@ using cubic spline interpolation.</p>
 
         return NotImplemented
       
-    def __iadd__(self, other):
+    def __iadd__(self, other: Path | PathCollection) -&gt; Self:
         &#34;&#34;&#34;Allows you to add paths to the collection using the += operator.&#34;&#34;&#34;
-        assert isinstance(other, PathCollection) or isinstance(other, Path)
-
         if isinstance(other, Path):
             self.paths.append(other)
-        else:
+
+        if isinstance(other, PathCollection):
             self.paths.extend(other.paths)
+        else:
+            return NotImplemented
+        
+        return self
     
-    def __getitem__(self, index):
+    def __getitem__(self, index: int | slice) -&gt; Path | PathCollection:
         selection = np.array(self.paths, dtype=object).__getitem__(index)
         if isinstance(selection, np.ndarray):
-            return PathCollection(selection.tolist())
+            return PathCollection(cast(list[Path], selection.tolist()))
         else:
             return selection
     
-    def __len__(self):
+    def __len__(self) -&gt; int:
         return len(self.paths)
 
-    def __iter__(self):
+    def __iter__(self) -&gt; Iterator[Path]:
         return iter(self.paths)
     
-    def revolve_x(self, angle=2*pi):
+    def revolve_x(self, angle: float = 2*pi) -&gt; SurfaceCollection:
         return self._map_to_surfaces(Path.revolve_x, angle=angle)
-    def revolve_y(self, angle=2*pi):
+    def revolve_y(self, angle: float = 2*pi) -&gt; SurfaceCollection:
         return self._map_to_surfaces(Path.revolve_y, angle=angle)
-    def revolve_z(self, angle=2*pi):
+    def revolve_z(self, angle: float = 2*pi) -&gt; SurfaceCollection:
         return self._map_to_surfaces(Path.revolve_z, angle=angle)
-    def extrude(self, vector):
+    def extrude(self, vector: VectorLike3D) -&gt; SurfaceCollection:
         return self._map_to_surfaces(Path.extrude, vector)
-    def extrude_by_path(self, p2):
+    def extrude_by_path(self, p2: Path) -&gt; SurfaceCollection:
         return self._map_to_surfaces(Path.extrude_by_path, p2)
     
-    def __str__(self):
+    def __str__(self) -&gt; str:
         return f&#34;&lt;PathCollection with {len(self.paths)} paths, name: {self.name}&gt;&#34;</code></pre>
       </details>
 
@@ -2890,7 +2874,7 @@ Note that <code><a title="traceon.geometry.PathCollection" href="#traceon.geomet
             <span>Expand source code</span>
         </summary>
         <pre><code class="python">@property
-def name(self):
+def name(self) -&gt; str | None:
     return self._name</code></pre>
       </details>
 
@@ -2912,7 +2896,7 @@ def name(self):
         <summary>
             <span>Expand source code</span>
         </summary>
-        <pre><code class="python">def __add__(self, other):
+        <pre><code class="python">def __add__(self, other: Path | PathCollection) -&gt; PathCollection:
     &#34;&#34;&#34;Allows you to combine paths and path collection using the + operator (path1 + path2).&#34;&#34;&#34;
     if isinstance(other, Path):
         return PathCollection(self.paths+[other])
@@ -2939,14 +2923,17 @@ def name(self):
         <summary>
             <span>Expand source code</span>
         </summary>
-        <pre><code class="python">def __iadd__(self, other):
+        <pre><code class="python">def __iadd__(self, other: Path | PathCollection) -&gt; Self:
     &#34;&#34;&#34;Allows you to add paths to the collection using the += operator.&#34;&#34;&#34;
-    assert isinstance(other, PathCollection) or isinstance(other, Path)
-
     if isinstance(other, Path):
         self.paths.append(other)
+
+    if isinstance(other, PathCollection):
+        self.paths.extend(other.paths)
     else:
-        self.paths.extend(other.paths)</code></pre>
+        return NotImplemented
+    
+    return self</code></pre>
       </details>
 
   <div class="desc"><p>Allows you to add paths to the collection using the += operator.</p></div>
@@ -2965,7 +2952,7 @@ def name(self):
         <summary>
             <span>Expand source code</span>
         </summary>
-        <pre><code class="python">def extrude(self, vector):
+        <pre><code class="python">def extrude(self, vector: VectorLike3D) -&gt; SurfaceCollection:
     return self._map_to_surfaces(Path.extrude, vector)</code></pre>
       </details>
 
@@ -2985,7 +2972,7 @@ def name(self):
         <summary>
             <span>Expand source code</span>
         </summary>
-        <pre><code class="python">def extrude_by_path(self, p2):
+        <pre><code class="python">def extrude_by_path(self, p2: Path) -&gt; SurfaceCollection:
     return self._map_to_surfaces(Path.extrude_by_path, p2)</code></pre>
       </details>
 
@@ -3005,7 +2992,13 @@ def name(self):
         <summary>
             <span>Expand source code</span>
         </summary>
-        <pre><code class="python">def mesh(self, mesh_size=None, mesh_size_factor=None, higher_order=False, name=None, ensure_outward_normals=True):
+        <pre><code class="python">def mesh(self, 
+         mesh_size: float | None = None, 
+         mesh_size_factor: float | None = None, 
+         higher_order: bool = False, 
+         name: str | None = None, 
+         ensure_outward_normals: bool = True) -&gt; Mesh:
+    
     &#34;&#34;&#34;See `Path.mesh`&#34;&#34;&#34;
     mesh = Mesh()
     
@@ -3034,7 +3027,7 @@ def name(self):
         <summary>
             <span>Expand source code</span>
         </summary>
-        <pre><code class="python">def revolve_x(self, angle=2*pi):
+        <pre><code class="python">def revolve_x(self, angle: float = 2*pi) -&gt; SurfaceCollection:
     return self._map_to_surfaces(Path.revolve_x, angle=angle)</code></pre>
       </details>
 
@@ -3054,7 +3047,7 @@ def name(self):
         <summary>
             <span>Expand source code</span>
         </summary>
-        <pre><code class="python">def revolve_y(self, angle=2*pi):
+        <pre><code class="python">def revolve_y(self, angle: float = 2*pi) -&gt; SurfaceCollection:
     return self._map_to_surfaces(Path.revolve_y, angle=angle)</code></pre>
       </details>
 
@@ -3074,7 +3067,7 @@ def name(self):
         <summary>
             <span>Expand source code</span>
         </summary>
-        <pre><code class="python">def revolve_z(self, angle=2*pi):
+        <pre><code class="python">def revolve_z(self, angle: float = 2*pi) -&gt; SurfaceCollection:
     return self._map_to_surfaces(Path.revolve_z, angle=angle)</code></pre>
       </details>
 
@@ -3104,7 +3097,7 @@ def name(self):
       
       <dt id="traceon.geometry.Surface"><code class="flex name class">
           <span>class <span class="ident">Surface</span></span>
-              <span>(</span><span>fun, path_length1, path_length2, breakpoints1=[], breakpoints2=[], name=None)</span>
+              <span>(</span><span>fun, path_length1, path_length2, breakpoints1=None, breakpoints2=None, name=None)</span>
       </code></dt>
 
       <dd>
@@ -3119,15 +3112,22 @@ def name(self):
     &#34;&#34;&#34;A Surface is a mapping from two numbers to a three dimensional point.
     Note that `Surface` is a subclass of `traceon.mesher.GeometricObject`, and therefore can be easily moved and rotated.&#34;&#34;&#34;
 
-    def __init__(self, fun, path_length1, path_length2, breakpoints1=[], breakpoints2=[], name=None):
+    def __init__(self, 
+            fun: Callable[[float, float], Point3D], 
+            path_length1: float, 
+            path_length2: float, 
+            breakpoints1: list[float] | None = None, 
+            breakpoints2: list[float] | None = None, 
+            name: str | None = None) -&gt; None:
+        
         self.fun = fun
         self.path_length1 = path_length1
         self.path_length2 = path_length2
-        self.breakpoints1 = breakpoints1
-        self.breakpoints2 = breakpoints2
+        self.breakpoints1 = breakpoints1 if breakpoints1 is not None else []
+        self.breakpoints2 = breakpoints2 if breakpoints2 is not None else []
         self.name = name
 
-    def _sections(self): 
+    def _sections(self)-&gt; Generator[Surface, None, None]: 
         b1 = [0.] + self.breakpoints1 + [self.path_length1]
         b2 = [0.] + self.breakpoints2 + [self.path_length2]
 
@@ -3137,7 +3137,7 @@ def name(self):
                     return self(u0_+u, v0_+v)
                 yield Surface(fun, u1-u0, v1-v0, [], [])
        
-    def __call__(self, u, v):
+    def __call__(self, u: float, v: float) -&gt; Point3D:
         &#34;&#34;&#34;Evaluate the surface at point (u, v). Returns a three dimensional point.
 
         Parameters
@@ -3152,13 +3152,13 @@ def name(self):
         (3,) np.ndarray of double&#34;&#34;&#34;
         return self.fun(u, v)
 
-    def map_points(self, fun):
+    def map_points(self, fun: Callable[[PointLike3D], Point3D]) -&gt; Surface:
         return Surface(lambda u, v: fun(self(u, v)),
             self.path_length1, self.path_length2,
             self.breakpoints1, self.breakpoints2, name=self.name)
     
     @staticmethod
-    def spanned_by_paths(path1, path2):
+    def spanned_by_paths(path1: Path, path2: Path) -&gt; Surface:
         &#34;&#34;&#34;Create a surface by considering the area between two paths. Imagine two points
         progressing along the path simultaneously and at each step drawing a straight line
         between the points.
@@ -3175,11 +3175,11 @@ def name(self):
         Surface&#34;&#34;&#34;
         length1 = max(path1.path_length, path2.path_length)
         
-        length_start = np.linalg.norm(path1.starting_point() - path2.starting_point())
-        length_final = np.linalg.norm(path1.endpoint() - path2.endpoint())
+        length_start = float(np.linalg.norm(path1.starting_point() - path2.starting_point()))
+        length_final = float(np.linalg.norm(path1.endpoint() - path2.endpoint()))
         length2 = (length_start + length_final)/2
          
-        def f(u, v):
+        def f(u: float, v: float) -&gt; Point3D:
             p1 = path1(u/length1*path1.path_length) # u/l*p = b, u = l*b/p
             p2 = path2(u/length1*path2.path_length)
             return (1-v/length2)*p1 + v/length2*p2
@@ -3190,7 +3190,7 @@ def name(self):
         return Surface(f, length1, length2, breakpoints)
 
     @staticmethod
-    def sphere(radius):
+    def sphere(radius: float) -&gt; Surface:
         &#34;&#34;&#34;Create a sphere with the given radius, the center of the sphere is
         at the origin, but can easily be moved by using the `mesher.GeometricObject.move` method.
 
@@ -3206,7 +3206,7 @@ def name(self):
         length1 = 2*pi*radius
         length2 = pi*radius
          
-        def f(u, v):
+        def f(u: float, v: float ) -&gt; Point3D:
             phi = u/radius
             theta = v/radius
             
@@ -3218,19 +3218,19 @@ def name(self):
         return Surface(f, length1, length2)
 
     @staticmethod
-    def box(p0, p1):
+    def box(p0: PointLike3D, p1: PointLike3D) -&gt; SurfaceCollection:
         &#34;&#34;&#34;Create a box with the two given points at opposite corners.
 
         Parameters
         -------------------------------
-        p0: (3,) np.ndarray double
+        p0: (3,) float
             One corner of the box
-        p1: (3,) np.ndarray double
+        p1: (3,) float
             The opposite corner of the box
 
         Returns
         -------------------------------
-        Surface representing the box&#34;&#34;&#34;
+        SurfaceCollection representing the box&#34;&#34;&#34;
 
         x0, y0, z0 = p0
         x1, y1, z1 = p1
@@ -3255,7 +3255,7 @@ def name(self):
         return (top + bottom + side_surface)
 
     @staticmethod
-    def from_boundary_paths(p1, p2, p3, p4):
+    def from_boundary_paths(p1: Path, p2: Path, p3: Path, p4: Path) -&gt; Surface:
         &#34;&#34;&#34;Create a surface with the four given paths as the boundary.
 
         Parameters
@@ -3276,7 +3276,7 @@ def name(self):
         path_length_p1_and_p3 = (p1.path_length + p3.path_length)/2
         path_length_p2_and_p4 = (p2.path_length + p4.path_length)/2
 
-        def f(u, v):
+        def f(u: float, v: float) -&gt; Point3D:
             u /= path_length_p1_and_p3
             v /= path_length_p2_and_p4
             
@@ -3300,7 +3300,7 @@ def name(self):
         return Surface(f, path_length_p1_and_p3, path_length_p2_and_p4, b1, b2)
      
     @staticmethod
-    def disk_xz(x0, z0, radius):
+    def disk_xz(x0: float, z0: float, radius: float) -&gt; Surface:
         &#34;&#34;&#34;Create a disk in the XZ plane.         
         
         Parameters
@@ -3319,7 +3319,7 @@ def name(self):
         return disk_at_origin.move(dx=x0, dz=z0)
     
     @staticmethod
-    def disk_yz(y0, z0, radius):
+    def disk_yz(y0: float, z0: float, radius: float) -&gt; Surface:
         &#34;&#34;&#34;Create a disk in the YZ plane.         
         
         Parameters
@@ -3338,7 +3338,7 @@ def name(self):
         return disk_at_origin.move(dy=y0, dz=z0)
 
     @staticmethod
-    def disk_xy(x0, y0, radius):
+    def disk_xy(x0: float, y0: float, radius: float) -&gt; Surface:
         &#34;&#34;&#34;Create a disk in the XY plane.
         
         Parameters
@@ -3357,7 +3357,7 @@ def name(self):
         return disk_at_origin.move(dx=x0, dy=y0)
      
     @staticmethod
-    def rectangle_xz(xmin, xmax, zmin, zmax):
+    def rectangle_xz(xmin: float, xmax: float, zmin: float, zmax: float) -&gt; Surface:
         &#34;&#34;&#34;Create a rectangle in the XZ plane. The path starts at (xmin, 0, zmin), and is 
         counter clockwise around the y-axis.
         
@@ -3378,7 +3378,7 @@ def name(self):
         return Path.line([xmin, 0., zmin], [xmin, 0, zmax]).extrude([xmax-xmin, 0., 0.])
      
     @staticmethod
-    def rectangle_yz(ymin, ymax, zmin, zmax):
+    def rectangle_yz(ymin: float, ymax: float, zmin: float, zmax: float) -&gt; Surface:
         &#34;&#34;&#34;Create a rectangle in the YZ plane. The path starts at (0, ymin, zmin), and is 
         counter clockwise around the x-axis.
         
@@ -3399,7 +3399,7 @@ def name(self):
         return Path.line([0., ymin, zmin], [0., ymin, zmax]).extrude([0., ymax-ymin, 0.])
      
     @staticmethod
-    def rectangle_xy(xmin, xmax, ymin, ymax):
+    def rectangle_xy(xmin: float, xmax: float, ymin: float, ymax: float) -&gt; Surface:
         &#34;&#34;&#34;Create a rectangle in the XY plane. The path starts at (xmin, ymin, 0), and is 
         counter clockwise around the z-axis.
         
@@ -3420,7 +3420,7 @@ def name(self):
         return Path.line([xmin, ymin, 0.], [xmin, ymax, 0.]).extrude([xmax-xmin, 0., 0.])
     
     @staticmethod
-    def annulus_xy(x0, y0, inner_radius, outer_radius):
+    def annulus_xy(x0: float, y0: float, inner_radius: float, outer_radius: float) -&gt; Surface:
         &#34;&#34;&#34;Create a annulus in the XY plane.         
         
         Parameters
@@ -3443,7 +3443,7 @@ def name(self):
         return annulus_at_origin.move(dx=x0, dy=y0)
 
     @staticmethod
-    def annulus_xz(x0, z0, inner_radius, outer_radius):
+    def annulus_xz(x0: float, z0: float, inner_radius: float, outer_radius: float) -&gt; Surface:
         &#34;&#34;&#34;Create a annulus in the XZ plane.         
         
         Parameters
@@ -3466,7 +3466,7 @@ def name(self):
         return annulus_at_origin.move(dx=x0, dz=z0)
     
     @staticmethod
-    def annulus_yz(y0, z0, inner_radius, outer_radius):
+    def annulus_yz(y0: float, z0: float, inner_radius: float, outer_radius: float) -&gt; Surface:
         &#34;&#34;&#34;Create a annulus in the YZ plane.         
         
         Parameters
@@ -3489,10 +3489,10 @@ def name(self):
         return annulus_at_origin.move(dy=y0, dz=z0)
 
     @staticmethod
-    def aperture(height, radius, extent, z=0.):
+    def aperture(height: float, radius: float, extent: float, z: float = 0.) -&gt; Surface:
         return Path.aperture(height, radius, extent, z=z).revolve_z()
     
-    def get_boundary_paths(self):
+    def get_boundary_paths(self) -&gt; PathCollection:
         &#34;&#34;&#34;Get the boundary paths of the surface.
         Computes the boundary paths (edges) of the surface and combines them into a `PathCollection`.
         Non-closed paths get filtered out when closed paths are present, as only closed paths 
@@ -3515,7 +3515,7 @@ def name(self):
         
         return boundary
 
-    def extrude_boundary(self, vector, enclose=True):
+    def extrude_boundary(self, vector: VectorLike3D, enclose: bool = True) -&gt; SurfaceCollection:
         &#34;&#34;&#34;
         Extrude the boundary paths of the surface along a vector. The vector gives both
         the length and the direction of the extrusion.
@@ -3540,7 +3540,7 @@ def name(self):
         else:
             return self + extruded_boundary
     
-    def extrude_boundary_by_path(self, path, enclose=True):
+    def extrude_boundary_by_path(self, path: Path, enclose: bool = True) -&gt; SurfaceCollection:
         &#34;&#34;&#34;Extrude the boundary paths of a surface along a path. The path 
         does not need to start at the surface. Imagine the  extrusion surface 
         created by moving the boundary paths along the path.
@@ -3558,7 +3558,7 @@ def name(self):
         SurfaceCollection&#34;&#34;&#34;
         
         boundary = self.get_boundary_paths()
-        extruded_boundary = boundary.extrude(path)
+        extruded_boundary = boundary.extrude_by_path(path)
 
         if enclose:
             path_vector = path.endpoint() - path.starting_point()
@@ -3566,7 +3566,7 @@ def name(self):
         else:
             return self + extruded_boundary
     
-    def revolve_boundary_x(self, angle=2*pi, enclose=True):
+    def revolve_boundary_x(self, angle: float = 2*pi, enclose: bool = True) -&gt; SurfaceCollection:
         &#34;&#34;&#34;Revolve the boundary paths of the surface anti-clockwise around the x-axis.
         
         Parameters
@@ -3589,7 +3589,7 @@ def name(self):
         else:
             return self + revolved_boundary
         
-    def revolve_boundary_y(self, angle=2*pi, enclose=True):
+    def revolve_boundary_y(self, angle: float = 2*pi, enclose: bool = True) -&gt; SurfaceCollection:
         &#34;&#34;&#34;Revolve the boundary paths of the surface anti-clockwise around the y-axis.
         
         Parameters
@@ -3612,7 +3612,7 @@ def name(self):
         else:
             return self + revolved_boundary
     
-    def revolve_boundary_z(self, angle=2*pi, enclose=True):
+    def revolve_boundary_z(self, angle: float = 2*pi, enclose: bool = True) -&gt; SurfaceCollection:
         &#34;&#34;&#34;Revolve the boundary paths of the surface anti-clockwise around the z-axis.
         
         Parameters
@@ -3635,7 +3635,7 @@ def name(self):
         else:
             return self + revolved_boundary
 
-    def __add__(self, other):
+    def __add__(self, other: Surface | SurfaceCollection) -&gt; SurfaceCollection:
         &#34;&#34;&#34;Allows you to combine surfaces into a `SurfaceCollection` using the + operator (surface1 + surface2).&#34;&#34;&#34;
         if isinstance(other, Surface):
             return SurfaceCollection([self, other])
@@ -3645,7 +3645,11 @@ def name(self):
 
         return NotImplemented
      
-    def mesh(self, mesh_size=None, mesh_size_factor=None, name=None, ensure_outward_normals=True):
+    def mesh(self, 
+             mesh_size: float | None = None, 
+             mesh_size_factor: float | None = None, 
+             name: str | None = None, 
+             ensure_outward_normals: bool = True) -&gt; Mesh:
         &#34;&#34;&#34;Mesh the surface, so it can be used in the BEM solver. The result of meshing
         a surface are triangles.
 
@@ -3676,7 +3680,7 @@ def name(self):
         name = self.name if name is None else name
         return _mesh(self, mesh_size, name=name, ensure_outward_normals=ensure_outward_normals)
     
-    def __str__(self):
+    def __str__(self) -&gt; str:
         return f&#34;&lt;Surface with name: {self.name}&gt;&#34;</code></pre>
       </details>
 
@@ -3706,7 +3710,7 @@ Note that <code><a title="traceon.geometry.Surface" href="#traceon.geometry.Surf
             <span>Expand source code</span>
         </summary>
         <pre><code class="python">@staticmethod
-def annulus_xy(x0, y0, inner_radius, outer_radius):
+def annulus_xy(x0: float, y0: float, inner_radius: float, outer_radius: float) -&gt; Surface:
     &#34;&#34;&#34;Create a annulus in the XY plane.         
     
     Parameters
@@ -3763,7 +3767,7 @@ Returns</p>
             <span>Expand source code</span>
         </summary>
         <pre><code class="python">@staticmethod
-def annulus_xz(x0, z0, inner_radius, outer_radius):
+def annulus_xz(x0: float, z0: float, inner_radius: float, outer_radius: float) -&gt; Surface:
     &#34;&#34;&#34;Create a annulus in the XZ plane.         
     
     Parameters
@@ -3820,7 +3824,7 @@ Returns</p>
             <span>Expand source code</span>
         </summary>
         <pre><code class="python">@staticmethod
-def annulus_yz(y0, z0, inner_radius, outer_radius):
+def annulus_yz(y0: float, z0: float, inner_radius: float, outer_radius: float) -&gt; Surface:
     &#34;&#34;&#34;Create a annulus in the YZ plane.         
     
     Parameters
@@ -3877,7 +3881,7 @@ Returns</p>
             <span>Expand source code</span>
         </summary>
         <pre><code class="python">@staticmethod
-def aperture(height, radius, extent, z=0.):
+def aperture(height: float, radius: float, extent: float, z: float = 0.) -&gt; Surface:
     return Path.aperture(height, radius, extent, z=z).revolve_z()</code></pre>
       </details>
 
@@ -3898,19 +3902,19 @@ def aperture(height, radius, extent, z=0.):
             <span>Expand source code</span>
         </summary>
         <pre><code class="python">@staticmethod
-def box(p0, p1):
+def box(p0: PointLike3D, p1: PointLike3D) -&gt; SurfaceCollection:
     &#34;&#34;&#34;Create a box with the two given points at opposite corners.
 
     Parameters
     -------------------------------
-    p0: (3,) np.ndarray double
+    p0: (3,) float
         One corner of the box
-    p1: (3,) np.ndarray double
+    p1: (3,) float
         The opposite corner of the box
 
     Returns
     -------------------------------
-    Surface representing the box&#34;&#34;&#34;
+    SurfaceCollection representing the box&#34;&#34;&#34;
 
     x0, y0, z0 = p0
     x1, y1, z1 = p1
@@ -3938,14 +3942,14 @@ def box(p0, p1):
   <div class="desc"><p>Create a box with the two given points at opposite corners.</p>
 <h2 id="parameters">Parameters</h2>
 <dl>
-<dt><strong><code>p0</code></strong> :&ensp;<code>(3,) np.ndarray double</code></dt>
+<dt><strong><code>p0</code></strong> :&ensp;<code>(3,) float</code></dt>
 <dd>One corner of the box</dd>
-<dt><strong><code>p1</code></strong> :&ensp;<code>(3,) np.ndarray double</code></dt>
+<dt><strong><code>p1</code></strong> :&ensp;<code>(3,) float</code></dt>
 <dd>The opposite corner of the box</dd>
 </dl>
 <h2 id="returns">Returns</h2>
 <dl>
-<dt><code><a title="traceon.geometry.Surface" href="#traceon.geometry.Surface">Surface</a> representing the box</code></dt>
+<dt><code><a title="traceon.geometry.SurfaceCollection" href="#traceon.geometry.SurfaceCollection">SurfaceCollection</a> representing the box</code></dt>
 <dd>&nbsp;</dd>
 </dl></div>
 </dd>
@@ -3964,7 +3968,7 @@ def box(p0, p1):
             <span>Expand source code</span>
         </summary>
         <pre><code class="python">@staticmethod
-def disk_xy(x0, y0, radius):
+def disk_xy(x0: float, y0: float, radius: float) -&gt; Surface:
     &#34;&#34;&#34;Create a disk in the XY plane.
     
     Parameters
@@ -4014,7 +4018,7 @@ def disk_xy(x0, y0, radius):
             <span>Expand source code</span>
         </summary>
         <pre><code class="python">@staticmethod
-def disk_xz(x0, z0, radius):
+def disk_xz(x0: float, z0: float, radius: float) -&gt; Surface:
     &#34;&#34;&#34;Create a disk in the XZ plane.         
     
     Parameters
@@ -4064,7 +4068,7 @@ def disk_xz(x0, z0, radius):
             <span>Expand source code</span>
         </summary>
         <pre><code class="python">@staticmethod
-def disk_yz(y0, z0, radius):
+def disk_yz(y0: float, z0: float, radius: float) -&gt; Surface:
     &#34;&#34;&#34;Create a disk in the YZ plane.         
     
     Parameters
@@ -4114,7 +4118,7 @@ def disk_yz(y0, z0, radius):
             <span>Expand source code</span>
         </summary>
         <pre><code class="python">@staticmethod
-def from_boundary_paths(p1, p2, p3, p4):
+def from_boundary_paths(p1: Path, p2: Path, p3: Path, p4: Path) -&gt; Surface:
     &#34;&#34;&#34;Create a surface with the four given paths as the boundary.
 
     Parameters
@@ -4135,7 +4139,7 @@ def from_boundary_paths(p1, p2, p3, p4):
     path_length_p1_and_p3 = (p1.path_length + p3.path_length)/2
     path_length_p2_and_p4 = (p2.path_length + p4.path_length)/2
 
-    def f(u, v):
+    def f(u: float, v: float) -&gt; Point3D:
         u /= path_length_p1_and_p3
         v /= path_length_p2_and_p4
         
@@ -4192,7 +4196,7 @@ def from_boundary_paths(p1, p2, p3, p4):
             <span>Expand source code</span>
         </summary>
         <pre><code class="python">@staticmethod
-def rectangle_xy(xmin, xmax, ymin, ymax):
+def rectangle_xy(xmin: float, xmax: float, ymin: float, ymax: float) -&gt; Surface:
     &#34;&#34;&#34;Create a rectangle in the XY plane. The path starts at (xmin, ymin, 0), and is 
     counter clockwise around the z-axis.
     
@@ -4247,7 +4251,7 @@ counter clockwise around the z-axis.</p>
             <span>Expand source code</span>
         </summary>
         <pre><code class="python">@staticmethod
-def rectangle_xz(xmin, xmax, zmin, zmax):
+def rectangle_xz(xmin: float, xmax: float, zmin: float, zmax: float) -&gt; Surface:
     &#34;&#34;&#34;Create a rectangle in the XZ plane. The path starts at (xmin, 0, zmin), and is 
     counter clockwise around the y-axis.
     
@@ -4302,7 +4306,7 @@ counter clockwise around the y-axis.</p>
             <span>Expand source code</span>
         </summary>
         <pre><code class="python">@staticmethod
-def rectangle_yz(ymin, ymax, zmin, zmax):
+def rectangle_yz(ymin: float, ymax: float, zmin: float, zmax: float) -&gt; Surface:
     &#34;&#34;&#34;Create a rectangle in the YZ plane. The path starts at (0, ymin, zmin), and is 
     counter clockwise around the x-axis.
     
@@ -4357,7 +4361,7 @@ counter clockwise around the x-axis.</p>
             <span>Expand source code</span>
         </summary>
         <pre><code class="python">@staticmethod
-def spanned_by_paths(path1, path2):
+def spanned_by_paths(path1: Path, path2: Path) -&gt; Surface:
     &#34;&#34;&#34;Create a surface by considering the area between two paths. Imagine two points
     progressing along the path simultaneously and at each step drawing a straight line
     between the points.
@@ -4374,11 +4378,11 @@ def spanned_by_paths(path1, path2):
     Surface&#34;&#34;&#34;
     length1 = max(path1.path_length, path2.path_length)
     
-    length_start = np.linalg.norm(path1.starting_point() - path2.starting_point())
-    length_final = np.linalg.norm(path1.endpoint() - path2.endpoint())
+    length_start = float(np.linalg.norm(path1.starting_point() - path2.starting_point()))
+    length_final = float(np.linalg.norm(path1.endpoint() - path2.endpoint()))
     length2 = (length_start + length_final)/2
      
-    def f(u, v):
+    def f(u: float, v: float) -&gt; Point3D:
         p1 = path1(u/length1*path1.path_length) # u/l*p = b, u = l*b/p
         p2 = path2(u/length1*path2.path_length)
         return (1-v/length2)*p1 + v/length2*p2
@@ -4420,7 +4424,7 @@ between the points.</p>
             <span>Expand source code</span>
         </summary>
         <pre><code class="python">@staticmethod
-def sphere(radius):
+def sphere(radius: float) -&gt; Surface:
     &#34;&#34;&#34;Create a sphere with the given radius, the center of the sphere is
     at the origin, but can easily be moved by using the `mesher.GeometricObject.move` method.
 
@@ -4436,7 +4440,7 @@ def sphere(radius):
     length1 = 2*pi*radius
     length2 = pi*radius
      
-    def f(u, v):
+    def f(u: float, v: float ) -&gt; Point3D:
         phi = u/radius
         theta = v/radius
         
@@ -4478,7 +4482,7 @@ at the origin, but can easily be moved by using the <code>mesher.GeometricObject
         <summary>
             <span>Expand source code</span>
         </summary>
-        <pre><code class="python">def __add__(self, other):
+        <pre><code class="python">def __add__(self, other: Surface | SurfaceCollection) -&gt; SurfaceCollection:
     &#34;&#34;&#34;Allows you to combine surfaces into a `SurfaceCollection` using the + operator (surface1 + surface2).&#34;&#34;&#34;
     if isinstance(other, Surface):
         return SurfaceCollection([self, other])
@@ -4505,7 +4509,7 @@ at the origin, but can easily be moved by using the <code>mesher.GeometricObject
         <summary>
             <span>Expand source code</span>
         </summary>
-        <pre><code class="python">def __call__(self, u, v):
+        <pre><code class="python">def __call__(self, u: float, v: float) -&gt; Point3D:
     &#34;&#34;&#34;Evaluate the surface at point (u, v). Returns a three dimensional point.
 
     Parameters
@@ -4546,7 +4550,7 @@ at the origin, but can easily be moved by using the <code>mesher.GeometricObject
         <summary>
             <span>Expand source code</span>
         </summary>
-        <pre><code class="python">def extrude_boundary(self, vector, enclose=True):
+        <pre><code class="python">def extrude_boundary(self, vector: VectorLike3D, enclose: bool = True) -&gt; SurfaceCollection:
     &#34;&#34;&#34;
     Extrude the boundary paths of the surface along a vector. The vector gives both
     the length and the direction of the extrusion.
@@ -4602,7 +4606,7 @@ moved by the extrusion vector to the resulting SurfaceCollection.</dd>
         <summary>
             <span>Expand source code</span>
         </summary>
-        <pre><code class="python">def extrude_boundary_by_path(self, path, enclose=True):
+        <pre><code class="python">def extrude_boundary_by_path(self, path: Path, enclose: bool = True) -&gt; SurfaceCollection:
     &#34;&#34;&#34;Extrude the boundary paths of a surface along a path. The path 
     does not need to start at the surface. Imagine the  extrusion surface 
     created by moving the boundary paths along the path.
@@ -4620,7 +4624,7 @@ moved by the extrusion vector to the resulting SurfaceCollection.</dd>
     SurfaceCollection&#34;&#34;&#34;
     
     boundary = self.get_boundary_paths()
-    extruded_boundary = boundary.extrude(path)
+    extruded_boundary = boundary.extrude_by_path(path)
 
     if enclose:
         path_vector = path.endpoint() - path.starting_point()
@@ -4660,7 +4664,7 @@ moved by the extrusion vector to the resulting SurfaceCollection.</dd>
         <summary>
             <span>Expand source code</span>
         </summary>
-        <pre><code class="python">def get_boundary_paths(self):
+        <pre><code class="python">def get_boundary_paths(self) -&gt; PathCollection:
     &#34;&#34;&#34;Get the boundary paths of the surface.
     Computes the boundary paths (edges) of the surface and combines them into a `PathCollection`.
     Non-closed paths get filtered out when closed paths are present, as only closed paths 
@@ -4709,7 +4713,11 @@ Note that this function might behave unexpectedly for surfaces without any bound
         <summary>
             <span>Expand source code</span>
         </summary>
-        <pre><code class="python">def mesh(self, mesh_size=None, mesh_size_factor=None, name=None, ensure_outward_normals=True):
+        <pre><code class="python">def mesh(self, 
+         mesh_size: float | None = None, 
+         mesh_size_factor: float | None = None, 
+         name: str | None = None, 
+         ensure_outward_normals: bool = True) -&gt; Mesh:
     &#34;&#34;&#34;Mesh the surface, so it can be used in the BEM solver. The result of meshing
     a surface are triangles.
 
@@ -4772,7 +4780,7 @@ easily translates between different geometries.</dd>
         <summary>
             <span>Expand source code</span>
         </summary>
-        <pre><code class="python">def revolve_boundary_x(self, angle=2*pi, enclose=True):
+        <pre><code class="python">def revolve_boundary_x(self, angle: float = 2*pi, enclose: bool = True) -&gt; SurfaceCollection:
     &#34;&#34;&#34;Revolve the boundary paths of the surface anti-clockwise around the x-axis.
     
     Parameters
@@ -4825,7 +4833,7 @@ rotated over the angle to the resulting SurfaceCollection.</dd>
         <summary>
             <span>Expand source code</span>
         </summary>
-        <pre><code class="python">def revolve_boundary_y(self, angle=2*pi, enclose=True):
+        <pre><code class="python">def revolve_boundary_y(self, angle: float = 2*pi, enclose: bool = True) -&gt; SurfaceCollection:
     &#34;&#34;&#34;Revolve the boundary paths of the surface anti-clockwise around the y-axis.
     
     Parameters
@@ -4878,7 +4886,7 @@ rotated over the angle to the resulting SurfaceCollection.</dd>
         <summary>
             <span>Expand source code</span>
         </summary>
-        <pre><code class="python">def revolve_boundary_z(self, angle=2*pi, enclose=True):
+        <pre><code class="python">def revolve_boundary_z(self, angle: float = 2*pi, enclose: bool = True) -&gt; SurfaceCollection:
     &#34;&#34;&#34;Revolve the boundary paths of the surface anti-clockwise around the z-axis.
     
     Parameters
@@ -4956,26 +4964,30 @@ rotated over the angle to the resulting SurfaceCollection.</dd>
     &#34;&#34;&#34;A SurfaceCollection is a collection of `Surface`. It can be created using the + operator (for example surface1+surface2).
     Note that `SurfaceCollection` is a subclass of `traceon.mesher.GeometricObject`, and therefore can be easily moved and rotated.&#34;&#34;&#34;
      
-    def __init__(self, surfaces):
+    def __init__(self, surfaces: list[Surface]) -&gt; None:
         assert all([isinstance(s, Surface) for s in surfaces])
         self.surfaces = surfaces
-        self._name = None
+        self._name: str | None = None
 
     @property
-    def name(self):
+    def name(self) -&gt; str | None:
         return self._name
 
     @name.setter
-    def name(self, name):
+    def name(self, name: str | None) -&gt; None: 
         self._name = name
          
         for surf in self.surfaces:
             surf.name = name
      
-    def map_points(self, fun):
+    def map_points(self, fun: Callable[[PointLike3D], Point3D]) -&gt; SurfaceCollection:
         return SurfaceCollection([s.map_points(fun) for s in self.surfaces])
      
-    def mesh(self, mesh_size=None, mesh_size_factor=None, name=None, ensure_outward_normals=True):
+    def mesh(self, 
+             mesh_size: float | None = None, 
+             mesh_size_factor: float | None = None, 
+             name: str | None = None, 
+             ensure_outward_normals: bool = True) -&gt; Mesh:
         &#34;&#34;&#34;See `Surface.mesh`&#34;&#34;&#34;
         mesh = Mesh()
         
@@ -4986,7 +4998,7 @@ rotated over the angle to the resulting SurfaceCollection.</dd>
          
         return mesh
      
-    def __add__(self, other):
+    def __add__(self, other: Surface | SurfaceCollection) -&gt; SurfaceCollection:
         &#34;&#34;&#34;Allows you to combine surfaces into a `SurfaceCollection` using the + operator (surface1 + surface2).&#34;&#34;&#34;
         if isinstance(other, Surface):
             return SurfaceCollection(self.surfaces+[other])
@@ -4996,29 +5008,33 @@ rotated over the angle to the resulting SurfaceCollection.</dd>
 
         return NotImplemented
      
-    def __iadd__(self, other):
+    def __iadd__(self, other: Surface | SurfaceCollection) -&gt; Self:
         &#34;&#34;&#34;Allows you to add surfaces to the collection using the += operator.&#34;&#34;&#34;
-        assert isinstance(other, SurfaceCollection) or isinstance(other, Surface)
-        
         if isinstance(other, Surface):
             self.surfaces.append(other)
-        else:
+
+        if isinstance(other, SurfaceCollection):
             self.surfaces.extend(other.surfaces)
+        else:
+            return NotImplemented
+
+        return self
         
-    def __getitem__(self, index):
-        selection = np.array(self.surfaces, dtype=object).__getitem__(index)
+    def __getitem__(self, index: int | slice) -&gt; Surface | SurfaceCollection:
+        selection = np.array(self.surfaces, dtype=Surface).__getitem__(index)
         if isinstance(selection, np.ndarray):
-            return SurfaceCollection(selection.tolist())
+
+            return SurfaceCollection(cast(list[Surface], selection.tolist()))
         else:
             return selection
     
-    def __len__(self):
+    def __len__(self) -&gt; int:
         return len(self.surfaces)
 
-    def __iter__(self):
+    def __iter__(self) -&gt; Iterator[Surface]:
         return iter(self.surfaces)
 
-    def __str__(self):
+    def __str__(self) -&gt; str:
         return f&#34;&lt;SurfaceCollection with {len(self.surfaces)} surfaces, name: {self.name}&gt;&#34;</code></pre>
       </details>
 
@@ -5045,7 +5061,7 @@ Note that <code><a title="traceon.geometry.SurfaceCollection" href="#traceon.geo
             <span>Expand source code</span>
         </summary>
         <pre><code class="python">@property
-def name(self):
+def name(self) -&gt; str | None:
     return self._name</code></pre>
       </details>
 
@@ -5067,7 +5083,7 @@ def name(self):
         <summary>
             <span>Expand source code</span>
         </summary>
-        <pre><code class="python">def __add__(self, other):
+        <pre><code class="python">def __add__(self, other: Surface | SurfaceCollection) -&gt; SurfaceCollection:
     &#34;&#34;&#34;Allows you to combine surfaces into a `SurfaceCollection` using the + operator (surface1 + surface2).&#34;&#34;&#34;
     if isinstance(other, Surface):
         return SurfaceCollection(self.surfaces+[other])
@@ -5094,14 +5110,17 @@ def name(self):
         <summary>
             <span>Expand source code</span>
         </summary>
-        <pre><code class="python">def __iadd__(self, other):
+        <pre><code class="python">def __iadd__(self, other: Surface | SurfaceCollection) -&gt; Self:
     &#34;&#34;&#34;Allows you to add surfaces to the collection using the += operator.&#34;&#34;&#34;
-    assert isinstance(other, SurfaceCollection) or isinstance(other, Surface)
-    
     if isinstance(other, Surface):
         self.surfaces.append(other)
+
+    if isinstance(other, SurfaceCollection):
+        self.surfaces.extend(other.surfaces)
     else:
-        self.surfaces.extend(other.surfaces)</code></pre>
+        return NotImplemented
+
+    return self</code></pre>
       </details>
 
   <div class="desc"><p>Allows you to add surfaces to the collection using the += operator.</p></div>
@@ -5120,7 +5139,11 @@ def name(self):
         <summary>
             <span>Expand source code</span>
         </summary>
-        <pre><code class="python">def mesh(self, mesh_size=None, mesh_size_factor=None, name=None, ensure_outward_normals=True):
+        <pre><code class="python">def mesh(self, 
+         mesh_size: float | None = None, 
+         mesh_size_factor: float | None = None, 
+         name: str | None = None, 
+         ensure_outward_normals: bool = True) -&gt; Mesh:
     &#34;&#34;&#34;See `Surface.mesh`&#34;&#34;&#34;
     mesh = Mesh()
     
@@ -5186,6 +5209,7 @@ def name(self):
         <li><code ><a title="traceon.plotting" href="plotting.html">traceon.plotting</a></code></li>
         <li><code ><a title="traceon.solver" href="solver.html">traceon.solver</a></code></li>
         <li><code ><a title="traceon.tracing" href="tracing.html">traceon.tracing</a></code></li>
+        <li><code ><a title="traceon.typing" href="typing.html">traceon.typing</a></code></li>
       </ul>
     </li>
 		
@@ -5193,6 +5217,7 @@ def name(self):
       <ul>
 			<li><code ><a title="traceon_pro.field" href="../traceon_pro/field.html">traceon_pro.field</a></code></li>
 			<li><code ><a title="traceon_pro.solver" href="../traceon_pro/solver.html">traceon_pro.solver</a></code></li>
+			<li><code ><a title="traceon_pro.tracing" href="../traceon_pro/tracing.html">traceon_pro.tracing</a></code></li>
       </ul>
     </li>
 

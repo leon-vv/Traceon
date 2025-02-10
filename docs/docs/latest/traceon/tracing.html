@@ -88,7 +88,7 @@ Transfer Problems. 1969. National Aeronautics and Space Administration.</p>
         <summary>
             <span>Expand source code</span>
         </summary>
-        <pre><code class="python">def axis_intersection(positions):
+        <pre><code class="python">def axis_intersection(positions: ArrayLikeFloat2D) -&gt; float:
     &#34;&#34;&#34;Compute the z-value of the intersection of the trajectory with the x=0 plane.
     Note that this function will not work properly if the trajectory crosses the x=0 plane zero or multiple times.
     
@@ -101,7 +101,7 @@ Transfer Problems. 1969. National Aeronautics and Space Administration.</p>
     --------
     float, z-value of the intersection with the x=0 plane
     &#34;&#34;&#34;
-    return yz_plane_intersection(positions, 0.0)[2]</code></pre>
+    return yz_plane_intersection(positions, 0)[2]</code></pre>
       </details>
 
   <div class="desc"><p>Compute the z-value of the intersection of the trajectory with the x=0 plane.
@@ -131,7 +131,7 @@ Note that this function will not work properly if the trajectory crosses the x=0
         <summary>
             <span>Expand source code</span>
         </summary>
-        <pre><code class="python">def plane_intersection(positions, p0, normal):
+        <pre><code class="python">def plane_intersection(positions: ArrayLikeFloat2D, p0: PointLike3D, normal: VectorLike3D) -&gt; ArrayFloat1D:
     &#34;&#34;&#34;Compute the intersection of a trajectory with a general plane in 3D. The plane is specified
     by a point (p0) in the plane and a normal vector (normal) to the plane. The intersection
     point is calculated using a linear interpolation.
@@ -152,6 +152,7 @@ Note that this function will not work properly if the trajectory crosses the x=0
     --------
     np.ndarray of shape (6,) containing the position and velocity of the particle at the intersection point.
     &#34;&#34;&#34;
+    positions, p0, normal = np.array(positions, dtype=np.float64), np.array(p0, dtype=np.float64), np.array(normal, dtype=np.float64)
 
     assert positions.shape == (len(positions), 6), &#34;The positions array should have shape (N, 6)&#34;
     return backend.plane_intersection(positions, p0, normal)</code></pre>
@@ -177,7 +178,7 @@ dot is the dot product.</dd>
       
     <dt id="traceon.tracing.velocity_vec"><code class="name flex">
         
-        <span>def <span class="ident">velocity_vec</span></span>(<span>eV, direction_)</span>
+        <span>def <span class="ident">velocity_vec</span></span>(<span>eV, direction, mass=9.1093837139e-31)</span>
     </code></dt>
     <dd>
   
@@ -187,7 +188,7 @@ dot is the dot product.</dd>
         <summary>
             <span>Expand source code</span>
         </summary>
-        <pre><code class="python">def velocity_vec(eV, direction_):
+        <pre><code class="python">def velocity_vec(eV: float, direction: VectorLike3D, mass: float = m_e) -&gt; Vector3D:
     &#34;&#34;&#34;Compute an initial velocity vector in the correct units and direction.
     
     Parameters
@@ -205,13 +206,13 @@ dot is the dot product.</dd>
     &#34;&#34;&#34;
     assert eV &gt; 0.0, &#34;Please provide a positive energy in eV&#34;
 
-    direction = np.array(direction_)
-    assert direction.shape == (3,), &#34;Please provide a three dimensional direction vector&#34;
+    direction_ = np.array(direction)
+    assert direction_.shape == (3,), &#34;Please provide a three dimensional direction vector&#34;
     
     if eV &gt; 40000:
         logging.log_warning(f&#39;Velocity vector with large energy ({eV} eV) requested. Note that relativistic tracing is not yet implemented.&#39;)
     
-    return eV * np.array(direction)/np.linalg.norm(direction)</code></pre>
+    return _convert_velocity_to_SI(eV * np.array(direction_)/np.linalg.norm(direction_), mass)</code></pre>
       </details>
 
   <div class="desc"><p>Compute an initial velocity vector in the correct units and direction.</p>
@@ -241,7 +242,7 @@ The shape of the resulting vector is the same as the shape of <code>direction</c
         <summary>
             <span>Expand source code</span>
         </summary>
-        <pre><code class="python">def velocity_vec_spherical(eV, theta, phi):
+        <pre><code class="python">def velocity_vec_spherical(eV: float, theta: float, phi: float) -&gt; Vector3D:
     &#34;&#34;&#34;Compute initial velocity vector given energy and direction computed from spherical coordinates.
     
     Parameters
@@ -287,7 +288,7 @@ The shape of the resulting vector is the same as the shape of <code>direction</c
         <summary>
             <span>Expand source code</span>
         </summary>
-        <pre><code class="python">def velocity_vec_xz_plane(eV, angle, downward=True):
+        <pre><code class="python">def velocity_vec_xz_plane(eV: float, angle: float, downward: bool = True) -&gt; Vector3D:
     &#34;&#34;&#34;Compute initial velocity vector in the xz plane with the given energy and angle with z-axis.
     
     Parameters
@@ -335,7 +336,7 @@ The shape of the resulting vector is the same as the shape of <code>direction</c
         <summary>
             <span>Expand source code</span>
         </summary>
-        <pre><code class="python">def xy_plane_intersection(positions, z):
+        <pre><code class="python">def xy_plane_intersection(positions: ArrayLikeFloat2D, z: float) -&gt; ArrayFloat1D:
     &#34;&#34;&#34;Compute the intersection of a trajectory with an xy-plane.
 
     Parameters
@@ -349,7 +350,7 @@ The shape of the resulting vector is the same as the shape of <code>direction</c
     --------
     (6,) array of float64, containing the position and velocity of the particle at the intersection point.
     &#34;&#34;&#34;
-    return plane_intersection(positions, np.array([0.,0.,z]), np.array([0., 0., 1.0]))</code></pre>
+    return plane_intersection(positions, [0, 0, z], [0, 0, 1])</code></pre>
       </details>
 
   <div class="desc"><p>Compute the intersection of a trajectory with an xy-plane.</p>
@@ -377,7 +378,7 @@ The shape of the resulting vector is the same as the shape of <code>direction</c
         <summary>
             <span>Expand source code</span>
         </summary>
-        <pre><code class="python">def xz_plane_intersection(positions, y):
+        <pre><code class="python">def xz_plane_intersection(positions: ArrayLikeFloat2D, y: float) -&gt; ArrayLikeFloat1D:
     &#34;&#34;&#34;Compute the intersection of a trajectory with an xz-plane.
 
     Parameters
@@ -391,7 +392,7 @@ The shape of the resulting vector is the same as the shape of <code>direction</c
     --------
     (6,) array of float64, containing the position and velocity of the particle at the intersection point.
     &#34;&#34;&#34;
-    return plane_intersection(positions, np.array([0.,y,0.]), np.array([0., 1.0, 0.]))</code></pre>
+    return plane_intersection(positions, [0, y, 0], [0, 1, 0])</code></pre>
       </details>
 
   <div class="desc"><p>Compute the intersection of a trajectory with an xz-plane.</p>
@@ -419,7 +420,7 @@ The shape of the resulting vector is the same as the shape of <code>direction</c
         <summary>
             <span>Expand source code</span>
         </summary>
-        <pre><code class="python">def yz_plane_intersection(positions, x):
+        <pre><code class="python">def yz_plane_intersection(positions: ArrayLikeFloat2D, x: float) -&gt; ArrayLikeFloat1D:
     &#34;&#34;&#34;Compute the intersection of a trajectory with an yz-plane.
 
     Parameters
@@ -433,7 +434,7 @@ The shape of the resulting vector is the same as the shape of <code>direction</c
     --------
     (6,) array of float64, containing the position and velocity of the particle at the intersection point.
     &#34;&#34;&#34;
-    return plane_intersection(positions, np.array([x,0.,0.]), np.array([1.0, 0., 0.]))</code></pre>
+    return plane_intersection(positions, [x, 0, 0], [1, 0, 0])</code></pre>
       </details>
 
   <div class="desc"><p>Compute the intersection of a trajectory with an yz-plane.</p>
@@ -479,9 +480,8 @@ The shape of the resulting vector is the same as the shape of <code>direction</c
         Once the particle reaches one of the boundaries the tracing stops. The bounds are of the form ( (xmin, xmax), (ymin, ymax), (zmin, zmax) ).
     &#34;&#34;&#34;
     
-    def __init__(self, field, bounds):
+    def __init__(self, field: Field, bounds: BoundsLike3D) -&gt; None:
         self.field = field
-         
         bounds = np.array(bounds).astype(np.float64)
         assert bounds.shape == (3,2)
         self.bounds = bounds
@@ -500,13 +500,21 @@ The shape of the resulting vector is the same as the shape of <code>direction</c
         else: # Interpret as anything ctypes can make sense of
             self.trace_args = ctypes.cast(ctypes.pointer(self.low_level_args), ctypes.c_void_p)
      
-    def __str__(self):
+    def __str__(self) -&gt; str:
         field_name = self.field.__class__.__name__
         bounds_str = &#39; &#39;.join([f&#39;({bmin:.2f}, {bmax:.2f})&#39; for bmin, bmax in self.bounds])
         return f&#39;&lt;Traceon Tracer of {field_name},\n\t&#39; \
             + &#39;Bounds: &#39; + bounds_str + &#39; mm &gt;&#39;
+
+    def __call__(self, *args, **kwargs):
+        return self.trace_single(*args, **kwargs)
     
-    def __call__(self, position, velocity, mass=m_e, charge=-e, atol=1e-8):
+    def trace_single(self,
+            position: PointLike3D,
+            velocity: VectorLike3D,
+            mass: float = m_e,
+            charge: float = -e,
+            atol: float = 1e-8) -&gt; tuple[ArrayFloat1D, ArrayFloat2D]:
         &#34;&#34;&#34;Trace a charged particle.
 
         Parameters
@@ -531,17 +539,78 @@ The shape of the resulting vector is the same as the shape of <code>direction</c
         The first three elements in the `positions[i]` array contain the x,y,z positions.
         The last three elements in `positions[i]` contain the vx,vy,vz velocities.
         &#34;&#34;&#34;
+        position = np.array(position)
         charge_over_mass = charge / mass
-        velocity = _convert_velocity_to_SI(velocity, mass)
 
         return backend.trace_particle(
                 position,
-                velocity,
+                np.array(velocity),
                 charge_over_mass, 
-                self.trace_fun,
+                self.trace_fun, #type:ignore
                 self.bounds,
                 atol,
-                self.trace_args)</code></pre>
+                self.trace_args)
+    
+    @staticmethod
+    def _normalize_input_shapes(position: PointLike3D, velocity: VectorLike3D, mass: float | ArrayLikeFloat1D, charge: float | ArrayLikeFloat1D) \
+            -&gt; tuple[ArrayFloat2D, ArrayFloat2D, ArrayFloat1D, ArrayFloat1D]:
+        
+        position_ = np.array(position, dtype=np.float64)
+        velocity_ = np.array(velocity, dtype=np.float64)
+        mass_ = np.array(mass, dtype=np.float64)
+        charge_ = np.array(charge, dtype=np.float64)
+
+        if position_.shape == (3,):
+            position_ = position_[np.newaxis] # Ensure position has shape (N, 3) with N=1
+
+        # Normalize shape against one another
+        # So that they both have shape (N, 3)
+        position_, velocity_ = np.broadcast_arrays(position, velocity_)
+
+        N = len(position_)
+
+        mass_ = np.broadcast_to(mass_, shape=(N,))
+        charge_ = np.broadcast_to(charge_, shape=(N,))
+        
+        # The following fails to type check, as the length of the tuple cannot be inferred
+        return tuple(np.copy(backend.ensure_contiguous_aligned(arr)) for arr in [position_, velocity_, mass_, charge_]) # type: ignore
+    
+    def trace_multiple(self, position: PointLike3D, velocity: VectorLike3D, mass: float | ArrayLikeFloat1D = m_e, charge: float | ArrayLikeFloat1D = -e, atol: float =1e-8) \
+            -&gt; list[tuple[ArrayFloat1D, ArrayFloat2D]]:
+        
+        &#34;&#34;&#34;Trace multiple charged particles. Numpy broadcasting rules apply if one 
+        of the inputs does not have enough elements. For example, if all particles have the
+        same charge simply pass in a float for the &#39;charge&#39; input.
+        
+        Parameters
+        ----------
+        position: (N, 3) np.ndarray of float64
+            Initial positions of the particle.
+        velocity: (N, 3) np.ndarray of float64
+            Initial velocities (expressed in a vector whose magnitude has units of eV). Use one of the utility functions documented
+            above to create the initial velocity vector.
+        mass: float or (N,)
+            Particle masses in kilogram (kg). The default value is the electron mass: m_e = 9.1093837015e-31 kg.
+        charge: float or (N,)
+            Particle charges in Coulomb (C). The default value is the electron charge: -1 * e = -1.602176634e-19 C.
+        atol: float
+            Absolute tolerance determining the accuracy of the trace.
+        
+        Returns
+        -------
+        list of (times, positions)
+            See documentation of `Tracer.trace_single`
+        &#34;&#34;&#34;
+
+        positions, velocities, masses, charges = Tracer._normalize_input_shapes(position, velocity, mass, charge)
+
+        N = len(positions)
+
+        assert positions.shape == (N, 3) and velocities.shape == (N, 3), &#34;Position or velocity array has unexpected shape&#34;
+        assert masses.shape == (N,) and charges.shape == (N,), &#34;mass or charge input has unexpected shape&#34;
+
+        # The following fails to type check, as p, v are incorrectly inferred as np.floating
+        return [self.trace_single(p, v, mass=m.item(), charge=c.item(), atol=atol) for p, v, m, c in zip(positions, velocities, masses, charges)] # type: ignore</code></pre>
       </details>
 
   <div class="desc"><p>General tracer class for charged particles. Can trace charged particles given any field class from <code><a title="traceon.solver" href="solver.html">traceon.solver</a></code>.</p>
@@ -555,12 +624,16 @@ The shape of the resulting vector is the same as the shape of <code>direction</c
 
 
 
+          <h3>Subclasses</h3>
+          <ul class="hlist">
+              <li><a title="traceon_pro.tracing.SpaceChargeTracer" href="../traceon_pro/tracing.html#traceon_pro.tracing.SpaceChargeTracer">SpaceChargeTracer</a></li>
+          </ul>
           <h3>Methods</h3>
           <dl>
               
     <dt id="traceon.tracing.Tracer.__call__"><code class="name flex">
         
-        <span>def <span class="ident">__call__</span></span>(<span>self, position, velocity, mass=9.1093837015e-31, charge=-1.602176634e-19, atol=1e-08)</span>
+        <span>def <span class="ident">__call__</span></span>(<span>self, *args, **kwargs)</span>
     </code></dt>
     <dd>
   
@@ -570,7 +643,107 @@ The shape of the resulting vector is the same as the shape of <code>direction</c
         <summary>
             <span>Expand source code</span>
         </summary>
-        <pre><code class="python">def __call__(self, position, velocity, mass=m_e, charge=-e, atol=1e-8):
+        <pre><code class="python">def __call__(self, *args, **kwargs):
+    return self.trace_single(*args, **kwargs)</code></pre>
+      </details>
+
+  <div class="desc"><p>Call self as a function.</p></div>
+</dd>
+  
+              
+    <dt id="traceon.tracing.Tracer.trace_multiple"><code class="name flex">
+        
+        <span>def <span class="ident">trace_multiple</span></span>(<span>self, position, velocity, mass=9.1093837139e-31, charge=-1.602176634e-19, atol=1e-08)</span>
+    </code></dt>
+    <dd>
+  
+  
+    
+      <details class="source">
+        <summary>
+            <span>Expand source code</span>
+        </summary>
+        <pre><code class="python">def trace_multiple(self, position: PointLike3D, velocity: VectorLike3D, mass: float | ArrayLikeFloat1D = m_e, charge: float | ArrayLikeFloat1D = -e, atol: float =1e-8) \
+        -&gt; list[tuple[ArrayFloat1D, ArrayFloat2D]]:
+    
+    &#34;&#34;&#34;Trace multiple charged particles. Numpy broadcasting rules apply if one 
+    of the inputs does not have enough elements. For example, if all particles have the
+    same charge simply pass in a float for the &#39;charge&#39; input.
+    
+    Parameters
+    ----------
+    position: (N, 3) np.ndarray of float64
+        Initial positions of the particle.
+    velocity: (N, 3) np.ndarray of float64
+        Initial velocities (expressed in a vector whose magnitude has units of eV). Use one of the utility functions documented
+        above to create the initial velocity vector.
+    mass: float or (N,)
+        Particle masses in kilogram (kg). The default value is the electron mass: m_e = 9.1093837015e-31 kg.
+    charge: float or (N,)
+        Particle charges in Coulomb (C). The default value is the electron charge: -1 * e = -1.602176634e-19 C.
+    atol: float
+        Absolute tolerance determining the accuracy of the trace.
+    
+    Returns
+    -------
+    list of (times, positions)
+        See documentation of `Tracer.trace_single`
+    &#34;&#34;&#34;
+
+    positions, velocities, masses, charges = Tracer._normalize_input_shapes(position, velocity, mass, charge)
+
+    N = len(positions)
+
+    assert positions.shape == (N, 3) and velocities.shape == (N, 3), &#34;Position or velocity array has unexpected shape&#34;
+    assert masses.shape == (N,) and charges.shape == (N,), &#34;mass or charge input has unexpected shape&#34;
+
+    # The following fails to type check, as p, v are incorrectly inferred as np.floating
+    return [self.trace_single(p, v, mass=m.item(), charge=c.item(), atol=atol) for p, v, m, c in zip(positions, velocities, masses, charges)] # type: ignore</code></pre>
+      </details>
+
+  <div class="desc"><p>Trace multiple charged particles. Numpy broadcasting rules apply if one 
+of the inputs does not have enough elements. For example, if all particles have the
+same charge simply pass in a float for the 'charge' input.</p>
+<h2 id="parameters">Parameters</h2>
+<dl>
+<dt><strong><code>position</code></strong> :&ensp;<code>(N, 3) np.ndarray</code> of <code>float64</code></dt>
+<dd>Initial positions of the particle.</dd>
+<dt><strong><code>velocity</code></strong> :&ensp;<code>(N, 3) np.ndarray</code> of <code>float64</code></dt>
+<dd>Initial velocities (expressed in a vector whose magnitude has units of eV). Use one of the utility functions documented
+above to create the initial velocity vector.</dd>
+<dt><strong><code>mass</code></strong> :&ensp;<code>float</code> or <code>(N,)</code></dt>
+<dd>Particle masses in kilogram (kg). The default value is the electron mass: m_e = 9.1093837015e-31 kg.</dd>
+<dt><strong><code>charge</code></strong> :&ensp;<code>float</code> or <code>(N,)</code></dt>
+<dd>Particle charges in Coulomb (C). The default value is the electron charge: -1 * e = -1.602176634e-19 C.</dd>
+<dt><strong><code>atol</code></strong> :&ensp;<code>float</code></dt>
+<dd>Absolute tolerance determining the accuracy of the trace.</dd>
+</dl>
+<h2 id="returns">Returns</h2>
+<dl>
+<dt><code>list</code> of <code>(times, positions)</code></dt>
+<dd>See documentation of <code><a title="traceon.tracing.Tracer.trace_single" href="#traceon.tracing.Tracer.trace_single">Tracer.trace_single()</a></code></dd>
+</dl></div>
+</dd>
+  
+              
+    <dt id="traceon.tracing.Tracer.trace_single"><code class="name flex">
+        
+        <span>def <span class="ident">trace_single</span></span>(<span>self, position, velocity, mass=9.1093837139e-31, charge=-1.602176634e-19, atol=1e-08)</span>
+    </code></dt>
+    <dd>
+  
+  
+    
+      <details class="source">
+        <summary>
+            <span>Expand source code</span>
+        </summary>
+        <pre><code class="python">def trace_single(self,
+        position: PointLike3D,
+        velocity: VectorLike3D,
+        mass: float = m_e,
+        charge: float = -e,
+        atol: float = 1e-8) -&gt; tuple[ArrayFloat1D, ArrayFloat2D]:
     &#34;&#34;&#34;Trace a charged particle.
 
     Parameters
@@ -595,14 +768,14 @@ The shape of the resulting vector is the same as the shape of <code>direction</c
     The first three elements in the `positions[i]` array contain the x,y,z positions.
     The last three elements in `positions[i]` contain the vx,vy,vz velocities.
     &#34;&#34;&#34;
+    position = np.array(position)
     charge_over_mass = charge / mass
-    velocity = _convert_velocity_to_SI(velocity, mass)
 
     return backend.trace_particle(
             position,
-            velocity,
+            np.array(velocity),
             charge_over_mass, 
-            self.trace_fun,
+            self.trace_fun, #type:ignore
             self.bounds,
             atol,
             self.trace_args)</code></pre>
@@ -667,6 +840,7 @@ The last three elements in <code>positions[i]</code> contain the vx,vy,vz veloci
         <li><code ><a title="traceon.plotting" href="plotting.html">traceon.plotting</a></code></li>
         <li><code ><a title="traceon.solver" href="solver.html">traceon.solver</a></code></li>
         <li><code class='selected'><a title="traceon.tracing" href="#traceon.tracing">traceon.tracing</a></code></li>
+        <li><code ><a title="traceon.typing" href="typing.html">traceon.typing</a></code></li>
       </ul>
     </li>
 		
@@ -674,6 +848,7 @@ The last three elements in <code>positions[i]</code> contain the vx,vy,vz veloci
       <ul>
 			<li><code ><a title="traceon_pro.field" href="../traceon_pro/field.html">traceon_pro.field</a></code></li>
 			<li><code ><a title="traceon_pro.solver" href="../traceon_pro/solver.html">traceon_pro.solver</a></code></li>
+			<li><code ><a title="traceon_pro.tracing" href="../traceon_pro/tracing.html">traceon_pro.tracing</a></code></li>
       </ul>
     </li>
 
@@ -704,6 +879,8 @@ The last three elements in <code>positions[i]</code> contain the vx,vy,vz veloci
   
   <ul class="">
     <li><code><a title="traceon.tracing.Tracer.__call__" href="#traceon.tracing.Tracer.__call__">__call__</a></code></li>
+    <li><code><a title="traceon.tracing.Tracer.trace_multiple" href="#traceon.tracing.Tracer.trace_multiple">trace_multiple</a></code></li>
+    <li><code><a title="traceon.tracing.Tracer.trace_single" href="#traceon.tracing.Tracer.trace_single">trace_single</a></code></li>
   </ul>
 
         </li>

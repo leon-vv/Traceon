@@ -87,7 +87,7 @@ and <code><a title="traceon_pro.field.Field3DAxial" href="../traceon_pro/field.h
         <summary>
             <span>Expand source code</span>
         </summary>
-        <pre><code class="python">def solve_direct(excitation):
+        <pre><code class="python">def solve_direct(excitation: Excitation) -&gt; FieldRadialBEM:
     &#34;&#34;&#34;
     Solve for the charges on the surface of the geometry by using a direct method and taking
     into account the specified `excitation`. 
@@ -106,16 +106,17 @@ and <code><a title="traceon_pro.field.Field3DAxial" href="../traceon_pro/field.h
     
     mag, elec = excitation.is_magnetostatic(), excitation.is_electrostatic()
 
-    assert mag or elec, &#34;Solving for an empty excitation&#34;
-
     if mag and elec:
         elec_field = ElectrostaticSolverRadial(excitation).solve_matrix()[0]
         mag_field = MagnetostaticSolverRadial(excitation).solve_matrix()[0]
-        return elec_field + mag_field # type: ignore
+        return cast(FieldRadialBEM, elec_field + mag_field)
     elif elec and not mag:
-        return ElectrostaticSolverRadial(excitation).solve_matrix()[0]
+        return cast(FieldRadialBEM, ElectrostaticSolverRadial(excitation).solve_matrix()[0]) 
     elif mag and not elec:
-        return MagnetostaticSolverRadial(excitation).solve_matrix()[0]</code></pre>
+        return  cast(FieldRadialBEM, MagnetostaticSolverRadial(excitation).solve_matrix()[0])
+
+    else: 
+        raise RuntimeError(&#34;Solving for an empty excitation&#34;)</code></pre>
       </details>
 
   <div class="desc"><p>Solve for the charges on the surface of the geometry by using a direct method and taking
@@ -142,7 +143,7 @@ into account the specified <code>excitation</code>. </p>
         <summary>
             <span>Expand source code</span>
         </summary>
-        <pre><code class="python">def solve_direct_superposition(excitation):
+        <pre><code class="python">def solve_direct_superposition(excitation: Excitation) -&gt; dict[str, FieldBEM]:
     &#34;&#34;&#34;
     When using superposition multiple fields are computed at once. Each field corresponds with a unity excitation (1V)
     of an electrode that was assigned a non-zero fixed voltage value. This is useful when a geometry needs
@@ -230,6 +231,7 @@ matrix does not have to be inverted multiple times). However, voltage functions 
         <li><code ><a title="traceon.plotting" href="plotting.html">traceon.plotting</a></code></li>
         <li><code class='selected'><a title="traceon.solver" href="#traceon.solver">traceon.solver</a></code></li>
         <li><code ><a title="traceon.tracing" href="tracing.html">traceon.tracing</a></code></li>
+        <li><code ><a title="traceon.typing" href="typing.html">traceon.typing</a></code></li>
       </ul>
     </li>
 		
@@ -237,6 +239,7 @@ matrix does not have to be inverted multiple times). However, voltage functions 
       <ul>
 			<li><code ><a title="traceon_pro.field" href="../traceon_pro/field.html">traceon_pro.field</a></code></li>
 			<li><code ><a title="traceon_pro.solver" href="../traceon_pro/solver.html">traceon_pro.solver</a></code></li>
+			<li><code ><a title="traceon_pro.tracing" href="../traceon_pro/tracing.html">traceon_pro.tracing</a></code></li>
       </ul>
     </li>
 

@@ -81,7 +81,7 @@
         <summary>
             <span>Expand source code</span>
         </summary>
-        <pre><code class="python">def set_log_level(level):
+        <pre><code class="python">def set_log_level(level: LogLevel) -&gt; None:
     &#34;&#34;&#34;Set the current `LogLevel`. Note that the log level can also 
     be set by setting the environment value TRACEON_LOG_LEVEL to one
     of &#39;debug&#39;, &#39;info&#39;, &#39;warning&#39;, &#39;error&#39; or &#39;silent&#39;.&#34;&#34;&#34;
@@ -104,7 +104,7 @@ of 'debug', 'info', 'warning', 'error' or 'silent'.</p></div>
       
       <dt id="traceon.logging.LogLevel"><code class="flex name class">
           <span>class <span class="ident">LogLevel</span></span>
-              <span>(</span><span>value, names=None, *, module=None, qualname=None, type=None, start=1)</span>
+              <span>(</span><span>*args, **kwds)</span>
       </code></dt>
 
       <dd>
@@ -141,6 +141,7 @@ of 'debug', 'info', 'warning', 'error' or 'silent'.</p></div>
           <ul class="hlist">
               <li>enum.IntEnum</li>
               <li>builtins.int</li>
+              <li>enum.ReprEnum</li>
               <li>enum.Enum</li>
           </ul>
 
@@ -222,6 +223,7 @@ of 'debug', 'info', 'warning', 'error' or 'silent'.</p></div>
         <li><code ><a title="traceon.plotting" href="plotting.html">traceon.plotting</a></code></li>
         <li><code ><a title="traceon.solver" href="solver.html">traceon.solver</a></code></li>
         <li><code ><a title="traceon.tracing" href="tracing.html">traceon.tracing</a></code></li>
+        <li><code ><a title="traceon.typing" href="typing.html">traceon.typing</a></code></li>
       </ul>
     </li>
 		
@@ -229,6 +231,7 @@ of 'debug', 'info', 'warning', 'error' or 'silent'.</p></div>
       <ul>
 			<li><code ><a title="traceon_pro.field" href="../traceon_pro/field.html">traceon_pro.field</a></code></li>
 			<li><code ><a title="traceon_pro.solver" href="../traceon_pro/solver.html">traceon_pro.solver</a></code></li>
+			<li><code ><a title="traceon_pro.tracing" href="../traceon_pro/tracing.html">traceon_pro.tracing</a></code></li>
       </ul>
     </li>
 

@@ -101,30 +101,30 @@ created with the <code><a title="traceon.geometry" href="geometry.html">traceon.
         <pre><code class="python">class Excitation:
     &#34;&#34;&#34; &#34;&#34;&#34;
      
-    def __init__(self, mesh, symmetry):
+    def __init__(self, mesh: Mesh, symmetry: Symmetry) -&gt; None:
         self.mesh = mesh
         self.electrodes = mesh.get_electrodes()
-        self.excitation_types = {}
+        self.excitation_types : dict[str, tuple[ExcitationType, Any]] = {}
         self.symmetry = symmetry
          
         if symmetry == Symmetry.RADIAL:
             assert self.mesh.points.shape[1] == 2 or np.all(self.mesh.points[:, 1] == 0.), \
                 &#34;When symmetry is RADIAL, the geometry should lie in the XZ plane&#34;
     
-    def __str__(self):
+    def __str__(self) -&gt; str:
         return f&#39;&lt;Traceon Excitation,\n\t&#39; \
             + &#39;\n\t&#39;.join([f&#39;{n}={v} ({t})&#39; for n, (t, v) in self.excitation_types.items()]) \
             + &#39;&gt;&#39;
 
-    def _ensure_electrode_is_lines(self, excitation_type, name):
+    def _ensure_electrode_is_lines(self, excitation_type : str, name : str) -&gt; None:
         assert name in self.electrodes, f&#34;Electrode &#39;{name}&#39; is not present in the mesh&#34;
         assert name in self.mesh.physical_to_lines, f&#34;Adding {excitation_type} excitation in {self.symmetry} symmetry is only supported if electrode &#39;{name}&#39; consists of lines&#34;
     
-    def _ensure_electrode_is_triangles(self, excitation_type, name):
+    def _ensure_electrode_is_triangles(self, excitation_type: str, name: str) -&gt; None:
         assert name in self.electrodes, f&#34;Electrode &#39;{name}&#39; is not present in the mesh&#34;
         assert name in self.mesh.physical_to_triangles, f&#34;Adding {excitation_type} excitation in {self.symmetry} symmetry is only supported if electrode &#39;{name}&#39; consists of triangles&#34;
      
-    def add_voltage(self, **kwargs):
+    def add_voltage(self, **kwargs: float) -&gt; None:
         &#34;&#34;&#34;
         Apply a fixed voltage to the geometries assigned the given name.
         
@@ -139,9 +139,9 @@ created with the <code><a title="traceon.geometry" href="geometry.html">traceon.
         &#34;&#34;&#34;
         for name, voltage in kwargs.items():
              
-            if self.symmetry == E.Symmetry.RADIAL:
+            if self.symmetry == Symmetry.RADIAL:
                 self._ensure_electrode_is_lines(&#39;voltage&#39;, name)
-            elif self.symmetry == E.Symmetry.THREE_D:
+            elif self.symmetry == Symmetry.THREE_D:
                 self._ensure_electrode_is_triangles(&#39;voltage&#39;, name)
             
             if isinstance(voltage, int) or isinstance(voltage, float):
@@ -151,7 +151,7 @@ created with the <code><a title="traceon.geometry" href="geometry.html">traceon.
             else:
                 raise NotImplementedError(&#39;Unrecognized voltage value&#39;)
 
-    def add_current(self, **kwargs):
+    def add_current(self, **kwargs: float) -&gt; None:
         &#34;&#34;&#34;
         Apply a fixed total current to the geometries assigned the given name. Note that a coil is assumed,
         which implies that the current density is constant as a function of (r, z). In a solid piece of conducting material the current density would
@@ -165,32 +165,32 @@ created with the <code><a title="traceon.geometry" href="geometry.html">traceon.
         &#34;&#34;&#34;
         if self.symmetry == Symmetry.RADIAL:
             for name, current in kwargs.items():
-                self._ensure_electrode_is_triangles(&#34;current&#34;, name)
+                self._ensure_electrode_is_triangles(&#39;current&#39;, name)
                 self.excitation_types[name] = (ExcitationType.CURRENT, current)
         elif self.symmetry == Symmetry.THREE_D:
             for name, current in kwargs.items():
-                self._ensure_electrode_is_lines(&#34;current&#34;, name)
+                self._ensure_electrode_is_lines(&#39;current&#39;, name)
                 self.excitation_types[name] = (ExcitationType.CURRENT, current)
         else:
             raise ValueError(&#39;Symmetry should be one of RADIAL or THREE_D&#39;)
 
-    def has_permanent_magnet(self):
+    def has_permanent_magnet(self) -&gt; bool:
         &#34;&#34;&#34;Check whether the excitation contains a permanent magnet.&#34;&#34;&#34;
         return any([t == ExcitationType.PERMANENT_MAGNET for t, _ in self.excitation_types.values()])
     
-    def has_current(self):
+    def has_current(self) -&gt; bool:
         &#34;&#34;&#34;Check whether a current is applied in this excitation.&#34;&#34;&#34;
         return any([t == ExcitationType.CURRENT for t, _ in self.excitation_types.values()])
     
-    def is_electrostatic(self):
+    def is_electrostatic(self) -&gt; bool:
         &#34;&#34;&#34;Check whether the excitation contains electrostatic fields.&#34;&#34;&#34;
         return any([t in [ExcitationType.VOLTAGE_FIXED, ExcitationType.VOLTAGE_FUN] for t, _ in self.excitation_types.values()])
      
-    def is_magnetostatic(self):
+    def is_magnetostatic(self) -&gt; bool:
         &#34;&#34;&#34;Check whether the excitation contains magnetostatic fields.&#34;&#34;&#34;
         return any([t in [ExcitationType.MAGNETOSTATIC_POT, ExcitationType.PERMANENT_MAGNET, ExcitationType.CURRENT] for t, _ in self.excitation_types.values()])
      
-    def add_magnetostatic_potential(self, **kwargs):
+    def add_magnetostatic_potential(self, **kwargs: float) -&gt; None:
         &#34;&#34;&#34;
         Apply a fixed magnetostatic potential to the geometries assigned the given name.
         
@@ -201,14 +201,14 @@ created with the <code><a title="traceon.geometry" href="geometry.html">traceon.
             calling the function as `add_magnetostatic_potential(lens=50)` assigns a 50A value to the geometry elements part of the &#39;lens&#39; physical group.
         &#34;&#34;&#34;
         for name, pot in kwargs.items():
-            if self.symmetry == E.Symmetry.RADIAL:
+            if self.symmetry == Symmetry.RADIAL:
                 self._ensure_electrode_is_lines(&#39;magnetostatic potential&#39;, name)
-            elif self.symmetry == E.Symmetry.THREE_D:
+            elif self.symmetry == Symmetry.THREE_D:
                 self._ensure_electrode_is_triangles(&#39;magnetostatic potential&#39;, name)
              
             self.excitation_types[name] = (ExcitationType.MAGNETOSTATIC_POT, pot)
 
-    def add_magnetizable(self, **kwargs):
+    def add_magnetizable(self, **kwargs: float) -&gt; None:
         &#34;&#34;&#34;
         Assign a relative magnetic permeability to the geometries assigned the given name.
         
@@ -219,16 +219,15 @@ created with the <code><a title="traceon.geometry" href="geometry.html">traceon.
             calling the function as `add_dielectric(spacer=2)` assign the relative dielectric constant of 2 to the `spacer` physical group.
          
         &#34;&#34;&#34;
-
         for name, permeability in kwargs.items():
-            if self.symmetry == E.Symmetry.RADIAL:
+            if self.symmetry == Symmetry.RADIAL:
                 self._ensure_electrode_is_lines(&#39;magnetizable&#39;, name)
-            elif self.symmetry == E.Symmetry.THREE_D:
+            elif self.symmetry == Symmetry.THREE_D:
                 self._ensure_electrode_is_triangles(&#39;magnetizable&#39;, name)
 
             self.excitation_types[name] = (ExcitationType.MAGNETIZABLE, permeability)
     
-    def add_permanent_magnet(self, **kwargs):
+    def add_permanent_magnet(self, **kwargs: VectorLike3D) -&gt; None:
         &#34;&#34;&#34;
         Assign a magnetization vector to a permanent magnet. The magnetization is supplied as the residual flux density vectors, with unit Tesla.
         
@@ -237,23 +236,23 @@ created with the <code><a title="traceon.geometry" href="geometry.html">traceon.
         **kwargs : dict
             The keys of the dictionary are the geometry names, while the values are the residual flux density vectors (Numpy shape (3,)).
         &#34;&#34;&#34;
-        for name, vector in kwargs.items():
-            vector = np.array(vector, dtype=np.float64) / mu_0 # Note that we convert from Tesla to A/m, since the rest of the code works with H fields (which has unit A/m)
+        for name, vec in kwargs.items():
+            vector = np.array(vec, dtype=np.float64) / mu_0 # Note that we convert from Tesla to A/m, since the rest of the code works with H fields (which has unit A/m)
             
-            if self.symmetry == E.Symmetry.RADIAL:
+            if self.symmetry == Symmetry.RADIAL:
                 self._ensure_electrode_is_lines(&#39;permanent magnet&#39;, name)
                 assert vector.shape == (3,) and vector[1] == 0.0 and vector[0] == 0.0, \
                     &#34;Please supply the magnetization vector in radial symmetry as the vector [0, 0, B], with B&#34; +\
                     &#34; the residual flux density (unit Tesla). Note that a magnetization vector along r (for example [B, 0, 0]) &#34; +\
                     &#34; would lead to a non-uniform magnetization in radial symmetry, and is currently not supported. &#34;
 
-            elif self.symmetry == E.Symmetry.THREE_D:
+            elif self.symmetry == Symmetry.THREE_D:
                 self._ensure_electrode_is_triangles(&#39;permanent magnet&#39;, name)
                 assert vector.shape == (3,), &#34;The magnetization vector must be a 3D vector.&#34;
 
             self.excitation_types[name] = (ExcitationType.PERMANENT_MAGNET, vector)
      
-    def add_dielectric(self, **kwargs):
+    def add_dielectric(self, **kwargs: float) -&gt; None:
         &#34;&#34;&#34;
         Assign a dielectric constant to the geometries assigned the given name.
         
@@ -265,14 +264,14 @@ created with the <code><a title="traceon.geometry" href="geometry.html">traceon.
          
         &#34;&#34;&#34;
         for name, permittivity in kwargs.items():
-            if self.symmetry == E.Symmetry.RADIAL:
+            if self.symmetry == Symmetry.RADIAL:
                 self._ensure_electrode_is_lines(&#39;dielectric&#39;, name)
-            elif self.symmetry == E.Symmetry.THREE_D:
+            elif self.symmetry == Symmetry.THREE_D:
                 self._ensure_electrode_is_triangles(&#39;dielectric&#39;, name)
 
             self.excitation_types[name] = (ExcitationType.DIELECTRIC, permittivity)
 
-    def add_electrostatic_boundary(self, *args, ensure_inward_normals=True):
+    def add_electrostatic_boundary(self, *args: str, ensure_inward_normals: bool = True) -&gt; None:
         &#34;&#34;&#34;
         Specify geometry elements as electrostatic boundary elements. At the boundary we require E·n = 0 at every point on the boundary. This
         is equivalent to stating that the directional derivative of the electrostatic potential through the boundary is zero. Placing boundaries between
@@ -289,14 +288,14 @@ created with the <code><a title="traceon.geometry" href="geometry.html">traceon.
                 self.mesh.ensure_inward_normals(electrode)
         
         for name in args:
-            if self.symmetry == E.Symmetry.RADIAL:
+            if self.symmetry == Symmetry.RADIAL:
                 self._ensure_electrode_is_lines(&#39;electrostatic boundary&#39;, name)
-            elif self.symmetry == E.Symmetry.THREE_D:
+            elif self.symmetry == Symmetry.THREE_D:
                 self._ensure_electrode_is_triangles(&#39;electrostatic boundary&#39;, name)
 
-        self.add_dielectric(**{a:0 for a in args})
+        self.add_dielectric(**{a:0. for a in args})
     
-    def add_magnetostatic_boundary(self, *args, ensure_inward_normals=True):
+    def add_magnetostatic_boundary(self, *args: str, ensure_inward_normals: bool = True) -&gt; None:
         &#34;&#34;&#34;
         Specify geometry elements as magnetostatic boundary elements. At the boundary we require H·n = 0 at every point on the boundary. This
         is equivalent to stating that the directional derivative of the magnetostatic potential through the boundary is zero. Placing boundaries between
@@ -313,9 +312,9 @@ created with the <code><a title="traceon.geometry" href="geometry.html">traceon.
                 self.mesh.ensure_inward_normals(electrode)
          
         for name in args:
-            if self.symmetry == E.Symmetry.RADIAL:
+            if self.symmetry == Symmetry.RADIAL:
                 self._ensure_electrode_is_lines(&#39;magnetostatic boundary&#39;, name)
-            elif self.symmetry == E.Symmetry.THREE_D:
+            elif self.symmetry == Symmetry.THREE_D:
                 self._ensure_electrode_is_triangles(&#39;magnetostatic boundary&#39;, name)
          
         self.add_magnetizable(**{a:0 for a in args})
@@ -327,7 +326,7 @@ created with the <code><a title="traceon.geometry" href="geometry.html">traceon.
         # There are only a few cases that would produce a field:
         return type_ in [ExcitationType.VOLTAGE_FIXED, ExcitationType.VOLTAGE_FUN, ExcitationType.CURRENT, ExcitationType.PERMANENT_MAGNET]
      
-    def _split_for_superposition(self):
+    def _split_for_superposition(self) -&gt; tuple[dict[str, Excitation], dict[str, Excitation]]:
         types = self.excitation_types.items()
         part_of_superposition = [(n, t.is_electrostatic()) for n, (t, v) in types if self._is_excitation_type_part_of_superposition(t)]
         
@@ -357,7 +356,7 @@ created with the <code><a title="traceon.geometry" href="geometry.html">traceon.
         assert len(electrostatic_excitations) + len(magnetostatic_excitations) == len(part_of_superposition)
         return electrostatic_excitations, magnetostatic_excitations
     
-    def _get_active_elements(self, type_):
+    def _get_active_elements(self, type_: str) -&gt; ActiveLines | ActiveTriangles:
         assert type_ in [&#39;electrostatic&#39;, &#39;magnetostatic&#39;]
         
         if self.symmetry == Symmetry.RADIAL:
@@ -367,7 +366,7 @@ created with the <code><a title="traceon.geometry" href="geometry.html">traceon.
             elements = self.mesh.triangles
             physicals = self.mesh.physical_to_triangles
 
-        def type_check(excitation_type):
+        def type_check(excitation_type: ExcitationType) -&gt; bool:
             if type_ == &#39;electrostatic&#39;:
                 return excitation_type.is_electrostatic()
             else:
@@ -381,10 +380,10 @@ created with the <code><a title="traceon.geometry" href="geometry.html">traceon.
         map_index = np.arange(len(elements)) - np.cumsum(inactive)
         names = {n:map_index[i] for n, i in physicals.items() \
                     if n in self.excitation_types and type_check(self.excitation_types[n][0])}
-         
+       
         return self.mesh.points[ elements[~inactive] ], names
-     
-    def get_electrostatic_active_elements(self):
+
+    def get_electrostatic_active_elements(self) -&gt; ActiveLines | ActiveTriangles:
         &#34;&#34;&#34;Get elements in the mesh that have an electrostatic excitation
         applied to them. 
          
@@ -399,7 +398,7 @@ created with the <code><a title="traceon.geometry" href="geometry.html">traceon.
         &#34;&#34;&#34;
         return self._get_active_elements(&#39;electrostatic&#39;)
     
-    def get_magnetostatic_active_elements(self):
+    def get_magnetostatic_active_elements(self) -&gt;  ActiveLines | ActiveTriangles:
         &#34;&#34;&#34;Get elements in the mesh that have an magnetostatic excitation
         applied to them. This does not include current excitation, as these are not part of the matrix.
     
@@ -435,7 +434,7 @@ created with the <code><a title="traceon.geometry" href="geometry.html">traceon.
         <summary>
             <span>Expand source code</span>
         </summary>
-        <pre><code class="python">def add_current(self, **kwargs):
+        <pre><code class="python">def add_current(self, **kwargs: float) -&gt; None:
     &#34;&#34;&#34;
     Apply a fixed total current to the geometries assigned the given name. Note that a coil is assumed,
     which implies that the current density is constant as a function of (r, z). In a solid piece of conducting material the current density would
@@ -449,11 +448,11 @@ created with the <code><a title="traceon.geometry" href="geometry.html">traceon.
     &#34;&#34;&#34;
     if self.symmetry == Symmetry.RADIAL:
         for name, current in kwargs.items():
-            self._ensure_electrode_is_triangles(&#34;current&#34;, name)
+            self._ensure_electrode_is_triangles(&#39;current&#39;, name)
             self.excitation_types[name] = (ExcitationType.CURRENT, current)
     elif self.symmetry == Symmetry.THREE_D:
         for name, current in kwargs.items():
-            self._ensure_electrode_is_lines(&#34;current&#34;, name)
+            self._ensure_electrode_is_lines(&#39;current&#39;, name)
             self.excitation_types[name] = (ExcitationType.CURRENT, current)
     else:
         raise ValueError(&#39;Symmetry should be one of RADIAL or THREE_D&#39;)</code></pre>
@@ -483,7 +482,7 @@ calling the function as <code>add_current(coild=10)</code> assigns a 10A value t
         <summary>
             <span>Expand source code</span>
         </summary>
-        <pre><code class="python">def add_dielectric(self, **kwargs):
+        <pre><code class="python">def add_dielectric(self, **kwargs: float) -&gt; None:
     &#34;&#34;&#34;
     Assign a dielectric constant to the geometries assigned the given name.
     
@@ -495,9 +494,9 @@ calling the function as <code>add_current(coild=10)</code> assigns a 10A value t
      
     &#34;&#34;&#34;
     for name, permittivity in kwargs.items():
-        if self.symmetry == E.Symmetry.RADIAL:
+        if self.symmetry == Symmetry.RADIAL:
             self._ensure_electrode_is_lines(&#39;dielectric&#39;, name)
-        elif self.symmetry == E.Symmetry.THREE_D:
+        elif self.symmetry == Symmetry.THREE_D:
             self._ensure_electrode_is_triangles(&#39;dielectric&#39;, name)
 
         self.excitation_types[name] = (ExcitationType.DIELECTRIC, permittivity)</code></pre>
@@ -525,7 +524,7 @@ calling the function as <code>add_dielectric(spacer=2)</code> assign the relativ
         <summary>
             <span>Expand source code</span>
         </summary>
-        <pre><code class="python">def add_electrostatic_boundary(self, *args, ensure_inward_normals=True):
+        <pre><code class="python">def add_electrostatic_boundary(self, *args: str, ensure_inward_normals: bool = True) -&gt; None:
     &#34;&#34;&#34;
     Specify geometry elements as electrostatic boundary elements. At the boundary we require E·n = 0 at every point on the boundary. This
     is equivalent to stating that the directional derivative of the electrostatic potential through the boundary is zero. Placing boundaries between
@@ -542,12 +541,12 @@ calling the function as <code>add_dielectric(spacer=2)</code> assign the relativ
             self.mesh.ensure_inward_normals(electrode)
     
     for name in args:
-        if self.symmetry == E.Symmetry.RADIAL:
+        if self.symmetry == Symmetry.RADIAL:
             self._ensure_electrode_is_lines(&#39;electrostatic boundary&#39;, name)
-        elif self.symmetry == E.Symmetry.THREE_D:
+        elif self.symmetry == Symmetry.THREE_D:
             self._ensure_electrode_is_triangles(&#39;electrostatic boundary&#39;, name)
 
-    self.add_dielectric(**{a:0 for a in args})</code></pre>
+    self.add_dielectric(**{a:0. for a in args})</code></pre>
       </details>
 
   <div class="desc"><p>Specify geometry elements as electrostatic boundary elements. At the boundary we require E·n = 0 at every point on the boundary. This
@@ -574,7 +573,7 @@ constant of zero. This is how a boundary is actually implemented internally.</p>
         <summary>
             <span>Expand source code</span>
         </summary>
-        <pre><code class="python">def add_magnetizable(self, **kwargs):
+        <pre><code class="python">def add_magnetizable(self, **kwargs: float) -&gt; None:
     &#34;&#34;&#34;
     Assign a relative magnetic permeability to the geometries assigned the given name.
     
@@ -585,11 +584,10 @@ constant of zero. This is how a boundary is actually implemented internally.</p>
         calling the function as `add_dielectric(spacer=2)` assign the relative dielectric constant of 2 to the `spacer` physical group.
      
     &#34;&#34;&#34;
-
     for name, permeability in kwargs.items():
-        if self.symmetry == E.Symmetry.RADIAL:
+        if self.symmetry == Symmetry.RADIAL:
             self._ensure_electrode_is_lines(&#39;magnetizable&#39;, name)
-        elif self.symmetry == E.Symmetry.THREE_D:
+        elif self.symmetry == Symmetry.THREE_D:
             self._ensure_electrode_is_triangles(&#39;magnetizable&#39;, name)
 
         self.excitation_types[name] = (ExcitationType.MAGNETIZABLE, permeability)</code></pre>
@@ -617,7 +615,7 @@ calling the function as <code>add_dielectric(spacer=2)</code> assign the relativ
         <summary>
             <span>Expand source code</span>
         </summary>
-        <pre><code class="python">def add_magnetostatic_boundary(self, *args, ensure_inward_normals=True):
+        <pre><code class="python">def add_magnetostatic_boundary(self, *args: str, ensure_inward_normals: bool = True) -&gt; None:
     &#34;&#34;&#34;
     Specify geometry elements as magnetostatic boundary elements. At the boundary we require H·n = 0 at every point on the boundary. This
     is equivalent to stating that the directional derivative of the magnetostatic potential through the boundary is zero. Placing boundaries between
@@ -634,9 +632,9 @@ calling the function as <code>add_dielectric(spacer=2)</code> assign the relativ
             self.mesh.ensure_inward_normals(electrode)
      
     for name in args:
-        if self.symmetry == E.Symmetry.RADIAL:
+        if self.symmetry == Symmetry.RADIAL:
             self._ensure_electrode_is_lines(&#39;magnetostatic boundary&#39;, name)
-        elif self.symmetry == E.Symmetry.THREE_D:
+        elif self.symmetry == Symmetry.THREE_D:
             self._ensure_electrode_is_triangles(&#39;magnetostatic boundary&#39;, name)
      
     self.add_magnetizable(**{a:0 for a in args})</code></pre>
@@ -666,7 +664,7 @@ permeability of zero. This is how a boundary is actually implemented internally.
         <summary>
             <span>Expand source code</span>
         </summary>
-        <pre><code class="python">def add_magnetostatic_potential(self, **kwargs):
+        <pre><code class="python">def add_magnetostatic_potential(self, **kwargs: float) -&gt; None:
     &#34;&#34;&#34;
     Apply a fixed magnetostatic potential to the geometries assigned the given name.
     
@@ -677,9 +675,9 @@ permeability of zero. This is how a boundary is actually implemented internally.
         calling the function as `add_magnetostatic_potential(lens=50)` assigns a 50A value to the geometry elements part of the &#39;lens&#39; physical group.
     &#34;&#34;&#34;
     for name, pot in kwargs.items():
-        if self.symmetry == E.Symmetry.RADIAL:
+        if self.symmetry == Symmetry.RADIAL:
             self._ensure_electrode_is_lines(&#39;magnetostatic potential&#39;, name)
-        elif self.symmetry == E.Symmetry.THREE_D:
+        elif self.symmetry == Symmetry.THREE_D:
             self._ensure_electrode_is_triangles(&#39;magnetostatic potential&#39;, name)
          
         self.excitation_types[name] = (ExcitationType.MAGNETOSTATIC_POT, pot)</code></pre>
@@ -707,7 +705,7 @@ calling the function as <code>add_magnetostatic_potential(lens=50)</code> assign
         <summary>
             <span>Expand source code</span>
         </summary>
-        <pre><code class="python">def add_permanent_magnet(self, **kwargs):
+        <pre><code class="python">def add_permanent_magnet(self, **kwargs: VectorLike3D) -&gt; None:
     &#34;&#34;&#34;
     Assign a magnetization vector to a permanent magnet. The magnetization is supplied as the residual flux density vectors, with unit Tesla.
     
@@ -716,17 +714,17 @@ calling the function as <code>add_magnetostatic_potential(lens=50)</code> assign
     **kwargs : dict
         The keys of the dictionary are the geometry names, while the values are the residual flux density vectors (Numpy shape (3,)).
     &#34;&#34;&#34;
-    for name, vector in kwargs.items():
-        vector = np.array(vector, dtype=np.float64) / mu_0 # Note that we convert from Tesla to A/m, since the rest of the code works with H fields (which has unit A/m)
+    for name, vec in kwargs.items():
+        vector = np.array(vec, dtype=np.float64) / mu_0 # Note that we convert from Tesla to A/m, since the rest of the code works with H fields (which has unit A/m)
         
-        if self.symmetry == E.Symmetry.RADIAL:
+        if self.symmetry == Symmetry.RADIAL:
             self._ensure_electrode_is_lines(&#39;permanent magnet&#39;, name)
             assert vector.shape == (3,) and vector[1] == 0.0 and vector[0] == 0.0, \
                 &#34;Please supply the magnetization vector in radial symmetry as the vector [0, 0, B], with B&#34; +\
                 &#34; the residual flux density (unit Tesla). Note that a magnetization vector along r (for example [B, 0, 0]) &#34; +\
                 &#34; would lead to a non-uniform magnetization in radial symmetry, and is currently not supported. &#34;
 
-        elif self.symmetry == E.Symmetry.THREE_D:
+        elif self.symmetry == Symmetry.THREE_D:
             self._ensure_electrode_is_triangles(&#39;permanent magnet&#39;, name)
             assert vector.shape == (3,), &#34;The magnetization vector must be a 3D vector.&#34;
 
@@ -754,7 +752,7 @@ calling the function as <code>add_magnetostatic_potential(lens=50)</code> assign
         <summary>
             <span>Expand source code</span>
         </summary>
-        <pre><code class="python">def add_voltage(self, **kwargs):
+        <pre><code class="python">def add_voltage(self, **kwargs: float) -&gt; None:
     &#34;&#34;&#34;
     Apply a fixed voltage to the geometries assigned the given name.
     
@@ -769,9 +767,9 @@ calling the function as <code>add_magnetostatic_potential(lens=50)</code> assign
     &#34;&#34;&#34;
     for name, voltage in kwargs.items():
          
-        if self.symmetry == E.Symmetry.RADIAL:
+        if self.symmetry == Symmetry.RADIAL:
             self._ensure_electrode_is_lines(&#39;voltage&#39;, name)
-        elif self.symmetry == E.Symmetry.THREE_D:
+        elif self.symmetry == Symmetry.THREE_D:
             self._ensure_electrode_is_triangles(&#39;voltage&#39;, name)
         
         if isinstance(voltage, int) or isinstance(voltage, float):
@@ -806,7 +804,7 @@ Note that in 2D symmetries (such as radial symmetry) the z value for this functi
         <summary>
             <span>Expand source code</span>
         </summary>
-        <pre><code class="python">def get_electrostatic_active_elements(self):
+        <pre><code class="python">def get_electrostatic_active_elements(self) -&gt; ActiveLines | ActiveTriangles:
     &#34;&#34;&#34;Get elements in the mesh that have an electrostatic excitation
     applied to them. 
      
@@ -841,7 +839,7 @@ applied to them. </p>
         <summary>
             <span>Expand source code</span>
         </summary>
-        <pre><code class="python">def get_magnetostatic_active_elements(self):
+        <pre><code class="python">def get_magnetostatic_active_elements(self) -&gt;  ActiveLines | ActiveTriangles:
     &#34;&#34;&#34;Get elements in the mesh that have an magnetostatic excitation
     applied to them. This does not include current excitation, as these are not part of the matrix.
 
@@ -877,7 +875,7 @@ applied to them. This does not include current excitation, as these are not part
         <summary>
             <span>Expand source code</span>
         </summary>
-        <pre><code class="python">def has_current(self):
+        <pre><code class="python">def has_current(self) -&gt; bool:
     &#34;&#34;&#34;Check whether a current is applied in this excitation.&#34;&#34;&#34;
     return any([t == ExcitationType.CURRENT for t, _ in self.excitation_types.values()])</code></pre>
       </details>
@@ -898,7 +896,7 @@ applied to them. This does not include current excitation, as these are not part
         <summary>
             <span>Expand source code</span>
         </summary>
-        <pre><code class="python">def has_permanent_magnet(self):
+        <pre><code class="python">def has_permanent_magnet(self) -&gt; bool:
     &#34;&#34;&#34;Check whether the excitation contains a permanent magnet.&#34;&#34;&#34;
     return any([t == ExcitationType.PERMANENT_MAGNET for t, _ in self.excitation_types.values()])</code></pre>
       </details>
@@ -919,7 +917,7 @@ applied to them. This does not include current excitation, as these are not part
         <summary>
             <span>Expand source code</span>
         </summary>
-        <pre><code class="python">def is_electrostatic(self):
+        <pre><code class="python">def is_electrostatic(self) -&gt; bool:
     &#34;&#34;&#34;Check whether the excitation contains electrostatic fields.&#34;&#34;&#34;
     return any([t in [ExcitationType.VOLTAGE_FIXED, ExcitationType.VOLTAGE_FUN] for t, _ in self.excitation_types.values()])</code></pre>
       </details>
@@ -940,7 +938,7 @@ applied to them. This does not include current excitation, as these are not part
         <summary>
             <span>Expand source code</span>
         </summary>
-        <pre><code class="python">def is_magnetostatic(self):
+        <pre><code class="python">def is_magnetostatic(self) -&gt; bool:
     &#34;&#34;&#34;Check whether the excitation contains magnetostatic fields.&#34;&#34;&#34;
     return any([t in [ExcitationType.MAGNETOSTATIC_POT, ExcitationType.PERMANENT_MAGNET, ExcitationType.CURRENT] for t, _ in self.excitation_types.values()])</code></pre>
       </details>
@@ -956,7 +954,7 @@ applied to them. This does not include current excitation, as these are not part
       
       <dt id="traceon.excitation.ExcitationType"><code class="flex name class">
           <span>class <span class="ident">ExcitationType</span></span>
-              <span>(</span><span>value, names=None, *, module=None, qualname=None, type=None, start=1)</span>
+              <span>(</span><span>*args, **kwds)</span>
       </code></dt>
 
       <dd>
@@ -978,18 +976,18 @@ applied to them. This does not include current excitation, as these are not part
     MAGNETIZABLE = 6
     PERMANENT_MAGNET = 7
      
-    def is_electrostatic(self):
+    def is_electrostatic(self) -&gt; bool:
         return self in [ExcitationType.VOLTAGE_FIXED,
                         ExcitationType.VOLTAGE_FUN,
                         ExcitationType.DIELECTRIC]
 
-    def is_magnetostatic(self):
+    def is_magnetostatic(self) -&gt; bool:
         return self in [ExcitationType.MAGNETOSTATIC_POT,
                         ExcitationType.MAGNETIZABLE,
                         ExcitationType.CURRENT,
                         ExcitationType.PERMANENT_MAGNET]
      
-    def __str__(self):
+    def __str__(self) -&gt; str:
         if self == ExcitationType.VOLTAGE_FIXED:
             return &#39;voltage fixed&#39;
         elif self == ExcitationType.VOLTAGE_FUN:
@@ -1015,6 +1013,7 @@ applied to them. This does not include current excitation, as these are not part
           <ul class="hlist">
               <li>enum.IntEnum</li>
               <li>builtins.int</li>
+              <li>enum.ReprEnum</li>
               <li>enum.Enum</li>
           </ul>
 
@@ -1092,7 +1091,7 @@ applied to them. This does not include current excitation, as these are not part
         <summary>
             <span>Expand source code</span>
         </summary>
-        <pre><code class="python">def is_electrostatic(self):
+        <pre><code class="python">def is_electrostatic(self) -&gt; bool:
     return self in [ExcitationType.VOLTAGE_FIXED,
                     ExcitationType.VOLTAGE_FUN,
                     ExcitationType.DIELECTRIC]</code></pre>
@@ -1114,7 +1113,7 @@ applied to them. This does not include current excitation, as these are not part
         <summary>
             <span>Expand source code</span>
         </summary>
-        <pre><code class="python">def is_magnetostatic(self):
+        <pre><code class="python">def is_magnetostatic(self) -&gt; bool:
     return self in [ExcitationType.MAGNETOSTATIC_POT,
                     ExcitationType.MAGNETIZABLE,
                     ExcitationType.CURRENT,
@@ -1132,7 +1131,7 @@ applied to them. This does not include current excitation, as these are not part
       
       <dt id="traceon.excitation.Symmetry"><code class="flex name class">
           <span>class <span class="ident">Symmetry</span></span>
-              <span>(</span><span>value, names=None, *, module=None, qualname=None, type=None, start=1)</span>
+              <span>(</span><span>*args, **kwds)</span>
       </code></dt>
 
       <dd>
@@ -1150,16 +1149,18 @@ applied to them. This does not include current excitation, as these are not part
     RADIAL = 0
     THREE_D = 2
     
-    def __str__(self):
+    def __str__(self) -&gt; str:
         if self == Symmetry.RADIAL:
             return &#39;radial&#39;
         elif self == Symmetry.THREE_D:
             return &#39;3d&#39; 
-    
-    def is_2d(self):
+        else:
+            raise RuntimeError(&#39;Symmetry not understood in __str__ method&#39;)
+        
+    def is_2d(self) -&gt; bool:
         return self == Symmetry.RADIAL
         
-    def is_3d(self):
+    def is_3d(self) -&gt; bool:
         return self == Symmetry.THREE_D</code></pre>
       </details>
 
@@ -1171,6 +1172,7 @@ supported symmetries are radial symmetry (also called cylindrical symmetry) and 
           <ul class="hlist">
               <li>enum.IntEnum</li>
               <li>builtins.int</li>
+              <li>enum.ReprEnum</li>
               <li>enum.Enum</li>
           </ul>
 
@@ -1208,7 +1210,7 @@ supported symmetries are radial symmetry (also called cylindrical symmetry) and 
         <summary>
             <span>Expand source code</span>
         </summary>
-        <pre><code class="python">def is_2d(self):
+        <pre><code class="python">def is_2d(self) -&gt; bool:
     return self == Symmetry.RADIAL</code></pre>
       </details>
 
@@ -1228,7 +1230,7 @@ supported symmetries are radial symmetry (also called cylindrical symmetry) and 
         <summary>
             <span>Expand source code</span>
         </summary>
-        <pre><code class="python">def is_3d(self):
+        <pre><code class="python">def is_3d(self) -&gt; bool:
     return self == Symmetry.THREE_D</code></pre>
       </details>
 
@@ -1271,6 +1273,7 @@ supported symmetries are radial symmetry (also called cylindrical symmetry) and 
         <li><code ><a title="traceon.plotting" href="plotting.html">traceon.plotting</a></code></li>
         <li><code ><a title="traceon.solver" href="solver.html">traceon.solver</a></code></li>
         <li><code ><a title="traceon.tracing" href="tracing.html">traceon.tracing</a></code></li>
+        <li><code ><a title="traceon.typing" href="typing.html">traceon.typing</a></code></li>
       </ul>
     </li>
 		
@@ -1278,6 +1281,7 @@ supported symmetries are radial symmetry (also called cylindrical symmetry) and 
       <ul>
 			<li><code ><a title="traceon_pro.field" href="../traceon_pro/field.html">traceon_pro.field</a></code></li>
 			<li><code ><a title="traceon_pro.solver" href="../traceon_pro/solver.html">traceon_pro.solver</a></code></li>
+			<li><code ><a title="traceon_pro.tracing" href="../traceon_pro/tracing.html">traceon_pro.tracing</a></code></li>
       </ul>
     </li>
 
