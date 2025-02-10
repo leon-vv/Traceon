@@ -1,0 +1,901 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, minimum-scale=1">
+  <meta name="generator" content="pdoc3 0.11.5">
+
+
+
+    <title>traceon.tracing API documentation</title>
+    <meta name="description" content="The tracing module allows to trace charged particles within any field type returned by the `traceon.solver` module. The tracing algorithm
+used is RK45 …">
+
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/10up-sanitize.css/13.0.0/sanitize.min.css" integrity="sha512-y1dtMcuvtTMJc1yPgEqF0ZjQbhnc/bFhyvIyVNb9Zk5mIGtqVaAB1Ttl28su8AvFMOY0EwRbAe+HCLqj6W7/KA==" crossorigin>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/10up-sanitize.css/13.0.0/typography.min.css" integrity="sha512-Y1DYSb995BAfxobCkKepB1BqJJTPrOp3zPL74AWFugHHmmdcvO+C48WLrUOlhGMc0QG7AE3f7gmvvcrmX2fDoA==" crossorigin>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/default.min.css" crossorigin>
+
+  
+  <style>:root{--highlight-color:#fe9}.flex{display:flex !important}body{line-height:1.5em}#content{padding:20px}#content .doc-image{padding:0px;display:block;margin:0px auto}#sidebar{padding:1.5em;padding-left:2.5em;overflow:hidden}#sidebar > *:last-child{margin-bottom:2cm}#sidebar .title{font-weight:bold}.http-server-breadcrumbs{font-size:130%;margin:0 0 15px 0}#footer{font-size:.75em;padding:5px 30px;border-top:1px solid #ddd;text-align:right}#footer p{margin:0 0 0 1em;display:inline-block}#footer p:last-child{margin-right:30px}h1,h2,h3,h4,h5{font-weight:300}h1{font-size:2.5em;line-height:1.1em}h2{font-size:1.75em;margin:2em 0 .50em 0}h3{font-size:1.4em;margin:1.6em 0 .7em 0}h4{margin:0;font-size:105%}h1:target,h2:target,h3:target,h4:target,h5:target,h6:target{background:var(--highlight-color);padding:.2em 0}a{color:#058;text-decoration:none;transition:color .2s ease-in-out}a:visited{color:#503}a:hover{color:#b62}.title code{font-weight:bold}h2[id^="header-"]{margin-top:2em}.ident{color:#900;font-weight:bold}pre code{font-size:.8em;line-height:1.4em;padding:1em;display:block}code{background:#f3f3f3;font-family:"DejaVu Sans Mono",monospace;padding:1px 4px;overflow-wrap:break-word}h1 code{background:transparent}pre{border-top:1px solid #ccc;border-bottom:1px solid #ccc;margin:1em 0}#http-server-module-list{display:flex;flex-flow:column}#http-server-module-list div{display:flex}#http-server-module-list dt{min-width:10%}#http-server-module-list p{margin-top:0}.toc ul,#index{list-style-type:none;margin:0;padding:0}#index code{background:transparent}#index .selected{background:transparent;font-weight:bold}#index a{color:#058}#index h3{border-bottom:1px solid #ddd}#index ul{padding:0}#index h4{margin-top:.6em;font-weight:bold}@media (min-width:200ex){#index .two-column{column-count:2}}@media (min-width:300ex){#index .two-column{column-count:3}}dl{margin-bottom:2em}dl dl:last-child{margin-bottom:4em}dd{margin:0 0 1em 3em}#header-classes + dl > dd{margin-bottom:3em}dd dd{margin-left:2em}dd p{margin:10px 0}.name{background:#eee;font-size:.85em;padding:5px 10px;display:inline-block;min-width:40%}.name:hover{background:#e0e0e0}dt:target .name{background:var(--highlight-color)}.name > span:first-child{white-space:nowrap}.name.class > span:nth-child(2){margin-left:.4em}.inherited{color:#999;border-left:5px solid #eee;padding-left:1em}.inheritance em{font-style:normal;font-weight:bold}.desc h2{font-weight:400;font-size:1.25em}.desc h3{font-size:1em}.desc dt code{background:inherit}.source > summary,.git-link-div{color:#666;text-align:right;font-weight:400;font-size:.8em;text-transform:uppercase}.source summary > *{white-space:nowrap;cursor:pointer}.git-link{color:inherit;margin-left:1em}.source pre{max-height:500px;overflow:auto;margin:0}.source pre code{font-size:12px;overflow:visible;min-width:max-content}.hlist{list-style:none}.hlist li{display:inline}.hlist li:after{content:',\2002'}.hlist li:last-child:after{content:none}.hlist .hlist{display:inline;padding-left:1em}img{max-width:100%}td{padding:0 .5em}.admonition{padding:.1em 1em;margin:1em 0}.admonition-title{font-weight:bold}.admonition.note,.admonition.info,.admonition.important{background:#aef}.admonition.todo,.admonition.versionadded,.admonition.tip,.admonition.hint{background:#dfd}.admonition.warning,.admonition.versionchanged,.admonition.deprecated{background:#fd4}.admonition.error,.admonition.danger,.admonition.caution{background:lightpink}</style>
+  <style media="screen and (min-width: 700px)">@media screen and (min-width:700px){#sidebar{width:29%;min-width:525px;height:100vh;overflow:auto;position:sticky;top:0}#content{width:80%;max-width:110ch;padding:3em 6em;border-left:1px solid #ddd}pre code{font-size:1em}.name{font-size:1em}main{display:flex;flex-direction:row-reverse;justify-content:flex-end}.toc ul ul,#index ul ul{padding-left:1em}.toc > ul > li{margin-top:.5em}}</style>
+  <style media="print">@media print{#sidebar h1{page-break-before:always}.source{display:none}}@media print{*{background:transparent !important;color:#000 !important;box-shadow:none !important;text-shadow:none !important}a[href]:after{content:" (" attr(href) ")";font-size:90%}a[href][title]:after{content:none}abbr[title]:after{content:" (" attr(title) ")"}.ir a:after,a[href^="javascript:"]:after,a[href^="#"]:after{content:""}pre,blockquote{border:1px solid #999;page-break-inside:avoid}thead{display:table-header-group}tr,img{page-break-inside:avoid}img{max-width:100% !important}@page{margin:0.5cm}p,h2,h3{orphans:3;widows:3}h1,h2,h3,h4,h5,h6{page-break-after:avoid}}</style>
+
+
+
+    <script type="text/x-mathjax-config">MathJax.Hub.Config({ tex2jax: { inlineMath: [ ['$','$'], ["\\(","\\)"] ], processEscapes: true } });</script>
+    <script async src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.7/latest.js?config=TeX-AMS_CHTML" integrity="sha256-kZafAc6mZvK3W3v1pHOcUix30OHQN6pU/NO2oFkqZVw=" crossorigin></script>
+
+    <script defer src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js" integrity="sha512-D9gUyxqja7hBtkWpPWGt9wfbfaMGVt9gnyCvYa+jojwwPHLCzUm5i8rpk7vD7wNee9bA35eYIjobYPaQuKS1MQ==" crossorigin></script>
+    <script>window.addEventListener('DOMContentLoaded', () => {
+        hljs.configure({languages: ['bash', 'css', 'diff', 'graphql', 'ini', 'javascript', 'json', 'plaintext', 'python', 'python-repl', 'rust', 'shell', 'sql', 'typescript', 'xml', 'yaml']});
+        hljs.highlightAll();
+        /* Collapse source docstrings */
+        setTimeout(() => {
+            [...document.querySelectorAll('.hljs.language-python > .hljs-string')]
+                .filter(el => el.innerHTML.length > 200 && ['"""', "'''"].includes(el.innerHTML.substring(0, 3)))
+                .forEach(el => {
+                    let d = document.createElement('details');
+                    d.classList.add('hljs-string');
+                    d.innerHTML = '<summary>"""</summary>' + el.innerHTML.substring(3);
+                    el.replaceWith(d);
+                });
+        }, 100);
+    })</script>
+
+  
+</head>
+<body>
+<main>
+    <article id="content">
+      
+  
+
+  
+
+  <header>
+  <h1 class="title">Module <code>traceon.tracing</code></h1>
+  </header>
+
+  <section id="section-intro">
+  <p>The tracing module allows to trace charged particles within any field type returned by the <code><a title="traceon.solver" href="solver.html">traceon.solver</a></code> module. The tracing algorithm
+used is RK45 with adaptive step size control [1]. The tracing code is implemented in C and has therefore
+excellent performance. The module also provides various helper functions to define appropriate initial velocity vectors and to
+compute intersections of the computed traces with various planes.</p>
+<h3 id="references">References</h3>
+<p>[1] Erwin Fehlberg. Low-Order Classical Runge-Kutta Formulas With Stepsize Control and their Application to Some Heat
+Transfer Problems. 1969. National Aeronautics and Space Administration.</p>
+  </section>
+
+  <section>
+  </section>
+	
+  <section>
+  </section>
+
+  <section>
+    <h2 class="section-title" id="header-functions">Functions</h2>
+    <dl>
+      
+    <dt id="traceon.tracing.axis_intersection"><code class="name flex">
+        
+        <span>def <span class="ident">axis_intersection</span></span>(<span>positions)</span>
+    </code></dt>
+    <dd>
+  
+  
+    
+      <details class="source">
+        <summary>
+            <span>Expand source code</span>
+        </summary>
+        <pre><code class="python">def axis_intersection(positions: ArrayLikeFloat2D) -&gt; float:
+    &#34;&#34;&#34;Compute the z-value of the intersection of the trajectory with the x=0 plane.
+    Note that this function will not work properly if the trajectory crosses the x=0 plane zero or multiple times.
+    
+    Parameters
+    ----------
+    positions: (N, 6) np.ndarray of float64
+        Positions (and velocities) of a charged particle as returned by `Tracer`.
+    
+    Returns
+    --------
+    float, z-value of the intersection with the x=0 plane
+    &#34;&#34;&#34;
+    return yz_plane_intersection(positions, 0)[2]</code></pre>
+      </details>
+
+  <div class="desc"><p>Compute the z-value of the intersection of the trajectory with the x=0 plane.
+Note that this function will not work properly if the trajectory crosses the x=0 plane zero or multiple times.</p>
+<h2 id="parameters">Parameters</h2>
+<dl>
+<dt><strong><code>positions</code></strong> :&ensp;<code>(N, 6) np.ndarray</code> of <code>float64</code></dt>
+<dd>Positions (and velocities) of a charged particle as returned by <code><a title="traceon.tracing.Tracer" href="#traceon.tracing.Tracer">Tracer</a></code>.</dd>
+</dl>
+<h2 id="returns">Returns</h2>
+<dl>
+<dt><code>float, z-value</code> of <code>the intersection with the x=0 plane</code></dt>
+<dd>&nbsp;</dd>
+</dl></div>
+</dd>
+  
+      
+    <dt id="traceon.tracing.plane_intersection"><code class="name flex">
+        
+        <span>def <span class="ident">plane_intersection</span></span>(<span>positions, p0, normal)</span>
+    </code></dt>
+    <dd>
+  
+  
+    
+      <details class="source">
+        <summary>
+            <span>Expand source code</span>
+        </summary>
+        <pre><code class="python">def plane_intersection(positions: ArrayLikeFloat2D, p0: PointLike3D, normal: VectorLike3D) -&gt; ArrayFloat1D:
+    &#34;&#34;&#34;Compute the intersection of a trajectory with a general plane in 3D. The plane is specified
+    by a point (p0) in the plane and a normal vector (normal) to the plane. The intersection
+    point is calculated using a linear interpolation.
+    
+    Parameters
+    ----------
+    positions: (N, 6) np.ndarray of float64
+        Positions of a charged particle as returned by `Tracer`.
+    
+    p0: (3,) np.ndarray of float64
+        A point that lies in the plane.
+
+    normal: (3,) np.ndarray of float64
+        A vector that is normal to the plane. A point p lies in the plane iff `dot(normal, p - p0) = 0` where
+        dot is the dot product.
+    
+    Returns
+    --------
+    np.ndarray of shape (6,) containing the position and velocity of the particle at the intersection point.
+    &#34;&#34;&#34;
+    positions, p0, normal = np.array(positions, dtype=np.float64), np.array(p0, dtype=np.float64), np.array(normal, dtype=np.float64)
+
+    assert positions.shape == (len(positions), 6), &#34;The positions array should have shape (N, 6)&#34;
+    return backend.plane_intersection(positions, p0, normal)</code></pre>
+      </details>
+
+  <div class="desc"><p>Compute the intersection of a trajectory with a general plane in 3D. The plane is specified
+by a point (p0) in the plane and a normal vector (normal) to the plane. The intersection
+point is calculated using a linear interpolation.</p>
+<h2 id="parameters">Parameters</h2>
+<dl>
+<dt><strong><code>positions</code></strong> :&ensp;<code>(N, 6) np.ndarray</code> of <code>float64</code></dt>
+<dd>Positions of a charged particle as returned by <code><a title="traceon.tracing.Tracer" href="#traceon.tracing.Tracer">Tracer</a></code>.</dd>
+<dt><strong><code>p0</code></strong> :&ensp;<code>(3,) np.ndarray</code> of <code>float64</code></dt>
+<dd>A point that lies in the plane.</dd>
+<dt><strong><code>normal</code></strong> :&ensp;<code>(3,) np.ndarray</code> of <code>float64</code></dt>
+<dd>A vector that is normal to the plane. A point p lies in the plane iff <code>dot(normal, p - p0) = 0</code> where
+dot is the dot product.</dd>
+</dl>
+<h2 id="returns">Returns</h2>
+<p>np.ndarray of shape (6,) containing the position and velocity of the particle at the intersection point.</p></div>
+</dd>
+  
+      
+    <dt id="traceon.tracing.velocity_vec"><code class="name flex">
+        
+        <span>def <span class="ident">velocity_vec</span></span>(<span>eV, direction, mass=9.1093837139e-31)</span>
+    </code></dt>
+    <dd>
+  
+  
+    
+      <details class="source">
+        <summary>
+            <span>Expand source code</span>
+        </summary>
+        <pre><code class="python">def velocity_vec(eV: float, direction: VectorLike3D, mass: float = m_e) -&gt; Vector3D:
+    &#34;&#34;&#34;Compute an initial velocity vector in the correct units and direction.
+    
+    Parameters
+    ----------
+    eV: float
+        initial energy in units of eV
+    direction: (3,) numpy array
+        vector giving the correct direction of the initial velocity vector. Does not
+        have to be a unit vector as it is always normalized.
+
+    Returns
+    -------
+    Initial velocity vector with magnitude corresponding to the supplied energy (in eV).
+    The shape of the resulting vector is the same as the shape of `direction`.
+    &#34;&#34;&#34;
+    assert eV &gt; 0.0, &#34;Please provide a positive energy in eV&#34;
+
+    direction_ = np.array(direction)
+    assert direction_.shape == (3,), &#34;Please provide a three dimensional direction vector&#34;
+    
+    if eV &gt; 40000:
+        logging.log_warning(f&#39;Velocity vector with large energy ({eV} eV) requested. Note that relativistic tracing is not yet implemented.&#39;)
+    
+    return _convert_velocity_to_SI(eV * np.array(direction_)/np.linalg.norm(direction_), mass)</code></pre>
+      </details>
+
+  <div class="desc"><p>Compute an initial velocity vector in the correct units and direction.</p>
+<h2 id="parameters">Parameters</h2>
+<dl>
+<dt><strong><code>eV</code></strong> :&ensp;<code>float</code></dt>
+<dd>initial energy in units of eV</dd>
+<dt><strong><code>direction</code></strong> :&ensp;<code>(3,) numpy array</code></dt>
+<dd>vector giving the correct direction of the initial velocity vector. Does not
+have to be a unit vector as it is always normalized.</dd>
+</dl>
+<h2 id="returns">Returns</h2>
+<p>Initial velocity vector with magnitude corresponding to the supplied energy (in eV).
+The shape of the resulting vector is the same as the shape of <code>direction</code>.</p></div>
+</dd>
+  
+      
+    <dt id="traceon.tracing.velocity_vec_spherical"><code class="name flex">
+        
+        <span>def <span class="ident">velocity_vec_spherical</span></span>(<span>eV, theta, phi)</span>
+    </code></dt>
+    <dd>
+  
+  
+    
+      <details class="source">
+        <summary>
+            <span>Expand source code</span>
+        </summary>
+        <pre><code class="python">def velocity_vec_spherical(eV: float, theta: float, phi: float) -&gt; Vector3D:
+    &#34;&#34;&#34;Compute initial velocity vector given energy and direction computed from spherical coordinates.
+    
+    Parameters
+    ----------
+    eV: float
+        initial energy in units of eV
+    theta: float
+        angle with z-axis (same definition as theta in a spherical coordinate system)
+    phi: float
+        angle with the x-axis (same definition as phi in a spherical coordinate system)
+
+    Returns
+    ------
+    Initial velocity vector of shape (3,) with magnitude corresponding to the supplied energy (in eV).
+    &#34;&#34;&#34;
+    return velocity_vec(eV, [sin(theta)*cos(phi), sin(theta)*sin(phi), cos(theta)])</code></pre>
+      </details>
+
+  <div class="desc"><p>Compute initial velocity vector given energy and direction computed from spherical coordinates.</p>
+<h2 id="parameters">Parameters</h2>
+<dl>
+<dt><strong><code>eV</code></strong> :&ensp;<code>float</code></dt>
+<dd>initial energy in units of eV</dd>
+<dt><strong><code>theta</code></strong> :&ensp;<code>float</code></dt>
+<dd>angle with z-axis (same definition as theta in a spherical coordinate system)</dd>
+<dt><strong><code>phi</code></strong> :&ensp;<code>float</code></dt>
+<dd>angle with the x-axis (same definition as phi in a spherical coordinate system)</dd>
+</dl>
+<h2 id="returns">Returns</h2>
+<p>Initial velocity vector of shape (3,) with magnitude corresponding to the supplied energy (in eV).</p></div>
+</dd>
+  
+      
+    <dt id="traceon.tracing.velocity_vec_xz_plane"><code class="name flex">
+        
+        <span>def <span class="ident">velocity_vec_xz_plane</span></span>(<span>eV, angle, downward=True)</span>
+    </code></dt>
+    <dd>
+  
+  
+    
+      <details class="source">
+        <summary>
+            <span>Expand source code</span>
+        </summary>
+        <pre><code class="python">def velocity_vec_xz_plane(eV: float, angle: float, downward: bool = True) -&gt; Vector3D:
+    &#34;&#34;&#34;Compute initial velocity vector in the xz plane with the given energy and angle with z-axis.
+    
+    Parameters
+    ----------
+    eV: float
+        initial energy in units of eV
+    angle: float
+        angle with z-axis
+    downward: bool
+        whether the velocity vector should point upward or downwards
+     
+    Returns
+    ------
+    Initial velocity vector of shape (3,) with magnitude corresponding to the supplied energy (in eV).
+    &#34;&#34;&#34;
+    sign = -1 if downward else 1
+    direction = [sin(angle), 0.0, sign*cos(angle)]
+    return velocity_vec(eV, direction)</code></pre>
+      </details>
+
+  <div class="desc"><p>Compute initial velocity vector in the xz plane with the given energy and angle with z-axis.</p>
+<h2 id="parameters">Parameters</h2>
+<dl>
+<dt><strong><code>eV</code></strong> :&ensp;<code>float</code></dt>
+<dd>initial energy in units of eV</dd>
+<dt><strong><code>angle</code></strong> :&ensp;<code>float</code></dt>
+<dd>angle with z-axis</dd>
+<dt><strong><code>downward</code></strong> :&ensp;<code>bool</code></dt>
+<dd>whether the velocity vector should point upward or downwards</dd>
+</dl>
+<h2 id="returns">Returns</h2>
+<p>Initial velocity vector of shape (3,) with magnitude corresponding to the supplied energy (in eV).</p></div>
+</dd>
+  
+      
+    <dt id="traceon.tracing.xy_plane_intersection"><code class="name flex">
+        
+        <span>def <span class="ident">xy_plane_intersection</span></span>(<span>positions, z)</span>
+    </code></dt>
+    <dd>
+  
+  
+    
+      <details class="source">
+        <summary>
+            <span>Expand source code</span>
+        </summary>
+        <pre><code class="python">def xy_plane_intersection(positions: ArrayLikeFloat2D, z: float) -&gt; ArrayFloat1D:
+    &#34;&#34;&#34;Compute the intersection of a trajectory with an xy-plane.
+
+    Parameters
+    ----------
+    positions: (N, 6) np.ndarray of float64
+        Positions (and velocities) of a charged particle as returned by `Tracer`.
+    z: float
+        z-coordinate of the plane with which to compute the intersection
+    
+    Returns
+    --------
+    (6,) array of float64, containing the position and velocity of the particle at the intersection point.
+    &#34;&#34;&#34;
+    return plane_intersection(positions, [0, 0, z], [0, 0, 1])</code></pre>
+      </details>
+
+  <div class="desc"><p>Compute the intersection of a trajectory with an xy-plane.</p>
+<h2 id="parameters">Parameters</h2>
+<dl>
+<dt><strong><code>positions</code></strong> :&ensp;<code>(N, 6) np.ndarray</code> of <code>float64</code></dt>
+<dd>Positions (and velocities) of a charged particle as returned by <code><a title="traceon.tracing.Tracer" href="#traceon.tracing.Tracer">Tracer</a></code>.</dd>
+<dt><strong><code>z</code></strong> :&ensp;<code>float</code></dt>
+<dd>z-coordinate of the plane with which to compute the intersection</dd>
+</dl>
+<h2 id="returns">Returns</h2>
+<p>(6,) array of float64, containing the position and velocity of the particle at the intersection point.</p></div>
+</dd>
+  
+      
+    <dt id="traceon.tracing.xz_plane_intersection"><code class="name flex">
+        
+        <span>def <span class="ident">xz_plane_intersection</span></span>(<span>positions, y)</span>
+    </code></dt>
+    <dd>
+  
+  
+    
+      <details class="source">
+        <summary>
+            <span>Expand source code</span>
+        </summary>
+        <pre><code class="python">def xz_plane_intersection(positions: ArrayLikeFloat2D, y: float) -&gt; ArrayLikeFloat1D:
+    &#34;&#34;&#34;Compute the intersection of a trajectory with an xz-plane.
+
+    Parameters
+    ----------
+    positions: (N, 6) np.ndarray of float64
+        Positions (and velocities) of a charged particle as returned by `Tracer`.
+    z: float
+        z-coordinate of the plane with which to compute the intersection
+    
+    Returns
+    --------
+    (6,) array of float64, containing the position and velocity of the particle at the intersection point.
+    &#34;&#34;&#34;
+    return plane_intersection(positions, [0, y, 0], [0, 1, 0])</code></pre>
+      </details>
+
+  <div class="desc"><p>Compute the intersection of a trajectory with an xz-plane.</p>
+<h2 id="parameters">Parameters</h2>
+<dl>
+<dt><strong><code>positions</code></strong> :&ensp;<code>(N, 6) np.ndarray</code> of <code>float64</code></dt>
+<dd>Positions (and velocities) of a charged particle as returned by <code><a title="traceon.tracing.Tracer" href="#traceon.tracing.Tracer">Tracer</a></code>.</dd>
+<dt><strong><code>z</code></strong> :&ensp;<code>float</code></dt>
+<dd>z-coordinate of the plane with which to compute the intersection</dd>
+</dl>
+<h2 id="returns">Returns</h2>
+<p>(6,) array of float64, containing the position and velocity of the particle at the intersection point.</p></div>
+</dd>
+  
+      
+    <dt id="traceon.tracing.yz_plane_intersection"><code class="name flex">
+        
+        <span>def <span class="ident">yz_plane_intersection</span></span>(<span>positions, x)</span>
+    </code></dt>
+    <dd>
+  
+  
+    
+      <details class="source">
+        <summary>
+            <span>Expand source code</span>
+        </summary>
+        <pre><code class="python">def yz_plane_intersection(positions: ArrayLikeFloat2D, x: float) -&gt; ArrayLikeFloat1D:
+    &#34;&#34;&#34;Compute the intersection of a trajectory with an yz-plane.
+
+    Parameters
+    ----------
+    positions: (N, 6) np.ndarray of float64
+        Positions (and velocities) of a charged particle as returned by `Tracer`.
+    z: float
+        z-coordinate of the plane with which to compute the intersection
+    
+    Returns
+    --------
+    (6,) array of float64, containing the position and velocity of the particle at the intersection point.
+    &#34;&#34;&#34;
+    return plane_intersection(positions, [x, 0, 0], [1, 0, 0])</code></pre>
+      </details>
+
+  <div class="desc"><p>Compute the intersection of a trajectory with an yz-plane.</p>
+<h2 id="parameters">Parameters</h2>
+<dl>
+<dt><strong><code>positions</code></strong> :&ensp;<code>(N, 6) np.ndarray</code> of <code>float64</code></dt>
+<dd>Positions (and velocities) of a charged particle as returned by <code><a title="traceon.tracing.Tracer" href="#traceon.tracing.Tracer">Tracer</a></code>.</dd>
+<dt><strong><code>z</code></strong> :&ensp;<code>float</code></dt>
+<dd>z-coordinate of the plane with which to compute the intersection</dd>
+</dl>
+<h2 id="returns">Returns</h2>
+<p>(6,) array of float64, containing the position and velocity of the particle at the intersection point.</p></div>
+</dd>
+  
+    </dl>
+  </section>
+
+  <section>
+    <h2 class="section-title" id="header-classes">Classes</h2>
+    <dl>
+      
+      <dt id="traceon.tracing.Tracer"><code class="flex name class">
+          <span>class <span class="ident">Tracer</span></span>
+              <span>(</span><span>field, bounds)</span>
+      </code></dt>
+
+      <dd>
+  
+  
+    
+      <details class="source">
+        <summary>
+            <span>Expand source code</span>
+        </summary>
+        <pre><code class="python">class Tracer:
+    &#34;&#34;&#34;General tracer class for charged particles. Can trace charged particles given any field class from `traceon.solver`.
+
+    Parameters
+    ----------
+    field: `traceon.field.Field`
+        The field used to compute the force felt by the charged particle. Note that any child class of `traceon.field.Field` can be used.
+    bounds: (3, 2) np.ndarray of float64
+        Once the particle reaches one of the boundaries the tracing stops. The bounds are of the form ( (xmin, xmax), (ymin, ymax), (zmin, zmax) ).
+    &#34;&#34;&#34;
+    
+    def __init__(self, field: Field, bounds: BoundsLike3D) -&gt; None:
+        self.field = field
+        bounds = np.array(bounds).astype(np.float64)
+        assert bounds.shape == (3,2)
+        self.bounds = bounds
+
+        self.trace_fun, self.low_level_args, *keep_alive = field.get_low_level_trace_function()
+        
+        # Allow functions to optionally return references to objects that need
+        # to be kept alive as long as the tracer is kept alive. This prevents
+        # memory from being reclaimed while the C backend is still working with it.
+        self.keep_alive = keep_alive
+
+        if self.low_level_args is None:
+            self.trace_args = None
+        elif isinstance(self.low_level_args, int): # Interpret as literal memory address
+            self.trace_args = ctypes.c_void_p(self.low_level_args)
+        else: # Interpret as anything ctypes can make sense of
+            self.trace_args = ctypes.cast(ctypes.pointer(self.low_level_args), ctypes.c_void_p)
+     
+    def __str__(self) -&gt; str:
+        field_name = self.field.__class__.__name__
+        bounds_str = &#39; &#39;.join([f&#39;({bmin:.2f}, {bmax:.2f})&#39; for bmin, bmax in self.bounds])
+        return f&#39;&lt;Traceon Tracer of {field_name},\n\t&#39; \
+            + &#39;Bounds: &#39; + bounds_str + &#39; mm &gt;&#39;
+
+    def __call__(self, *args, **kwargs):
+        return self.trace_single(*args, **kwargs)
+    
+    def trace_single(self,
+            position: PointLike3D,
+            velocity: VectorLike3D,
+            mass: float = m_e,
+            charge: float = -e,
+            atol: float = 1e-8) -&gt; tuple[ArrayFloat1D, ArrayFloat2D]:
+        &#34;&#34;&#34;Trace a charged particle.
+
+        Parameters
+        ----------
+        position: (3,) np.ndarray of float64
+            Initial position of the particle.
+        velocity: (3,) np.ndarray of float64
+            Initial velocity (expressed in a vector whose magnitude has units of eV). Use one of the utility functions documented
+            above to create the initial velocity vector.
+        mass: float
+            Particle mass in kilogram (kg). The default value is the electron mass: m_e = 9.1093837015e-31 kg.
+        charge: float
+            Particle charge in Coulomb (C). The default value is the electron charge: -1 * e = -1.602176634e-19 C.
+        atol: float
+            Absolute tolerance determining the accuracy of the trace.
+        
+        Returns
+        -------
+        `(times, positions)` which is a tuple of two numpy arrays. `times` is one dimensional and contains the times
+        at which the positions have been computed. The `positions` array is two dimensional, `positions[i]` correspond
+        to time step `times[i]`. One element of the positions array has shape (6,).
+        The first three elements in the `positions[i]` array contain the x,y,z positions.
+        The last three elements in `positions[i]` contain the vx,vy,vz velocities.
+        &#34;&#34;&#34;
+        position = np.array(position)
+        charge_over_mass = charge / mass
+
+        return backend.trace_particle(
+                position,
+                np.array(velocity),
+                charge_over_mass, 
+                self.trace_fun, #type:ignore
+                self.bounds,
+                atol,
+                self.trace_args)
+    
+    @staticmethod
+    def _normalize_input_shapes(position: PointLike3D, velocity: VectorLike3D, mass: float | ArrayLikeFloat1D, charge: float | ArrayLikeFloat1D) \
+            -&gt; tuple[ArrayFloat2D, ArrayFloat2D, ArrayFloat1D, ArrayFloat1D]:
+        
+        position_ = np.array(position, dtype=np.float64)
+        velocity_ = np.array(velocity, dtype=np.float64)
+        mass_ = np.array(mass, dtype=np.float64)
+        charge_ = np.array(charge, dtype=np.float64)
+
+        if position_.shape == (3,):
+            position_ = position_[np.newaxis] # Ensure position has shape (N, 3) with N=1
+
+        # Normalize shape against one another
+        # So that they both have shape (N, 3)
+        position_, velocity_ = np.broadcast_arrays(position, velocity_)
+
+        N = len(position_)
+
+        mass_ = np.broadcast_to(mass_, shape=(N,))
+        charge_ = np.broadcast_to(charge_, shape=(N,))
+        
+        # The following fails to type check, as the length of the tuple cannot be inferred
+        return tuple(np.copy(backend.ensure_contiguous_aligned(arr)) for arr in [position_, velocity_, mass_, charge_]) # type: ignore
+    
+    def trace_multiple(self, position: PointLike3D, velocity: VectorLike3D, mass: float | ArrayLikeFloat1D = m_e, charge: float | ArrayLikeFloat1D = -e, atol: float =1e-8) \
+            -&gt; list[tuple[ArrayFloat1D, ArrayFloat2D]]:
+        
+        &#34;&#34;&#34;Trace multiple charged particles. Numpy broadcasting rules apply if one 
+        of the inputs does not have enough elements. For example, if all particles have the
+        same charge simply pass in a float for the &#39;charge&#39; input.
+        
+        Parameters
+        ----------
+        position: (N, 3) np.ndarray of float64
+            Initial positions of the particle.
+        velocity: (N, 3) np.ndarray of float64
+            Initial velocities (expressed in a vector whose magnitude has units of eV). Use one of the utility functions documented
+            above to create the initial velocity vector.
+        mass: float or (N,)
+            Particle masses in kilogram (kg). The default value is the electron mass: m_e = 9.1093837015e-31 kg.
+        charge: float or (N,)
+            Particle charges in Coulomb (C). The default value is the electron charge: -1 * e = -1.602176634e-19 C.
+        atol: float
+            Absolute tolerance determining the accuracy of the trace.
+        
+        Returns
+        -------
+        list of (times, positions)
+            See documentation of `Tracer.trace_single`
+        &#34;&#34;&#34;
+
+        positions, velocities, masses, charges = Tracer._normalize_input_shapes(position, velocity, mass, charge)
+
+        N = len(positions)
+
+        assert positions.shape == (N, 3) and velocities.shape == (N, 3), &#34;Position or velocity array has unexpected shape&#34;
+        assert masses.shape == (N,) and charges.shape == (N,), &#34;mass or charge input has unexpected shape&#34;
+
+        # The following fails to type check, as p, v are incorrectly inferred as np.floating
+        return [self.trace_single(p, v, mass=m.item(), charge=c.item(), atol=atol) for p, v, m, c in zip(positions, velocities, masses, charges)] # type: ignore</code></pre>
+      </details>
+
+  <div class="desc"><p>General tracer class for charged particles. Can trace charged particles given any field class from <code><a title="traceon.solver" href="solver.html">traceon.solver</a></code>.</p>
+<h2 id="parameters">Parameters</h2>
+<dl>
+<dt><strong><code>field</code></strong> :&ensp;<code><a title="traceon.field.Field" href="field.html#traceon.field.Field">Field</a></code></dt>
+<dd>The field used to compute the force felt by the charged particle. Note that any child class of <code><a title="traceon.field.Field" href="field.html#traceon.field.Field">Field</a></code> can be used.</dd>
+<dt><strong><code>bounds</code></strong> :&ensp;<code>(3, 2) np.ndarray</code> of <code>float64</code></dt>
+<dd>Once the particle reaches one of the boundaries the tracing stops. The bounds are of the form ( (xmin, xmax), (ymin, ymax), (zmin, zmax) ).</dd>
+</dl></div>
+
+
+
+          <h3>Subclasses</h3>
+          <ul class="hlist">
+              <li><a title="traceon_pro.tracing.SpaceChargeTracer" href="../traceon_pro/tracing.html#traceon_pro.tracing.SpaceChargeTracer">SpaceChargeTracer</a></li>
+          </ul>
+          <h3>Methods</h3>
+          <dl>
+              
+    <dt id="traceon.tracing.Tracer.__call__"><code class="name flex">
+        
+        <span>def <span class="ident">__call__</span></span>(<span>self, *args, **kwargs)</span>
+    </code></dt>
+    <dd>
+  
+  
+    
+      <details class="source">
+        <summary>
+            <span>Expand source code</span>
+        </summary>
+        <pre><code class="python">def __call__(self, *args, **kwargs):
+    return self.trace_single(*args, **kwargs)</code></pre>
+      </details>
+
+  <div class="desc"><p>Call self as a function.</p></div>
+</dd>
+  
+              
+    <dt id="traceon.tracing.Tracer.trace_multiple"><code class="name flex">
+        
+        <span>def <span class="ident">trace_multiple</span></span>(<span>self, position, velocity, mass=9.1093837139e-31, charge=-1.602176634e-19, atol=1e-08)</span>
+    </code></dt>
+    <dd>
+  
+  
+    
+      <details class="source">
+        <summary>
+            <span>Expand source code</span>
+        </summary>
+        <pre><code class="python">def trace_multiple(self, position: PointLike3D, velocity: VectorLike3D, mass: float | ArrayLikeFloat1D = m_e, charge: float | ArrayLikeFloat1D = -e, atol: float =1e-8) \
+        -&gt; list[tuple[ArrayFloat1D, ArrayFloat2D]]:
+    
+    &#34;&#34;&#34;Trace multiple charged particles. Numpy broadcasting rules apply if one 
+    of the inputs does not have enough elements. For example, if all particles have the
+    same charge simply pass in a float for the &#39;charge&#39; input.
+    
+    Parameters
+    ----------
+    position: (N, 3) np.ndarray of float64
+        Initial positions of the particle.
+    velocity: (N, 3) np.ndarray of float64
+        Initial velocities (expressed in a vector whose magnitude has units of eV). Use one of the utility functions documented
+        above to create the initial velocity vector.
+    mass: float or (N,)
+        Particle masses in kilogram (kg). The default value is the electron mass: m_e = 9.1093837015e-31 kg.
+    charge: float or (N,)
+        Particle charges in Coulomb (C). The default value is the electron charge: -1 * e = -1.602176634e-19 C.
+    atol: float
+        Absolute tolerance determining the accuracy of the trace.
+    
+    Returns
+    -------
+    list of (times, positions)
+        See documentation of `Tracer.trace_single`
+    &#34;&#34;&#34;
+
+    positions, velocities, masses, charges = Tracer._normalize_input_shapes(position, velocity, mass, charge)
+
+    N = len(positions)
+
+    assert positions.shape == (N, 3) and velocities.shape == (N, 3), &#34;Position or velocity array has unexpected shape&#34;
+    assert masses.shape == (N,) and charges.shape == (N,), &#34;mass or charge input has unexpected shape&#34;
+
+    # The following fails to type check, as p, v are incorrectly inferred as np.floating
+    return [self.trace_single(p, v, mass=m.item(), charge=c.item(), atol=atol) for p, v, m, c in zip(positions, velocities, masses, charges)] # type: ignore</code></pre>
+      </details>
+
+  <div class="desc"><p>Trace multiple charged particles. Numpy broadcasting rules apply if one 
+of the inputs does not have enough elements. For example, if all particles have the
+same charge simply pass in a float for the 'charge' input.</p>
+<h2 id="parameters">Parameters</h2>
+<dl>
+<dt><strong><code>position</code></strong> :&ensp;<code>(N, 3) np.ndarray</code> of <code>float64</code></dt>
+<dd>Initial positions of the particle.</dd>
+<dt><strong><code>velocity</code></strong> :&ensp;<code>(N, 3) np.ndarray</code> of <code>float64</code></dt>
+<dd>Initial velocities (expressed in a vector whose magnitude has units of eV). Use one of the utility functions documented
+above to create the initial velocity vector.</dd>
+<dt><strong><code>mass</code></strong> :&ensp;<code>float</code> or <code>(N,)</code></dt>
+<dd>Particle masses in kilogram (kg). The default value is the electron mass: m_e = 9.1093837015e-31 kg.</dd>
+<dt><strong><code>charge</code></strong> :&ensp;<code>float</code> or <code>(N,)</code></dt>
+<dd>Particle charges in Coulomb (C). The default value is the electron charge: -1 * e = -1.602176634e-19 C.</dd>
+<dt><strong><code>atol</code></strong> :&ensp;<code>float</code></dt>
+<dd>Absolute tolerance determining the accuracy of the trace.</dd>
+</dl>
+<h2 id="returns">Returns</h2>
+<dl>
+<dt><code>list</code> of <code>(times, positions)</code></dt>
+<dd>See documentation of <code><a title="traceon.tracing.Tracer.trace_single" href="#traceon.tracing.Tracer.trace_single">Tracer.trace_single()</a></code></dd>
+</dl></div>
+</dd>
+  
+              
+    <dt id="traceon.tracing.Tracer.trace_single"><code class="name flex">
+        
+        <span>def <span class="ident">trace_single</span></span>(<span>self, position, velocity, mass=9.1093837139e-31, charge=-1.602176634e-19, atol=1e-08)</span>
+    </code></dt>
+    <dd>
+  
+  
+    
+      <details class="source">
+        <summary>
+            <span>Expand source code</span>
+        </summary>
+        <pre><code class="python">def trace_single(self,
+        position: PointLike3D,
+        velocity: VectorLike3D,
+        mass: float = m_e,
+        charge: float = -e,
+        atol: float = 1e-8) -&gt; tuple[ArrayFloat1D, ArrayFloat2D]:
+    &#34;&#34;&#34;Trace a charged particle.
+
+    Parameters
+    ----------
+    position: (3,) np.ndarray of float64
+        Initial position of the particle.
+    velocity: (3,) np.ndarray of float64
+        Initial velocity (expressed in a vector whose magnitude has units of eV). Use one of the utility functions documented
+        above to create the initial velocity vector.
+    mass: float
+        Particle mass in kilogram (kg). The default value is the electron mass: m_e = 9.1093837015e-31 kg.
+    charge: float
+        Particle charge in Coulomb (C). The default value is the electron charge: -1 * e = -1.602176634e-19 C.
+    atol: float
+        Absolute tolerance determining the accuracy of the trace.
+    
+    Returns
+    -------
+    `(times, positions)` which is a tuple of two numpy arrays. `times` is one dimensional and contains the times
+    at which the positions have been computed. The `positions` array is two dimensional, `positions[i]` correspond
+    to time step `times[i]`. One element of the positions array has shape (6,).
+    The first three elements in the `positions[i]` array contain the x,y,z positions.
+    The last three elements in `positions[i]` contain the vx,vy,vz velocities.
+    &#34;&#34;&#34;
+    position = np.array(position)
+    charge_over_mass = charge / mass
+
+    return backend.trace_particle(
+            position,
+            np.array(velocity),
+            charge_over_mass, 
+            self.trace_fun, #type:ignore
+            self.bounds,
+            atol,
+            self.trace_args)</code></pre>
+      </details>
+
+  <div class="desc"><p>Trace a charged particle.</p>
+<h2 id="parameters">Parameters</h2>
+<dl>
+<dt><strong><code>position</code></strong> :&ensp;<code>(3,) np.ndarray</code> of <code>float64</code></dt>
+<dd>Initial position of the particle.</dd>
+<dt><strong><code>velocity</code></strong> :&ensp;<code>(3,) np.ndarray</code> of <code>float64</code></dt>
+<dd>Initial velocity (expressed in a vector whose magnitude has units of eV). Use one of the utility functions documented
+above to create the initial velocity vector.</dd>
+<dt><strong><code>mass</code></strong> :&ensp;<code>float</code></dt>
+<dd>Particle mass in kilogram (kg). The default value is the electron mass: m_e = 9.1093837015e-31 kg.</dd>
+<dt><strong><code>charge</code></strong> :&ensp;<code>float</code></dt>
+<dd>Particle charge in Coulomb (C). The default value is the electron charge: -1 * e = -1.602176634e-19 C.</dd>
+<dt><strong><code>atol</code></strong> :&ensp;<code>float</code></dt>
+<dd>Absolute tolerance determining the accuracy of the trace.</dd>
+</dl>
+<h2 id="returns">Returns</h2>
+<p><code>(times, positions)</code> which is a tuple of two numpy arrays. <code>times</code> is one dimensional and contains the times
+at which the positions have been computed. The <code>positions</code> array is two dimensional, <code>positions[i]</code> correspond
+to time step <code>times[i]</code>. One element of the positions array has shape (6,).
+The first three elements in the <code>positions[i]</code> array contain the x,y,z positions.
+The last three elements in <code>positions[i]</code> contain the vx,vy,vz velocities.</p></div>
+</dd>
+  
+          </dl>
+
+          
+
+      </dd>
+    </dl>
+  </section>
+
+    </article>
+    
+  
+  <nav id="sidebar">
+
+    
+
+	<h1 class='title'><a href='index.html' style='color:black'>Traceon</a></h1>
+	
+    <ul id="index">
+	
+	<li><h3><a href="#header-submodules">Examples</a></h3>
+      <ul>
+			<li><code><a href="../traceon/einzel-lens.html">Einzel lens</a></code></li>
+      </ul>
+    </li>
+		
+    <li><h3><a href="#header-submodules">Traceon</a></h3>
+      <ul>
+        <li><code ><a title="traceon.excitation" href="excitation.html">traceon.excitation</a></code></li>
+        <li><code ><a title="traceon.field" href="field.html">traceon.field</a></code></li>
+        <li><code ><a title="traceon.focus" href="focus.html">traceon.focus</a></code></li>
+        <li><code ><a title="traceon.geometry" href="geometry.html">traceon.geometry</a></code></li>
+        <li><code ><a title="traceon.logging" href="logging.html">traceon.logging</a></code></li>
+        <li><code ><a title="traceon.mesher" href="mesher.html">traceon.mesher</a></code></li>
+        <li><code ><a title="traceon.plotting" href="plotting.html">traceon.plotting</a></code></li>
+        <li><code ><a title="traceon.solver" href="solver.html">traceon.solver</a></code></li>
+        <li><code class='selected'><a title="traceon.tracing" href="#traceon.tracing">traceon.tracing</a></code></li>
+        <li><code ><a title="traceon.typing" href="typing.html">traceon.typing</a></code></li>
+      </ul>
+    </li>
+		
+	<li><h3><a href="#header-submodules">Traceon Pro</a></h3>
+      <ul>
+			<li><code ><a title="traceon_pro.field" href="../traceon_pro/field.html">traceon_pro.field</a></code></li>
+			<li><code ><a title="traceon_pro.solver" href="../traceon_pro/solver.html">traceon_pro.solver</a></code></li>
+			<li><code ><a title="traceon_pro.tracing" href="../traceon_pro/tracing.html">traceon_pro.tracing</a></code></li>
+      </ul>
+    </li>
+
+
+
+    <li><h3><a href="#header-functions">Functions</a></h3>
+      
+  
+  <ul class="">
+    <li><code><a title="traceon.tracing.axis_intersection" href="#traceon.tracing.axis_intersection">axis_intersection</a></code></li>
+    <li><code><a title="traceon.tracing.plane_intersection" href="#traceon.tracing.plane_intersection">plane_intersection</a></code></li>
+    <li><code><a title="traceon.tracing.velocity_vec" href="#traceon.tracing.velocity_vec">velocity_vec</a></code></li>
+    <li><code><a title="traceon.tracing.velocity_vec_spherical" href="#traceon.tracing.velocity_vec_spherical">velocity_vec_spherical</a></code></li>
+    <li><code><a title="traceon.tracing.velocity_vec_xz_plane" href="#traceon.tracing.velocity_vec_xz_plane">velocity_vec_xz_plane</a></code></li>
+    <li><code><a title="traceon.tracing.xy_plane_intersection" href="#traceon.tracing.xy_plane_intersection">xy_plane_intersection</a></code></li>
+    <li><code><a title="traceon.tracing.xz_plane_intersection" href="#traceon.tracing.xz_plane_intersection">xz_plane_intersection</a></code></li>
+    <li><code><a title="traceon.tracing.yz_plane_intersection" href="#traceon.tracing.yz_plane_intersection">yz_plane_intersection</a></code></li>
+  </ul>
+
+    </li>
+
+    <li><h3><a href="#header-classes">Classes</a></h3>
+      <ul>
+        <li>
+        <h4><code><a title="traceon.tracing.Tracer" href="#traceon.tracing.Tracer">Tracer</a></code></h4>
+        
+          
+  
+  <ul class="">
+    <li><code><a title="traceon.tracing.Tracer.__call__" href="#traceon.tracing.Tracer.__call__">__call__</a></code></li>
+    <li><code><a title="traceon.tracing.Tracer.trace_multiple" href="#traceon.tracing.Tracer.trace_multiple">trace_multiple</a></code></li>
+    <li><code><a title="traceon.tracing.Tracer.trace_single" href="#traceon.tracing.Tracer.trace_single">trace_single</a></code></li>
+  </ul>
+
+        </li>
+      </ul>
+    </li>
+
+    </ul>
+  </nav>
+
+</main>
+
+<footer id="footer">
+    
+    <p>Generated by <a href="https://pdoc3.github.io/pdoc" title="pdoc: Python API documentation generator"><cite>pdoc</cite> 0.11.5</a>.</p>
+</footer>
+
+</body>
+</html>

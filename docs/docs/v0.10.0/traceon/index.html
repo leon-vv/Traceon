@@ -1,0 +1,211 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, minimum-scale=1">
+  <meta name="generator" content="pdoc3 0.11.5">
+
+
+
+    <title>traceon API documentation</title>
+    <meta name="description" content="Welcome! …">
+
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/10up-sanitize.css/13.0.0/sanitize.min.css" integrity="sha512-y1dtMcuvtTMJc1yPgEqF0ZjQbhnc/bFhyvIyVNb9Zk5mIGtqVaAB1Ttl28su8AvFMOY0EwRbAe+HCLqj6W7/KA==" crossorigin>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/10up-sanitize.css/13.0.0/typography.min.css" integrity="sha512-Y1DYSb995BAfxobCkKepB1BqJJTPrOp3zPL74AWFugHHmmdcvO+C48WLrUOlhGMc0QG7AE3f7gmvvcrmX2fDoA==" crossorigin>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/default.min.css" crossorigin>
+
+  
+  <style>:root{--highlight-color:#fe9}.flex{display:flex !important}body{line-height:1.5em}#content{padding:20px}#content .doc-image{padding:0px;display:block;margin:0px auto}#sidebar{padding:1.5em;padding-left:2.5em;overflow:hidden}#sidebar > *:last-child{margin-bottom:2cm}#sidebar .title{font-weight:bold}.http-server-breadcrumbs{font-size:130%;margin:0 0 15px 0}#footer{font-size:.75em;padding:5px 30px;border-top:1px solid #ddd;text-align:right}#footer p{margin:0 0 0 1em;display:inline-block}#footer p:last-child{margin-right:30px}h1,h2,h3,h4,h5{font-weight:300}h1{font-size:2.5em;line-height:1.1em}h2{font-size:1.75em;margin:2em 0 .50em 0}h3{font-size:1.4em;margin:1.6em 0 .7em 0}h4{margin:0;font-size:105%}h1:target,h2:target,h3:target,h4:target,h5:target,h6:target{background:var(--highlight-color);padding:.2em 0}a{color:#058;text-decoration:none;transition:color .2s ease-in-out}a:visited{color:#503}a:hover{color:#b62}.title code{font-weight:bold}h2[id^="header-"]{margin-top:2em}.ident{color:#900;font-weight:bold}pre code{font-size:.8em;line-height:1.4em;padding:1em;display:block}code{background:#f3f3f3;font-family:"DejaVu Sans Mono",monospace;padding:1px 4px;overflow-wrap:break-word}h1 code{background:transparent}pre{border-top:1px solid #ccc;border-bottom:1px solid #ccc;margin:1em 0}#http-server-module-list{display:flex;flex-flow:column}#http-server-module-list div{display:flex}#http-server-module-list dt{min-width:10%}#http-server-module-list p{margin-top:0}.toc ul,#index{list-style-type:none;margin:0;padding:0}#index code{background:transparent}#index .selected{background:transparent;font-weight:bold}#index a{color:#058}#index h3{border-bottom:1px solid #ddd}#index ul{padding:0}#index h4{margin-top:.6em;font-weight:bold}@media (min-width:200ex){#index .two-column{column-count:2}}@media (min-width:300ex){#index .two-column{column-count:3}}dl{margin-bottom:2em}dl dl:last-child{margin-bottom:4em}dd{margin:0 0 1em 3em}#header-classes + dl > dd{margin-bottom:3em}dd dd{margin-left:2em}dd p{margin:10px 0}.name{background:#eee;font-size:.85em;padding:5px 10px;display:inline-block;min-width:40%}.name:hover{background:#e0e0e0}dt:target .name{background:var(--highlight-color)}.name > span:first-child{white-space:nowrap}.name.class > span:nth-child(2){margin-left:.4em}.inherited{color:#999;border-left:5px solid #eee;padding-left:1em}.inheritance em{font-style:normal;font-weight:bold}.desc h2{font-weight:400;font-size:1.25em}.desc h3{font-size:1em}.desc dt code{background:inherit}.source > summary,.git-link-div{color:#666;text-align:right;font-weight:400;font-size:.8em;text-transform:uppercase}.source summary > *{white-space:nowrap;cursor:pointer}.git-link{color:inherit;margin-left:1em}.source pre{max-height:500px;overflow:auto;margin:0}.source pre code{font-size:12px;overflow:visible;min-width:max-content}.hlist{list-style:none}.hlist li{display:inline}.hlist li:after{content:',\2002'}.hlist li:last-child:after{content:none}.hlist .hlist{display:inline;padding-left:1em}img{max-width:100%}td{padding:0 .5em}.admonition{padding:.1em 1em;margin:1em 0}.admonition-title{font-weight:bold}.admonition.note,.admonition.info,.admonition.important{background:#aef}.admonition.todo,.admonition.versionadded,.admonition.tip,.admonition.hint{background:#dfd}.admonition.warning,.admonition.versionchanged,.admonition.deprecated{background:#fd4}.admonition.error,.admonition.danger,.admonition.caution{background:lightpink}</style>
+  <style media="screen and (min-width: 700px)">@media screen and (min-width:700px){#sidebar{width:29%;min-width:525px;height:100vh;overflow:auto;position:sticky;top:0}#content{width:80%;max-width:110ch;padding:3em 6em;border-left:1px solid #ddd}pre code{font-size:1em}.name{font-size:1em}main{display:flex;flex-direction:row-reverse;justify-content:flex-end}.toc ul ul,#index ul ul{padding-left:1em}.toc > ul > li{margin-top:.5em}}</style>
+  <style media="print">@media print{#sidebar h1{page-break-before:always}.source{display:none}}@media print{*{background:transparent !important;color:#000 !important;box-shadow:none !important;text-shadow:none !important}a[href]:after{content:" (" attr(href) ")";font-size:90%}a[href][title]:after{content:none}abbr[title]:after{content:" (" attr(title) ")"}.ir a:after,a[href^="javascript:"]:after,a[href^="#"]:after{content:""}pre,blockquote{border:1px solid #999;page-break-inside:avoid}thead{display:table-header-group}tr,img{page-break-inside:avoid}img{max-width:100% !important}@page{margin:0.5cm}p,h2,h3{orphans:3;widows:3}h1,h2,h3,h4,h5,h6{page-break-after:avoid}}</style>
+
+
+
+    <script type="text/x-mathjax-config">MathJax.Hub.Config({ tex2jax: { inlineMath: [ ['$','$'], ["\\(","\\)"] ], processEscapes: true } });</script>
+    <script async src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.7/latest.js?config=TeX-AMS_CHTML" integrity="sha256-kZafAc6mZvK3W3v1pHOcUix30OHQN6pU/NO2oFkqZVw=" crossorigin></script>
+
+    <script defer src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js" integrity="sha512-D9gUyxqja7hBtkWpPWGt9wfbfaMGVt9gnyCvYa+jojwwPHLCzUm5i8rpk7vD7wNee9bA35eYIjobYPaQuKS1MQ==" crossorigin></script>
+    <script>window.addEventListener('DOMContentLoaded', () => {
+        hljs.configure({languages: ['bash', 'css', 'diff', 'graphql', 'ini', 'javascript', 'json', 'plaintext', 'python', 'python-repl', 'rust', 'shell', 'sql', 'typescript', 'xml', 'yaml']});
+        hljs.highlightAll();
+        /* Collapse source docstrings */
+        setTimeout(() => {
+            [...document.querySelectorAll('.hljs.language-python > .hljs-string')]
+                .filter(el => el.innerHTML.length > 200 && ['"""', "'''"].includes(el.innerHTML.substring(0, 3)))
+                .forEach(el => {
+                    let d = document.createElement('details');
+                    d.classList.add('hljs-string');
+                    d.innerHTML = '<summary>"""</summary>' + el.innerHTML.substring(3);
+                    el.replaceWith(d);
+                });
+        }, 100);
+    })</script>
+
+  
+</head>
+<body>
+<main>
+    <article id="content">
+      
+  
+
+  
+
+  <header>
+  <h1 class="title">Package <code>traceon</code></h1>
+  </header>
+
+  <section id="section-intro">
+  <p>Welcome!</p>
+<p>Traceon is a general software package used for numerical electron optics. Its main feature is the implementation of the Boundary Element Method (BEM) to quickly calculate the surface charge distribution.
+The program supports both radial symmetry and general three-dimensional geometries. 
+Electron tracing can be done very quickly using accurate radial series interpolation in both geometries.
+The electron trajectories obtained can help determine the aberrations of the optical components under study.</p>
+<p>If you have any issues using the package, please open an issue on the <a href="https://github.com/leon-vv/Traceon">Traceon Github page</a>.</p>
+<p>The software is currently distributed under the <code>MPL 2.0</code> license. </p>
+<h1 id="usage">Usage</h1>
+<p>In general, one starts with the <code><a title="traceon.geometry" href="geometry.html">traceon.geometry</a></code> module to create a mesh. For the BEM only the boundary of 
+electrodes needs to be meshed. So in 2D (radial symmetry) the mesh consists of line elements while in 3D the
+mesh consists of triangles.  Next, one specifies a suitable excitation (voltages) using the <code><a title="traceon.excitation" href="excitation.html">traceon.excitation</a></code> module.
+The excited geometry can then be passed to the <code><a title="traceon.solver.solve_direct" href="solver.html#traceon.solver.solve_direct">solve_direct()</a></code> function, which computes the resulting field. 
+The field can be passed to the <code><a title="traceon.tracing.Tracer" href="tracing.html#traceon.tracing.Tracer">Tracer</a></code> class to compute the trajectory of electrons moving through the field.</p>
+<h1 id="validations">Validations</h1>
+<p>To make sure the software is correct, various problems from the literature with known solutions are analyzed using the Traceon software and the
+results compared. In this manner it has been shown that the software produces very accurate results very quickly. The validations can be found in the
+<a href="https://github.com/leon-vv/Traceon/tree/main/validation">/validations</a> directory in the Github project. After installing Traceon, the validations can be 
+executed as follows:</p>
+<pre><code class="language-bash">    git clone https://github.com/leon-vv/Traceon
+    cd traceon
+    python3 ./validation/edwards2007.py --help
+</code></pre>
+<h1 id="units">Units</h1>
+<p>SI units are used throughout the codebase. Except for charge, which is stored as <span><span class="MathJax_Preview"> \frac{ \sigma}{ \epsilon_0} </span><script type="math/tex"> \frac{ \sigma}{ \epsilon_0} </script></span>.</p>
+  </section>
+
+  <section>
+    <h2 class="section-title" id="header-submodules">Sub-modules</h2>
+    <dl>
+      <dt><code class="name"><a title="traceon.excitation" href="excitation.html">traceon.excitation</a></code></dt>
+      <dd>
+  
+  <div class="desc"><p>The excitation module allows to specify the excitation (or element types) of the different physical groups (electrodes)
+created with the …</p></div>
+</dd>
+      <dt><code class="name"><a title="traceon.field" href="field.html">traceon.field</a></code></dt>
+      <dd>
+  
+  <div class="desc"><p>Radial series expansion in cylindrical symmetry …</p></div>
+</dd>
+      <dt><code class="name"><a title="traceon.focus" href="focus.html">traceon.focus</a></code></dt>
+      <dd>
+  
+  <div class="desc"><p>Module containing a single function to find the focus of a beam of electron trajecories.</p></div>
+</dd>
+      <dt><code class="name"><a title="traceon.geometry" href="geometry.html">traceon.geometry</a></code></dt>
+      <dd>
+  
+  <div class="desc"><p>The geometry module allows the creation of general meshes in 2D and 3D.
+The builtin mesher uses so called <em>parametric</em> meshes, meaning
+that for any …</p></div>
+</dd>
+      <dt><code class="name"><a title="traceon.logging" href="logging.html">traceon.logging</a></code></dt>
+      <dd>
+  
+  <div class="desc"></div>
+</dd>
+      <dt><code class="name"><a title="traceon.mesher" href="mesher.html">traceon.mesher</a></code></dt>
+      <dd>
+  
+  <div class="desc"></div>
+</dd>
+      <dt><code class="name"><a title="traceon.plotting" href="plotting.html">traceon.plotting</a></code></dt>
+      <dd>
+  
+  <div class="desc"><p>The <code><a title="traceon.plotting" href="plotting.html">traceon.plotting</a></code> module uses the <code>vedo</code> plotting library to provide some convenience functions
+to show the line and triangle meshes generated by …</p></div>
+</dd>
+      <dt><code class="name"><a title="traceon.solver" href="solver.html">traceon.solver</a></code></dt>
+      <dd>
+  
+  <div class="desc"><p>The solver module uses the Boundary Element Method (BEM) to compute the surface charge distribution of a given
+geometry and excitation. Once the …</p></div>
+</dd>
+      <dt><code class="name"><a title="traceon.tracing" href="tracing.html">traceon.tracing</a></code></dt>
+      <dd>
+  
+  <div class="desc"><p>The tracing module allows to trace charged particles within any field type returned by the <code><a title="traceon.solver" href="solver.html">traceon.solver</a></code> module. The tracing algorithm
+used is RK45 …</p></div>
+</dd>
+      <dt><code class="name"><a title="traceon.typing" href="typing.html">traceon.typing</a></code></dt>
+      <dd>
+  
+  <div class="desc"></div>
+</dd>
+    </dl>
+  </section>
+	
+  <section>
+  </section>
+
+  <section>
+  </section>
+
+  <section>
+  </section>
+
+    </article>
+    
+  
+  <nav id="sidebar">
+
+    
+
+	<h1 class='title'><a href='index.html' style='color:black'>Traceon</a></h1>
+	
+    <ul id="index">
+	
+	<li><h3><a href="#header-submodules">Examples</a></h3>
+      <ul>
+			<li><code><a href="../traceon/einzel-lens.html">Einzel lens</a></code></li>
+      </ul>
+    </li>
+		
+    <li><h3><a href="#header-submodules">Traceon</a></h3>
+      <ul>
+        <li><code ><a title="traceon.excitation" href="excitation.html">traceon.excitation</a></code></li>
+        <li><code ><a title="traceon.field" href="field.html">traceon.field</a></code></li>
+        <li><code ><a title="traceon.focus" href="focus.html">traceon.focus</a></code></li>
+        <li><code ><a title="traceon.geometry" href="geometry.html">traceon.geometry</a></code></li>
+        <li><code ><a title="traceon.logging" href="logging.html">traceon.logging</a></code></li>
+        <li><code ><a title="traceon.mesher" href="mesher.html">traceon.mesher</a></code></li>
+        <li><code ><a title="traceon.plotting" href="plotting.html">traceon.plotting</a></code></li>
+        <li><code ><a title="traceon.solver" href="solver.html">traceon.solver</a></code></li>
+        <li><code ><a title="traceon.tracing" href="tracing.html">traceon.tracing</a></code></li>
+        <li><code ><a title="traceon.typing" href="typing.html">traceon.typing</a></code></li>
+      </ul>
+    </li>
+		
+	<li><h3><a href="#header-submodules">Traceon Pro</a></h3>
+      <ul>
+			<li><code ><a title="traceon_pro.field" href="../traceon_pro/field.html">traceon_pro.field</a></code></li>
+			<li><code ><a title="traceon_pro.solver" href="../traceon_pro/solver.html">traceon_pro.solver</a></code></li>
+			<li><code ><a title="traceon_pro.tracing" href="../traceon_pro/tracing.html">traceon_pro.tracing</a></code></li>
+      </ul>
+    </li>
+
+
+
+
+
+    </ul>
+  </nav>
+
+</main>
+
+<footer id="footer">
+    
+    <p>Generated by <a href="https://pdoc3.github.io/pdoc" title="pdoc: Python API documentation generator"><cite>pdoc</cite> 0.11.5</a>.</p>
+</footer>
+
+</body>
+</html>
