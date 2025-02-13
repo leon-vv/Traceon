@@ -4,11 +4,7 @@ import sys
 from scipy.interpolate import *
 import numpy as np
 
-import traceon.geometry as G
-import traceon.excitation as E
-import traceon.solver as solver
-import traceon.plotting as P
-
+import traceon as T
 from validation import Validation
 
 gap_size = 0.2
@@ -30,9 +26,9 @@ class TwoCylinderEdwards(Validation):
     def create_mesh(self, MSF, symmetry, higher_order):
         cylinder_length = (boundary_length - gap_size)/2
         
-        bottom  = G.Path.line([0., 0., 0.], [R, 0., 0.]).extend_with_line([R, 0., cylinder_length])
-        gap = G.Path.line([R, 0., cylinder_length], [R, 0., cylinder_length+gap_size])
-        top = G.Path.line([R, 0., cylinder_length+gap_size], [R, 0., boundary_length]).extend_with_line([0., 0., boundary_length])
+        bottom  = T.Path.line([0., 0., 0.], [R, 0., 0.]).extend_with_line([R, 0., cylinder_length])
+        gap = T.Path.line([R, 0., cylinder_length], [R, 0., cylinder_length+gap_size])
+        top = T.Path.line([R, 0., cylinder_length+gap_size], [R, 0., boundary_length]).extend_with_line([0., 0., boundary_length])
 
         bottom.name = 'v1'
         gap.name = 'gap'
@@ -47,7 +43,7 @@ class TwoCylinderEdwards(Validation):
             return (bottom + gap + top).mesh(mesh_size_factor=MSF, higher_order=higher_order)
     
     def get_excitation(self, geom, symmetry):
-        exc = E.Excitation(geom, symmetry)
+        exc = T.Excitation(geom, symmetry)
         exc.add_voltage(v1=0, v2=10, gap=gap_voltage)
         return exc
 
