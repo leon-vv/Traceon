@@ -4,27 +4,27 @@ import unittest
 from math import *
 import numpy as np
 
-import traceon as T
-from traceon.field import FieldRadialAxial, FieldRadialBEM, FieldSuperposition
+import voltrace as v
+from voltrace.field import FieldRadialAxial, FieldRadialBEM, FieldSuperposition
 
-T.set_log_level(T.LogLevel.SILENT)
+v.set_log_level(v.LogLevel.SILENT)
 
 class FieldGeometryTests(unittest.TestCase):
 
     @classmethod
     def setUpClass(cls):
         # simple field; details are not important for geometric tests
-        pos = T.Path.rectangle_xz(0.1,1,1, 1.5)
-        neg = T.Path.rectangle_xz(0.1,1,-1.5, -1)
+        pos = v.Path.rectangle_xz(0.1,1,1, 1.5)
+        neg = v.Path.rectangle_xz(0.1,1,-1.5, -1)
         neg.name='neg'
         pos.name='pos'
 
         mesh = (neg + pos).mesh(mesh_size=1)
 
-        excitation = T.Excitation(mesh, T.Symmetry.RADIAL)
+        excitation = v.Excitation(mesh, v.Symmetry.RADIAL)
         excitation.add_voltage(pos=1)
         excitation.add_magnetostatic_potential(neg=-1)
-        cls.field = T.solve_direct(excitation)
+        cls.field = v.solve_direct(excitation)
         cls.field_axial = FieldRadialAxial(cls.field, -2, 2, 100)
 
     def test_map_points(self):

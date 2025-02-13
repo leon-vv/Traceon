@@ -14,39 +14,39 @@ elif platform.system() == 'Darwin':
     extra_objects = []
     include_dirs = ['/opt/homebrew/include/']
 elif platform.system() == 'Windows':
-    compiler_kwargs = dict(extra_compile_args=['/fp:fast', '/Ox', '/Ob3', '/Oi', '/GL', '/arch:AVX', '-I .\\traceon\\backend\\'])
+    compiler_kwargs = dict(extra_compile_args=['/fp:fast', '/Ox', '/Ob3', '/Oi', '/GL', '/arch:AVX', '-I .\\voltrace\\backend\\'])
     extra_objects = []
     include_dirs = []
 
 
 backend_extension = Extension(
-    name='traceon.backend.traceon_backend',
-    sources=['traceon/backend/traceon-backend.c'],
+    name='voltrace.backend.voltrace_backend',
+    sources=['voltrace/backend/voltrace-backend.c'],
     extra_objects=extra_objects,
     py_limited_api=True,
     **compiler_kwargs)
 
 setup(
-    name='traceon',
+    name='voltrace',
     version='0.10.0',
     description='Solver and tracer for electrostatic problems',
-    url='https://github.com/leon-vv/Traceon',
+    url='https://github.com/leon-vv/Voltrace',
     author='Léon van Velzen',
     author_email='leonvanvelzen@protonmail.com',
     keywords=['boundary element method', 'BEM', 'electrostatic', 'electromagnetic', 'electron microscope', 'electron', 'tracing', 'particle', 'tracer', 'electron optics'],
     license='MPL 2.0',
     ext_modules=[backend_extension],
-    packages=['traceon', 'traceon.backend'],
+    packages=['voltrace', 'voltrace.backend'],
     package_data={
-        'traceon.backend': ['*.c']
+        'voltrace.backend': ['*.c']
     },
     long_description = open('README.md').read(),
     long_description_content_type='text/markdown',
     install_requires=['matplotlib', 'vedo', 'numpy', 'scipy', 'meshio'],
     project_urls = {
-        'Documentation': "https://leon.science/traceon",
-        'Code': "https://github.com/leon-vv/traceon",
-        'Issues': "https://github.com/leon-vv/traceon/issues"
+        'Documentation': "https://leon.science/voltrace",
+        'Code': "https://github.com/leon-vv/voltrace",
+        'Issues': "https://github.com/leon-vv/voltrace/issues"
     },
     include_dirs=include_dirs,
     python_requires='>=3.7',

@@ -3,7 +3,7 @@ import unittest
 from scipy.constants import mu_0
 import numpy as np
 
-import traceon.backend as B
+import voltrace.backend as B
 
 
 class TestUtilities3D(unittest.TestCase):

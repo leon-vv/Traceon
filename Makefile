@@ -1,12 +1,12 @@
 
 .PHONY: clean bdist
 
-traceon/backend/traceon_backend.so: traceon/backend/*.c
-	clang -O3 -march=native -shared -fPIC -ffast-math -Wno-extern-initializer ./traceon/backend/traceon-backend.c -o traceon/backend/traceon_backend.so -lm 
+voltrace/backend/voltrace_backend.so: voltrace/backend/*.c
+	clang -O3 -march=native -shared -fPIC -ffast-math -Wno-extern-initializer ./voltrace/backend/voltrace-backend.c -o voltrace/backend/voltrace_backend.so -lm 
 
 clean:
 	rm -rf ./build ./dist
-	rm traceon/backend/traceon_backend.so
+	rm voltrace/backend/voltrace_backend.so
 
 sdist:
 	python3 ./setup.py sdist

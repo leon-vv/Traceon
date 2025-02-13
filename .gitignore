@@ -1,7 +1,7 @@
 *.swp
-traceon.egg-info/*
+voltrace.egg-info/*
 build/*
-traceon/__pycache__/*
+voltrace/__pycache__/*
 __pycache__
 *.so
 *.o

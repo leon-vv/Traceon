@@ -1,10 +1,10 @@
 import matplotlib.pyplot as plt
 import numpy as np
 
-import traceon as T
+import voltrace as v
 
 try:
-    import traceon_pro.solver as S
+    import voltrace_pro.solver as S
 except ImportError:
     S = None
 
@@ -24,7 +24,7 @@ z0 = -THICKNESS - SPACING - THICKNESS/2
 # which shield the microscope from the deflector fields.
 def round_electrode(z0, name):
     
-    path = T.Path.line([RADIUS, 0.0, z0], [RADIUS, 0.0, z0+THICKNESS])\
+    path = v.Path.line([RADIUS, 0.0, z0], [RADIUS, 0.0, z0+THICKNESS])\
         .extend_with_line([RADIUS+ELECTRODE_WIDTH, 0.0, z0+THICKNESS])\
         .extend_with_line([RADIUS+ELECTRODE_WIDTH, 0.0, z0])\
         .close()
@@ -41,7 +41,7 @@ def rectangle_electrode(x, z, name):
     p0 = [x, -LENGTH_DEFLECTORS/2, z]
     p1 = [x+THICKNESS, +LENGTH_DEFLECTORS/2, z+THICKNESS]
     
-    box = T.Surface.box(p0, p1)
+    box = v.Surface.box(p0, p1)
     box.name = name
     
     return box
@@ -57,10 +57,10 @@ defl_mesh = (defl_pos + defl_neg).mesh(mesh_size_factor=3)
 mesh = electrode_mesh + defl_mesh
 
 # Show the generated triangle mesh.
-T.plot_mesh(mesh, ground='green', deflector_positive='red', deflector_negative='blue')
-T.show()
+v.plot_mesh(mesh, ground='green', deflector_positive='red', deflector_negative='blue')
+v.show()
 
-excitation = T.Excitation(mesh, T.Symmetry.THREE_D)
+excitation = v.Excitation(mesh, v.Symmetry.THREE_D)
 
 # Apply the correct voltages. Here we set one deflector electrode to 5V and
 # the other electrode to -5V.
@@ -68,10 +68,10 @@ excitation.add_voltage(ground=0.0, deflector_positive=5, deflector_negative=-5)
 
 # Use the Boundary Element Method (BEM) to calculate the surface charges,
 # the surface charges gives rise to a electrostatic field.
-assert S is not None, ("The 'traceon_pro' package is not installed or not found. "
-        "Traceon Pro is required to solve 3D geometries.\n"
-        "For more information, visit: https://www.traceon.org")
-field = T.solve_direct(excitation)
+assert S is not None, ("The 'voltrace_pro' package is not installed or not found. "
+        "Voltrace Pro is required to solve 3D geometries.\n"
+        "For more information, visit: https://www.voltrace.io")
+field = v.solve_direct(excitation)
 
 # An instance of the tracer class allows us to easily find the trajectories of 
 # electrons.  Here we specify that the tracing should stop if the x,y values
@@ -82,7 +82,7 @@ r_start = np.linspace(-RADIUS/8, RADIUS/8, 5)
 
 # Initial velocity vector points downwards, with a 
 # initial speed corresponding to 1000eV.
-velocity = T.velocity_vec(1000, [0, 0, -1])
+velocity = v.velocity_vec(1000, [0, 0, -1])
 
 plt.figure()
 plt.title('Electron traces')
@@ -99,13 +99,13 @@ plt.ylabel('z (mm)')
 plt.show()
 
 
-#surface = T.Path.circle_xy(0.0, 0.0, RADIUS/2).move(dz=-0.5).extrude([0, 0, 1.0])
-surface = T.Surface.rectangle_xz(-10*RADIUS, 10*RADIUS, -3*RADIUS, 3*RADIUS)
+#surface = v.Path.circle_xy(0.0, 0.0, RADIUS/2).move(dz=-0.5).extrude([0, 0, 1.0])
+surface = v.Surface.rectangle_xz(-10*RADIUS, 10*RADIUS, -3*RADIUS, 3*RADIUS)
 
-T.new_figure()
-T.plot_mesh(defl_mesh, deflector_positive='red', deflector_negative='blue')
-T.plot_equipotential_lines(field, surface, N0=100, N1=150)
-T.show()
+v.new_figure()
+v.plot_mesh(defl_mesh, deflector_positive='red', deflector_negative='blue')
+v.plot_equipotential_lines(field, surface, N0=100, N1=150)
+v.show()
 
 
 

@@ -6,8 +6,8 @@ from scipy.interpolate import CubicSpline
 from scipy.constants import e, m_e, mu_0, epsilon_0
 from scipy.integrate import quad
 
-import traceon.backend as B
-import traceon.logging as logging
+import voltrace.backend as B
+import voltrace.logging as logging
 
 logging.set_log_level(logging.LogLevel.SILENT)
 
@@ -33,7 +33,7 @@ EM = q/m_e
 
 # This function is known to give the correct values for the magnetic
 # field for the 'unit loop' (loop with radius 1, in the xy-plane, centered around the origin).
-# Very useful to test against values produced by Traceon.
+# Very useful to test against values produced by Voltrace.
 # See also https://tiggerntatie.github.io/emagnet/offaxis/iloopcalculator.htm 
 def biot_savart_loop(current, r_point):
     def biot_savart_integrand(t, axis):
@@ -106,10 +106,10 @@ class TestRadialRing(unittest.TestCase):
         correct = k * Q / np.sqrt(z**2 + r**2)
          
         pot = [potential_of_ring_arbitrary(dq, 0., z0, r, 0.) for z0 in z]
-        traceon = [dq/epsilon_0*B.potential_radial_ring(0., z0, r, 0.-z0) for z0 in z]
+        voltrace = [dq/epsilon_0*B.potential_radial_ring(0., z0, r, 0.-z0) for z0 in z]
          
         assert np.allclose(pot, correct)
-        assert np.allclose(traceon, correct)
+        assert np.allclose(voltrace, correct)
     
     def test_current_axial(self):
         # http://hyperphysics.phy-astr.gsu.edu/hbase/magnetic/curloo.html
@@ -136,11 +136,11 @@ class TestRadialRing(unittest.TestCase):
         test_cases = 10*np.random.rand(N, 4)
         
         for x0, y0, x, y in test_cases:
-            traceon_field = mu_0*B.current_field_radial_ring(x0, y0, x, y)
+            voltrace_field = mu_0*B.current_field_radial_ring(x0, y0, x, y)
             correct_field = magnetic_field_of_loop(1., x, np.array([x0, 0., y0-y]))
             
-            assert np.isclose(traceon_field[0], correct_field[0], atol=1e-10)
-            assert np.isclose(traceon_field[1], correct_field[2], atol=1e-10)   
+            assert np.isclose(voltrace_field[0], correct_field[0], atol=1e-10)
+            assert np.isclose(voltrace_field[1], correct_field[2], atol=1e-10)   
     
     def test_current_field_at_center(self):
         # http://hyperphysics.phy-astr.gsu.edu/hbase/magnetic/curloo.html
@@ -173,12 +173,12 @@ class TestRadialRing(unittest.TestCase):
              
             return quad(to_integrate, 0, 2*pi)[0]
         
-        def field_traceon(x):
+        def field_voltrace(x):
             return I*B.current_field_radial_ring(x, 0., R, 0.)[1]
 
         x = np.linspace(0.01, 9, 10) 
         field_correct =  [field(x_)/B0 for x_ in x]
-        assert np.allclose(field_correct, [field_traceon(x_)/B0 for x_ in x])
+        assert np.allclose(field_correct, [field_voltrace(x_)/B0 for x_ in x])
     
     def test_current_field_arbitrary(self):
                  
@@ -196,11 +196,11 @@ class TestRadialRing(unittest.TestCase):
         ])
         
         z_ring = 3.2
-        traceon_fields = np.array([mu_0*B.current_field_radial_ring(p_[0], p_[2]+z_ring, 1., z_ring) for p_ in positions])
+        voltrace_fields = np.array([mu_0*B.current_field_radial_ring(p_[0], p_[2]+z_ring, 1., z_ring) for p_ in positions])
         correct_fields = np.array([biot_savart_loop(1., p_) for p_ in positions])
         
-        assert np.allclose(traceon_fields[:, 0], correct_fields[:, 0], atol=1e-10)
-        assert np.allclose(traceon_fields[:, 1], correct_fields[:, 2], atol=1e-10)
+        assert np.allclose(voltrace_fields[:, 0], correct_fields[:, 0], atol=1e-10)
+        assert np.allclose(voltrace_fields[:, 1], correct_fields[:, 2], atol=1e-10)
     
     def test_ampere_law(self):
         current = 2.5

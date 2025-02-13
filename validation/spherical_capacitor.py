@@ -3,7 +3,7 @@ from math import cos, sqrt
 import numpy as np
 from scipy.constants import e, m_e
 
-import traceon as T
+import voltrace as v
 from validation import Validation
 
 angle = 0.05
@@ -28,7 +28,7 @@ class SphericalCapacitor(Validation):
         1999.
         """
         def add_shell(radius, name):
-            arc = T.Path.arc([0., 0., 0.], [0, 0, -radius], [radius, 0, 0.]).extend_with_arc([0., 0., 0.], [0., 0., radius])
+            arc = v.Path.arc([0., 0., 0.], [0, 0, -radius], [radius, 0, 0.]).extend_with_arc([0., 0., 0.], [0., 0., radius])
             arc.name = name
 
             if symmetry.is_3d():
@@ -40,7 +40,7 @@ class SphericalCapacitor(Validation):
         return add_shell(r1, 'inner') + add_shell(r2, 'outer')
  
     def get_excitation(self, mesh, symmetry):
-        exc = T.Excitation(mesh, symmetry)
+        exc = v.Excitation(mesh, symmetry)
         exc.add_voltage(inner=5/3, outer=3/5)
         return exc
      
@@ -58,7 +58,7 @@ class SphericalCapacitor(Validation):
         tracer = field.get_tracer( [(-0.1, 12.5), (-0.1, 0.1), (-12.5, 12.5)] )
         print('Starting electron trace...')
         times, pos = tracer(position, vel)
-        r_final = T.axis_intersection(pos)
+        r_final = v.axis_intersection(pos)
         
         return r_final 
 

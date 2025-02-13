@@ -1,8 +1,8 @@
 import matplotlib.pyplot as plt
 import numpy as np
 
-import traceon as T
-from traceon.field import FieldRadialAxial
+import voltrace as v
+from voltrace.field import FieldRadialAxial
 
 # Dimensions of the einzel lens.
 THICKNESS = 0.5
@@ -13,16 +13,16 @@ RADIUS = 0.15
 # lens is at z = 0mm.
 z0 = -THICKNESS - SPACING - THICKNESS/2
 
-boundary = T.Path.line([0., 0., 1.75],  [2.0, 0., 1.75])\
+boundary = v.Path.line([0., 0., 1.75],  [2.0, 0., 1.75])\
     .extend_with_line([2.0, 0., -1.75]).extend_with_line([0., 0., -1.75])
 
 
 margin_right = 0.1
 extent = 2.0 - margin_right
 
-bottom = T.Path.aperture(THICKNESS, RADIUS, extent, -THICKNESS - SPACING)
-middle = T.Path.aperture(THICKNESS, RADIUS, extent)
-top = T.Path.aperture(THICKNESS, RADIUS, extent, THICKNESS + SPACING)
+bottom = v.Path.aperture(THICKNESS, RADIUS, extent, -THICKNESS - SPACING)
+middle = v.Path.aperture(THICKNESS, RADIUS, extent)
+top = v.Path.aperture(THICKNESS, RADIUS, extent, THICKNESS + SPACING)
     
 boundary.name = 'boundary'
 bottom.name = 'ground'
@@ -31,7 +31,7 @@ top.name = 'ground'
 
 mesh = (boundary + bottom + middle + top).mesh(mesh_size_factor=45)
  
-excitation = T.Excitation(mesh, T.Symmetry.RADIAL)
+excitation = v.Excitation(mesh, v.Symmetry.RADIAL)
 
 # Excite the geometry, put ground at 0V and the lens electrode at 1800V.
 excitation.add_voltage(ground=0.0, lens=1800)
@@ -39,7 +39,7 @@ excitation.add_electrostatic_boundary('boundary')
 
 # Use the Boundary Element Method (BEM) to calculate the surface charges,
 # the surface charges gives rise to a electrostatic field.
-field = T.solve_direct(excitation)
+field = v.solve_direct(excitation)
 
 # But using an integration over the surface charges to calculate the electron
 # trajectories is inherently slow. Instead, use an interpolation technique
@@ -66,7 +66,7 @@ r_start = np.linspace(-RADIUS/3, RADIUS/3, 7)
 
 # Initial velocity vector points downwards, with a 
 # initial speed corresponding to 1000eV.
-velocity = T.velocity_vec(1000, [0, 0, -1])
+velocity = v.velocity_vec(1000, [0, 0, -1])
 
 trajectories = []
 
@@ -95,9 +95,9 @@ plt.xlabel('r (mm)')
 plt.ylabel('z (mm)')
 plt.show()
 
-T.new_figure()
-T.plot_mesh(mesh, ground='green', lens='blue', boundary='purple')
-T.plot_trajectories(trajectories, xmin=0, zmin=-1.7, zmax=1.6)
-surface = T.Surface.rectangle_xz(0.0, RADIUS*0.9, -1.75, 1.75)
-T.plot_equipotential_lines(field_axial, surface, N0=250, N1=75)
-T.show()
+v.new_figure()
+v.plot_mesh(mesh, ground='green', lens='blue', boundary='purple')
+v.plot_trajectories(trajectories, xmin=0, zmin=-1.7, zmax=1.6)
+surface = v.Surface.rectangle_xz(0.0, RADIUS*0.9, -1.75, 1.75)
+v.plot_equipotential_lines(field_axial, surface, N0=250, N1=75)
+v.show()

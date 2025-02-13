@@ -30,8 +30,8 @@ jobs:
             auditwheel repair dist/*.whl --plat manylinux_2_31_x86_64 -w wheelhouse/
       - name: Install the wheel
         run: |
-          pip install wheelhouse/traceon-*.whl
-          pip show traceon
+          pip install wheelhouse/voltrace-*.whl
+          pip show voltrace
       - name: Run tests
         run: python -m unittest tests/*.py
       - name: Upload wheel artifact
@@ -62,8 +62,8 @@ jobs:
         run: python setup.py bdist_wheel
       - name: Install the wheel
         run: |
-          pip install (get-item dist/traceon-*.whl)
-          pip show traceon
+          pip install (get-item dist/voltrace-*.whl)
+          pip show voltrace
       - name: Run tests
         run: python -m unittest (get-item tests/*.py)
       - name: Upload wheel artifact
@@ -89,7 +89,7 @@ jobs:
       - name: Install the wheel
         run: |
           pip install dist/*.whl
-          pip show traceon
+          pip show voltrace
       - name: Run tests
         run: python -m unittest tests/*.py
       - name: Upload wheel artifact

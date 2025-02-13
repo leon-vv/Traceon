@@ -1,4 +1,4 @@
-"""The tracing module allows to trace charged particles within any field type returned by the `traceon.solver` module. The tracing algorithm
+"""The tracing module allows to trace charged particles within any field type returned by the `voltrace.solver` module. The tracing algorithm
 used is RK45 with adaptive step size control [1]. The tracing code is implemented in C and has therefore
 excellent performance. The module also provides various helper functions to define appropriate initial velocity vectors and to
 compute intersections of the computed traces with various planes.
@@ -102,12 +102,12 @@ def _z_to_bounds(z1: float, z2: float) -> tuple[float, float]:
         return (min(z1, z2)-1, max(z1, z2)+1)
 
 class Tracer:
-    """General tracer class for charged particles. Can trace charged particles given any field class from `traceon.solver`.
+    """General tracer class for charged particles. Can trace charged particles given any field class from `voltrace.solver`.
 
     Parameters
     ----------
-    field: `traceon.field.Field`
-        The field used to compute the force felt by the charged particle. Note that any child class of `traceon.field.Field` can be used.
+    field: `voltrace.field.Field`
+        The field used to compute the force felt by the charged particle. Note that any child class of `voltrace.field.Field` can be used.
     bounds: (3, 2) np.ndarray of float64
         Once the particle reaches one of the boundaries the tracing stops. The bounds are of the form ( (xmin, xmax), (ymin, ymax), (zmin, zmax) ).
     """
@@ -135,7 +135,7 @@ class Tracer:
     def __str__(self) -> str:
         field_name = self.field.__class__.__name__
         bounds_str = ' '.join([f'({bmin:.2f}, {bmax:.2f})' for bmin, bmax in self.bounds])
-        return f'<Traceon Tracer of {field_name},\n\t' \
+        return f'<Voltrace Tracer of {field_name},\n\t' \
             + 'Bounds: ' + bounds_str + ' mm >'
 
     def __call__(self, *args, **kwargs):
