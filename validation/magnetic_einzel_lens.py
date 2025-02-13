@@ -2,13 +2,7 @@ import time
 
 import numpy as np
 
-import traceon.geometry as G
-import traceon.solver as S
-import traceon.excitation as E
-import traceon.plotting as P
-import traceon.tracing as T
-from traceon.field import FieldRadialAxial
-
+import traceon as T
 from validation import Validation
 
 try:
@@ -29,15 +23,15 @@ class MagneticEinzelLens(Validation):
         self.plot_colors = dict(lens='blue', ground='green', boundary='purple')
 
     def create_mesh(self, MSF, symmetry, higher_order):
-        boundary = G.Path.line([0., 0., 1.75],  [2.0, 0., 1.75])\
+        boundary = T.Path.line([0., 0., 1.75],  [2.0, 0., 1.75])\
             .extend_with_line([2.0, 0., -1.75]).extend_with_line([0., 0., -1.75])
         
         margin_right = 0.1
         extent = 2.0 - margin_right
         
-        bottom = G.Path.aperture(THICKNESS, RADIUS, extent, -THICKNESS - SPACING)
-        middle = G.Path.aperture(THICKNESS, RADIUS, extent)
-        top = G.Path.aperture(THICKNESS, RADIUS, extent, THICKNESS + SPACING)
+        bottom = T.Path.aperture(THICKNESS, RADIUS, extent, -THICKNESS - SPACING)
+        middle = T.Path.aperture(THICKNESS, RADIUS, extent)
+        top = T.Path.aperture(THICKNESS, RADIUS, extent, THICKNESS + SPACING)
          
         if symmetry.is_3d():
             boundary = boundary.revolve_z()
@@ -54,7 +48,7 @@ class MagneticEinzelLens(Validation):
 
 
     def get_excitation(self, mesh, symmetry):
-        excitation = E.Excitation(mesh, symmetry)
+        excitation = T.Excitation(mesh, symmetry)
         excitation.add_magnetostatic_potential(ground=0.0, lens=50.)
         excitation.add_magnetostatic_boundary('boundary')
         return excitation
@@ -67,10 +61,10 @@ class MagneticEinzelLens(Validation):
       
     def compute_value_of_interest(self, geom, field):
         _3d = geom.is_3d()
-        assert not _3d or Field3DAxial is not None, "Please install traceon_pro for fast 3D tracing support"
+        assert not _3d or T.Field3DAxial is not None, "Please install traceon_pro for fast 3D tracing support"
 
         field.set_bounds( ((-RADIUS, RADIUS), (-RADIUS, RADIUS), (-1.5,1.5)) )
-        field_axial = FieldRadialAxial(field, -1.5, 1.5, 1000) if not _3d else Field3DAxial(field, -1.5, 1.5, 1000)
+        field_axial = T.FieldRadialAxial(field, -1.5, 1.5, 1000) if not _3d else T.Field3DAxial(field, -1.5, 1.5, 1000)
          
         bounds = ((-RADIUS, RADIUS), (-RADIUS, RADIUS), (-5, 3.5))
         tracer = field_axial.get_tracer(bounds)

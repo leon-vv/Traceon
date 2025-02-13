@@ -2,12 +2,7 @@ import time
 import numpy as np
 import matplotlib.pyplot as plt
 
-import traceon.geometry as G
-import traceon.excitation as E
-import traceon.tracing as T
-import traceon.plotting as P
-import traceon.focus as F
-from traceon.field import FieldRadialAxial
+import traceon as T
 
 try:
     import traceon_pro.solver as S
@@ -35,20 +30,20 @@ t = 0.15 # thickness
 r = 0.075 # radius
 st = 0.5  # spacer thickness
 
-boundary = G.Path.line([extent, 0.,0.], [extent, 0., 1.6])
+boundary = T.Path.line([extent, 0.,0.], [extent, 0., 1.6])
 boundary.name = 'boundary'
 
 #create line geometries
-mirror = G.Path.aperture(0.15, r, extent, z=t/2)
+mirror = T.Path.aperture(0.15, r, extent, z=t/2)
 mirror.name = 'mirror'
 
-mirror_line = G.Path.line([0., 0., 0.], [r, 0., 0.])
+mirror_line = T.Path.line([0., 0., 0.], [r, 0., 0.])
 mirror_line.name = 'mirror'
 
-lens = G.Path.aperture(0.15, r, extent, z=t + st + t/2)
+lens = T.Path.aperture(0.15, r, extent, z=t + st + t/2)
 lens.name = 'lens'
 
-ground = G.Path.aperture(0.15, r, extent, z=t+st+t+st+t/2)
+ground = T.Path.aperture(0.15, r, extent, z=t+st+t+st+t/2)
 ground.name = 'ground'
 
 #revolve around z axis and displace
@@ -70,10 +65,10 @@ geom = mirror+mirror_line+lens+ground+boundary
 mesh =  geom.mesh(mesh_size_factor=MSF)
 
 if PLOTTING:
-    P.plot_mesh(mesh, ground='green', mirror='red', lens='blue', boundary = 'grey', show_normals=True)
-    P.show()
+    T.plot_mesh(mesh, ground='green', mirror='red', lens='blue', boundary = 'grey', show_normals=True)
+    T.show()
 
-excitation = E.Excitation(mesh, E.Symmetry.THREE_D)
+excitation = T.Excitation(mesh, T.Symmetry.THREE_D)
 
 # Apply the correct voltages. Set the ground electrode to zero.
 excitation.add_voltage(ground=0., lens=TUNING_VOLTAGE, mirror=MIRROR_VOLTAGE)

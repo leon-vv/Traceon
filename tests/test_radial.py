@@ -7,20 +7,15 @@ from scipy.integrate import quad, dblquad
 from scipy.constants import epsilon_0, mu_0
 from scipy.interpolate import CubicSpline
 
-import traceon.geometry as G
-import traceon.solver as S
-import traceon.excitation as E
-import traceon.tracing as T
+import traceon as T
 import traceon.backend as B
-import traceon.logging as logging
-from traceon.field import FieldRadialAxial
 
 from tests.test_radial_ring import potential_of_ring_arbitrary, biot_savart_loop, magnetic_field_of_loop
 
-logging.set_log_level(logging.LogLevel.SILENT)
+T.logging.set_log_level(T.logging.LogLevel.SILENT)
 
 def get_ring_effective_point_charges(current, r):
-    return S.EffectivePointCharges(
+    return T.field.EffectivePointCharges(
         [current],
         [ [1.] + ([0.]*(B.N_TRIANGLE_QUAD-1)) ],
         [ [[r, 0., 0.]] * B.N_TRIANGLE_QUAD ])
@@ -92,15 +87,15 @@ class TestRadial(unittest.TestCase):
         assert np.allclose(B.field_radial(np.array([r0, 0.0, z0]), charges, jac, pos)/epsilon_0, [Er, 0.0, Ez], atol=0.0, rtol=1e-10)
      
     def test_rectangular_current_loop(self):
-        coil = G.Surface.rectangle_xz(1.0, 2.0, 1.0, 2.0)
+        coil = T.Surface.rectangle_xz(1.0, 2.0, 1.0, 2.0)
         coil.name = 'coil'
 
         mesh = coil.mesh(mesh_size=0.1)
          
-        exc = E.Excitation(mesh, E.Symmetry.RADIAL)
+        exc = T.Excitation(mesh, T.Symmetry.RADIAL)
         exc.add_current(coil=5)
         
-        field = S.solve_direct(exc)
+        field = T.solve_direct(exc)
         
         z = np.linspace(-0.5, 3.5, 300)
         r = 0.0
@@ -126,7 +121,7 @@ class TestRadial(unittest.TestCase):
         current = 2.5
         eff = get_ring_effective_point_charges(current, 1.)
          
-        traceon_field = S.FieldRadialBEM(current_point_charges=eff)
+        traceon_field = T.FieldRadialBEM(current_point_charges=eff)
          
         z = np.linspace(-6, 6, 250)
         pot = [traceon_field.current_potential_axial(z_) for z_ in z]
@@ -140,7 +135,7 @@ class TestRadial(unittest.TestCase):
         current = 2.5
         eff = get_ring_effective_point_charges(current, 1.)
          
-        traceon_field = S.FieldRadialBEM(current_point_charges=eff)
+        traceon_field = T.FieldRadialBEM(current_point_charges=eff)
          
         z = np.linspace(-6, 6, 500)
         derivatives = traceon_field.get_current_axial_potential_derivatives(z)
@@ -162,9 +157,9 @@ class TestRadial(unittest.TestCase):
         current = 2.5
         eff = get_ring_effective_point_charges(current, 1.)
          
-        traceon_field = S.FieldRadialBEM(current_point_charges=eff)
+        traceon_field = T.FieldRadialBEM(current_point_charges=eff)
 
-        interp = FieldRadialAxial(traceon_field, -5, 5, N=300)
+        interp = T.FieldRadialAxial(traceon_field, -5, 5, N=300)
          
         z = interp.z[1:-1]
 
@@ -181,12 +176,12 @@ class TestRadial(unittest.TestCase):
             assert np.allclose(field, field_interp, atol=1e-3, rtol=5e-3)
      
     def test_mag_pot_derivatives(self):
-        boundary = G.Path.line([0., 0., 5.], [5., 0., 5.])\
+        boundary = T.Path.line([0., 0., 5.], [5., 0., 5.])\
             .extend_with_line([5., 0., -5.])\
             .extend_with_line([0., 0., -5.])
         
-        r1 = G.Path.rectangle_xz(1, 2, 2, 3)
-        r2 = G.Path.rectangle_xz(1, 2, -3, -2)
+        r1 = T.Path.rectangle_xz(1, 2, 2, 3)
+        r2 = T.Path.rectangle_xz(1, 2, -3, -2)
 
         boundary.name = 'boundary'
         r1.name = 'r1'
@@ -194,12 +189,12 @@ class TestRadial(unittest.TestCase):
         
         mesh = (boundary + r1 + r2).mesh(mesh_size=0.1)
          
-        e = E.Excitation(mesh, E.Symmetry.RADIAL)
+        e = T.Excitation(mesh, T.Symmetry.RADIAL)
         e.add_magnetostatic_potential(r1 = 10)
         e.add_magnetostatic_potential(r2 = -10)
          
-        field = S.solve_direct(e)
-        field_axial = FieldRadialAxial(field, -4.5, 4.5, N=1000)
+        field = T.solve_direct(e)
+        field_axial = T.FieldRadialAxial(field, -4.5, 4.5, N=1000)
           
         z = np.linspace(-4.5, 4.5, 300)
         derivs = field.get_magnetostatic_axial_potential_derivatives(z)
@@ -218,14 +213,14 @@ class TestRadial(unittest.TestCase):
     def test_rectangular_coil(self):
         # Field produced by a 1mm x 1mm coil, with inner radius 2mm, 1ampere total current
         # What is the field produced at (2.5mm, 4mm)
-        coil = G.Surface.rectangle_xz(2, 3, 2, 3)
+        coil = T.Surface.rectangle_xz(2, 3, 2, 3)
         coil.name = 'coil'
         
         mesh = coil.mesh(mesh_size=0.1)
         
-        exc = E.Excitation(mesh, E.Symmetry.RADIAL)
+        exc = T.Excitation(mesh, T.Symmetry.RADIAL)
         exc.add_current(coil=1)
-        field = S.solve_direct(exc)
+        field = T.solve_direct(exc)
 
         assert np.isclose(np.sum(field.current_point_charges.jacobians), 1.0) # Area is 1.0
         assert np.isclose(np.sum(field.current_point_charges.charges[:, np.newaxis]*field.current_point_charges.jacobians), 1.0) # Total current is 1.0
@@ -240,41 +235,41 @@ class TestRadial(unittest.TestCase):
         assert np.allclose(computed, correct, atol=0.0, rtol=1e-9) 
 
     def test_field_superposition(self):
-        boundary = G.Path.line([0., 0., 0.], [5., 0., 0.]).extend_with_line([5., 0., 5.]).extend_with_line([0., 0., 5.])
+        boundary = T.Path.line([0., 0., 0.], [5., 0., 0.]).extend_with_line([5., 0., 5.]).extend_with_line([0., 0., 5.])
         boundary.name = 'boundary'
 
-        rect1 = G.Path.rectangle_xz(1.0, 2.0, 1.0, 2.0)
+        rect1 = T.Path.rectangle_xz(1.0, 2.0, 1.0, 2.0)
         rect1.name = 'rect1'
 
-        rect2 = G.Path.rectangle_xz(1.0, 2.0, 3.0, 4.0)
+        rect2 = T.Path.rectangle_xz(1.0, 2.0, 3.0, 4.0)
         rect2.name = 'rect2'
 
-        rect3 = G.Surface.rectangle_xz(3.0, 4.0, 3.0, 4.0)
+        rect3 = T.Surface.rectangle_xz(3.0, 4.0, 3.0, 4.0)
         rect3.name = 'rect3'
 
-        rect4 = G.Path.rectangle_xz(3.0, 4.0, 1.0, 2.0)
+        rect4 = T.Path.rectangle_xz(3.0, 4.0, 1.0, 2.0)
         rect4.name = 'rect4'
 
         mesh = (boundary + rect1 + rect2 + rect4).mesh(mesh_size_factor=5) + rect3.mesh(mesh_size_factor=2)
 
-        exc = E.Excitation(mesh, E.Symmetry.RADIAL)
+        exc = T.Excitation(mesh, T.Symmetry.RADIAL)
         exc.add_magnetostatic_boundary('boundary')
         exc.add_voltage(rect1=10)
         exc.add_voltage(rect2=0.0)
         exc.add_current(rect3=2.5)
         exc.add_dielectric(rect4=8)
 
-        field = S.solve_direct(exc)
+        field = T.solve_direct(exc)
 
         # Excitation with half the values
-        exc_half = E.Excitation(mesh, E.Symmetry.RADIAL)
+        exc_half = T.Excitation(mesh, T.Symmetry.RADIAL)
         exc_half.add_magnetostatic_boundary('boundary')
         exc_half.add_voltage(rect1=10 / 2.)
         exc_half.add_voltage(rect2=1.0)
         exc_half.add_current(rect3=2.5 / 2.)
         exc_half.add_dielectric(rect4=8)
 
-        superposition = S.solve_direct_superposition(exc_half)
+        superposition = T.solve_direct_superposition(exc_half)
 
         # The following expression is written in a weird way to test many corner cases
         numpy_minus_two = np.array([-2.0])[0] # Numpy scalars sometimes give issues
@@ -299,16 +294,16 @@ class TestRadial(unittest.TestCase):
 
 class TestRadialPermanentMagnet(unittest.TestCase):
     def test_triangular_permanent_magnet(self):
-        triangle = G.Path.line([0.5, 0., -0.25], [0.5, 0., 0.25])\
+        triangle = T.Path.line([0.5, 0., -0.25], [0.5, 0., 0.25])\
             .extend_with_line([1., 0., 0.25]).close()
         triangle.name = 'triangle'
         
         mesh = triangle.mesh(mesh_size_factor=15, higher_order=True)
         
-        exc = E.Excitation(mesh, E.Symmetry.RADIAL)
+        exc = T.Excitation(mesh, T.Symmetry.RADIAL)
         exc.add_permanent_magnet(triangle=np.array([0., 0., 2.]))
         
-        solver = S.MagnetostaticSolverRadial(exc)
+        solver = T.solver.MagnetostaticSolverRadial(exc)
         field = solver.get_permanent_magnet_field()
         
         evaluation_points = np.array([
@@ -338,16 +333,16 @@ class TestRadialPermanentMagnet(unittest.TestCase):
         Br = 2.0 # Remanent flux of magnet
         L = 3 # Length of magnet
 
-        rect = G.Path.line([0., 0., 0.], [R, 0., 0.])\
+        rect = T.Path.line([0., 0., 0.], [R, 0., 0.])\
             .extend_with_line([R, 0., L]).extend_with_line([0., 0., L])  
         rect.name = 'magnet'
 
         mesh = rect.mesh(mesh_size_factor=5)
          
-        e = E.Excitation(mesh, E.Symmetry.RADIAL)
+        e = T.Excitation(mesh, T.Symmetry.RADIAL)
         e.add_permanent_magnet(magnet=[0., 0., Br])
         
-        field = S.solve_direct(e)
+        field = T.solve_direct(e)
          
         for dz in [0.1, 1, 5, 10]:
             # See https://e-magnetica.pl/doku.php/calculator/magnet_cylindrical
@@ -357,19 +352,19 @@ class TestRadialPermanentMagnet(unittest.TestCase):
             assert np.isclose(correct, Hz)
 
     def test_magnet_with_magnetizable_material(self):
-        magnet = G.Path.circle_xz(3, -2, 1)
+        magnet = T.Path.circle_xz(3, -2, 1)
         magnet.name = 'magnet'
 
-        magnetizable = G.Path.circle_xz(3, 2, 1)
+        magnetizable = T.Path.circle_xz(3, 2, 1)
         magnetizable.name = 'circle'
 
         mesh = (magnet + magnetizable).mesh(mesh_size_factor=40, higher_order=True)
 
-        exc = E.Excitation(mesh, E.Symmetry.RADIAL)
+        exc = T.Excitation(mesh, T.Symmetry.RADIAL)
         exc.add_permanent_magnet(magnet=[0, 0, 2.])
         exc.add_magnetizable(circle=5)
 
-        field = S.solve_direct(exc)
+        field = T.solve_direct(exc)
 
         points = np.array([
             [3, -4],
@@ -399,10 +394,10 @@ class TestSimpleMagneticLens(unittest.TestCase):
 
     @classmethod
     def setUpClass(cls):
-        coil = G.Surface.rectangle_xz(3, 4, 2, 3)
+        coil = T.Surface.rectangle_xz(3, 4, 2, 3)
         coil.name = 'coil'
 
-        pole = G.Path.line([1, 0, 0], [4, 0, 0])\
+        pole = T.Path.line([1, 0, 0], [4, 0, 0])\
             .extend_with_line([4, 0, 1])\
             .extend_with_line([2, 0, 1])\
             .extend_with_line([2, 0, 3])\
@@ -415,12 +410,12 @@ class TestSimpleMagneticLens(unittest.TestCase):
         
         MU = 100
 
-        exc = E.Excitation(mesh, E.Symmetry.RADIAL)
+        exc = T.Excitation(mesh, T.Symmetry.RADIAL)
         exc.add_current(coil=1)
         exc.add_magnetizable(pole=MU)
 
-        cls.field = S.solve_direct(exc)
-        cls.field_axial = FieldRadialAxial(cls.field, -10, 10, N=500)
+        cls.field = T.solve_direct(exc)
+        cls.field_axial = T.FieldRadialAxial(cls.field, -10, 10, N=500)
 
     def test_potential_is_zeroth_derivative(self):
         z = np.linspace(-8, 8, 100)
@@ -457,12 +452,12 @@ class TestFlatEinzelLens(unittest.TestCase):
 
     @classmethod
     def setUpClass(cls):
-        boundary = G.Path.line([0.1, 0.0, 1.0], [1.0, 0.0, 1.0])\
+        boundary = T.Path.line([0.1, 0.0, 1.0], [1.0, 0.0, 1.0])\
             .extend_with_line([1.0, 0.0, -1.0]).extend_with_line([0.1, 0.0, -1.0])
         
-        ground_top = G.Path.line([0.25, 0.0, 0.5], [0.75, 0.0, 0.5])
-        lens = G.Path.line([0.25, 0.0, 0.0], [0.75, 0.0, 0.0])
-        ground_bottom = G.Path.line([0.25, 0.0, -0.5], [0.75, 0.0, -0.5])
+        ground_top = T.Path.line([0.25, 0.0, 0.5], [0.75, 0.0, 0.5])
+        lens = T.Path.line([0.25, 0.0, 0.0], [0.75, 0.0, 0.0])
+        ground_bottom = T.Path.line([0.25, 0.0, -0.5], [0.75, 0.0, -0.5])
 
         boundary.name = 'boundary'
         ground_top.name = 'ground'
@@ -471,14 +466,14 @@ class TestFlatEinzelLens(unittest.TestCase):
 
         mesh = (boundary + ground_top + lens + ground_bottom).mesh(mesh_size_factor=40)
 
-        exc = E.Excitation(mesh, E.Symmetry.RADIAL)
+        exc = T.Excitation(mesh, T.Symmetry.RADIAL)
 
         exc.add_voltage(ground=0, lens=1000)
         exc.add_electrostatic_boundary('boundary')
          
         cls.z = np.linspace(-0.85, 0.85, 250)
-        cls.field = S.solve_direct(exc)
-        cls.field_axial = FieldRadialAxial(cls.field, cls.z[0], cls.z[-1], N=500)
+        cls.field = T.solve_direct(exc)
+        cls.field_axial = T.FieldRadialAxial(cls.field, cls.z[0], cls.z[-1], N=500)
     
     def test_derivatives(self):
         derivatives = self.field.get_electrostatic_axial_potential_derivatives(self.z)

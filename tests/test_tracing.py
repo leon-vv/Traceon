@@ -7,13 +7,8 @@ from scipy.integrate import solve_ivp
 from scipy.constants import m_e, e, mu_0, epsilon_0
 from scipy.interpolate import CubicSpline
 
-import traceon.geometry as G
-import traceon.excitation as E
 import traceon.backend as B
-import traceon.solver as S
-import traceon.field as F
-import traceon.tracing as T
-from traceon.field import *
+import traceon as T
 
 from tests.test_radial_ring import biot_savart_loop
 from tests.test_radial import get_ring_effective_point_charges
@@ -43,7 +38,7 @@ class TestTracing(unittest.TestCase):
     def test_tracing_multiple_constant_acceleration(self):
         # Same test as above but using a custom field and the trace_many function
 
-        class ConstantField(F.Field):
+        class ConstantField(T.Field):
             def is_electrostatic(self):
                 return True
             def is_magnetostatic(self):
@@ -98,7 +93,7 @@ class TestTracing(unittest.TestCase):
             B = np.array([0, 0, 1])
             return np.hstack( (v, np.cross(v, B)) )
 
-        class CustomField(S.Field):
+        class CustomField(T.Field):
             def magnetostatic_field_at_local_point(self, point):
                 return np.array([0, 0, 1])/(mu_0*EM)
             
@@ -153,7 +148,7 @@ class TestTracing(unittest.TestCase):
         eff = get_ring_effective_point_charges(current, 1.)
           
         bounds = ((-0.4,0.4), (-0.4, 0.4), (-15, 15))
-        traceon_field = S.FieldRadialBEM(current_point_charges=eff)
+        traceon_field = T.FieldRadialBEM(current_point_charges=eff)
         tracer = traceon_field.get_tracer(bounds)
         times, positions = tracer(initial_conditions[:3], T.velocity_vec(eV, [0, 0, -1]), atol=1e-6)
         
@@ -182,8 +177,8 @@ class TestTracing(unittest.TestCase):
          
         bounds = ((-0.4,0.4), (-0.4, 0.4), (-15, 15))
 
-        field = S.FieldRadialBEM(current_point_charges=eff)
-        axial_field = FieldRadialAxial(field, -15, 15, N=500)
+        field = T.FieldRadialBEM(current_point_charges=eff)
+        axial_field = T.FieldRadialAxial(field, -15, 15, N=500)
          
         tracer = axial_field.get_tracer(bounds)
         times, positions = tracer(initial_conditions[:3], T.velocity_vec(eV, [0, 0, -1]), atol=1e-6)
@@ -285,19 +280,19 @@ class TestTracing(unittest.TestCase):
         assert np.allclose(y_intersection, np.array([-1., 0, 0, 0, -1, 0]))
 
     def test_superposition_tracing(self):
-        pos = G.Path.rectangle_xz(0.1,1,1, 1.5)
-        neg = G.Path.rectangle_xz(0.1,1,-1.5, -1)
+        pos = T.Path.rectangle_xz(0.1,1,1, 1.5)
+        neg = T.Path.rectangle_xz(0.1,1,-1.5, -1)
         neg.name='neg'
         pos.name='pos'
 
         mesh = (neg + pos).mesh(mesh_size=1)
 
-        excitation = E.Excitation(mesh, E.Symmetry.RADIAL)
+        excitation = T.Excitation(mesh, T.Symmetry.RADIAL)
         excitation.add_voltage(pos=1, neg=-1)
-        field = S.solve_direct(excitation)
+        field = T.solve_direct(excitation)
 
         # superposition of field and field should be the same as doubling the field strength
-        field_superposition = FieldSuperposition([field, field])
+        field_superposition = T.FieldSuperposition([field, field])
         field_double = 2 * field
 
         tracer_sup = field_superposition.get_tracer([[-2,2], [-2,2], [-2,2]])
@@ -312,7 +307,7 @@ class TestTracing(unittest.TestCase):
 
         #symmetry in xy plane so field should be zero everywhere
         # so trajectory should be straight line
-        field_sup2 = FieldSuperposition([field, field.rotate(Ry=np.pi)])
+        field_sup2 = T.FieldSuperposition([field, field.rotate(Ry=np.pi)])
 
         tracer_sup2= field_sup2.get_tracer([[-2,2], [-2,2], [-2,2]])
         _, trajectory = tracer_sup2(start, velocity)

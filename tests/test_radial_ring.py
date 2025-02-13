@@ -11,8 +11,6 @@ import traceon.logging as logging
 
 logging.set_log_level(logging.LogLevel.SILENT)
 
-
-
 def potential_radial_exact_integrated(v0, v1, target):
     assert v0.shape == (2,) and v1.shape == (2,) and target.shape == (2,)
     

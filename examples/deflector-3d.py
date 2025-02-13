@@ -1,10 +1,7 @@
 import matplotlib.pyplot as plt
 import numpy as np
 
-import traceon.geometry as G
-import traceon.excitation as E
-import traceon.plotting as P
-import traceon.tracing as T
+import traceon as T
 
 try:
     import traceon_pro.solver as S
@@ -27,7 +24,7 @@ z0 = -THICKNESS - SPACING - THICKNESS/2
 # which shield the microscope from the deflector fields.
 def round_electrode(z0, name):
     
-    path = G.Path.line([RADIUS, 0.0, z0], [RADIUS, 0.0, z0+THICKNESS])\
+    path = T.Path.line([RADIUS, 0.0, z0], [RADIUS, 0.0, z0+THICKNESS])\
         .extend_with_line([RADIUS+ELECTRODE_WIDTH, 0.0, z0+THICKNESS])\
         .extend_with_line([RADIUS+ELECTRODE_WIDTH, 0.0, z0])\
         .close()
@@ -44,7 +41,7 @@ def rectangle_electrode(x, z, name):
     p0 = [x, -LENGTH_DEFLECTORS/2, z]
     p1 = [x+THICKNESS, +LENGTH_DEFLECTORS/2, z+THICKNESS]
     
-    box = G.Surface.box(p0, p1)
+    box = T.Surface.box(p0, p1)
     box.name = name
     
     return box
@@ -60,10 +57,10 @@ defl_mesh = (defl_pos + defl_neg).mesh(mesh_size_factor=3)
 mesh = electrode_mesh + defl_mesh
 
 # Show the generated triangle mesh.
-P.plot_mesh(mesh, ground='green', deflector_positive='red', deflector_negative='blue')
-P.show()
+T.plot_mesh(mesh, ground='green', deflector_positive='red', deflector_negative='blue')
+T.show()
 
-excitation = E.Excitation(mesh, E.Symmetry.THREE_D)
+excitation = T.Excitation(mesh, T.Symmetry.THREE_D)
 
 # Apply the correct voltages. Here we set one deflector electrode to 5V and
 # the other electrode to -5V.
@@ -74,7 +71,7 @@ excitation.add_voltage(ground=0.0, deflector_positive=5, deflector_negative=-5)
 assert S is not None, ("The 'traceon_pro' package is not installed or not found. "
         "Traceon Pro is required to solve 3D geometries.\n"
         "For more information, visit: https://www.traceon.org")
-field = S.solve_direct(excitation)
+field = T.solve_direct(excitation)
 
 # An instance of the tracer class allows us to easily find the trajectories of 
 # electrons.  Here we specify that the tracing should stop if the x,y values
@@ -102,13 +99,13 @@ plt.ylabel('z (mm)')
 plt.show()
 
 
-#surface = G.Path.circle_xy(0.0, 0.0, RADIUS/2).move(dz=-0.5).extrude([0, 0, 1.0])
-surface = G.Surface.rectangle_xz(-10*RADIUS, 10*RADIUS, -3*RADIUS, 3*RADIUS)
+#surface = T.Path.circle_xy(0.0, 0.0, RADIUS/2).move(dz=-0.5).extrude([0, 0, 1.0])
+surface = T.Surface.rectangle_xz(-10*RADIUS, 10*RADIUS, -3*RADIUS, 3*RADIUS)
 
-P.new_figure()
-P.plot_mesh(defl_mesh, deflector_positive='red', deflector_negative='blue')
-P.plot_equipotential_lines(field, surface, N0=100, N1=150)
-P.show()
+T.new_figure()
+T.plot_mesh(defl_mesh, deflector_positive='red', deflector_negative='blue')
+T.plot_equipotential_lines(field, surface, N0=100, N1=150)
+T.show()
 
 
 

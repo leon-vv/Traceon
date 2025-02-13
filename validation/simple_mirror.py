@@ -3,12 +3,7 @@ import time, math
 import numpy as np
 from scipy.interpolate import CubicSpline
 
-import traceon.geometry as G
-import traceon.excitation as E
-import traceon.tracing as T
-import traceon.solver as S
-from traceon.field import FieldRadialAxial
-
+import traceon as T
 from validation import Validation
 
 try:
@@ -30,8 +25,8 @@ class SimpleMirror(Validation):
             return [4, 8, 16, 32]
     
     def create_mesh(self, MSF, symmetry, higher_order):
-        boundary = G.Path.line([0, 0, -1], [2, 0, -1]).extend_with_line([2, 0, 1]).extend_with_line([0.3, 0., 1])
-        mirror = G.Path.line([0., 0., 0.], [1., 0., 0.])
+        boundary = T.Path.line([0, 0, -1], [2, 0, -1]).extend_with_line([2, 0, 1]).extend_with_line([0.3, 0., 1])
+        mirror = T.Path.line([0., 0., 0.], [1., 0., 0.])
 
         boundary.name = 'boundary'
         mirror.name = 'mirror'
@@ -45,7 +40,7 @@ class SimpleMirror(Validation):
         return (boundary + mirror).mesh(mesh_size_factor=MSF)
      
     def get_excitation(self, mesh, symmetry):
-        excitation = E.Excitation(mesh, symmetry)
+        excitation = T.Excitation(mesh, symmetry)
         excitation.add_voltage(mirror=-110, boundary=0.0)
         return excitation
     
@@ -54,11 +49,11 @@ class SimpleMirror(Validation):
 
     def compute_value_of_interest(self, geometry, field):
         _3d = geometry.is_3d()
-        assert not _3d or Field3DAxial is not None, "Please install traceon_pro for fast 3D tracing support"
+        assert not _3d or T.Field3DAxial is not None, "Please install traceon_pro for fast 3D tracing support"
         
         bounds = ((-0.22, 0.22), (-0.22, 0.22), (0.02, 11))
          
-        axial_field = FieldRadialAxial(field, 0.02, 4) if not _3d else Field3DAxial(field, 0.02, 4)
+        axial_field = T.FieldRadialAxial(field, 0.02, 4) if not _3d else T.Field3DAxial(field, 0.02, 4)
         tracer = axial_field.get_tracer(bounds)
          
         pos = [0.0, 0.0, 10.0]
