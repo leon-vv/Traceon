@@ -1,8 +1,8 @@
 import matplotlib.pyplot as plt
 import numpy as np
 
-import traceon as T
-from traceon.field import FieldRadialAxial
+import voltrace as T
+from voltrace.field import FieldRadialAxial
 
 # Dimensions of the einzel lens.
 THICKNESS = 0.5

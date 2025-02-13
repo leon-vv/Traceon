@@ -1,7 +1,7 @@
 import numpy as np
 import time
 
-import traceon as T
+import voltrace as T
 
 from validation import Validation
 

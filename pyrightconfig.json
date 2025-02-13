@@ -1,5 +1,5 @@
 {
-  "include": ["traceon"],
-  "exclude": ["traceon/data"],
+  "include": ["voltrace"],
+  "exclude": ["voltrace/data"],
   "typeCheckingMode": "basic"
 }

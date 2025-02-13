@@ -2,7 +2,7 @@ import unittest
 
 import numpy as np
 
-import traceon as T
+import voltrace as T
 
 class TestFocus(unittest.TestCase):
     

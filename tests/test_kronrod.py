@@ -6,7 +6,7 @@ import numpy as np
 
 from scipy.integrate import quad
 
-import traceon.backend as B
+import voltrace.backend as B
 
 class TestKronrod(unittest.TestCase):
     def test_constant_function(self):

@@ -4,8 +4,8 @@ import unittest
 from math import *
 import numpy as np
 
-import traceon as T
-from traceon.field import FieldRadialAxial, FieldRadialBEM, FieldSuperposition
+import voltrace as T
+from voltrace.field import FieldRadialAxial, FieldRadialBEM, FieldSuperposition
 
 T.set_log_level(T.LogLevel.SILENT)
 

@@ -2,12 +2,12 @@
 
 ## Introduction
 
-This example walks you through the code of [examples/einzel-lens.py](https://github.com/leon-vv/Traceon/blob/main/examples/einzel-lens.py). We will
+This example walks you through the code of [examples/einzel-lens.py](https://github.com/leon-vv/Voltrace/blob/main/examples/einzel-lens.py). We will
 compute the electrostatic field inside an axial symmetric einzel lens and trace a number of electrons through the field. Please follow
-the link to find the up-to-date version of the code, including the neccessary `import` statements to actually run the example. To install Traceon,
+the link to find the up-to-date version of the code, including the neccessary `import` statements to actually run the example. To install Voltrace,
 please first install [Python](https://www.python.org/downloads/) and use the standard `pip` command to install the package:
 ```bash
-pip install traceon
+pip install voltrace
 ```
 
 ## Defining the geometry
@@ -42,7 +42,7 @@ top.name = 'ground'
 
 Note that we explicitely assign names to the different elements in our geometry. Later, we will use these names to apply the correct _excitations_
 to the elements. Next, we mesh the geometry which transforms it into many small line elements used in the solver. Note, that you can either supply
-a `mesh_size` or a `mesh_size_factor` to the `traceon.geometry.Path.mesh` function. 
+a `mesh_size` or a `mesh_size_factor` to the `voltrace.geometry.Path.mesh` function. 
 
 ```Python
 mesh = (boundary + bottom + middle + top).mesh(mesh_size_factor=45)
@@ -68,7 +68,7 @@ excitation.add_electrostatic_boundary('boundary')
 
 ## Solving for the field
 
-Solving for the field is now just a matter of calling the `traceon.solver.solve_direct` function. The `traceon.field.Field` class returned 
+Solving for the field is now just a matter of calling the `voltrace.solver.solve_direct` function. The `voltrace.field.Field` class returned 
 provides methods for calculating the resulting potential and electrostatic field, which we can subsequently use to trace electrons.
 
 ```Python
@@ -82,7 +82,7 @@ field = T.solve_direct(excitation)
 Before tracing the electrons, we first construct an axial interpolation of the Einzel lens. In a radial symmetric system the field
 close to the optical axis is completely determined by the higher order derivatives of the potential. This fact can be used to trace
 electrons very rapidly. The unique strength of the BEM is that there exists closed form formulas for calculating the higher
-order derivatives (from the computed charge distribution). In Traceon, we can make this interpolation in a single
+order derivatives (from the computed charge distribution). In Voltrace, we can make this interpolation in a single
 line of code:
 ```Python
 field_axial = FieldRadialAxial(field, -1.5, 1.5, 150)

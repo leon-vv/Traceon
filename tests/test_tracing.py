@@ -7,8 +7,8 @@ from scipy.integrate import solve_ivp
 from scipy.constants import m_e, e, mu_0, epsilon_0
 from scipy.interpolate import CubicSpline
 
-import traceon.backend as B
-import traceon as T
+import voltrace.backend as B
+import voltrace as T
 
 from tests.test_radial_ring import biot_savart_loop
 from tests.test_radial import get_ring_effective_point_charges
@@ -72,14 +72,14 @@ class TestTracing(unittest.TestCase):
             B = np.array([0, 0, 1])
             return np.hstack( (v, np.cross(v, B)) )
          
-        def traceon_acc(pos, vel):
+        def voltrace_acc(pos, vel):
             return np.zeros(3), np.array([0, 0, 1])/(mu_0*EM)
          
         p0 = np.zeros(3)
         v0 = np.array([0., 1, -1.])
         
         bounds = ((-5.0, 5.0), (-5.0, 5.0), (-40.0, 10.0))
-        times, positions = B.trace_particle(p0, v0, EM, B.wrap_field_fun(traceon_acc), bounds, 1e-10)
+        times, positions = B.trace_particle(p0, v0, EM, B.wrap_field_fun(voltrace_acc), bounds, 1e-10)
         
         sol = solve_ivp(acceleration, (0, 30), np.hstack( (p0, v0) ), method='DOP853', rtol=1e-10, atol=1e-10)
 
@@ -148,8 +148,8 @@ class TestTracing(unittest.TestCase):
         eff = get_ring_effective_point_charges(current, 1.)
           
         bounds = ((-0.4,0.4), (-0.4, 0.4), (-15, 15))
-        traceon_field = T.FieldRadialBEM(current_point_charges=eff)
-        tracer = traceon_field.get_tracer(bounds)
+        voltrace_field = T.FieldRadialBEM(current_point_charges=eff)
+        tracer = voltrace_field.get_tracer(bounds)
         times, positions = tracer(initial_conditions[:3], T.velocity_vec(eV, [0, 0, -1]), atol=1e-6)
         
         interp = CubicSpline(positions[::-1, 2], np.array([positions[::-1, 0], positions[::-1, 1]]).T)

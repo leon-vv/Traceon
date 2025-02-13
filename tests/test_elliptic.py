@@ -3,7 +3,7 @@ import unittest
 import numpy as np
 from scipy.special import ellipe, ellipk, ellipkm1
 
-import traceon.backend as B
+import voltrace.backend as B
 
 class TestElliptic(unittest.TestCase):
     

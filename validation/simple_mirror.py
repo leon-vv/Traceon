@@ -3,11 +3,11 @@ import time, math
 import numpy as np
 from scipy.interpolate import CubicSpline
 
-import traceon as T
+import voltrace as T
 from validation import Validation
 
 try:
-    from traceon_pro.field import Field3DAxial
+    from voltrace_pro.field import Field3DAxial
 except ImportError:
     Field3DAxial = None
 
@@ -49,7 +49,7 @@ class SimpleMirror(Validation):
 
     def compute_value_of_interest(self, geometry, field):
         _3d = geometry.is_3d()
-        assert not _3d or T.Field3DAxial is not None, "Please install traceon_pro for fast 3D tracing support"
+        assert not _3d or T.Field3DAxial is not None, "Please install voltrace_pro for fast 3D tracing support"
         
         bounds = ((-0.22, 0.22), (-0.22, 0.22), (0.02, 11))
          

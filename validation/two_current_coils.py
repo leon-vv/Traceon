@@ -3,7 +3,7 @@ import os.path as path
 import numpy as np
 from scipy.interpolate import CubicSpline
 
-import traceon as T
+import voltrace as T
 from validation import Validation
 
 class TwoCurrentCoils(Validation):

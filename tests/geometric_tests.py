@@ -3,8 +3,8 @@ import os.path as path
 import unittest
 from math import *
 
-import traceon as T
-from traceon.geometry import *
+import voltrace as T
+from voltrace.geometry import *
 
 class MeshTests(unittest.TestCase):
 

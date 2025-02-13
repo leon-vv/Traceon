@@ -2,7 +2,7 @@
 """pdoc's CLI interface and helper functions."""
 
 ## USE THE FOLLOWING COMMAND:
-## python3 ./custom_pdoc.py traceon -o docs  --force --html --config latex_math=True 
+## python3 ./custom_pdoc.py voltrace -o docs  --force --html --config latex_math=True 
 
 import argparse
 import ast
@@ -144,7 +144,7 @@ def write_page(m: pdoc.Module, file_in, **kwargs):
     with open('pages/' + file_in, 'r', encoding='utf-8') as file:
         file_content = file.read()
      
-    output_file = path.join(args.output_dir, 'traceon', file_in.replace('.md', '.html'))
+    output_file = path.join(args.output_dir, 'voltrace', file_in.replace('.md', '.html'))
         
     with open(output_file, 'w', encoding='utf-8') as f:
         f.write(write_module_html(m, page_content=file_content, **kwargs))
@@ -220,10 +220,10 @@ def main(_args=None):
     else:
         docfilter = None
 
-    traceon_module = pdoc.Module('traceon', docfilter=docfilter, skip_errors=args.skip_errors)
-    traceon_pro_module = pdoc.Module('traceon_pro', docfilter=docfilter, skip_errors=args.skip_errors)
+    voltrace_module = pdoc.Module('voltrace', docfilter=docfilter, skip_errors=args.skip_errors)
+    voltrace_pro_module = pdoc.Module('voltrace_pro', docfilter=docfilter, skip_errors=args.skip_errors)
 
-    modules = [traceon_module, traceon_pro_module]
+    modules = [voltrace_module, voltrace_pro_module]
     
     pdoc.link_inheritance()
 
@@ -244,9 +244,9 @@ def main(_args=None):
     }
     
     for module in modules:
-        recursive_write_files(module, pages=pages, ext='.html', **template_config, traceon_module=traceon_module, traceon_pro_module=traceon_pro_module)
+        recursive_write_files(module, pages=pages, ext='.html', **template_config, voltrace_module=voltrace_module, voltrace_pro_module=voltrace_pro_module)
 
     for p in pages.keys():
-        write_page(traceon_module, p, **template_config, pages=pages, traceon_module=traceon_module, traceon_pro_module=traceon_pro_module)
+        write_page(voltrace_module, p, **template_config, pages=pages, voltrace_module=voltrace_module, voltrace_pro_module=voltrace_pro_module)
 
 main(parser.parse_args())

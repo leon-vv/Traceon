@@ -4,7 +4,7 @@ import sys
 from scipy.interpolate import *
 import numpy as np
 
-import traceon as T
+import voltrace as T
 from validation import Validation
 
 gap_size = 0.2

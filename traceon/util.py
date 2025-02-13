@@ -33,7 +33,7 @@ class Saveable:
 
 def get_number_of_threads() -> int:
     
-    threads = os.environ.get('TRACEON_THREADS')
+    threads = os.environ.get('VOLTRACE_THREADS')
 
     if threads is not None:
         return int(threads)

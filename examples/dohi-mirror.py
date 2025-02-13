@@ -2,10 +2,10 @@ import time
 import numpy as np
 import matplotlib.pyplot as plt
 
-import traceon as T
+import voltrace as T
 
 try:
-    import traceon_pro.solver as S
+    import voltrace_pro.solver as S
 except ImportError:
     S = None
 
@@ -75,9 +75,9 @@ excitation.add_voltage(ground=0., lens=TUNING_VOLTAGE, mirror=MIRROR_VOLTAGE)
 excitation.add_electrostatic_boundary('boundary')
 # Use the Boundary Element Method (BEM) to calculate the surface charges,
 # the surface charges gives rise to a electrostatic field.
-assert S is not None, ("The 'traceon_pro' package is not installed or not found. "
-        "Traceon Pro is required to solve 3D geometries.\n"
-        "For more information, visit: https://www.traceon.org")
+assert S is not None, ("The 'voltrace_pro' package is not installed or not found. "
+        "Voltrace Pro is required to solve 3D geometries.\n"
+        "For more information, visit: https://www.voltrace.org")
 field = S.solve_direct(excitation)
 
 tracer = field.get_tracer( [(-r/2, r/2), (-r/2, r/2), (-7, 15.1)] )

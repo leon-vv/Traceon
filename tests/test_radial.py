@@ -7,8 +7,8 @@ from scipy.integrate import quad, dblquad
 from scipy.constants import epsilon_0, mu_0
 from scipy.interpolate import CubicSpline
 
-import traceon as T
-import traceon.backend as B
+import voltrace as T
+import voltrace.backend as B
 
 from tests.test_radial_ring import potential_of_ring_arbitrary, biot_savart_loop, magnetic_field_of_loop
 
@@ -121,11 +121,11 @@ class TestRadial(unittest.TestCase):
         current = 2.5
         eff = get_ring_effective_point_charges(current, 1.)
          
-        traceon_field = T.FieldRadialBEM(current_point_charges=eff)
+        voltrace_field = T.FieldRadialBEM(current_point_charges=eff)
          
         z = np.linspace(-6, 6, 250)
-        pot = [traceon_field.current_potential_axial(z_) for z_ in z]
-        field = [traceon_field.current_field_at_point([0.0, 0.0, z_])[2] for z_ in z]
+        pot = [voltrace_field.current_potential_axial(z_) for z_ in z]
+        field = [voltrace_field.current_field_at_point([0.0, 0.0, z_])[2] for z_ in z]
 
         numerical_derivative = CubicSpline(z, pot).derivative()(z)
         
@@ -135,12 +135,12 @@ class TestRadial(unittest.TestCase):
         current = 2.5
         eff = get_ring_effective_point_charges(current, 1.)
          
-        traceon_field = T.FieldRadialBEM(current_point_charges=eff)
+        voltrace_field = T.FieldRadialBEM(current_point_charges=eff)
          
         z = np.linspace(-6, 6, 500)
-        derivatives = traceon_field.get_current_axial_potential_derivatives(z)
+        derivatives = voltrace_field.get_current_axial_potential_derivatives(z)
 
-        pot = [traceon_field.current_potential_axial(z_) for z_ in z]
+        pot = [voltrace_field.current_potential_axial(z_) for z_ in z]
         
         assert np.allclose(pot, derivatives[:, 0])
 
@@ -157,13 +157,13 @@ class TestRadial(unittest.TestCase):
         current = 2.5
         eff = get_ring_effective_point_charges(current, 1.)
          
-        traceon_field = T.FieldRadialBEM(current_point_charges=eff)
+        voltrace_field = T.FieldRadialBEM(current_point_charges=eff)
 
-        interp = T.FieldRadialAxial(traceon_field, -5, 5, N=300)
+        interp = T.FieldRadialAxial(voltrace_field, -5, 5, N=300)
          
         z = interp.z[1:-1]
 
-        pot = [traceon_field.current_potential_axial(z_) for z_ in z]
+        pot = [voltrace_field.current_potential_axial(z_) for z_ in z]
         pot_interp = [interp.magnetostatic_potential_at_point([0., 0.0, z_]) for z_ in z]
 
         assert np.allclose(pot, pot_interp)
@@ -171,7 +171,7 @@ class TestRadial(unittest.TestCase):
         r = np.linspace(-0.5, 0.5, 5)
         
         for r_ in r:
-            field = [traceon_field.magnetostatic_field_at_point([r_, 0.0, z_])[1] for z_ in z]
+            field = [voltrace_field.magnetostatic_field_at_point([r_, 0.0, z_])[1] for z_ in z]
             field_interp = [interp.magnetostatic_field_at_point([r_, 0.0, z_])[1] for z_ in z]
             assert np.allclose(field, field_interp, atol=1e-3, rtol=5e-3)
      

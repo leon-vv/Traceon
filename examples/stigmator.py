@@ -4,10 +4,10 @@ import numpy as np
 import matplotlib.pyplot as plt
 from scipy.constants import m_p, e
 
-import traceon as T
+import voltrace as T
 
 try:
-    import traceon_pro.solver as S
+    import voltrace_pro.solver as S
 except ImportError:
     S = None
 
@@ -57,9 +57,9 @@ excitation = T.Excitation(mesh, T.Symmetry.THREE_D)
 excitation.add_voltage(positive_electrode=1, negative_electrode=-1, boundary=0)
 
 # Calculate field
-assert S is not None, ("The 'traceon_pro' package is not installed or not found. "
-        "Traceon Pro is required to solve 3D geometries.\n"
-        "For more information, visit: https://www.traceon.org")
+assert S is not None, ("The 'voltrace_pro' package is not installed or not found. "
+        "Voltrace Pro is required to solve 3D geometries.\n"
+        "For more information, visit: https://www.voltrace.org")
 field = S.solve_direct(excitation)
 
 # Plot mesh and equipotential lines

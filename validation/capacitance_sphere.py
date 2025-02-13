@@ -3,7 +3,7 @@ import argparse
 
 import numpy as np
 
-import traceon as T
+import voltrace as T
 from validation import Validation
 
 r1 = 0.5

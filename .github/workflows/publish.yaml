@@ -64,5 +64,5 @@ jobs:
         env:
           TWINE_USERNAME: ${{ secrets.PYPI_USERNAME }}
           TWINE_PASSWORD: ${{ secrets.PYPI_PASSWORD }}
-        run: python -m twine upload --repository pypi *-wheel/traceon-*.whl source-distribution/*.tar.gz
+        run: python -m twine upload --repository pypi *-wheel/voltrace-*.whl source-distribution/*.tar.gz
 

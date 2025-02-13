@@ -1,10 +1,10 @@
 import matplotlib.pyplot as plt
 import numpy as np
 
-import traceon as T
+import voltrace as T
 
 try:
-    import traceon_pro.solver as S
+    import voltrace_pro.solver as S
 except ImportError:
     S = None
 
@@ -68,9 +68,9 @@ excitation.add_voltage(ground=0.0, deflector_positive=5, deflector_negative=-5)
 
 # Use the Boundary Element Method (BEM) to calculate the surface charges,
 # the surface charges gives rise to a electrostatic field.
-assert S is not None, ("The 'traceon_pro' package is not installed or not found. "
-        "Traceon Pro is required to solve 3D geometries.\n"
-        "For more information, visit: https://www.traceon.org")
+assert S is not None, ("The 'voltrace_pro' package is not installed or not found. "
+        "Voltrace Pro is required to solve 3D geometries.\n"
+        "For more information, visit: https://www.voltrace.org")
 field = T.solve_direct(excitation)
 
 # An instance of the tracer class allows us to easily find the trajectories of 

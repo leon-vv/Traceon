@@ -2,11 +2,11 @@ import time
 
 import numpy as np
 
-import traceon as T
+import voltrace as T
 from validation import Validation
 
 try:
-    from traceon_pro.field import Field3DAxial
+    from voltrace_pro.field import Field3DAxial
 except ImportError:
     Field3DAxial = None
 
@@ -72,7 +72,7 @@ class DohiMirror(Validation):
     
     def compute_value_of_interest(self, mesh, field):
         _3d = mesh.is_3d()
-        assert not _3d or T.Field3DAxial is not None, "Please install traceon_pro for fast 3D tracing support"
+        assert not _3d or T.Field3DAxial is not None, "Please install voltrace_pro for fast 3D tracing support"
         
         axial_field = T.FieldRadialAxial(field, 0.05, 1.7, 500) if not _3d else Field3DAxial(field, 0.05, 1.7, 500)
         

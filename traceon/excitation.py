@@ -1,5 +1,5 @@
 """The excitation module allows to specify the excitation (or element types) of the different physical groups (electrodes)
-created with the `traceon.geometry` module. 
+created with the `voltrace.geometry` module. 
 
 The possible excitations are as follows:
 
@@ -11,7 +11,7 @@ The possible excitations are as follows:
 - Magnetizable material, with arbitrary magnetic permeability
 - Permanent magnet, with uniform magnetization
 
-Once the excitation is specified, it can be passed to `traceon.solver.solve_direct` to compute the resulting field.
+Once the excitation is specified, it can be passed to `voltrace.solver.solve_direct` to compute the resulting field.
 """
 from __future__ import annotations
 from enum import IntEnum
@@ -101,7 +101,7 @@ class Excitation:
                 "When symmetry is RADIAL, the geometry should lie in the XZ plane"
     
     def __str__(self) -> str:
-        return f'<Traceon Excitation,\n\t' \
+        return f'<Voltrace Excitation,\n\t' \
             + '\n\t'.join([f'{n}={v} ({t})' for n, (t, v) in self.excitation_types.items()]) \
             + '>'
 

@@ -3,7 +3,7 @@ import time
 import numpy as np
 from scipy.constants import mu_0
 
-import traceon as T
+import voltrace as T
 from validation import Validation
 
 class RectangularCoil(Validation):

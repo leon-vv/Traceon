@@ -3,7 +3,7 @@ from math import cos, sqrt
 import numpy as np
 from scipy.constants import e, m_e
 
-import traceon as T
+import voltrace as T
 from validation import Validation
 
 angle = 0.05
