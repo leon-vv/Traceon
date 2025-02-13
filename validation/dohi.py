@@ -2,7 +2,7 @@ import time
 
 import numpy as np
 
-import voltrace as T
+import voltrace as v
 from validation import Validation
 
 try:
@@ -35,19 +35,19 @@ class DohiMirror(Validation):
         r = 0.075 # radius
         st = 0.5  # spacer thickness
 
-        mirror = T.Path.aperture(0.15, r, extent, z=t/2)
+        mirror = v.Path.aperture(0.15, r, extent, z=t/2)
         mirror.name = 'mirror'
         
-        mirror_line = T.Path.line([0., 0., 0.], [r, 0., 0.])
+        mirror_line = v.Path.line([0., 0., 0.], [r, 0., 0.])
         mirror_line.name = 'mirror'
 
-        lens = T.Path.aperture(0.15, r, extent, z=t + st + t/2)
+        lens = v.Path.aperture(0.15, r, extent, z=t + st + t/2)
         lens.name = 'lens'
         
-        ground = T.Path.aperture(0.15, r, extent, z=t+st+t+st+t/2)
+        ground = v.Path.aperture(0.15, r, extent, z=t+st+t+st+t/2)
         ground.name = 'ground'
     
-        boundary = T.Path.line([0., 0., 1.75], [rmax, 0., 1.75]) \
+        boundary = v.Path.line([0., 0., 1.75], [rmax, 0., 1.75]) \
             .extend_with_line([rmax, 0., -0.3]).extend_with_line([0., 0., -0.3])
         boundary.name = 'boundary'
         
@@ -59,7 +59,7 @@ class DohiMirror(Validation):
         return geom.mesh(mesh_size_factor=MSF)
      
     def get_excitation(self, mesh, symmetry):
-        exc = T.Excitation(mesh, symmetry)
+        exc = v.Excitation(mesh, symmetry)
         exc.add_voltage(ground=0.0, mirror=-1250, lens=710.0126605741955)
         exc.add_electrostatic_boundary('boundary')
         return exc
@@ -72,9 +72,9 @@ class DohiMirror(Validation):
     
     def compute_value_of_interest(self, mesh, field):
         _3d = mesh.is_3d()
-        assert not _3d or T.Field3DAxial is not None, "Please install voltrace_pro for fast 3D tracing support"
+        assert not _3d or v.Field3DAxial is not None, "Please install voltrace_pro for fast 3D tracing support"
         
-        axial_field = T.FieldRadialAxial(field, 0.05, 1.7, 500) if not _3d else Field3DAxial(field, 0.05, 1.7, 500)
+        axial_field = v.FieldRadialAxial(field, 0.05, 1.7, 500) if not _3d else Field3DAxial(field, 0.05, 1.7, 500)
         
         bounds = ((-0.1, 0.1), (-0.1, 0.1), (0.05, 1.7))
         field.set_bounds(bounds)
@@ -86,14 +86,14 @@ class DohiMirror(Validation):
         z0 = 15
         
         start_pos = np.array([0.0, 0.0, z0])
-        start_vel = T.velocity_vec_xz_plane(1000, angle)
+        start_vel = v.velocity_vec_xz_plane(1000, angle)
          
         print('Starting trace...')
         st = time.time()
         _, pos_derivs = tracer_derivs(start_pos, start_vel)
         print(f'Trace took {(time.time()-st)*1000:.1f} ms')
          
-        intersection = T.xy_plane_intersection(pos_derivs, z0)
+        intersection = v.xy_plane_intersection(pos_derivs, z0)
         return intersection[0]
 
 if __name__ == '__main__':

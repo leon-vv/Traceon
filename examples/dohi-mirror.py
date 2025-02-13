@@ -2,7 +2,7 @@ import time
 import numpy as np
 import matplotlib.pyplot as plt
 
-import voltrace as T
+import voltrace as v
 
 try:
     import voltrace_pro.solver as S
@@ -30,20 +30,20 @@ t = 0.15 # thickness
 r = 0.075 # radius
 st = 0.5  # spacer thickness
 
-boundary = T.Path.line([extent, 0.,0.], [extent, 0., 1.6])
+boundary = v.Path.line([extent, 0.,0.], [extent, 0., 1.6])
 boundary.name = 'boundary'
 
 #create line geometries
-mirror = T.Path.aperture(0.15, r, extent, z=t/2)
+mirror = v.Path.aperture(0.15, r, extent, z=t/2)
 mirror.name = 'mirror'
 
-mirror_line = T.Path.line([0., 0., 0.], [r, 0., 0.])
+mirror_line = v.Path.line([0., 0., 0.], [r, 0., 0.])
 mirror_line.name = 'mirror'
 
-lens = T.Path.aperture(0.15, r, extent, z=t + st + t/2)
+lens = v.Path.aperture(0.15, r, extent, z=t + st + t/2)
 lens.name = 'lens'
 
-ground = T.Path.aperture(0.15, r, extent, z=t+st+t+st+t/2)
+ground = v.Path.aperture(0.15, r, extent, z=t+st+t+st+t/2)
 ground.name = 'ground'
 
 #revolve around z axis and displace
@@ -65,10 +65,10 @@ geom = mirror+mirror_line+lens+ground+boundary
 mesh =  geom.mesh(mesh_size_factor=MSF)
 
 if PLOTTING:
-    T.plot_mesh(mesh, ground='green', mirror='red', lens='blue', boundary = 'grey', show_normals=True)
-    T.show()
+    v.plot_mesh(mesh, ground='green', mirror='red', lens='blue', boundary = 'grey', show_normals=True)
+    v.show()
 
-excitation = T.Excitation(mesh, T.Symmetry.THREE_D)
+excitation = v.Excitation(mesh, v.Symmetry.THREE_D)
 
 # Apply the correct voltages. Set the ground electrode to zero.
 excitation.add_voltage(ground=0., lens=TUNING_VOLTAGE, mirror=MIRROR_VOLTAGE)
@@ -89,7 +89,7 @@ z0 = 15
 start_xy_1 = (1e-4,0)
 start_xy_2 = (-1e-4,0)
 starting_positions = np.array([[*start_xy_1, z0], [*start_xy_2, z0]])
-start_vel = T.velocity_vec_xz_plane(1000, angle = 0)
+start_vel = v.velocity_vec_xz_plane(1000, angle = 0)
 
 traces = []
 

@@ -1,6 +1,6 @@
 import numpy as np
 
-import voltrace as T
+import voltrace as v
 from validation import Validation
 
 try:
@@ -21,16 +21,16 @@ class EinzelLens(Validation):
 
     def create_mesh(self, MSF, symmetry, higher_order):
         
-        boundary = T.Path.line([0., 0., 1.75],  [2.0, 0., 1.75])\
+        boundary = v.Path.line([0., 0., 1.75],  [2.0, 0., 1.75])\
             .extend_with_line([2.0, 0., -1.75]).extend_with_line([0., 0., -1.75])
 
 
         margin_right = 0.1
         extent = 2.0 - margin_right
         
-        bottom = T.Path.aperture(THICKNESS, RADIUS, extent, -THICKNESS - SPACING)
-        middle = T.Path.aperture(THICKNESS, RADIUS, extent)
-        top = T.Path.aperture(THICKNESS, RADIUS, extent, THICKNESS + SPACING)
+        bottom = v.Path.aperture(THICKNESS, RADIUS, extent, -THICKNESS - SPACING)
+        middle = v.Path.aperture(THICKNESS, RADIUS, extent)
+        top = v.Path.aperture(THICKNESS, RADIUS, extent, THICKNESS + SPACING)
          
         if symmetry.is_3d():
             boundary = boundary.revolve_z()
@@ -46,7 +46,7 @@ class EinzelLens(Validation):
         return (boundary + bottom + middle + top).mesh(mesh_size_factor=MSF)
     
     def get_excitation(self, mesh, symmetry):
-        excitation = T.Excitation(mesh, symmetry)
+        excitation = v.Excitation(mesh, symmetry)
         excitation.add_voltage(ground=0.0, lens=1000)
         excitation.add_electrostatic_boundary('boundary')
         return excitation
@@ -57,20 +57,20 @@ class EinzelLens(Validation):
     def compute_value_of_interest(self, mesh, field):
         _3d = mesh.is_3d()
          
-        assert not _3d or T.Field3DAxial is not None, "Please install voltrace_pro for fast 3D tracing support"
+        assert not _3d or v.Field3DAxial is not None, "Please install voltrace_pro for fast 3D tracing support"
          
         field.set_bounds( ((-RADIUS, RADIUS), (-RADIUS, RADIUS), (-1.5,1.5)) )
-        field_axial = T.FieldRadialAxial(field, -1.5, 1.5, 600) if not _3d else Field3DAxial(field, -1.5, 1.5, 600)
+        field_axial = v.FieldRadialAxial(field, -1.5, 1.5, 600) if not _3d else Field3DAxial(field, -1.5, 1.5, 600)
          
         bounds = ((-RADIUS, RADIUS), (-RADIUS, RADIUS), (-5, 3.5))
         tracer = field_axial.get_tracer(bounds)
          
         p0 = np.array([RADIUS/3, 0.0, 3])
-        v0 = T.velocity_vec_xz_plane(1000, 0)
+        v0 = v.velocity_vec_xz_plane(1000, 0)
          
         _, pos = tracer(p0, v0)
         
-        return -T.axis_intersection(pos)
+        return -v.axis_intersection(pos)
 
 if __name__ == '__main__':
     EinzelLens().run_validation()

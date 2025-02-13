@@ -3,7 +3,7 @@ import argparse
 
 import numpy as np
 
-import voltrace as T
+import voltrace as v
 from validation import Validation
 
 r1 = 0.5
@@ -23,7 +23,7 @@ class CapacitanceSphere(Validation):
     def create_mesh(self, MSF, symmetry, higher_order):
          
         def add_shell(radius, name, reverse=False):
-            arc = T.Path.arc([0., 0., 0.], [0, 0, -radius], [radius, 0, 0.]).extend_with_arc([0., 0., 0.], [0., 0., radius])
+            arc = v.Path.arc([0., 0., 0.], [0, 0, -radius], [radius, 0, 0.]).extend_with_arc([0., 0., 0.], [0., 0., radius])
             arc.name = name
 
             if symmetry.is_3d():
@@ -42,7 +42,7 @@ class CapacitanceSphere(Validation):
         return mesh
     
     def get_excitation(self, geom, symmetry):
-        exc = T.Excitation(geom, symmetry)
+        exc = v.Excitation(geom, symmetry)
         exc.add_voltage(inner=1)
         exc.add_voltage(outer=0)
         exc.add_dielectric(dielectric_inner=K, dielectric_outer=K)

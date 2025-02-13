@@ -3,7 +3,7 @@ import os.path as path
 import unittest
 from math import *
 
-import voltrace as T
+import voltrace as v
 from voltrace.geometry import *
 
 class MeshTests(unittest.TestCase):
@@ -12,9 +12,9 @@ class MeshTests(unittest.TestCase):
         input_file = path.join(path.dirname(__file__), 'world.stl')
         output_file = path.join(path.dirname(__file__), 'world_out.stl')
 
-        m = T.Mesh.read_file(input_file)
+        m = v.Mesh.read_file(input_file)
         m.write_file(output_file)
-        m2 = T.Mesh.read_file(output_file)
+        m2 = v.Mesh.read_file(output_file)
          
         assert np.allclose(m.points, m2.points)
         assert np.allclose(m.triangles, m2.triangles)
