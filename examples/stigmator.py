@@ -4,10 +4,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 from scipy.constants import m_p, e
 
-import traceon.geometry as G
-import traceon.excitation as E 
-import traceon.plotting as P
-import traceon.tracing as T
+import traceon as T
 
 try:
     import traceon_pro.solver as S
@@ -31,7 +28,7 @@ multipole_pieces = []
 for n in range(1, 2 * ORDER + 1):
     angle = 2 * np.pi / ( 2 * ORDER)
     piece = (
-        G.Surface.rectangle_xz(IN_RADIUS, OUT_RADIUS, -THICKNESS/2, THICKNESS/2) 
+        T.Surface.rectangle_xz(IN_RADIUS, OUT_RADIUS, -THICKNESS/2, THICKNESS/2) 
         .rotate(Rz= n* angle)
         .revolve_boundary_z(angle, enclose=True) # Revolve the boundary of the side piece and enclose on the other side
         .move(
@@ -41,22 +38,22 @@ for n in range(1, 2 * ORDER + 1):
     piece.name = 'positive_electrode' if n % 2 == 0 else 'negative_electrode'
     multipole_pieces.extend(piece.surfaces)
 
-multipole = G.SurfaceCollection(multipole_pieces)
+multipole = T.SurfaceCollection(multipole_pieces)
 
 # Creating a boundary can be done in one line with the extrude_boundary function:
 boundary = (
-    G.Surface.disk_xy(0, 0, B_RADIUS).move(dz=-B_HEIGHT/2).extrude_boundary([0,0,B_HEIGHT], enclose=False) 
-    + G.Path.line([IN_RADIUS, 0, B_HEIGHT/2], [B_RADIUS, 0, B_HEIGHT/2]).revolve_z())
+    T.Surface.disk_xy(0, 0, B_RADIUS).move(dz=-B_HEIGHT/2).extrude_boundary([0,0,B_HEIGHT], enclose=False) 
+    + T.Path.line([IN_RADIUS, 0, B_HEIGHT/2], [B_RADIUS, 0, B_HEIGHT/2]).revolve_z())
 boundary.name = 'boundary'
 
 # Create and plot mesh
 mesh = (multipole.mesh(mesh_size=0.04) + boundary.mesh(mesh_size=0.1))
 
-P.plot_mesh(mesh, positive_electrode='red', negative_electrode='blue', boundary='green')
-P.show()
+T.plot_mesh(mesh, positive_electrode='red', negative_electrode='blue', boundary='green')
+T.show()
 
 # Add excitations
-excitation = E.Excitation(mesh, E.Symmetry.THREE_D)
+excitation = T.Excitation(mesh, T.Symmetry.THREE_D)
 excitation.add_voltage(positive_electrode=1, negative_electrode=-1, boundary=0)
 
 # Calculate field
@@ -68,9 +65,9 @@ field = S.solve_direct(excitation)
 # Plot mesh and equipotential lines
 margin = 0.02
 x_ext, y_ext, z_ext = B_RADIUS - margin, B_RADIUS - margin, B_HEIGHT/2 - margin
-field_xy = G.Surface.disk_xy(0,0, x_ext)
-field_xz = G.Surface.rectangle_xz(-x_ext, x_ext, -z_ext, z_ext) 
-field_yz = G.Surface.rectangle_yz(-y_ext, y_ext, -z_ext, z_ext) 
+field_xy = T.Surface.disk_xy(0,0, x_ext)
+field_xz = T.Surface.rectangle_xz(-x_ext, x_ext, -z_ext, z_ext) 
+field_yz = T.Surface.rectangle_yz(-y_ext, y_ext, -z_ext, z_ext) 
 
 # Initialize tracer and particle trajectories.
 # We will trace both electrons and alpha particles (fully ionized helium atoms)
@@ -102,13 +99,13 @@ for i, (x, y) in enumerate(zip(x_start, y_start)):
     a_trajectories.append(p_trace)
 
 # Plotting
-P.plot_mesh(mesh, positive_electrode='red', negative_electrode='blue', boundary='green')
-P.plot_equipotential_lines(field, surface=field_xy, color_map='coolwarm',  N_isolines=40, N0=200, N1=200)
-P.plot_equipotential_lines(field, surface=field_xz, color_map='coolwarm',  N_isolines=0, N0=200, N1=200)
-P.plot_equipotential_lines(field, surface=field_yz, color_map='coolwarm',  N_isolines=0, N0=200, N1=200)
-P.plot_trajectories(e_trajectories, line_width=3)
-P.plot_trajectories(a_trajectories, line_width=3, color='#FF55FF')
-P.show()
+T.plot_mesh(mesh, positive_electrode='red', negative_electrode='blue', boundary='green')
+T.plot_equipotential_lines(field, surface=field_xy, color_map='coolwarm',  N_isolines=40, N0=200, N1=200)
+T.plot_equipotential_lines(field, surface=field_xz, color_map='coolwarm',  N_isolines=0, N0=200, N1=200)
+T.plot_equipotential_lines(field, surface=field_yz, color_map='coolwarm',  N_isolines=0, N0=200, N1=200)
+T.plot_trajectories(e_trajectories, line_width=3)
+T.plot_trajectories(a_trajectories, line_width=3, color='#FF55FF')
+T.show()
 
 
 # Compute the output beam size 
