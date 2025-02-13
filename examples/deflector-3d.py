@@ -70,7 +70,7 @@ excitation.add_voltage(ground=0.0, deflector_positive=5, deflector_negative=-5)
 # the surface charges gives rise to a electrostatic field.
 assert S is not None, ("The 'voltrace_pro' package is not installed or not found. "
         "Voltrace Pro is required to solve 3D geometries.\n"
-        "For more information, visit: https://www.voltrace.org")
+        "For more information, visit: https://www.voltrace.io")
 field = v.solve_direct(excitation)
 
 # An instance of the tracer class allows us to easily find the trajectories of 

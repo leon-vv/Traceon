@@ -24,13 +24,13 @@ The core of Voltrace is completely free to use and open source, and distributed 
 
 ## Documentation
 
-[Website](https://voltrace.org/)
+[Website](https://voltrace.io/)
 
 [Examples](https://github.com/leon-vv/Voltrace/tree/main/examples)
 
-[API documentation v0.10.0](https://voltrace.org/docs/v0.10.0/voltrace/index.html)
+[API documentation v0.10.0](https://voltrace.io/docs/v0.10.0/voltrace/index.html)
 
-[API documentation v0.9.0](https://voltrace.org/docs/v0.9.0/voltrace/index.html)
+[API documentation v0.9.0](https://voltrace.io/docs/v0.9.0/voltrace/index.html)
 
 ## Installation
 

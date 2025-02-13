@@ -77,7 +77,7 @@ excitation.add_electrostatic_boundary('boundary')
 # the surface charges gives rise to a electrostatic field.
 assert S is not None, ("The 'voltrace_pro' package is not installed or not found. "
         "Voltrace Pro is required to solve 3D geometries.\n"
-        "For more information, visit: https://www.voltrace.org")
+        "For more information, visit: https://www.voltrace.io")
 field = S.solve_direct(excitation)
 
 tracer = field.get_tracer( [(-r/2, r/2), (-r/2, r/2), (-7, 15.1)] )

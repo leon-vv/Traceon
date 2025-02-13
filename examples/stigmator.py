@@ -59,7 +59,7 @@ excitation.add_voltage(positive_electrode=1, negative_electrode=-1, boundary=0)
 # Calculate field
 assert S is not None, ("The 'voltrace_pro' package is not installed or not found. "
         "Voltrace Pro is required to solve 3D geometries.\n"
-        "For more information, visit: https://www.voltrace.org")
+        "For more information, visit: https://www.voltrace.io")
 field = S.solve_direct(excitation)
 
 # Plot mesh and equipotential lines
