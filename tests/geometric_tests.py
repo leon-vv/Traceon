@@ -239,3 +239,21 @@ class SurfaceTests(unittest.TestCase):
             assert not np.all(p3 == p1)
          
         assert len(mesh.physical_to_triangles['test']) == len(mesh.triangles)
+
+    def test_interpolate(self):
+        x = np.linspace(0, 10)
+        points = [[x_, x_, 0.] for x_ in x]
+        derivs = [[1., 1., 0.] for x_ in x]
+
+        interp = Path.interpolate(x, points)
+        
+        for x_, p_ in zip(x, points):
+            assert np.allclose(interp(x_), p_)
+        
+        interp_derivs = Path.interpolate(x, points, derivs)
+        
+        for x_, p_ in zip(x, points):
+            assert np.allclose(interp_derivs(x_), p_)
+
+
+

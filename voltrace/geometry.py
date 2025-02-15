@@ -15,7 +15,7 @@ import warnings
 
 import numpy as np
 from scipy.integrate import quad
-from scipy.interpolate import CubicSpline
+from scipy.interpolate import CubicSpline, CubicHermiteSpline
 
 from .mesher import GeometricObject, _mesh, Mesh
 from  .typing import *
@@ -92,7 +92,18 @@ class Path(GeometricObject):
         Path"""
         warnings.warn("from_irregular_function is deprecated, use Path(...) constructor directly", DeprecationWarning, stacklevel=2)
         return Path(to_point, 1.0, breakpoints).normalize()
-    
+
+    @staticmethod
+    def interpolate(parameters: ArrayLikeFloat1D, points: Points3D, derivatives: Vectors3D | None = None) -> Path:
+        assert len(parameters) == len(points), "To interpolate, please supply equal amount of parameter values and points"
+        assert len(points) > 2, "To interpolate, please supply at least two points"
+        
+        if derivatives is None:
+            return Path(CubicSpline(parameters, points), parameters[-1] - parameters[0]) # type: ignore
+        else:
+            assert len(derivatives) == len(points), "When interpolating with derivatives, please supply equal amount of points and derivatives"
+            return Path(CubicHermiteSpline(parameters, points, derivatives), parameters[-1] - parameters[0]) # type: ignore
+     
     @staticmethod
     def spline_through_points(points: Points3D) -> Path:
         """Construct a path by fitting a cubic spline through the given points.
