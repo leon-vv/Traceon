@@ -36,39 +36,6 @@ __pdoc__['Surface.__call__'] = True
 def _points_close(p1: PointLike3D, p2: PointLike3D, tolerance: float = 1e-8) -> bool:
     return np.allclose(p1, p2, atol=tolerance)
 
-def discretize_path(path_length: float, breakpoints: list[float], mesh_size: float | None, mesh_size_factor: float | None = None, N_factor: int = 1) -> ArrayFloat1D:
-    assert mesh_size is not None or mesh_size_factor is not None
-    
-    # Return the arguments to use to breakup the path
-    # in a 'nice' way
-    
-    # Points that have to be in, in any case
-    points = [0.] + breakpoints +  [path_length]
-
-    subdivision = []
-        
-    for (u0, u1) in zip(points, points[1:]):
-        if u0 == u1:
-            continue
-         
-        if mesh_size is not None:
-            N = int(max( ceil((u1-u0)/mesh_size), 3))
-        elif mesh_size_factor is not None:
-            N = int(3*max(mesh_size_factor, 1))
-        
-        # When using higher order, we splice extra points
-        # between two points in the descretization. This
-        # ensures that the number of elements stays the same
-        # as in the non-higher order case.
-        # N_factor = 1  normal flat elements
-        # N_factor = 2  extra points for curved triangles (triangle6 in GMSH terminology)
-        # N_factor = 3  extra points for curved line elements (line4 in GMSH terminology)
-        subdivision.append(np.linspace(u0, u1, N_factor*N, endpoint=False))
-    
-    subdivision.append(np.array([path_length]))
-    
-    return np.concatenate(subdivision)
-
 
 class Path(GeometricObject):
     """A path is a mapping from a number in the range [0, path_length] to a three dimensional point. Note that `Path` is a
@@ -84,7 +51,7 @@ class Path(GeometricObject):
         # and returns the point on the path
         self.fun = fun
         self.path_length = path_length
-        self.breakpoints = breakpoints if breakpoints is not None else []
+        self.breakpoints = list(breakpoints) if breakpoints is not None else []
         self.name = name
     
     @staticmethod
@@ -105,21 +72,7 @@ class Path(GeometricObject):
         Returns
         ---------------------------------
         Path"""
-         
-        # path length = integrate |f'(x)|
-        fun = lambda u: np.array(to_point(u))
-        
-        u = np.linspace(0, 1, N)
-        samples = CubicSpline(u, [fun(u_) for u_ in u])
-        derivatives = samples.derivative()(u)
-        norm_derivatives = np.linalg.norm(derivatives, axis=1)
-        path_lengths = CubicSpline(u, norm_derivatives).antiderivative()(u)
-        interpolation = CubicSpline(path_lengths, u) # Path length to [0,1]
-
-        path_length = path_lengths[-1]
-        breakpoints = breakpoints if breakpoints is not None else []
-
-        return Path(lambda pl: fun(interpolation(pl)), path_length, breakpoints=[b*path_length for b in breakpoints]) # type: ignore
+        return Path(to_point, 1.0, breakpoints).normalize()
     
     @staticmethod
     def spline_through_points(points: Points3D, N: int = 100) -> Path:
@@ -233,8 +186,6 @@ class Path(GeometricObject):
         total = self.path_length + other.path_length
          
         def f(t):
-            assert 0 <= t <= total
-            
             if t <= self.path_length:
                 return self(t)
             else:
@@ -850,6 +801,58 @@ class Path(GeometricObject):
         
         return result
      
+    def normalize(self, N: int = 100) -> Path:
+        # Return a path that takes the path length as input
+        
+        if not len(self.breakpoints):
+            sample_points = np.linspace(0., self.path_length, N)
+            derivatives = CubicSpline(sample_points, [self(s) for s in sample_points])(sample_points, nu=1) # Calculate derivatives
+            norm_derivatives = np.linalg.norm(derivatives, axis=1) # Norm of derivative
+            sample_points_to_path_length = CubicSpline(sample_points, norm_derivatives).antiderivative()
+            path_length_to_sample_point = CubicSpline(sample_points_to_path_length(sample_points), sample_points)
+            path_length_to_point = lambda p: np.array(self(path_length_to_sample_point(p).item()))
+            return Path(path_length_to_point, sample_points_to_path_length(self.path_length).item(), sample_points_to_path_length(self.breakpoints).tolist(), self.name) # type: ignore
+        else: 
+            all_normalized = [p.normalize() for p in self.breakup()]
+            
+            p = all_normalized[0]
+
+            for p_ in all_normalized[1:]:
+                p = p >> p_
+
+            return p
+    
+    def _discretize(self, mesh_size: float | None, mesh_size_factor: float | None, N_factor: int) -> ArrayFloat1D:
+        assert mesh_size is not None or mesh_size_factor is not None
+        
+        # Return the arguments to use to breakup the path
+        # in a 'nice' way. Points that have to be in, in any case.
+        points = [0.] + self.breakpoints +  [self.path_length]
+        subdivision = []
+            
+        for i, (u0, u1) in enumerate(zip(points, points[1:])):
+            if u0 == u1:
+                continue
+
+            assert u0 <= u1
+
+            if mesh_size is not None:
+                N = int(max( ceil((u1-u0)/mesh_size), 3))
+            elif mesh_size_factor is not None:
+                N = int(3*max(mesh_size_factor, 1))
+            
+            # When using higher order, we splice extra points
+            # between two points in the descretization. This
+            # ensures that the number of elements stays the same
+            # as in the non-higher order case.
+            # N_factor = 1  normal flat elements
+            # N_factor = 3  extra points for curved line elements (line4 in GMSH terminology)
+            subdivision.append(np.linspace(u0, u1, N_factor*N, endpoint=False))
+        
+        subdivision.append(np.array([self.path_length]))
+        
+        return np.concatenate(subdivision)
+      
     def mesh(self, 
              mesh_size: float | None = None, 
              mesh_size_factor: float | None = None, 
@@ -879,13 +882,15 @@ class Path(GeometricObject):
         Returns
         ----------------------------
         `voltrace.mesher.Mesh`"""
-        u = discretize_path(self.path_length, self.breakpoints, mesh_size, mesh_size_factor, N_factor=3 if higher_order else 1)
-        
+
+        path = self.normalize()
+        u = path._discretize(mesh_size, mesh_size_factor, N_factor=3 if higher_order else 1)
+
         N = len(u) 
         points = np.zeros( (N, 3) )
          
         for i in range(N):
-            points[i] = self(u[i])
+            points[i] = path(u[i])
          
         if not higher_order:
             lines = np.array([np.arange(N-1), np.arange(1, N)]).T
@@ -900,7 +905,7 @@ class Path(GeometricObject):
           
         assert lines.dtype == np.int64 or lines.dtype == np.int32
         
-        name = self.name if name is None else name
+        name = path.name if name is None else name
          
         if name is not None:
             physical_to_lines = {name:np.arange(len(lines))}

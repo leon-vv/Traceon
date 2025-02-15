@@ -123,9 +123,10 @@ class PathTests(unittest.TestCase):
     def test_discretize_path(self):
         path_length = 10 
         breakpoints = [3.33, 5., 9.]
-         
-        u = discretize_path(path_length, breakpoints, 1.)
-
+        
+        P = Path(lambda x: np.array([0., 0., 0.]), path_length, breakpoints)
+        u = P._discretize(1., 1., 1)
+        
         assert 0. in u
         assert 10 in u
         
