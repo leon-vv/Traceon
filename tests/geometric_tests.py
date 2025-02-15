@@ -20,14 +20,14 @@ class MeshTests(unittest.TestCase):
         assert np.allclose(m.triangles, m2.triangles)
 
 class PathTests(unittest.TestCase):
-    def test_from_irregular_function(self):
+    def test_normalize(self):
         f = lambda x: [x, x**(3/2), 0.]
-        y = Path.from_irregular_function(f)
+        y = Path(f,1.0).normalize()
         assert np.isclose(y.parameter_range, 1.43970987337155), y.parameter_range
         
         # Half the path length is reached at the special point x=0.5662942656295281
         a = 0.5662942656295281
-        yhalf = Path.from_irregular_function(lambda x: [a*x, (a*x)**(3/2), 0.])
+        yhalf = Path(lambda x: [a*x, (a*x)**(3/2), 0.], 1.0).normalize()
         assert np.isclose(yhalf.parameter_range, y.parameter_range/2)
 
         assert np.allclose(f(0.), y(0.))
@@ -48,22 +48,21 @@ class PathTests(unittest.TestCase):
         assert np.allclose(path.starting_point(), points[0])
         assert np.allclose(path.endpoint(), points[-1])
      
-    def test_irregular_parameter_range(self):
-        y = Path.from_irregular_function(lambda x: np.array([x, x**2, 0.]))
+    def test_normalize2(self):
+        y = Path(lambda x: np.array([x, x**2, 0.]), 1.0).normalize()
         assert np.isclose(y.parameter_range, 1.478942857544597), y.parameter_range
-        y = Path.from_irregular_function(lambda x: np.array([5*x, (5*x)**2, 0.]))
+        y = Path(lambda x: np.array([5*x, (5*x)**2, 0.]), 1.0).normalize()
         assert np.isclose(y.parameter_range, 25.87424479037671), y.parameter_range
-        y = Path.from_irregular_function(lambda x: np.array([0., 5*x, (5*x)**2]))
+        y = Path(lambda x: np.array([0., 5*x, (5*x)**2]), 1.0).normalize()
         assert np.isclose(y.parameter_range, 25.87424479037671), y.parameter_range
-        y = Path.from_irregular_function(lambda x: np.array([(5*x)**2, 0., 5*x]))
-
+    
     def test_move(self):
-        y = Path.from_irregular_function(lambda x: np.array([x, x, 0.]))
+        y = Path(lambda x: np.array([x, x, 0.]), 1.0).normalize()
         y = y.move(dz=1.)
         assert np.allclose(y(sqrt(2)), [1., 1., 1.])
     
     def test_rotate(self):
-        y = Path.from_irregular_function(lambda x: np.array([x, x, 0.]))
+        y = Path(lambda x: np.array([x, x, 0.]), 1.0).normalize()
         y = y.rotate(Rz=pi/2)
         assert np.allclose(y(sqrt(0)), [0., 0., 0.])
         assert np.allclose(y(sqrt(2)), [-1., 1., 0.])
@@ -79,7 +78,7 @@ class PathTests(unittest.TestCase):
      
     def test_rotate_around_point(self):
         origin = np.array([2., 1., -1.])
-        y = Path.from_irregular_function(lambda x: origin + np.array([x, x, 0.]))
+        y = Path(lambda x: origin + np.array([x, x, 0.]), 1.0).normalize()
         y = y.rotate(Rz=pi/2, origin=origin)
         assert np.allclose(y(sqrt(0)), origin)
         assert np.allclose(y(sqrt(2)), origin + np.array([-1., 1., 0.]))
@@ -207,8 +206,8 @@ class PathTests(unittest.TestCase):
 class SurfaceTests(unittest.TestCase):
     
     def test_spanned_by_paths(self):
-        y1 = Path.from_irregular_function(lambda x: [x, -1. - x, x]) 
-        y2 = Path.from_irregular_function(lambda x: [x, 1. + x, x]) 
+        y1 = Path(lambda x: [x, -1. - x, x], 1.0)
+        y2 = Path(lambda x: [x, 1. + x, x], 1.0) 
         surf = Surface.spanned_by_paths(y1, y2)
 
         p1 = surf.parameter_range1
