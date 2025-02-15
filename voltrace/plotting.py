@@ -252,8 +252,8 @@ def show() -> None:
     _current_figures = []
 
 def _get_vedo_grid(field: Field, surface: Surface, N0: int, N1: int) -> vedo.Grid:
-    x = np.linspace(0, surface.path_length1, N0)
-    y = np.linspace(0, surface.path_length2, N1)
+    x = np.linspace(0, surface.parameter_range1, N0)
+    y = np.linspace(0, surface.parameter_range2, N1)
 
     grid = vedo.Grid(s=(x, y))
     points = np.array([surface(x_, y_) for x_, y_, _ in grid.vertices])

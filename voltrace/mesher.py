@@ -925,18 +925,18 @@ class PointStack:
 
         self.points = points if points is not None else [] # here we need points as list to append in-place
             
-        self.path_length1 = surface.path_length1
-        self.path_length2 = surface.path_length2
+        self.parameter_range1 = surface.parameter_range1
+        self.parameter_range2 = surface.parameter_range2
         
         self.surf = surface
          
         self.indices: list[ArrayInt2D] = []
     
     def index_to_u(self, depth: int, i: int) -> float:
-        return self.path_length1/(self.get_number_of_indices(depth) - 1) * i
+        return self.parameter_range1/(self.get_number_of_indices(depth) - 1) * i
      
     def index_to_v(self, depth: int, j: int) -> float:
-        return self.path_length2/(self.get_number_of_indices(depth) - 1) * j
+        return self.parameter_range2/(self.get_number_of_indices(depth) - 1) * j
     
     def index_to_point(self, depth: int, i: int, j: int) -> Point3D:
         u = self.index_to_u(depth, i)

@@ -23,16 +23,16 @@ class PathTests(unittest.TestCase):
     def test_from_irregular_function(self):
         f = lambda x: [x, x**(3/2), 0.]
         y = Path.from_irregular_function(f)
-        assert np.isclose(y.path_length, 1.43970987337155), y.path_length
+        assert np.isclose(y.parameter_range, 1.43970987337155), y.parameter_range
         
         # Half the path length is reached at the special point x=0.5662942656295281
         a = 0.5662942656295281
         yhalf = Path.from_irregular_function(lambda x: [a*x, (a*x)**(3/2), 0.])
-        assert np.isclose(yhalf.path_length, y.path_length/2)
+        assert np.isclose(yhalf.parameter_range, y.parameter_range/2)
 
         assert np.allclose(f(0.), y(0.))
-        assert np.allclose(f(1.), y(y.path_length))
-        assert np.allclose(f(a), y(0.5*y.path_length))
+        assert np.allclose(f(1.), y(y.parameter_range))
+        assert np.allclose(f(a), y(0.5*y.parameter_range))
         assert np.allclose(yhalf.endpoint(), y.middle_point())
         assert np.allclose(f(1.), y.endpoint())
 
@@ -48,13 +48,13 @@ class PathTests(unittest.TestCase):
         assert np.allclose(path.starting_point(), points[0])
         assert np.allclose(path.endpoint(), points[-1])
      
-    def test_irregular_path_length(self):
+    def test_irregular_parameter_range(self):
         y = Path.from_irregular_function(lambda x: np.array([x, x**2, 0.]))
-        assert np.isclose(y.path_length, 1.478942857544597), y.path_length
+        assert np.isclose(y.parameter_range, 1.478942857544597), y.parameter_range
         y = Path.from_irregular_function(lambda x: np.array([5*x, (5*x)**2, 0.]))
-        assert np.isclose(y.path_length, 25.87424479037671), y.path_length
+        assert np.isclose(y.parameter_range, 25.87424479037671), y.parameter_range
         y = Path.from_irregular_function(lambda x: np.array([0., 5*x, (5*x)**2]))
-        assert np.isclose(y.path_length, 25.87424479037671), y.path_length
+        assert np.isclose(y.parameter_range, 25.87424479037671), y.parameter_range
         y = Path.from_irregular_function(lambda x: np.array([(5*x)**2, 0., 5*x]))
 
     def test_move(self):
@@ -121,10 +121,10 @@ class PathTests(unittest.TestCase):
         assert np.allclose(p.endpoint(), p_rot_2pi.endpoint())
 
     def test_discretize_path(self):
-        path_length = 10 
+        parameter_range = 10 
         breakpoints = [3.33, 5., 9.]
         
-        P = Path(lambda x: np.array([0., 0., 0.]), path_length, breakpoints)
+        P = Path(lambda x: np.array([0., 0., 0.]), parameter_range, breakpoints)
         u = P._discretize(1., 1., 1)
         
         assert 0. in u
@@ -136,36 +136,36 @@ class PathTests(unittest.TestCase):
     def test_arc(self):
         r = 2.
         p = Path.arc([0., 0., 0.], [r, 0., 0.], [0., r, 0.])
-        assert np.isclose(p.path_length, 1/4 * 2*pi*r)
+        assert np.isclose(p.parameter_range, 1/4 * 2*pi*r)
         assert np.allclose(p(1/8 * 2*pi*r), [r/sqrt(2), r/sqrt(2), 0.])
         
         center = np.array([1., -1, -1])
         p = Path.arc(center, center+np.array([r,0.,0.]), center+np.array([0.,r, 0.]))
-        assert np.isclose(p.path_length, 1/4 * 2*pi*r)
+        assert np.isclose(p.parameter_range, 1/4 * 2*pi*r)
         assert np.allclose(p(1/8 * 2*pi*r), center + np.array([r/sqrt(2), r/sqrt(2), 0.]))
         
         r = 3
         center = np.array([0, r, 0.])
         p = Path.arc(center, [0., 0., 0.], [0., r, r])
-        assert np.isclose(p.path_length, 1/4* 2*pi*r)
+        assert np.isclose(p.parameter_range, 1/4* 2*pi*r)
         assert np.allclose(p(1/8 * 2*pi*r), center + np.array([0., -r/sqrt(2), r/sqrt(2)]))
           
         r = 3
         center = np.array([0, r, 0.])
         p = Path.arc(center, [0., 0., 0.], [0., r, r], reverse=True)
-        assert np.isclose(p.path_length, 3/4* 2*pi*r)
+        assert np.isclose(p.parameter_range, 3/4* 2*pi*r)
         assert np.allclose(p(1/2 * 3/4*2*pi*r), center + np.array([0., +r/sqrt(2), -r/sqrt(2)]))
           
         r = 3
         center = np.array([0, r, 0.])
         p = Path.arc(center, [0., 0., 0.], [0., r, -r])
-        assert np.isclose(p.path_length, 1/4* 2*pi*r)
+        assert np.isclose(p.parameter_range, 1/4* 2*pi*r)
         assert np.allclose(p(1/2 * 1/4*2*pi*r), center + np.array([0., -r/sqrt(2), -r/sqrt(2)]))
         
         r = 3
         center = np.array([0, r, 0.])
         p = Path.arc(center, [0., 0., 0.], [0., r, -r], reverse=True)
-        assert np.isclose(p.path_length, 3/4* 2*pi*r)
+        assert np.isclose(p.parameter_range, 3/4* 2*pi*r)
         assert np.allclose(p(1/2 * 3/4*2*pi*r), center + np.array([0., r/sqrt(2), r/sqrt(2)]))
 
     def test_polar_arc(self):
@@ -174,10 +174,10 @@ class PathTests(unittest.TestCase):
         p = Path.polar_arc(r, angle, start=[0,0,1], plane_normal=[0,1,0], direction=[1,0,0])
         
         expected_length = r* angle
-        self.assertTrue(isclose(p.path_length, expected_length, rel_tol=1e-7))
+        self.assertTrue(isclose(p.parameter_range, expected_length, rel_tol=1e-7))
         
         start_point = p(0.)
-        end_point = p(p.path_length)
+        end_point = p(p.parameter_range)
 
         assert np.allclose(start_point, [0., 0., 1.], atol=1e-7)
         assert np.allclose(end_point, [1., 0., 0.], atol=1e-7)
@@ -187,9 +187,9 @@ class PathTests(unittest.TestCase):
         extended_path = base_path.extend_with_polar_arc(radius=1.0, angle=pi/2, plane_normal=[0,1,0])
 
         expected_length = 1.0 + (pi/2)
-        assert np.isclose(extended_path.path_length, expected_length)
+        assert np.isclose(extended_path.parameter_range, expected_length)
         
-        end_point = extended_path(extended_path.path_length)
+        end_point = extended_path(extended_path.parameter_range)
         assert np.allclose(end_point, [2.,0.,-1.], atol=1e-7) # should with right hand rule around y
 
     def test_velocity_vector(self):
@@ -199,7 +199,7 @@ class PathTests(unittest.TestCase):
         t_start_norm = t_start / np.linalg.norm(t_start)
         assert np.allclose(t_start_norm, [0.,1.,0.], atol=1e-7)
 
-        half_length = circle.path_length/2
+        half_length = circle.parameter_range/2
         t_half = circle.velocity_vector(half_length)
         t_half_norm = t_half / np.linalg.norm(t_half)
         assert np.allclose(t_half_norm, [0.,-1.,0.], atol=1e-7)
@@ -211,8 +211,8 @@ class SurfaceTests(unittest.TestCase):
         y2 = Path.from_irregular_function(lambda x: [x, 1. + x, x]) 
         surf = Surface.spanned_by_paths(y1, y2)
 
-        p1 = surf.path_length1
-        p2 = surf.path_length2
+        p1 = surf.parameter_range1
+        p2 = surf.parameter_range2
          
         assert np.allclose(surf(0., 0.), [0., -1., 0.])
         assert np.allclose(surf(0., p2), [0., 1., 0.])
