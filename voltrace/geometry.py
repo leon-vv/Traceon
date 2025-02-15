@@ -807,6 +807,48 @@ class Path(GeometricObject):
             return PathCollection([self] + other.paths)
 
         return NotImplemented
+
+    def subsection(self, start: float, end: float) -> Path:
+        """
+        Return the subsection of the path between start and end.
+        
+        Parameters
+        ------------------------
+        start: float
+            The starting coordinate. The subsection starts at point `path(start)`
+        end: float
+            The final coordinate. The subsection ends at point `path(end)`
+
+        Returns
+        -----------------------
+        Path
+            The `Path` representing the subsection
+        """
+        assert end > start
+        
+        length = end - start
+        breakpoints = [b_ for b_ in self.breakpoints if start < b_ < end]
+        fun = lambda u: self.fun(start + u)
+         
+        return Path(fun, length, breakpoints, self.name)
+
+    def breakup(self) -> list[Path]:
+        """
+        Breakup a path at its breakpoints.
+
+        Returns
+        -----------------------------
+        list[Path]
+            A list of N paths (without breakpoints) that span the original path
+        """
+        points = [0.] + self.breakpoints + [self.path_length]
+        
+        result = []
+        
+        for u0, u1 in zip(points, points[1:]):
+            result.append(self.subsection(u0, u1))
+        
+        return result
      
     def mesh(self, 
              mesh_size: float | None = None, 
