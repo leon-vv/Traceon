@@ -94,7 +94,7 @@ class Path(GeometricObject):
         return Path(to_point, 1.0, breakpoints).normalize()
     
     @staticmethod
-    def spline_through_points(points: Points3D, N: int = 100) -> Path:
+    def spline_through_points(points: Points3D) -> Path:
         """Construct a path by fitting a cubic spline through the given points.
 
         Parameters
@@ -105,11 +105,9 @@ class Path(GeometricObject):
         Returns
         -------------------------
         Path"""
-
         x = np.linspace(0, 1, len(points))
-        interp = CubicSpline(x, points)
-
-        return Path.from_irregular_function(lambda u: np.array(interp(u), dtype=np.float64), N=N) #type: ignore
+        interp = CubicSpline(x, np.array(points, dtype=np.float64))
+        return Path(interp, 1.0) # type: ignore
      
     def average(self, fun: Callable[[Point3D], float]) -> float:
         """Average a function along the path, by integrating 1/l * fun(path(l)) with 0 <= l <= path length.
