@@ -57,9 +57,11 @@ class TestTracing(unittest.TestCase):
 
         tracer = v.Tracer(ConstantField(), bounds)
          
-        result = tracer.trace_multiple([np.zeros(3), np.zeros(3)], [0., 0., 3.])
+        trajectories = tracer.trace_multiple([np.zeros(3), np.zeros(3)], [0., 0., 3.])
         
-        for times, positions in result:
+        for t in trajectories:
+            times, positions = t.sample()
+            
             correct_x = 3/2*times**2
             correct_z = 3*times
             
@@ -119,7 +121,7 @@ class TestTracing(unittest.TestCase):
         tracer = v.Tracer(CustomField(), bounds)
         
         # Note that we transform velocity to eV, since it's being converted back to m/s in the Tracer.__call__ function
-        times, positions = tracer(p0, v0, atol=1e-10)
+        times, positions = tracer(p0, v0, atol=1e-10).sample(N=2000)
          
         sol = solve_ivp(acceleration, (0, 30), np.hstack( (p0, v0) ), method='DOP853', rtol=1e-10, atol=1e-10)
 
@@ -150,10 +152,10 @@ class TestTracing(unittest.TestCase):
         bounds = ((-0.4,0.4), (-0.4, 0.4), (-15, 15))
         voltrace_field = v.FieldRadialBEM(current_point_charges=eff)
         tracer = voltrace_field.get_tracer(bounds)
-        times, positions = tracer(initial_conditions[:3], v.velocity_vec(eV, [0, 0, -1]), atol=1e-6)
+        times, positions = tracer(initial_conditions[:3], v.velocity_vec(eV, [0, 0, -1]), atol=1e-6).sample(N=1000)
         
         interp = CubicSpline(positions[::-1, 2], np.array([positions[::-1, 0], positions[::-1, 1]]).T)
-        
+         
         assert np.allclose(interp(sol.y[2]), np.array([sol.y[0], sol.y[1]]).T)
     
     def test_interpolated_tracing_against_scipy_current_loop(self):
@@ -181,7 +183,9 @@ class TestTracing(unittest.TestCase):
         axial_field = v.FieldRadialAxial(field, -15, 15, N=500)
          
         tracer = axial_field.get_tracer(bounds)
-        times, positions = tracer(initial_conditions[:3], v.velocity_vec(eV, [0, 0, -1]), atol=1e-6)
+        trajectory = tracer(initial_conditions[:3], v.velocity_vec(eV, [0, 0, -1]), atol=1e-6)
+
+        times, positions = trajectory.sample()
          
         interp = CubicSpline(positions[::-1, 2], np.array([positions[::-1, 0], positions[::-1, 1]]).T)
         
@@ -189,78 +193,83 @@ class TestTracing(unittest.TestCase):
 
        
     def test_plane_intersection(self):
-        p = np.array([
-            [3, 0, 0, 0, 0, 0],
-            [1, 0, 0, 0, 0, 0],
-            [-1, 0, 0, 0, 0, 0.]]);
+         
+        p = v.Path.interpolate([0., 1., 2.],
+            [
+                [3, 0, 0],
+                [1, 0, 0],
+                [-1, 0, 0]
+            ])
+        
+        result = p( p.plane_intersection(np.zeros(3), [4.0, 0., 0.]) )
+        assert np.allclose(result, [0., 0., 0.])
+        
+        p = v.Path.interpolate([0., 1., 2.],
+            [[2, 2, 2],
+            [1, 1, 1],
+            [-1, -1, -1]])
+        
+        result = p( p.plane_intersection(np.zeros(3), [2.0, 2.0, 2.0]) )
+        assert np.allclose(result, np.array([0.0, 0.0, 0.0]))
+        
+        p = v.Path.interpolate([0., 1., 2.],
+            [[2, 2, 2],
+            [2, 2, 1],
+            [2, 2, -3]])
+        
+        result = p( p.plane_intersection([2., 2., 1.], [0.0, 0.0, 1.0]) )
+        assert np.allclose(result, np.array([2.0, 2.0, 1.0]))
+        
+        result = p( p.plane_intersection([2., 2., 1.], [0.0, 0.0, -1.0]) )
+        assert np.allclose(result, np.array([2.0, 2.0, 1.0]))
+        
+        p = v.Path.interpolate([0., 1.],
+            [[0, 0, -3],
+            [0, 0, 9]])
+        
+        result = p( p.plane_intersection([0., 1., 0.], [1.0, 1.0, 1.0]) )
+        assert np.allclose(result, np.array([0.0, 0.0, 1.0]))
+        result = p( p.plane_intersection([0., 1., 0.], [-1.0, -1.0, -1.0]) )
+        assert np.allclose(result, np.array([0.0, 0.0, 1.0]))
 
-        result = v.plane_intersection(p, np.zeros(3), np.array([4.0,0.0,0.0]))
-        assert np.allclose(result, np.array([0.0, 0.0, 0.0, 0.0, 0.0, 0.0]))
+        p = v.Path.interpolate([0., 1.],
+            [[1, 0, 0],
+            [1, 0, 1]])
+        
+        result = p( p.xy_plane_intersection(0.5) )
+        assert np.allclose(result[0], 1.0)
+        
+        p = v.Path.interpolate([0., 1.],
+            [[1, 0, 0],
+            [1, 0, -1]])
+        
+        result = p( p.xy_plane_intersection(-0.5) )
+        assert np.allclose(result[0], 1.0)
+        
+        p = v.Path.interpolate([0., 1., 2],
+            [[0, 0, 0],
+            [1, 0, -1],
+            [2, 0, -2]])
+        
+        result = p( p.xy_plane_intersection(-1.5) )
+        assert np.allclose(result[0], 1.5)
+        
+        p = v.Path.interpolate([0., 1., 2],
+            [[0, 0, 0],
+            [1, 0, 1],
+            [4, 0, 2]])
+        
+        result = p( p.xy_plane_intersection(1.75) )
+        assert np.allclose(result[0], 3.0625), result
+        
+        p = v.Path.interpolate([0., 1., 2],
+            [[0, 0, 0],
+            [0, 1, 1],
+            [0, 4, 2]])
+        
+        result = p( p.xy_plane_intersection(1.75) )
+        assert np.allclose(result[1], 3.0625)
 
-        p = np.array([
-            [2, 2, 2, 0, 0, 0],
-            [1, 1, 1, 0, 0, 0],
-            [-1, -1, -1, 0, 0, 0.]]);
-
-        result = v.plane_intersection(p, np.zeros(3), np.array([2.0,2.0,2.0]))
-        assert np.allclose(result, np.array([0.0, 0.0, 0.0, 0.0, 0.0, 0.0]))
-
-        result = v.plane_intersection(p, np.zeros(3), np.array([-1.0,-1.0,-1.0]))
-        assert np.allclose(result, np.array([0.0, 0.0, 0.0, 0.0, 0.0, 0.0]))
-
-        p = np.array([
-            [2, 2, 2, 0, 0, 0],
-            [2, 2, 1, 0, 1, 0],
-            [2, 2, -3, 0, 0, 0.]]);
-
-        result = v.plane_intersection(p, np.array([2.,2.,1.0]), np.array([0.0,0.0,1.0]))
-        assert np.allclose(result, np.array([2.0, 2.0, 1.0, 0.0, 1.0, 0.0]))
-
-        result = v.plane_intersection(p, np.array([2.,2.,1.0]), np.array([0.0,0.0,-1.0]))
-        assert result is not None and np.allclose(result, np.array([2.0, 2.0, 1.0, 0.0, 1.0, 0.0]))
-
-        p = np.array([
-            [0., 0, -3, 0, 0, 0],
-            [0., 0, 9, 0, 0, 0]])
-
-        result = v.plane_intersection(p, np.array([0.,1.,0.0]), np.array([1.0,1.0,1.0]))
-        assert np.allclose(result, np.array([0.0, 0.0, 1.0, 0.0, 0.0, 0.0]))
-        result = v.plane_intersection(p, np.array([0.,1.,0.0]), -np.array([1.0,1.0,1.0]))
-        assert np.allclose(result, np.array([0.0, 0.0, 1.0, 0.0, 0.0, 0.0]))
-
-        p = np.array([
-            [1.0, 0.0, 0.0, 0.0, 0.0, 0.0],
-            [1.0, 0.0, 1.0, 0.0, 0.0, 0.0]])
-        r = v.xy_plane_intersection(p, 0.5)[0]
-        assert np.isclose(r, 1.0)
-
-        p = np.array([
-            [1.0, 0.0, 0.0, 0.0, 0.0, 0.0],
-            [1.0, 0.0, -1.0, 0.0, 0.0, 0.0]])
-        r = v.xy_plane_intersection(p, -0.5)[0]
-        assert np.isclose(r, 1.0)
-
-        p = np.array([
-            [0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
-            [1.0, 0.0, -1.0, 0.0, 0.0, 0.0],
-            [2.0, 0.0, -2.0, 0.0, 0.0, 0.0]])
-        r = v.xy_plane_intersection(p, -1.5)[0]
-        assert np.isclose(r, 1.5)
-
-        p = np.array([
-            [0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
-            [1.0, 0.0, 1.0, 0.0, 0.0, 0.0],
-            [4.0, 0.0, 2.0, 0.0, 0.0, 0.0]])
-        r = v.xy_plane_intersection(p, 1.75)[0]
-        assert np.isclose(r, 3.25)
-
-        p = np.array([
-            [0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
-            [0.0, 1.0, 1.0, 0.0, 0.0, 0.0],
-            [0.0, 4.0, 2.0, 0.0, 0.0, 0.0]])
-        y = v.xy_plane_intersection(p, 1.75)[1]
-        assert np.isclose(y, 3.25)
-    
     def test_cyclotron_radius(self):
          
         x0 = np.array([1., 0., 0.])
@@ -271,13 +280,15 @@ class TestTracing(unittest.TestCase):
             return np.zeros(3), np.array([0, 0, -1.])/(EM*mu_0)
         
         times, positions = B.trace_particle(x0, v0, EM, B.wrap_field_fun(field), bounds, 1e-10)
-
-        # Map y-position to state
-        interp = CubicSpline(positions[-10:, 1][::-1], positions[-10:][::-1])
         
-        # State of particle at intersection of y-axis
-        y_intersection = interp(0.)
-        assert np.allclose(y_intersection, np.array([-1., 0, 0, 0, -1, 0]))
+        trajectory = v.Path.interpolate(times, positions[:, :3], positions[:, 3:])
+        time = trajectory.xz_plane_intersection(0.0, N=1000)
+         
+        pos = trajectory(time)
+        vel = trajectory.velocity_vector(time)
+        
+        assert np.allclose(pos, [-1., 0., 0.])
+        assert np.allclose(vel, [0., -1., 0.])
 
     def test_superposition_tracing(self):
         pos = v.Path.rectangle_xz(0.1,1,1, 1.5)
@@ -300,18 +311,22 @@ class TestTracing(unittest.TestCase):
         start = np.array([0.001, 0, 2])
         velocity = v.velocity_vec(10, [0, 0, -1])
 
-        _, trajectory_sup = tracer_sup(start, velocity)
-        _, trajectory_double = tracer_double(start, velocity)
+        trajectory_sup = tracer_sup(start, velocity)
+        trajectory_double = tracer_double(start, velocity)
 
-        assert np.allclose(trajectory_sup, trajectory_double)
+        _, positions_sup = trajectory_sup.sample()
+        _, positions_double = trajectory_sup.sample()
+
+        assert np.allclose(positions_sup, positions_double)
 
         #symmetry in xy plane so field should be zero everywhere
         # so trajectory should be straight line
         field_sup2 = v.FieldSuperposition([field, field.rotate(Ry=np.pi)])
 
-        tracer_sup2= field_sup2.get_tracer([[-2,2], [-2,2], [-2,2]])
-        _, trajectory = tracer_sup2(start, velocity)
-        assert np.allclose(v.plane_intersection(np.array(trajectory), np.array([0.,0.,0.]), np.array([0.,0.,-1.]))[:3], np.array([0.001, 0, 0]))
-        assert np.allclose(v.plane_intersection(np.array(trajectory), np.array([0.,0.,-1.]), np.array([0.,0.,-1.]))[:3], np.array([0.001, 0, -1]))
-        assert np.allclose(v.plane_intersection(np.array(trajectory), np.array([0.,0.,-1.5]), np.array([0.,0.,-1.]))[:3], np.array([0.001, 0, -1.5]))
+        tracer_sup2 = field_sup2.get_tracer([[-2,2], [-2,2], [-2,2]])
+        trajectory_sup2 = tracer_sup2(start, velocity)
 
+        for z, expected in zip([0, -1., -1.5], [[0.001, 0, 0], [0.001, 0, -1], [0.001, 0, -1.5]]):
+            time = trajectory_sup2.plane_intersection([0., 0., z], [0, 0, -1])
+            pos = trajectory_sup2(time)
+            assert np.allclose(pos, expected)

@@ -96,7 +96,7 @@ class Path(GeometricObject):
     @staticmethod
     def interpolate(parameters: ArrayLikeFloat1D, points: Points3D, derivatives: Vectors3D | None = None) -> Path:
         assert len(parameters) == len(points), "To interpolate, please supply equal amount of parameter values and points"
-        assert len(points) > 2, "To interpolate, please supply at least two points"
+        assert len(points) >= 2, "To interpolate, please supply at least two points"
         
         if derivatives is None:
             return Path(CubicSpline(parameters, points), parameters[-1] - parameters[0]) # type: ignore
@@ -393,6 +393,90 @@ class Path(GeometricObject):
             return center + radius*cos(theta)*x_unit + radius*sin(theta)*y_unit
         
         return Path(f, parameter_range)
+
+    def sample(self, N=100) -> tuple[ArrayFloat1D, ArrayFloat1D]:
+        u = np.linspace(0, self.parameter_range, N)
+        return u, np.array([self.fun(u_) for u_ in u], dtype=np.float64)
+    
+    def plane_intersection(self, p0: PointLike3D, normal: VectorLike3D, N=500) -> float:
+        times, positions = self.sample(N)
+        assert positions.shape == (len(positions), 3)
+
+        normal = np.array(normal) / np.linalg.norm(normal) # Ensure unity norm
+         
+        # The distance to the plane is (p - p0) . n
+        distances = (positions - np.array(p0)) @ normal
+         
+        roots: ArrayFloat1D = CubicSpline(times, distances).roots(extrapolate=False) # type: ignore
+        
+        if not len(roots):
+            raise ValueError("Plane intersection not found. Does the trajectory actually cross the plane?")
+        
+        return roots[-1].item()
+
+    def xy_plane_intersection(self, z: float, N=500) -> float:
+        """Compute the intersection of a trajectory with an xy-plane.
+
+        Parameters
+        ----------
+        positions: (N, 6) np.ndarray of float64
+            Positions (and velocities) of a charged particle as returned by `Tracer`.
+        z: float
+            z-coordinate of the plane with which to compute the intersection
+        
+        Returns
+        --------
+        (6,) array of float64, containing the position and velocity of the particle at the intersection point.
+        """
+        return self.plane_intersection([0, 0, z], [0, 0, 1], N=N)
+
+    def xz_plane_intersection(self, y: float, N=500) -> float:
+        """Compute the intersection of a trajectory with an xz-plane.
+
+        Parameters
+        ----------
+        positions: (N, 6) np.ndarray of float64
+            Positions (and velocities) of a charged particle as returned by `Tracer`.
+        z: float
+            z-coordinate of the plane with which to compute the intersection
+        
+        Returns
+        --------
+        (6,) array of float64, containing the position and velocity of the particle at the intersection point.
+        """
+        return self.plane_intersection([0, y, 0], [0, 1, 0], N=N)
+
+    def yz_plane_intersection(self, x: float, N=500) -> float:
+        """Compute the intersection of a trajectory with an yz-plane.
+
+        Parameters
+        ----------
+        positions: (N, 6) np.ndarray of float64
+            Positions (and velocities) of a charged particle as returned by `Tracer`.
+        z: float
+            z-coordinate of the plane with which to compute the intersection
+        
+        Returns
+        --------
+        (6,) array of float64, containing the position and velocity of the particle at the intersection point.
+        """
+        return self.plane_intersection([x, 0, 0], [1, 0, 0], N=N)
+
+    def axis_intersection(self, N=500) -> float:
+        """Compute the z-value of the intersection of the trajectory with the x=0 plane.
+        Note that this function will not work properly if the trajectory crosses the x=0 plane zero or multiple times.
+        
+        Parameters
+        ----------
+        positions: (N, 6) np.ndarray of float64
+            Positions (and velocities) of a charged particle as returned by `Tracer`.
+        
+        Returns
+        --------
+        float, z-value of the intersection with the x=0 plane
+        """
+        u = self.yz_plane_intersection(0, N=N)
+        return self(u)[2]
      
     def revolve_x(self, angle: float = 2*pi) -> Surface:
         """Create a surface by revolving the path anti-clockwise around the x-axis.

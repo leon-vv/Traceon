@@ -323,7 +323,6 @@ backend_functions = {
     'self_field_dot_normal_radial': (dbl, dbl, vp),
     'fill_matrix_radial': (None, arr(ndim=2), lines, arr(dtype=np.uint8, ndim=1), arr(ndim=1), jac_buffer_2d, pos_buffer_2d, sz, sz, C.c_int, C.c_int),
     'fill_jacobian_buffer_3d': (None, jac_buffer_3d, pos_buffer_3d, vertices, sz),
-    'plane_intersection': (bool, v3, v3, arr(ndim=2), sz, arr(shape=(6,))),
     'triangle_areas': (None, vertices, arr(ndim=1), sz)
 }
 
@@ -759,19 +758,6 @@ def fill_matrix_3d(matrix: ArrayFloat2D,
     assert 0 <= start_index < N and 0 <= end_index < N and start_index <= end_index
      
     backend_lib.fill_matrix_3d(matrix, vertices, excitation_types, excitation_values, jac_buffer, pos_buffer, N, matrix.shape[0], start_index, end_index)
-
-def plane_intersection(positions: ArrayFloat2D, p0: Point3D, normal: Vector3D) -> ArrayFloat1D:
-    assert p0.shape == (3,)
-    assert normal.shape == (3,)
-    assert positions.shape == (len(positions), 6)
-    
-    result = np.zeros(6)
-    found = backend_lib.plane_intersection(p0, normal, positions, len(positions), result)
-     
-    if not found:
-        raise ValueError("Plane intersection not found. Does the trajectory actually cross the plane?")
-     
-    return result
 
 def triangle_areas(triangles: ArrayFloat3D) -> ArrayFloat1D:
     assert triangles.shape == (len(triangles), 3, 3)

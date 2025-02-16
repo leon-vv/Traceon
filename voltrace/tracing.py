@@ -19,6 +19,7 @@ from scipy.constants import m_e, e, mu_0
     
 from . import backend
 from . import logging
+from .geometry import Path
 from .typing import *
 
 def _convert_velocity_to_SI(velocity: VectorLike3D, mass: float) -> Vector3D:
@@ -146,7 +147,7 @@ class Tracer:
             velocity: VectorLike3D,
             mass: float = m_e,
             charge: float = -e,
-            atol: float = 1e-8) -> tuple[ArrayFloat1D, ArrayFloat2D]:
+            atol: float = 1e-8) -> Path:
         """Trace a charged particle.
 
         Parameters
@@ -165,16 +166,13 @@ class Tracer:
         
         Returns
         -------
-        `(times, positions)` which is a tuple of two numpy arrays. `times` is one dimensional and contains the times
-        at which the positions have been computed. The `positions` array is two dimensional, `positions[i]` correspond
-        to time step `times[i]`. One element of the positions array has shape (6,).
-        The first three elements in the `positions[i]` array contain the x,y,z positions.
-        The last three elements in `positions[i]` contain the vx,vy,vz velocities.
+        `voltrace.geometry.Path`
+            `Path` representing the path of the particle. The path is parametrized by the time (in s) of the trajectory.
         """
         position = np.array(position)
         charge_over_mass = charge / mass
 
-        return backend.trace_particle(
+        times, y = backend.trace_particle(
                 position,
                 np.array(velocity),
                 charge_over_mass, 
@@ -182,6 +180,11 @@ class Tracer:
                 self.bounds,
                 atol,
                 self.trace_args)
+        
+        positions = y[:, :3]
+        velocities = y[:, 3:]
+
+        return Path.interpolate(times, positions, velocities)
     
     @staticmethod
     def _normalize_input_shapes(position: PointLike3D, velocity: VectorLike3D, mass: float | ArrayLikeFloat1D, charge: float | ArrayLikeFloat1D) \
@@ -207,9 +210,7 @@ class Tracer:
         # The following fails to type check, as the length of the tuple cannot be inferred
         return tuple(np.copy(backend.ensure_contiguous_aligned(arr)) for arr in [position_, velocity_, mass_, charge_]) # type: ignore
     
-    def trace_multiple(self, position: PointLike3D, velocity: VectorLike3D, mass: float | ArrayLikeFloat1D = m_e, charge: float | ArrayLikeFloat1D = -e, atol: float =1e-8) \
-            -> list[tuple[ArrayFloat1D, ArrayFloat2D]]:
-        
+    def trace_multiple(self, position: PointLike3D, velocity: VectorLike3D, mass: float | ArrayLikeFloat1D = m_e, charge: float | ArrayLikeFloat1D = -e, atol: float =1e-8) -> list[Path]:
         """Trace multiple charged particles. Numpy broadcasting rules apply if one 
         of the inputs does not have enough elements. For example, if all particles have the
         same charge simply pass in a float for the 'charge' input.
@@ -230,7 +231,7 @@ class Tracer:
         
         Returns
         -------
-        list of (times, positions)
+        list[Path]
             See documentation of `Tracer.trace_single`
         """
 
@@ -243,93 +244,3 @@ class Tracer:
 
         # The following fails to type check, as p, v are incorrectly inferred as np.floating
         return [self.trace_single(p, v, mass=m.item(), charge=c.item(), atol=atol) for p, v, m, c in zip(positions, velocities, masses, charges)] # type: ignore
-
-def plane_intersection(positions: ArrayLikeFloat2D, p0: PointLike3D, normal: VectorLike3D) -> ArrayFloat1D:
-    """Compute the intersection of a trajectory with a general plane in 3D. The plane is specified
-    by a point (p0) in the plane and a normal vector (normal) to the plane. The intersection
-    point is calculated using a linear interpolation.
-    
-    Parameters
-    ----------
-    positions: (N, 6) np.ndarray of float64
-        Positions of a charged particle as returned by `Tracer`.
-    
-    p0: (3,) np.ndarray of float64
-        A point that lies in the plane.
-
-    normal: (3,) np.ndarray of float64
-        A vector that is normal to the plane. A point p lies in the plane iff `dot(normal, p - p0) = 0` where
-        dot is the dot product.
-    
-    Returns
-    --------
-    np.ndarray of shape (6,) containing the position and velocity of the particle at the intersection point.
-    """
-    positions, p0, normal = np.array(positions, dtype=np.float64), np.array(p0, dtype=np.float64), np.array(normal, dtype=np.float64)
-
-    assert positions.shape == (len(positions), 6), "The positions array should have shape (N, 6)"
-    return backend.plane_intersection(positions, p0, normal)
-
-def xy_plane_intersection(positions: ArrayLikeFloat2D, z: float) -> ArrayFloat1D:
-    """Compute the intersection of a trajectory with an xy-plane.
-
-    Parameters
-    ----------
-    positions: (N, 6) np.ndarray of float64
-        Positions (and velocities) of a charged particle as returned by `Tracer`.
-    z: float
-        z-coordinate of the plane with which to compute the intersection
-    
-    Returns
-    --------
-    (6,) array of float64, containing the position and velocity of the particle at the intersection point.
-    """
-    return plane_intersection(positions, [0, 0, z], [0, 0, 1])
-
-def xz_plane_intersection(positions: ArrayLikeFloat2D, y: float) -> ArrayLikeFloat1D:
-    """Compute the intersection of a trajectory with an xz-plane.
-
-    Parameters
-    ----------
-    positions: (N, 6) np.ndarray of float64
-        Positions (and velocities) of a charged particle as returned by `Tracer`.
-    z: float
-        z-coordinate of the plane with which to compute the intersection
-    
-    Returns
-    --------
-    (6,) array of float64, containing the position and velocity of the particle at the intersection point.
-    """
-    return plane_intersection(positions, [0, y, 0], [0, 1, 0])
-
-def yz_plane_intersection(positions: ArrayLikeFloat2D, x: float) -> ArrayLikeFloat1D:
-    """Compute the intersection of a trajectory with an yz-plane.
-
-    Parameters
-    ----------
-    positions: (N, 6) np.ndarray of float64
-        Positions (and velocities) of a charged particle as returned by `Tracer`.
-    z: float
-        z-coordinate of the plane with which to compute the intersection
-    
-    Returns
-    --------
-    (6,) array of float64, containing the position and velocity of the particle at the intersection point.
-    """
-    return plane_intersection(positions, [x, 0, 0], [1, 0, 0])
-
-def axis_intersection(positions: ArrayLikeFloat2D) -> float:
-    """Compute the z-value of the intersection of the trajectory with the x=0 plane.
-    Note that this function will not work properly if the trajectory crosses the x=0 plane zero or multiple times.
-    
-    Parameters
-    ----------
-    positions: (N, 6) np.ndarray of float64
-        Positions (and velocities) of a charged particle as returned by `Tracer`.
-    
-    Returns
-    --------
-    float, z-value of the intersection with the x=0 plane
-    """
-    return yz_plane_intersection(positions, 0)[2]
-

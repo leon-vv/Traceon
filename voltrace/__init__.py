@@ -62,8 +62,7 @@ from .geometry import Path, PathCollection, Surface, SurfaceCollection
 from .excitation import Excitation, ExcitationType, Symmetry
 from .field import Field, FieldAxial, FieldBEM, FieldRadialAxial, FieldRadialBEM, FieldSuperposition
 from .solver import solve_direct, solve_direct_superposition
-from .tracing import Tracer, axis_intersection, plane_intersection, velocity_vec, velocity_vec_spherical, velocity_vec_xz_plane, \
-    xy_plane_intersection, xz_plane_intersection, yz_plane_intersection
+from .tracing import Tracer, velocity_vec, velocity_vec_spherical, velocity_vec_xz_plane
 from .focus import focus_position
 from .plotting import new_figure, get_current_figure, plot_charge_density, plot_equipotential_lines, plot_mesh, plot_trajectories, show
 
