@@ -72,9 +72,8 @@ trajectories = []
 
 for i, r0 in enumerate(r_start):
     print(f'Tracing electron {i+1}/{len(r_start)}...')
-    _, positions = tracer(np.array([r0, 0, 5]), velocity)
-    trajectories.append(positions)
-
+    trajectory = tracer(np.array([r0, 0, 5]), velocity)
+    trajectories.append(trajectory)
 
 # Plotting
 
@@ -88,7 +87,8 @@ plt.legend()
 plt.figure()
 plt.title('Electron traces')
 
-for positions in trajectories:
+for t in trajectories:
+    times, positions = t.sample()
     plt.plot(positions[:, 0], positions[:, 2], color='C0')
 
 plt.xlabel('r (mm)')

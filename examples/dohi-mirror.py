@@ -91,24 +91,26 @@ start_xy_2 = (-1e-4,0)
 starting_positions = np.array([[*start_xy_1, z0], [*start_xy_2, z0]])
 start_vel = v.velocity_vec_xz_plane(1000, angle = 0)
 
-traces = []
+trajectories = []
 
 for i, p in enumerate(starting_positions):
     print(f'Starting trace {i}...')
     st = time.time()
-    _, positions = tracer(p, start_vel)
-    traces.append(positions)
+    
+    trajectory = tracer(p, start_vel)
+    trajectories.append(trajectory)
+
+    _, positions = trajectory.sample()
     plt.plot(positions[:,0], positions[:,2])
+    
     print(f'Trace {i} took {(time.time()-st)*1000:.1f} ms')
 
 if PLOTTING:
     plt.show()
 
 
-#find focus
-focus_loc = F.focus_position(traces)
-
-
+# Find focus formed by the trajectories
+focus_loc = F.focus_position(trajectories)
 
 print("\n(x,y,z)-displacements: \n")
 print(f"ground: {ground_elec_displacement}")
