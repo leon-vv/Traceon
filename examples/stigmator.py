@@ -92,11 +92,11 @@ for i, (x, y) in enumerate(zip(x_start, y_start)):
     print(f'Tracing particles {i+1}/{len(x_start)}...')
     start_point = np.array([x, y, z_start])
 
-    _, e_trace = tracer(start_point, e_start_velocity) # electrons are default
-    _, p_trace = tracer(start_point, a_start_velocity, mass=4*m_p, charge=2*e) # alpha-particle = two protons + two neutrons
-
-    e_trajectories.append(e_trace)
-    a_trajectories.append(p_trace)
+    e_trajectory = tracer(start_point, e_start_velocity) # electrons are default
+    p_trajectory = tracer(start_point, a_start_velocity, mass=4*m_p, charge=2*e) # alpha-particle = two protons + two neutrons
+    
+    e_trajectories.append(e_trajectory)
+    a_trajectories.append(p_trajectory)
 
 # Plotting
 v.plot_mesh(mesh, positive_electrode='red', negative_electrode='blue', boundary='green')
@@ -109,11 +109,11 @@ v.show()
 
 
 # Compute the output beam size 
-e_x_end = np.array([t[-1,0] for t in e_trajectories])
-e_y_end = np.array([t[-1,1] for t in e_trajectories])
+e_x_end = np.array([t.endpoint()[0] for t in e_trajectories])
+e_y_end = np.array([t.endpoint()[1] for t in e_trajectories])
 
-p_x_end = np.array([t[-1,0] for t in a_trajectories])
-p_y_end = np.array([t[-1,1] for t in a_trajectories])
+p_x_end = np.array([t.endpoint()[0] for t in a_trajectories])
+p_y_end = np.array([t.endpoint()[1] for t in a_trajectories])
 
 # Create a figure of the input and output beam sizes
 plt.figure(figsize=(8, 8))  

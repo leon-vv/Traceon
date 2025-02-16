@@ -57,10 +57,7 @@ class SphericalCapacitor(Validation):
         
         tracer = field.get_tracer( [(-0.1, 12.5), (-0.1, 0.1), (-12.5, 12.5)] )
         print('Starting electron trace...')
-        times, pos = tracer(position, vel)
-        r_final = v.axis_intersection(pos)
-        
-        return r_final 
+        return tracer(position, vel).axis_intersection()
 
 if __name__ == '__main__':
     SphericalCapacitor().run_validation()

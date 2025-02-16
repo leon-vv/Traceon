@@ -510,12 +510,12 @@ class TestFlatEinzelLens(unittest.TestCase):
         p0 = np.array([r, 0.0, z])
         v0 = v.velocity_vec(100, [0, 0, -1])
 
-        _, pos = tracer(p0, v0)
-        _, pos_axial = tracer_axial(p0, v0)
+        trajectory = tracer(p0, v0)
+        trajectory_axial = tracer_axial(p0, v0)
 
-        intersection = v.xy_plane_intersection(pos, -0.8)
-        intersection_axial = v.xy_plane_intersection(pos_axial, -0.8)
-         
+        intersection = trajectory( trajectory.xy_plane_intersection(-0.8) )
+        intersection_axial = trajectory_axial( trajectory_axial.xy_plane_intersection(-0.8) )
+        
         assert np.allclose(intersection, intersection_axial, rtol=5e-4)
 
 

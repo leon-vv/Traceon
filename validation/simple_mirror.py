@@ -60,13 +60,12 @@ class SimpleMirror(Validation):
         vel = v.velocity_vec_xz_plane(100, 1e-3)
         
         st = time.time()
-        _, pos = tracer(pos, vel)
+        trajectory = tracer(pos, vel)
         print(f'Trace took {(time.time()-st)*1000:.0f} ms')
         
-        p = v.xy_plane_intersection(pos, 10)
-        
-        calculated = np.linalg.norm(p[:2] if _3d else p[:1])
-        return calculated
+        intersection_time = trajectory.xy_plane_intersection(10)
+        p = trajectory(intersection_time)
+        return np.linalg.norm(p[:2])
 
 if __name__ == '__main__':
     SimpleMirror().run_validation()
