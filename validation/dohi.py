@@ -90,11 +90,11 @@ class DohiMirror(Validation):
          
         print('Starting trace...')
         st = time.time()
-        _, pos_derivs = tracer_derivs(start_pos, start_vel)
+        trajectory = tracer_derivs(start_pos, start_vel)
         print(f'Trace took {(time.time()-st)*1000:.1f} ms')
          
-        intersection = v.xy_plane_intersection(pos_derivs, z0)
-        return intersection[0]
+        intersection_time = trajectory.xy_plane_intersection(z0)
+        return trajectory(intersection_time)[0]
 
 if __name__ == '__main__':
     '''

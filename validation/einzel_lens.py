@@ -67,10 +67,8 @@ class EinzelLens(Validation):
          
         p0 = np.array([RADIUS/3, 0.0, 3])
         v0 = v.velocity_vec_xz_plane(1000, 0)
-         
-        _, pos = tracer(p0, v0)
         
-        return -v.axis_intersection(pos)
+        return -tracer(p0, v0).axis_intersection()
 
 if __name__ == '__main__':
     EinzelLens().run_validation()
