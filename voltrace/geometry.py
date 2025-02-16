@@ -414,7 +414,7 @@ class Path(GeometricObject):
         
         return roots[-1].item()
 
-    def xy_plane_intersection(self, z: float, N=500) -> float:
+    def xy_plane_intersection(self, z: float = 0.0, N=500) -> float:
         """Compute the intersection of a trajectory with an xy-plane.
 
         Parameters
@@ -430,7 +430,7 @@ class Path(GeometricObject):
         """
         return self.plane_intersection([0, 0, z], [0, 0, 1], N=N)
 
-    def xz_plane_intersection(self, y: float, N=500) -> float:
+    def xz_plane_intersection(self, y: float = 0.0, N=500) -> float:
         """Compute the intersection of a trajectory with an xz-plane.
 
         Parameters
@@ -446,7 +446,7 @@ class Path(GeometricObject):
         """
         return self.plane_intersection([0, y, 0], [0, 1, 0], N=N)
 
-    def yz_plane_intersection(self, x: float, N=500) -> float:
+    def yz_plane_intersection(self, x: float = 0.0, N=500) -> float:
         """Compute the intersection of a trajectory with an yz-plane.
 
         Parameters
