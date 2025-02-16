@@ -394,7 +394,7 @@ class Path(GeometricObject):
         
         return Path(f, parameter_range)
 
-    def sample(self, N=100) -> tuple[ArrayFloat1D, ArrayFloat1D]:
+    def sample(self, N=500) -> tuple[ArrayFloat1D, ArrayFloat1D]:
         u = np.linspace(0, self.parameter_range, N)
         return u, np.array([self.fun(u_) for u_ in u], dtype=np.float64)
     
