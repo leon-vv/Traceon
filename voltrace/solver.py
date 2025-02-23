@@ -267,8 +267,11 @@ class ElectrostaticSolverRadial(SolverRadial):
 class MagnetostaticSolverRadial(SolverRadial):
     def __init__(self, *args: Excitation, **kwargs: Excitation) -> None:
         super().__init__(*args, **kwargs)
-        self.preexisting_field = FieldRadialBEM(magnetostatic_point_charges=self.get_permanent_magnet_field().magnetostatic_point_charges,
-                                                current_point_charges=self.get_current_field().current_point_charges)
+        mag_eff = self.get_permanent_magnet_field().magnetostatic_point_charges
+        current_eff = self.get_current_field().current_point_charges
+        
+        self.preexisting_field = FieldRadialBEM(magnetostatic_point_charges=EffectivePointCharges(mag_eff.charges, mag_eff.jacobians, mag_eff.positions),
+                                                current_point_charges=EffectivePointCharges(current_eff.charges, current_eff.jacobians, current_eff.positions, current_eff.directions))
 
     def get_active_elements(self) -> ActiveLines:
         return self.excitation.get_magnetostatic_active_elements()
@@ -348,11 +351,12 @@ class MagnetostaticSolverRadial(SolverRadial):
         return FieldRadialBEM(current_point_charges=EffectivePointCharges(np.array(currents), np.array(jacobians), np.array(positions)))
     
     def charges_to_field(self, charges: EffectivePointCharges) -> FieldRadialBEM:
-        return FieldRadialBEM(
-            magnetostatic_point_charges=self.preexisting_field.magnetostatic_point_charges + charges,
-            current_point_charges=self.preexisting_field.current_point_charges)
+        mag_eff = self.get_permanent_magnet_field().magnetostatic_point_charges
+        current_eff = self.get_current_field().current_point_charges
+        
+        return FieldRadialBEM(magnetostatic_point_charges=EffectivePointCharges(mag_eff.charges, mag_eff.jacobians, mag_eff.positions) + charges,
+                               current_point_charges=EffectivePointCharges(current_eff.charges, current_eff.jacobians, current_eff.positions, current_eff.directions))
 
-     
 def _excitation_to_higher_order(excitation: Excitation) -> Excitation:
     logging.log_info('Upgrading mesh to higher to be compatible with matrix solver')
     # Upgrade mesh, such that matrix solver will support it

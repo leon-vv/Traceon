@@ -210,7 +210,7 @@ class EffectivePointCharges3D(EffectivePointSources):
 
     @staticmethod
     def empty():
-        return EffectivePointCharges3D(np.empty((0,)), np.empty((0, N_TRIANGLE_QUAD)), np.empty((0, N_TRIANGLE_QUAD, 2)))
+        return EffectivePointCharges3D(np.empty((0,)), np.empty((0, N_TRIANGLE_QUAD)), np.empty((0, N_TRIANGLE_QUAD, 3)))
     
     def __add__(self, other: EffectivePointCharges3D) -> EffectivePointCharges3D:
         if not isinstance(other, EffectivePointCharges3D):
@@ -241,8 +241,8 @@ class FieldEvaluationArgsRadial(C.Structure):
 
     def __init__(self, 
                  elec: EffectivePointCharges2D, 
-                 mag: EffectivePointCharges, 
-                 current: EffectivePointCharges, 
+                 mag: EffectivePointCharges2D, 
+                 current: EffectivePointCharges3D,
                  bounds: Bounds3D | None) -> None:
         
         super().__init__()
@@ -251,8 +251,8 @@ class FieldEvaluationArgsRadial(C.Structure):
         # Beware, we need to keep references to the arrays pointed to by the C.Structure
         # otherwise, they are garbage collected and bad things happen
         self.eff_elec = elec
-        self.eff_mag = EffectivePointCharges2D(mag.charges, mag.jacobians, mag.positions)
-        self.eff_current = EffectivePointCharges3D(current.charges, current.jacobians, current.positions)
+        self.eff_mag = mag
+        self.eff_current = current
         
         self.elec_charges = C.cast(C.pointer(self.eff_elec), C.c_void_p)
         self.mag_charges = C.cast(C.pointer(self.eff_mag), C.c_void_p)

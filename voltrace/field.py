@@ -514,8 +514,8 @@ class FieldBEM(Field, ABC):
     
     def __init__(self, 
                  electrostatic_point_charges: EffectivePointSources,
-                 magnetostatic_point_charges: EffectivePointCharges, 
-                 current_point_charges: EffectivePointCharges):
+                 magnetostatic_point_charges: EffectivePointSources,
+                 current_point_charges: EffectivePointSources):
         
         super().__init__()
         
@@ -596,15 +596,28 @@ class FieldRadialBEM(FieldBEM):
                 electrostatic_point_charges.positions)
         
         if magnetostatic_point_charges is None:
-            magnetostatic_point_charges = EffectivePointCharges.empty_2d()
-        if current_point_charges is None:
-            current_point_charges = EffectivePointCharges.empty_3d()
+            magnetostatic_point_charges_ = EffectivePointCharges2D.empty()
+        else:
+            magnetostatic_point_charges_ = EffectivePointCharges2D(
+                magnetostatic_point_charges.charges,
+                magnetostatic_point_charges.jacobians,
+                magnetostatic_point_charges.positions)
         
+        if current_point_charges is None:
+            current_point_charges_ = EffectivePointCharges3D.empty()
+        else:
+            current_point_charges_ = EffectivePointCharges3D(
+                current_point_charges.charges,
+                current_point_charges.jacobians,
+                current_point_charges.positions)
+
         self.symmetry = E.Symmetry.RADIAL
          
-        super().__init__(electrostatic_point_charges_, magnetostatic_point_charges, current_point_charges)
+        super().__init__(electrostatic_point_charges_, magnetostatic_point_charges_, current_point_charges_)
 
         self.electrostatic_point_charges: EffectivePointCharges2D = electrostatic_point_charges_
+        self.magnetostatic_point_charges: EffectivePointCharges2D = magnetostatic_point_charges_
+        self.current_point_charges: EffectivePointCharges3D = current_point_charges_
          
     def current_field_at_local_point(self, point: PointLike3D) -> Vector3D:
         point = np.array(point, dtype=np.float64)
@@ -773,22 +786,26 @@ class FieldRadialBEM(FieldBEM):
     def __add__(self, other: Field) -> Field:
         if isinstance(other, FieldRadialBEM) and self._matches_geometry(other):
             elec_sum = self.electrostatic_point_charges + other.electrostatic_point_charges
+            mag_sum = self.magnetostatic_point_charges + other.magnetostatic_point_charges
+            current_sum = self.current_point_charges + other.current_point_charges
              
             return FieldRadialBEM(
                 EffectivePointCharges(elec_sum.charges, elec_sum.jacobians, elec_sum.positions),
-                self.magnetostatic_point_charges + other.magnetostatic_point_charges,
-                self.current_point_charges + other.current_point_charges)
+                EffectivePointCharges(mag_sum.charges, mag_sum.jacobians, mag_sum.positions),
+                EffectivePointCharges(current_sum.charges, current_sum.jacobians, current_sum.positions, current_sum.directions))
         else:
             return super().__add__(other)
     
     def __mul__(self, other: float) -> Field:
         if _is_numeric(other):
             elec_mul = self.electrostatic_point_charges * other
+            mag_mul = self.magnetostatic_point_charges * other
+            current_mul = self.current_point_charges * other
             
             return FieldRadialBEM(
                 EffectivePointCharges(elec_mul.charges, elec_mul.jacobians, elec_mul.positions),
-                self.magnetostatic_point_charges * other,
-                self.current_point_charges * other)
+                EffectivePointCharges(mag_mul.charges, mag_mul.jacobians, mag_mul.positions),
+                EffectivePointCharges(current_mul.charges, current_mul.jacobians, current_mul.positions, current_mul.directions))
         else:
             return super().__mul__(other)
     
