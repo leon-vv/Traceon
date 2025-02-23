@@ -533,28 +533,6 @@ class FieldBEM(Field, ABC):
             and np.allclose(self._origin, other._origin) 
             and np.allclose(self._basis, other._basis))
 
-
-    def __add__(self, other: Field) -> Field:
-        if self._matches_geometry(other):
-            other = cast(FieldBEM, other)
-            field_copy = self.copy()
-            field_copy.electrostatic_point_charges = self.electrostatic_point_charges + other.electrostatic_point_charges
-            field_copy.magnetostatic_point_charges = self.magnetostatic_point_charges + other.magnetostatic_point_charges
-            field_copy.current_point_charges = self.current_point_charges + other.current_point_charges
-            return field_copy
-        else:
-            return super().__add__(other)
-    
-    def __mul__(self, other: float) -> Field:
-        if _is_numeric(other):
-           field_copy = self.copy()
-           field_copy.electrostatic_point_charges = self.electrostatic_point_charges * other
-           field_copy.magnetostatic_point_charges = self.magnetostatic_point_charges * other
-           field_copy.current_point_charges = self.current_point_charges * other
-           return field_copy
-        else:
-            return super().__mul__(other)
-    
     def area_of_elements(self, indices: ArrayLikeInt1D):
         """Compute the total area of the elements at the given indices.
         
@@ -785,6 +763,24 @@ class FieldRadialBEM(FieldBEM):
         positions = self.current_point_charges.positions
         return backend.current_axial_derivatives_radial(z, currents, jacobians, positions)
       
+    def __add__(self, other: Field) -> Field:
+        if isinstance(other, FieldBEM) and self._matches_geometry(other):
+            return FieldRadialBEM(
+                self.electrostatic_point_charges + other.electrostatic_point_charges,
+                self.magnetostatic_point_charges + other.magnetostatic_point_charges,
+                self.current_point_charges + other.current_point_charges)
+        else:
+            return super().__add__(other)
+    
+    def __mul__(self, other: float) -> Field:
+        if _is_numeric(other):
+            return FieldRadialBEM(
+                self.electrostatic_point_charges * other,
+                self.magnetostatic_point_charges * other,
+                self.current_point_charges * other)
+        else:
+            return super().__mul__(other)
+    
     def area_of_element(self, i: int) -> float:
         jacobians = self.electrostatic_point_charges.jacobians
         positions = self.electrostatic_point_charges.positions
