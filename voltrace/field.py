@@ -857,15 +857,6 @@ class FieldAxial(Field, ABC):
         else:
             return super().__add__(other)
     
-    def __sub__(self, other: Field) -> Field:
-        if isinstance(other, Field):
-            return self.__add__(-other)
-
-        return NotImplemented
-
-    def __radd__(self, other: Field) -> Field:
-        return self.__add__(other)
-     
     def __mul__(self, other: float) -> Field:
         if _is_numeric(other):
             field_copy = self.copy()
@@ -875,11 +866,6 @@ class FieldAxial(Field, ABC):
         else:
             return super().__mul__(other)
      
-    def __neg__(self) -> Field:
-        return -1*self
-    
-    def __rmul__(self, other: float) -> Field:
-        return self.__mul__(other)
 
 def _get_one_dimensional_high_order_ppoly(z: ArrayLikeFloat1D, 
                                           y: float , 
