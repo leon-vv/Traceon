@@ -106,10 +106,10 @@ radial_coeffs = arr(ndim=3)
 
 class EffectivePointCharges2D(C.Structure):
     _fields_ = [
-        ("charges", dbl_p),
-        ("jacobians", dbl_p),
-        ("positions", dbl_p),
-        ("N", C.c_size_t)
+        ("charges_", dbl_p),
+        ("jacobians_", dbl_p),
+        ("positions_", dbl_p),
+        ("N_", C.c_size_t)
     ]
 
     def __init__(self, eff: EffectivePointCharges, *args: Any, **kwargs: Any) -> None:
@@ -118,21 +118,21 @@ class EffectivePointCharges2D(C.Structure):
 
         # Beware, we need to keep references to the arrays pointed to by the C.Structure
         # otherwise, they are garbage collected and bad things happen
-        self.charges_arr = ensure_contiguous_aligned(eff.charges)
-        self.jacobians_arr = ensure_contiguous_aligned(eff.jacobians)
-        self.positions_arr = ensure_contiguous_aligned(eff.positions)
+        self.charges = ensure_contiguous_aligned(eff.charges)
+        self.jacobians = ensure_contiguous_aligned(eff.jacobians)
+        self.positions = ensure_contiguous_aligned(eff.positions)
          
-        self.charges = self.charges_arr.ctypes.data_as(dbl_p)
-        self.jacobians = self.jacobians_arr.ctypes.data_as(dbl_p)
-        self.positions = self.positions_arr.ctypes.data_as(dbl_p)
-        self.N = len(eff)
+        self.charges_ = self.charges.ctypes.data_as(dbl_p)
+        self.jacobians_ = self.jacobians.ctypes.data_as(dbl_p)
+        self.positions_ = self.positions.ctypes.data_as(dbl_p)
+        self.N_ = len(eff)
         
 class EffectivePointCharges3D(C.Structure):
     _fields_ = [
-        ("charges", dbl_p),
-        ("jacobians", dbl_p),
-        ("positions", dbl_p),
-        ("N", C.c_size_t)
+        ("charges_", dbl_p),
+        ("jacobians_", dbl_p),
+        ("positions_", dbl_p),
+        ("N_", C.c_size_t)
     ]
     
     def __init__(self, eff: EffectivePointCharges, *args: Any, **kwargs: Any) -> None:
@@ -141,22 +141,22 @@ class EffectivePointCharges3D(C.Structure):
         
         # Beware, we need to keep references to the arrays pointed to by the C.Structure
         # otherwise, they are garbage collected and bad things happen
-        self.charges_arr = ensure_contiguous_aligned(eff.charges)
-        self.jacobians_arr = ensure_contiguous_aligned(eff.jacobians)
-        self.positions_arr = ensure_contiguous_aligned(eff.positions)
+        self.charges = ensure_contiguous_aligned(eff.charges)
+        self.jacobians = ensure_contiguous_aligned(eff.jacobians)
+        self.positions = ensure_contiguous_aligned(eff.positions)
              
-        self.charges = self.charges_arr.ctypes.data_as(dbl_p)
-        self.jacobians = self.jacobians_arr.ctypes.data_as(dbl_p)
-        self.positions = self.positions_arr.ctypes.data_as(dbl_p)
-        self.N = len(eff)
+        self.charges_ = self.charges.ctypes.data_as(dbl_p)
+        self.jacobians_ = self.jacobians.ctypes.data_as(dbl_p)
+        self.positions_ = self.positions.ctypes.data_as(dbl_p)
+        self.N_ = len(eff)
 
 class EffectivePointCurrents3D(C.Structure):
     _fields_ = [
-        ("currents", dbl_p),
-        ("jacobians", dbl_p),
-        ("positions", dbl_p),
-        ("directions", dbl_p),
-        ("N", C.c_size_t)
+        ("currents_", dbl_p),
+        ("jacobians_", dbl_p),
+        ("positions_", dbl_p),
+        ("directions_", dbl_p),
+        ("N_", C.c_size_t)
     ]
     
     def __init__(self, eff: EffectivePointCharges, *args: Any, **kwargs: Any) -> None:
@@ -174,17 +174,16 @@ class EffectivePointCurrents3D(C.Structure):
 
         # Beware, we need to keep references to the arrays pointed to by the C.Structure
         # otherwise, they are garbage collected and bad things happen
-        self.currents_arr = ensure_contiguous_aligned(currents)
-        self.jacobians_arr = ensure_contiguous_aligned(eff.jacobians)
-        self.positions_arr = ensure_contiguous_aligned(eff.positions)
-        self.directions_arr = ensure_contiguous_aligned(eff.directions)
+        self.currents = ensure_contiguous_aligned(currents)
+        self.jacobians = ensure_contiguous_aligned(eff.jacobians)
+        self.positions = ensure_contiguous_aligned(eff.positions)
+        self.directions = ensure_contiguous_aligned(eff.directions)
 
-        self.currents = self.currents_arr.ctypes.data_as(dbl_p)
-        self.jacobians = self.jacobians_arr.ctypes.data_as(dbl_p)
-        self.positions = self.positions_arr.ctypes.data_as(dbl_p)
-        self.directions = self.directions_arr.ctypes.data_as(dbl_p)
-        
-        self.N = N
+        self.currents_ = self.currents.ctypes.data_as(dbl_p)
+        self.jacobians_ = self.jacobians.ctypes.data_as(dbl_p)
+        self.positions_ = self.positions.ctypes.data_as(dbl_p)
+        self.directions_ = self.directions.ctypes.data_as(dbl_p)
+        self.N_ = N
 
 
 class FieldEvaluationArgsRadial(C.Structure):
