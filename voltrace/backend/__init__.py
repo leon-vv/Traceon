@@ -103,6 +103,9 @@ pos_buffer_2d = arr(ndim=3)
 
 radial_coeffs = arr(ndim=3)
 
+def _is_numeric(x):
+    if isinstance(x, int) or isinstance(x, float) or isinstance(x, np.generic):
+        return True
 
 class EffectivePointSources(C.Structure):
     def __init__(self, 
@@ -132,7 +135,7 @@ class EffectivePointSources(C.Structure):
     def is_3d(self) -> bool:
         return self.jacobians.shape[1] == N_TRIANGLE_QUAD
      
-    def _matches_geometry(self, other: EffectivePointCharges) -> bool:
+    def _matches_geometry(self, other: EffectivePointSources) -> bool:
         return (self.positions.shape == other.positions.shape and np.allclose(self.positions, other.positions)
                 and self.jacobians.shape == other.jacobians.shape and np.allclose(self.jacobians, other.jacobians)
                 and ((self.directions is None and other.directions is None)
@@ -158,15 +161,33 @@ class EffectivePointCharges2D(EffectivePointSources):
         ("N_", C.c_size_t)
     ]
 
-    def __init__(self, eff: EffectivePointCharges) -> None:
-        assert eff.is_2d()
-        super().__init__(eff.charges, eff.jacobians, eff.positions)
+    def __init__(self, charges, jacobians, positions) -> None:
+        super().__init__(charges, jacobians, positions)
        
         self.charges_ = self.charges.ctypes.data_as(dbl_p)
         self.jacobians_ = self.jacobians.ctypes.data_as(dbl_p)
         self.positions_ = self.positions.ctypes.data_as(dbl_p)
-        self.N_ = len(eff)
+        self.N_ = len(self.charges)
+    
+    def __add__(self, other: EffectivePointCharges3D) -> EffectivePointCharges3D:
+        if not isinstance(other, EffectivePointCharges3D):
+            return NotImplemented
+
+        if self._matches_geometry(other):
+            return EffectivePointCharges3D(self.charges + other.charges, self.jacobians, self.positions)
+        else:
+            return EffectivePointCharges3D(
+                np.concatenate( (self.charges, other.charges) ),
+                np.concatenate( (self.jacobians, other.jacobians) ),
+                np.concatenate( (self.positions, other.positions ) ))
+    
+    def __mul__(self, other: float) -> EffectivePointCharges3D:
+        if not _is_numeric(other):
+            return NotImplemented
         
+        return EffectivePointCharges3D(self.charges*other, self.jacobians, self.positions)
+
+
 class EffectivePointCharges3D(EffectivePointSources):
     _fields_ = [
         ("charges_", dbl_p),
@@ -175,14 +196,32 @@ class EffectivePointCharges3D(EffectivePointSources):
         ("N_", C.c_size_t)
     ]
     
-    def __init__(self, eff: EffectivePointCharges) -> None:
-        assert eff.is_3d()
-        super().__init__(eff.charges, eff.jacobians, eff.positions)
-         
+    def __init__(self, charges, jacobians, positions) -> None:
+        super().__init__(charges, jacobians, positions)
+
         self.charges_ = self.charges.ctypes.data_as(dbl_p)
         self.jacobians_ = self.jacobians.ctypes.data_as(dbl_p)
         self.positions_ = self.positions.ctypes.data_as(dbl_p)
-        self.N_ = len(eff)
+        self.N_ = len(self.charges)
+
+    def __add__(self, other: EffectivePointCharges2D) -> EffectivePointCharges2D:
+        if not isinstance(other, EffectivePointCharges2D):
+            return NotImplemented
+
+        if self._matches_geometry(other):
+            return EffectivePointCharges2D(self.charges + other.charges, self.jacobians, self.positions)
+        else:
+            return EffectivePointCharges2D(
+                np.concatenate( (self.charges, other.charges) ),
+                np.concatenate( (self.jacobians, other.jacobians) ),
+                np.concatenate( (self.positions, other.positions ) ))
+    
+    def __mul__(self, other: float) -> EffectivePointCharges2D:
+        if not _is_numeric(other):
+            return NotImplemented
+    
+        return EffectivePointCharges2D(self.charges*other, self.jacobians, self.positions)
+
 
 class FieldEvaluationArgsRadial(C.Structure):
     _fields_ = [
@@ -203,9 +242,9 @@ class FieldEvaluationArgsRadial(C.Structure):
         
         # Beware, we need to keep references to the arrays pointed to by the C.Structure
         # otherwise, they are garbage collected and bad things happen
-        self.eff_elec = EffectivePointCharges2D(elec)
-        self.eff_mag = EffectivePointCharges2D(mag)
-        self.eff_current = EffectivePointCharges3D(current)
+        self.eff_elec = EffectivePointCharges2D(elec.charges, elec.jacobians, elec.positions)
+        self.eff_mag = EffectivePointCharges2D(mag.charges, mag.jacobians, mag.positions)
+        self.eff_current = EffectivePointCharges3D(current.charges, current.jacobians, current.positions)
         
         self.elec_charges = C.cast(C.pointer(self.eff_elec), C.c_void_p)
         self.mag_charges = C.cast(C.pointer(self.eff_mag), C.c_void_p)
