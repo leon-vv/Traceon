@@ -545,15 +545,6 @@ class FieldBEM(Field, ABC):
         else:
             return super().__add__(other)
     
-    def __sub__(self, other: Field) -> Field:
-        if isinstance(other, Field):
-            return self.__add__(-other)
-        
-        return NotImplemented
-
-    def __radd__(self, other: Field) -> Field:
-        return self.__add__(other)
-        
     def __mul__(self, other: float) -> Field:
         if _is_numeric(other):
            field_copy = self.copy()
@@ -564,12 +555,6 @@ class FieldBEM(Field, ABC):
         else:
             return super().__mul__(other)
     
-    def __neg__(self) -> Field:
-        return self.__mul__(-1.0)
-     
-    def __rmul__(self, other: float) -> Field:
-        return self.__mul__(other)
-      
     def area_of_elements(self, indices: ArrayLikeInt1D):
         """Compute the total area of the elements at the given indices.
         
