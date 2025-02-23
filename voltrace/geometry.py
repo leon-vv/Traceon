@@ -69,7 +69,7 @@ class Path(GeometricObject):
         # and returns the point on the path
         self.fun = lambda u: np.array(fun(u), dtype=np.float64) # Ensure it returns Numpy arrays
         self.parameter_range = parameter_range
-        self.breakpoints = list(breakpoints) if breakpoints is not None else []
+        self.breakpoints: list[float] = list(breakpoints) if breakpoints is not None else []
         self.name = name
     
     @staticmethod
