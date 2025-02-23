@@ -221,39 +221,6 @@ class FieldEvaluationArgsRadial(C.Structure):
             self.bounds_arr = ensure_contiguous_aligned(bounds)
             self.bounds = self.bounds_arr.ctypes.data_as(dbl_p)
 
-class FieldEvaluationArgs3D(C.Structure):
-    _fields_ = [
-        ("elec_charges", C.c_void_p),
-        ("mag_charges", C.c_void_p),
-        ("current_charges", C.c_void_p),
-        ("bounds", C.POINTER(C.c_double))
-    ]
-
-    def __init__(self, elec : EffectivePointCharges, 
-                 mag: EffectivePointCharges, 
-                 currents: EffectivePointCharges, 
-                 bounds : Bounds3D | None, 
-                 *args : Any, 
-                 **kwargs: Any):
-        
-        super().__init__(*args, **kwargs)
-        assert bounds is None or bounds.shape == (3, 2)
-        
-        self.eff_elec = EffectivePointCharges3D(elec)
-        self.eff_mag = EffectivePointCharges3D(mag)
-        self.eff_current = EffectivePointCurrents3D(currents)
-
-        self.elec_charges = C.cast(C.pointer(self.eff_elec), C.c_void_p)
-        self.mag_charges = C.cast(C.pointer(self.eff_mag), C.c_void_p)
-        self.current_charges = C.cast(C.pointer(self.eff_current), C.c_void_p)
-        
-        if bounds is None:
-            self.bounds = None
-        else:
-            self.bounds_arr = ensure_contiguous_aligned(bounds)
-            self.bounds = self.bounds_arr.ctypes.data_as(dbl_p)
-
-
 
 class FieldDerivsArgs(C.Structure):
     _fields_ = [
