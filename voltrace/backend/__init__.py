@@ -112,10 +112,10 @@ class EffectivePointCharges2D(C.Structure):
         ("N_", C.c_size_t)
     ]
 
-    def __init__(self, eff: EffectivePointCharges, *args: Any, **kwargs: Any) -> None:
+    def __init__(self, eff: EffectivePointCharges) -> None:
         assert eff.is_2d()
-        super(EffectivePointCharges2D, self).__init__(*args, **kwargs)
-
+        super().__init__()
+         
         # Beware, we need to keep references to the arrays pointed to by the C.Structure
         # otherwise, they are garbage collected and bad things happen
         self.charges = ensure_contiguous_aligned(eff.charges)
@@ -135,9 +135,9 @@ class EffectivePointCharges3D(C.Structure):
         ("N_", C.c_size_t)
     ]
     
-    def __init__(self, eff: EffectivePointCharges, *args: Any, **kwargs: Any) -> None:
+    def __init__(self, eff: EffectivePointCharges) -> None:
         assert eff.is_3d()
-        super().__init__(*args, **kwargs)
+        super().__init__()
         
         # Beware, we need to keep references to the arrays pointed to by the C.Structure
         # otherwise, they are garbage collected and bad things happen
@@ -159,9 +159,9 @@ class EffectivePointCurrents3D(C.Structure):
         ("N_", C.c_size_t)
     ]
     
-    def __init__(self, eff: EffectivePointCharges, *args: Any, **kwargs: Any) -> None:
-        super(EffectivePointCurrents3D, self).__init__(*args, **kwargs)
-
+    def __init__(self, eff: EffectivePointCharges) -> None:
+        super().__init__()
+        
         # In solver.py we use consistently the EffectivePointCharges class
         # so when storing effective point currents, the charges are actually currents
         currents = eff.charges
@@ -198,11 +198,9 @@ class FieldEvaluationArgsRadial(C.Structure):
                  elec: EffectivePointCharges, 
                  mag: EffectivePointCharges, 
                  current: EffectivePointCharges, 
-                 bounds: Bounds3D | None, 
-                 *args: Any, 
-                 **kwargs: Any) -> None:
+                 bounds: Bounds3D | None) -> None:
         
-        super().__init__(*args, **kwargs)
+        super().__init__()
         assert bounds is None or bounds.shape == (3, 2)
         
         # Beware, we need to keep references to the arrays pointed to by the C.Structure
@@ -230,8 +228,8 @@ class FieldDerivsArgs(C.Structure):
         ("N_z", C.c_size_t)
     ]
 
-    def __init__(self, z, elec, mag, *args, **kwargs):
-        super().__init__(*args, **kwargs)
+    def __init__(self, z, elec, mag):
+        super().__init__()
         assert z.shape == (len(z),)
         assert elec.shape[0] == len(z)-1
         assert mag.shape[0] == len(z)-1
