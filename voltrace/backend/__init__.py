@@ -173,23 +173,23 @@ class EffectivePointCharges2D(EffectivePointSources):
     def empty():
         return EffectivePointCharges2D(np.empty((0,)), np.empty((0, N_QUAD_2D)), np.empty((0, N_QUAD_2D, 2)))
     
-    def __add__(self, other: EffectivePointCharges3D) -> EffectivePointCharges3D:
-        if not isinstance(other, EffectivePointCharges3D):
+    def __add__(self, other: EffectivePointCharges2D) -> EffectivePointCharges2D:
+        if not isinstance(other, EffectivePointCharges2D):
             return NotImplemented
 
         if self._matches_geometry(other):
-            return EffectivePointCharges3D(self.charges + other.charges, self.jacobians, self.positions)
+            return EffectivePointCharges2D(self.charges + other.charges, self.jacobians, self.positions)
         else:
-            return EffectivePointCharges3D(
+            return EffectivePointCharges2D(
                 np.concatenate( (self.charges, other.charges) ),
                 np.concatenate( (self.jacobians, other.jacobians) ),
                 np.concatenate( (self.positions, other.positions ) ))
     
-    def __mul__(self, other: float) -> EffectivePointCharges3D:
+    def __mul__(self, other: float) -> EffectivePointCharges2D:
         if not _is_numeric(other):
             return NotImplemented
         
-        return EffectivePointCharges3D(self.charges*other, self.jacobians, self.positions)
+        return EffectivePointCharges2D(self.charges*other, self.jacobians, self.positions)
 
 
 class EffectivePointCharges3D(EffectivePointSources):
@@ -212,23 +212,23 @@ class EffectivePointCharges3D(EffectivePointSources):
     def empty():
         return EffectivePointCharges3D(np.empty((0,)), np.empty((0, N_QUAD_2D)), np.empty((0, N_QUAD_2D, 2)))
     
-    def __add__(self, other: EffectivePointCharges2D) -> EffectivePointCharges2D:
-        if not isinstance(other, EffectivePointCharges2D):
+    def __add__(self, other: EffectivePointCharges3D) -> EffectivePointCharges3D:
+        if not isinstance(other, EffectivePointCharges3D):
             return NotImplemented
 
         if self._matches_geometry(other):
-            return EffectivePointCharges2D(self.charges + other.charges, self.jacobians, self.positions)
+            return EffectivePointCharges3D(self.charges + other.charges, self.jacobians, self.positions)
         else:
-            return EffectivePointCharges2D(
+            return EffectivePointCharges3D(
                 np.concatenate( (self.charges, other.charges) ),
                 np.concatenate( (self.jacobians, other.jacobians) ),
                 np.concatenate( (self.positions, other.positions ) ))
     
-    def __mul__(self, other: float) -> EffectivePointCharges2D:
+    def __mul__(self, other: float) -> EffectivePointCharges3D:
         if not _is_numeric(other):
             return NotImplemented
     
-        return EffectivePointCharges2D(self.charges*other, self.jacobians, self.positions)
+        return EffectivePointCharges3D(self.charges*other, self.jacobians, self.positions)
 
 
 class FieldEvaluationArgsRadial(C.Structure):
