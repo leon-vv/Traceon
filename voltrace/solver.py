@@ -261,17 +261,14 @@ class ElectrostaticSolverRadial(SolverRadial):
         return self.excitation.get_electrostatic_active_elements()
        
     def charges_to_field(self, charges: EffectivePointCharges) -> FieldRadialBEM:
-        return FieldRadialBEM(electrostatic_point_charges=charges)
+        return FieldRadialBEM(electrostatic_point_charges=backend.EffectivePointCharges2D(charges.charges, charges.jacobians, charges.positions))
 
 
 class MagnetostaticSolverRadial(SolverRadial):
     def __init__(self, *args: Excitation, **kwargs: Excitation) -> None:
         super().__init__(*args, **kwargs)
-        mag_eff = self.get_permanent_magnet_field().magnetostatic_point_charges
-        current_eff = self.get_current_field().current_point_charges
-        
-        self.preexisting_field = FieldRadialBEM(magnetostatic_point_charges=EffectivePointCharges(mag_eff.charges, mag_eff.jacobians, mag_eff.positions),
-                                                current_point_charges=EffectivePointCharges(current_eff.charges, current_eff.jacobians, current_eff.positions, current_eff.directions))
+        self.preexisting_field = FieldRadialBEM(magnetostatic_point_charges=self.get_permanent_magnet_field().magnetostatic_point_charges,
+                                                current_point_charges=self.get_current_field().current_point_charges)
 
     def get_active_elements(self) -> ActiveLines:
         return self.excitation.get_magnetostatic_active_elements()
@@ -287,7 +284,7 @@ class MagnetostaticSolverRadial(SolverRadial):
         mesh = self.excitation.mesh
         
         if not len(mesh.lines) or not self.excitation.has_permanent_magnet():
-            return FieldRadialBEM(magnetostatic_point_charges=EffectivePointCharges.empty_2d())
+            return FieldRadialBEM(magnetostatic_point_charges=backend.EffectivePointCharges2D.empty())
         
         all_vertices = mesh.points[mesh.lines]
         jac, pos = backend.fill_jacobian_buffer_radial(all_vertices)
@@ -313,9 +310,9 @@ class MagnetostaticSolverRadial(SolverRadial):
             positions.extend(pos[indices])
         
         if not len(charges):
-            return FieldRadialBEM(magnetostatic_point_charges=EffectivePointCharges.empty_2d())
+            return FieldRadialBEM(magnetostatic_point_charges=EffectivePointCharges2D.empty())
         
-        return FieldRadialBEM(magnetostatic_point_charges=EffectivePointCharges(np.array(charges), np.array(jacobians), np.array(positions)))
+        return FieldRadialBEM(magnetostatic_point_charges=EffectivePointCharges2D(np.array(charges), np.array(jacobians), np.array(positions)))
      
     def get_current_field(self) -> FieldRadialBEM:
         currents: list[Vector3D] = []
@@ -325,7 +322,7 @@ class MagnetostaticSolverRadial(SolverRadial):
         mesh = self.excitation.mesh
         
         if not len(mesh.triangles) or not self.excitation.has_current():
-            return FieldRadialBEM(current_point_charges=EffectivePointCharges.empty_3d())
+            return FieldRadialBEM(current_point_charges=EffectivePointCharges3D.empty())
          
         jac, pos = backend.fill_jacobian_buffer_3d(mesh.points[mesh.triangles])
         
@@ -346,16 +343,13 @@ class MagnetostaticSolverRadial(SolverRadial):
             positions.extend(pos[indices])
         
         if not len(currents):
-            return FieldRadialBEM(current_point_charges=EffectivePointCharges.empty_3d())
+            return FieldRadialBEM(current_point_charges=EffectivePointCharges3D.empty())
         
-        return FieldRadialBEM(current_point_charges=EffectivePointCharges(np.array(currents), np.array(jacobians), np.array(positions)))
+        return FieldRadialBEM(current_point_charges=EffectivePointCharges3D(np.array(currents), np.array(jacobians), np.array(positions)))
     
     def charges_to_field(self, charges: EffectivePointCharges) -> FieldRadialBEM:
-        mag_eff = self.get_permanent_magnet_field().magnetostatic_point_charges
-        current_eff = self.get_current_field().current_point_charges
-        
-        return FieldRadialBEM(magnetostatic_point_charges=EffectivePointCharges(mag_eff.charges, mag_eff.jacobians, mag_eff.positions) + charges,
-                               current_point_charges=EffectivePointCharges(current_eff.charges, current_eff.jacobians, current_eff.positions, current_eff.directions))
+        return FieldRadialBEM(magnetostatic_point_charges=self.get_permanent_magnet_field().magnetostatic_point_charges + EffectivePointCharges2D(charges.charges, charges.jacobians, charges.positions),
+                               current_point_charges=self.get_current_field().current_point_charges)
 
 def _excitation_to_higher_order(excitation: Excitation) -> Excitation:
     logging.log_info('Upgrading mesh to higher to be compatible with matrix solver')
