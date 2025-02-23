@@ -104,7 +104,53 @@ pos_buffer_2d = arr(ndim=3)
 radial_coeffs = arr(ndim=3)
 
 
-class EffectivePointCharges2D(C.Structure):
+class EffectivePointSources(C.Structure):
+    def __init__(self, 
+                 charges: ArrayFloat1D, 
+                 jacobians: ArrayFloat2D, 
+                 positions: ArrayFloat3D, 
+                 directions: ArrayFloat2D | None = None) -> None:
+
+        super().__init__()
+        
+        self.charges = ensure_contiguous_aligned(np.array(charges, dtype=np.float64))
+        self.jacobians = ensure_contiguous_aligned(np.array(jacobians, dtype=np.float64))
+        self.positions = ensure_contiguous_aligned(np.array(positions, dtype=np.float64))
+        
+        # Current elements will have a direction
+        self.directions: ArrayFloat2D | None = ensure_contiguous_aligned(np.array(directions, dtype=np.float64)) if directions is not None else None 
+        
+        N = len(self.charges)
+        N_QUAD = self.jacobians.shape[1]
+        assert self.charges.shape == (N,) and self.jacobians.shape == (N, N_QUAD)
+        assert self.positions.shape == (N, N_QUAD, 3) or self.positions.shape == (N, N_QUAD, 2)
+        assert self.directions is None or self.directions.shape == (len(self.charges), N_QUAD, 3)
+    
+    def is_2d(self) -> bool:
+        return self.jacobians.shape[1] == N_QUAD_2D
+    
+    def is_3d(self) -> bool:
+        return self.jacobians.shape[1] == N_TRIANGLE_QUAD
+     
+    def _matches_geometry(self, other: EffectivePointCharges) -> bool:
+        return (self.positions.shape == other.positions.shape and np.allclose(self.positions, other.positions)
+                and self.jacobians.shape == other.jacobians.shape and np.allclose(self.jacobians, other.jacobians)
+                and ((self.directions is None and other.directions is None)
+                    or (self.directions is not None and other.directions is not None
+                        and self.directions.shape == other.directions.shape and np.allclose(self.directions, other.directions))))
+                    
+    def __len__(self) -> int:
+        return len(self.charges)
+    
+    def __str__(self) -> str:
+        dim = '2D' if self.is_2d() else '3D'
+        return f'<{self.__class__.__name__} {dim}\n' \
+               f'\tNumber of charges: {len(self.charges)}\n' \
+               f'\tJacobian shape:  {self.jacobians.shape}\n' \
+               f'\tPositions shape: {self.positions.shape}>'
+
+
+class EffectivePointCharges2D(EffectivePointSources):
     _fields_ = [
         ("charges_", dbl_p),
         ("jacobians_", dbl_p),
@@ -114,14 +160,8 @@ class EffectivePointCharges2D(C.Structure):
 
     def __init__(self, eff: EffectivePointCharges) -> None:
         assert eff.is_2d()
-        super().__init__()
-         
-        # Beware, we need to keep references to the arrays pointed to by the C.Structure
-        # otherwise, they are garbage collected and bad things happen
-        self.charges = ensure_contiguous_aligned(eff.charges)
-        self.jacobians = ensure_contiguous_aligned(eff.jacobians)
-        self.positions = ensure_contiguous_aligned(eff.positions)
-         
+        super().__init__(eff.charges, eff.jacobians, eff.positions)
+       
         self.charges_ = self.charges.ctypes.data_as(dbl_p)
         self.jacobians_ = self.jacobians.ctypes.data_as(dbl_p)
         self.positions_ = self.positions.ctypes.data_as(dbl_p)
