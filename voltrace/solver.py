@@ -29,7 +29,6 @@ from .field import *
 from .typing import *
 
 __pdoc__ = {}
-__pdoc__['EffectivePointCharges'] = False
 __pdoc__['ElectrostaticSolverRadial'] = False
 __pdoc__['MagnetostaticSolverRadial'] = False
 __pdoc__['SolverRadial'] = False

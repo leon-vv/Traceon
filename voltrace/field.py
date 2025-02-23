@@ -33,7 +33,6 @@ from .mesher import GeometricObject
 from .typing import *
 
 __pdoc__ = {}
-__pdoc__['EffectivePointCharges'] = False
 __pdoc__['Field.copy'] = False
 __pdoc__['Field.get_low_level_trace_function'] = False
 __pdoc__['FieldRadialBEM.get_low_level_trace_function'] = False
