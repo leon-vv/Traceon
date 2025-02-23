@@ -150,7 +150,7 @@ class Solver(ABC):
         return F
             
     @abstractmethod
-    def charges_to_field(self, charges: EffectivePointCharges) -> FieldBEM:
+    def charges_to_field(self, charges: ArrayFloat1D) -> FieldBEM:
         ...
 
     @abstractmethod
@@ -163,9 +163,8 @@ class Solver(ABC):
         N = self.get_number_of_matrix_elements()
          
         if N == 0:
-            return [self.charges_to_field(EffectivePointCharges.empty_2d() if self.is_2d() else EffectivePointCharges.empty_3d()) \
-                        for _ in range(len(F))]
-        
+            return [self.charges_to_field(np.zeros(0)) for _ in range (len(F))]
+         
         assert all([f.shape == (N,) for f in F])
         matrix = self.get_matrix()
          
@@ -174,11 +173,8 @@ class Solver(ABC):
         logging.log_info(f'Time for solving matrix: {(time.time()-st)*1000:.0f} ms')
         assert np.all(np.isfinite(charges)) and charges.shape == F.shape
         
-        result = [self.charges_to_field(EffectivePointCharges(c, self.jac_buffer, self.pos_buffer)) for c in charges]
-         
-        assert len(result) == len(F)
-        return result
-        
+        return [self.charges_to_field(c) for c in charges]
+
 
 class SolverRadial(Solver):
     
@@ -260,8 +256,8 @@ class ElectrostaticSolverRadial(SolverRadial):
     def get_active_elements(self) -> ActiveLines:
         return self.excitation.get_electrostatic_active_elements()
        
-    def charges_to_field(self, charges: EffectivePointCharges) -> FieldRadialBEM:
-        return FieldRadialBEM(electrostatic_point_charges=backend.EffectivePointCharges2D(charges.charges, charges.jacobians, charges.positions))
+    def charges_to_field(self, charges: ArrayFloat1D) -> FieldRadialBEM:
+        return FieldRadialBEM(electrostatic_point_charges=backend.EffectivePointCharges2D(charges, self.jac_buffer, self.pos_buffer))
 
 
 class MagnetostaticSolverRadial(SolverRadial):
@@ -347,8 +343,8 @@ class MagnetostaticSolverRadial(SolverRadial):
         
         return FieldRadialBEM(current_point_charges=EffectivePointCharges3D(np.array(currents), np.array(jacobians), np.array(positions)))
     
-    def charges_to_field(self, charges: EffectivePointCharges) -> FieldRadialBEM:
-        return FieldRadialBEM(magnetostatic_point_charges=self.get_permanent_magnet_field().magnetostatic_point_charges + EffectivePointCharges2D(charges.charges, charges.jacobians, charges.positions),
+    def charges_to_field(self, charges: ArrayFloat1D) -> FieldRadialBEM:
+        return FieldRadialBEM(magnetostatic_point_charges=self.get_permanent_magnet_field().magnetostatic_point_charges + EffectivePointCharges2D(charges, self.jac_buffer, self.pos_buffer),
                                current_point_charges=self.get_current_field().current_point_charges)
 
 def _excitation_to_higher_order(excitation: Excitation) -> Excitation:
