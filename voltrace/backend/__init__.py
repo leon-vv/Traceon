@@ -240,7 +240,7 @@ class FieldEvaluationArgsRadial(C.Structure):
     ]
 
     def __init__(self, 
-                 elec: EffectivePointCharges, 
+                 elec: EffectivePointCharges2D, 
                  mag: EffectivePointCharges, 
                  current: EffectivePointCharges, 
                  bounds: Bounds3D | None) -> None:
@@ -250,7 +250,7 @@ class FieldEvaluationArgsRadial(C.Structure):
         
         # Beware, we need to keep references to the arrays pointed to by the C.Structure
         # otherwise, they are garbage collected and bad things happen
-        self.eff_elec = EffectivePointCharges2D(elec.charges, elec.jacobians, elec.positions)
+        self.eff_elec = elec
         self.eff_mag = EffectivePointCharges2D(mag.charges, mag.jacobians, mag.positions)
         self.eff_current = EffectivePointCharges3D(current.charges, current.jacobians, current.positions)
         
