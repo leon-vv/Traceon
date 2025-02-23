@@ -167,7 +167,7 @@ class EffectivePointCharges2D(EffectivePointSources):
         self.positions_ = self.positions.ctypes.data_as(dbl_p)
         self.N_ = len(eff)
         
-class EffectivePointCharges3D(C.Structure):
+class EffectivePointCharges3D(EffectivePointSources):
     _fields_ = [
         ("charges_", dbl_p),
         ("jacobians_", dbl_p),
@@ -177,20 +177,14 @@ class EffectivePointCharges3D(C.Structure):
     
     def __init__(self, eff: EffectivePointCharges) -> None:
         assert eff.is_3d()
-        super().__init__()
-        
-        # Beware, we need to keep references to the arrays pointed to by the C.Structure
-        # otherwise, they are garbage collected and bad things happen
-        self.charges = ensure_contiguous_aligned(eff.charges)
-        self.jacobians = ensure_contiguous_aligned(eff.jacobians)
-        self.positions = ensure_contiguous_aligned(eff.positions)
-             
+        super().__init__(eff.charges, eff.jacobians, eff.positions)
+         
         self.charges_ = self.charges.ctypes.data_as(dbl_p)
         self.jacobians_ = self.jacobians.ctypes.data_as(dbl_p)
         self.positions_ = self.positions.ctypes.data_as(dbl_p)
         self.N_ = len(eff)
 
-class EffectivePointCurrents3D(C.Structure):
+class EffectivePointCurrents3D(EffectivePointSources):
     _fields_ = [
         ("currents_", dbl_p),
         ("jacobians_", dbl_p),
@@ -200,24 +194,13 @@ class EffectivePointCurrents3D(C.Structure):
     ]
     
     def __init__(self, eff: EffectivePointCharges) -> None:
-        super().__init__()
-        
-        # In solver.py we use consistently the EffectivePointCharges class
-        # so when storing effective point currents, the charges are actually currents
-        currents = eff.charges
+        super().__init__(eff.charges, eff.jacobians, eff.positions, eff.currents)
         
         N = len(currents)
         assert currents.shape == (N,) and currents.dtype == np.double
         assert eff.jacobians.shape == (N, N_QUAD_2D) and eff.jacobians.dtype == np.double
         assert eff.positions.shape == (N, N_QUAD_2D, 3) and eff.positions.dtype == np.double
         assert eff.directions is not None and eff.directions.shape == (N, N_QUAD_2D, 3) and eff.directions.dtype == np.double
-
-        # Beware, we need to keep references to the arrays pointed to by the C.Structure
-        # otherwise, they are garbage collected and bad things happen
-        self.currents = ensure_contiguous_aligned(currents)
-        self.jacobians = ensure_contiguous_aligned(eff.jacobians)
-        self.positions = ensure_contiguous_aligned(eff.positions)
-        self.directions = ensure_contiguous_aligned(eff.directions)
 
         self.currents_ = self.currents.ctypes.data_as(dbl_p)
         self.jacobians_ = self.jacobians.ctypes.data_as(dbl_p)
