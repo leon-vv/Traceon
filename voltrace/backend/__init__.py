@@ -169,6 +169,10 @@ class EffectivePointCharges2D(EffectivePointSources):
         self.positions_ = self.positions.ctypes.data_as(dbl_p)
         self.N_ = len(self.charges)
     
+    @staticmethod
+    def empty():
+        return EffectivePointCharges2D(np.empty((0,)), np.empty((0, N_QUAD_2D)), np.empty((0, N_QUAD_2D, 2)))
+    
     def __add__(self, other: EffectivePointCharges3D) -> EffectivePointCharges3D:
         if not isinstance(other, EffectivePointCharges3D):
             return NotImplemented
@@ -204,6 +208,10 @@ class EffectivePointCharges3D(EffectivePointSources):
         self.positions_ = self.positions.ctypes.data_as(dbl_p)
         self.N_ = len(self.charges)
 
+    @staticmethod
+    def empty():
+        return EffectivePointCharges3D(np.empty((0,)), np.empty((0, N_QUAD_2D)), np.empty((0, N_QUAD_2D, 2)))
+    
     def __add__(self, other: EffectivePointCharges2D) -> EffectivePointCharges2D:
         if not isinstance(other, EffectivePointCharges2D):
             return NotImplemented
