@@ -62,7 +62,7 @@ class Path(GeometricObject):
     def __init__(self, 
             fun: Callable[[float], Point3D], 
             parameter_range: float, 
-            breakpoints: list[float] | None = None, 
+            breakpoints: ArrayLikeFloat1D | None = None, 
             name: str | None = None) -> None:
         
         # Assumption: fun takes in p, the path length
