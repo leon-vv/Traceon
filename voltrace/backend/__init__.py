@@ -184,31 +184,6 @@ class EffectivePointCharges3D(EffectivePointSources):
         self.positions_ = self.positions.ctypes.data_as(dbl_p)
         self.N_ = len(eff)
 
-class EffectivePointCurrents3D(EffectivePointSources):
-    _fields_ = [
-        ("currents_", dbl_p),
-        ("jacobians_", dbl_p),
-        ("positions_", dbl_p),
-        ("directions_", dbl_p),
-        ("N_", C.c_size_t)
-    ]
-    
-    def __init__(self, eff: EffectivePointCharges) -> None:
-        super().__init__(eff.charges, eff.jacobians, eff.positions, eff.currents)
-        
-        N = len(currents)
-        assert currents.shape == (N,) and currents.dtype == np.double
-        assert eff.jacobians.shape == (N, N_QUAD_2D) and eff.jacobians.dtype == np.double
-        assert eff.positions.shape == (N, N_QUAD_2D, 3) and eff.positions.dtype == np.double
-        assert eff.directions is not None and eff.directions.shape == (N, N_QUAD_2D, 3) and eff.directions.dtype == np.double
-
-        self.currents_ = self.currents.ctypes.data_as(dbl_p)
-        self.jacobians_ = self.jacobians.ctypes.data_as(dbl_p)
-        self.positions_ = self.positions.ctypes.data_as(dbl_p)
-        self.directions_ = self.directions.ctypes.data_as(dbl_p)
-        self.N_ = N
-
-
 class FieldEvaluationArgsRadial(C.Structure):
     _fields_ = [
         ("elec_charges", C.c_void_p),
