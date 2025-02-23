@@ -1,11 +1,7 @@
 import matplotlib.pyplot as plt
 import numpy as np
 
-import traceon.geometry as G
-import traceon.solver as S
-import traceon.excitation as E
-import traceon.plotting as P
-import traceon.tracing as T
+import traceon as T
 from traceon.field import FieldRadialAxial
 
 # Dimensions of the einzel lens.
@@ -17,16 +13,16 @@ RADIUS = 0.15
 # lens is at z = 0mm.
 z0 = -THICKNESS - SPACING - THICKNESS/2
 
-boundary = G.Path.line([0., 0., 1.75],  [2.0, 0., 1.75])\
+boundary = T.Path.line([0., 0., 1.75],  [2.0, 0., 1.75])\
     .extend_with_line([2.0, 0., -1.75]).extend_with_line([0., 0., -1.75])
 
 
 margin_right = 0.1
 extent = 2.0 - margin_right
 
-bottom = G.Path.aperture(THICKNESS, RADIUS, extent, -THICKNESS - SPACING)
-middle = G.Path.aperture(THICKNESS, RADIUS, extent)
-top = G.Path.aperture(THICKNESS, RADIUS, extent, THICKNESS + SPACING)
+bottom = T.Path.aperture(THICKNESS, RADIUS, extent, -THICKNESS - SPACING)
+middle = T.Path.aperture(THICKNESS, RADIUS, extent)
+top = T.Path.aperture(THICKNESS, RADIUS, extent, THICKNESS + SPACING)
     
 boundary.name = 'boundary'
 bottom.name = 'ground'
@@ -35,7 +31,7 @@ top.name = 'ground'
 
 mesh = (boundary + bottom + middle + top).mesh(mesh_size_factor=45)
  
-excitation = E.Excitation(mesh, E.Symmetry.RADIAL)
+excitation = T.Excitation(mesh, T.Symmetry.RADIAL)
 
 # Excite the geometry, put ground at 0V and the lens electrode at 1800V.
 excitation.add_voltage(ground=0.0, lens=1800)
@@ -43,7 +39,7 @@ excitation.add_electrostatic_boundary('boundary')
 
 # Use the Boundary Element Method (BEM) to calculate the surface charges,
 # the surface charges gives rise to a electrostatic field.
-field = S.solve_direct(excitation)
+field = T.solve_direct(excitation)
 
 # But using an integration over the surface charges to calculate the electron
 # trajectories is inherently slow. Instead, use an interpolation technique
@@ -99,9 +95,9 @@ plt.xlabel('r (mm)')
 plt.ylabel('z (mm)')
 plt.show()
 
-P.new_figure()
-P.plot_mesh(mesh, ground='green', lens='blue', boundary='purple')
-P.plot_trajectories(trajectories, xmin=0, zmin=-1.7, zmax=1.6)
-surface = G.Surface.rectangle_xz(0.0, RADIUS*0.9, -1.75, 1.75)
-P.plot_equipotential_lines(field_axial, surface, N0=250, N1=75)
-P.show()
+T.new_figure()
+T.plot_mesh(mesh, ground='green', lens='blue', boundary='purple')
+T.plot_trajectories(trajectories, xmin=0, zmin=-1.7, zmax=1.6)
+surface = T.Surface.rectangle_xz(0.0, RADIUS*0.9, -1.75, 1.75)
+T.plot_equipotential_lines(field_axial, surface, N0=250, N1=75)
+T.show()

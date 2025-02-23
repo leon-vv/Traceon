@@ -7,7 +7,6 @@ import traceon.backend as B
 import traceon.mesher as M
 from traceon.mesher import Mesh
 
-
 class TestMeshDeduplication(unittest.TestCase):
     def test_no_duplicates(self):
         # Test case with no duplicate points
@@ -19,7 +18,7 @@ class TestMeshDeduplication(unittest.TestCase):
         triangles = np.array([
             [0, 1, 2]
         ])
-        mesh = Mesh(points, triangles=triangles)
+        mesh = M.Mesh(points, triangles=triangles)
         mesh._deduplicate_points()
         self.assertEqual(len(mesh.points), 3)
         np.testing.assert_array_equal(mesh.points, points)
@@ -46,7 +45,7 @@ class TestMeshDeduplication(unittest.TestCase):
             [0, 1, 2],
             [0, 1, 2]
         ])
-        mesh = Mesh(points, triangles=triangles)
+        mesh = M.Mesh(points, triangles=triangles)
         mesh._deduplicate_points()
         self.assertEqual(len(mesh.points), 3)
         np.testing.assert_array_equal(mesh.points, expected_points)
@@ -67,7 +66,7 @@ class TestMeshDeduplication(unittest.TestCase):
         ])
         expected_triangles = np.zeros( (0,3), dtype=np.int64) # Degenerate triangle is removed
          
-        mesh = Mesh(points, triangles=triangles)
+        mesh = M.Mesh(points, triangles=triangles)
         
         self.assertEqual(len(mesh.points), 1)
         np.testing.assert_array_equal(mesh.points, expected_points)
@@ -92,17 +91,17 @@ class TestMeshDeduplication(unittest.TestCase):
         expected_triangles = np.array([
             [2, 1, 1]
         ])
-        mesh = Mesh(points, triangles=triangles)
+        mesh = M.Mesh(points, triangles=triangles)
         
         self.assertEqual(len(mesh.points), 3)
         np.testing.assert_array_almost_equal(mesh.points, expected_points, decimal=5)
         np.testing.assert_array_equal(mesh.triangles, expected_triangles)
 
     def test_empty_mesh(self):
-        mesh = Mesh(np.array([]), triangles=np.array([]))
+        mesh = M.Mesh(np.array([]), triangles=np.array([]))
     
     def test_empty_triangles(self):
-        mesh = Mesh(np.random.rand(10, 3), triangles=np.array([]))
+        mesh = M.Mesh(np.random.rand(10, 3), triangles=np.array([]))
 
     def test_complex_large_mesh(self):
         # Generate a large number of random points
@@ -133,7 +132,7 @@ class TestMeshDeduplication(unittest.TestCase):
         original_triangles = triangles.copy()
 
         # Create a Mesh instance and perform deduplication
-        mesh = Mesh()
+        mesh = M.Mesh()
         mesh.points = points # Do not use constructor, prevent triangle degenerate removal
         mesh.triangles = triangles
         

@@ -1,10 +1,7 @@
 import numpy as np
 import time
 
-import traceon.geometry as G
-import traceon.excitation as E
-import traceon.plotting as P
-import traceon.solver as S
+import traceon as T
 
 from validation import Validation
 
@@ -33,10 +30,10 @@ class Edwards2007(Validation):
             [0, 0., 20]
         ]
 
-        inner = G.Path.line(points[0], points[1])\
+        inner = T.Path.line(points[0], points[1])\
             .extend_with_line(points[2]).extend_with_line(points[3])
          
-        boundary = G.Path.line(points[4], points[5])\
+        boundary = T.Path.line(points[4], points[5])\
             .extend_with_line(points[6]).extend_with_line(points[7])
         
         if symmetry.is_3d():
@@ -49,7 +46,7 @@ class Edwards2007(Validation):
         return (inner+boundary).mesh(mesh_size_factor=MSF)
     
     def get_excitation(self, geometry, symmetry):
-        excitation = E.Excitation(geometry, symmetry)
+        excitation = T.Excitation(geometry, symmetry)
         excitation.add_voltage(boundary=0, inner=10)
         return excitation
     

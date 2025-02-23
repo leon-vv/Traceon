@@ -25,14 +25,14 @@ RADIUS = 0.15
 # lens is at z = 0mm.
 z0 = -THICKNESS - SPACING - THICKNESS/2
 
-boundary = G.Path.line([0., 0., 1.75],  [2.0, 0., 1.75]).extend_with_line([2.0, 0., -1.75]).extend_with_line([0., 0., -1.75])
+boundary = T.Path.line([0., 0., 1.75],  [2.0, 0., 1.75]).extend_with_line([2.0, 0., -1.75]).extend_with_line([0., 0., -1.75])
 
 margin_right = 0.1
 extent = 2.0 - margin_right
 
-bottom = G.Path.aperture(THICKNESS, RADIUS, extent, -THICKNESS - SPACING)
-middle = G.Path.aperture(THICKNESS, RADIUS, extent)
-top = G.Path.aperture(THICKNESS, RADIUS, extent, THICKNESS + SPACING)
+bottom = T.Path.aperture(THICKNESS, RADIUS, extent, -THICKNESS - SPACING)
+middle = T.Path.aperture(THICKNESS, RADIUS, extent)
+top = T.Path.aperture(THICKNESS, RADIUS, extent, THICKNESS + SPACING)
     
 boundary.name = 'boundary'
 bottom.name = 'ground'
@@ -47,8 +47,8 @@ a `mesh_size` or a `mesh_size_factor` to the `traceon.geometry.Path.mesh` functi
 ```Python
 mesh = (boundary + bottom + middle + top).mesh(mesh_size_factor=45)
 
-P.plot_mesh(mesh, lens='blue', ground='green', boundary='purple')
-P.show()
+T.plot_mesh(mesh, lens='blue', ground='green', boundary='purple')
+T.show()
 ```
 
 <img class='doc-image' src="../images/einzel_lens_radial.png" width="600" height="600" />
@@ -59,7 +59,7 @@ We are now ready to apply excitations to our elements. We choose to put 0V on th
 that the boundary electrode is an 'electrostatic boundary', which means that there is no electric field parallel to the surface ($\mathbf{n} \cdot \nabla V = 0$).
 
 ```Python
-excitation = E.Excitation(mesh, E.Symmetry.RADIAL)
+excitation = T.Excitation(mesh, E.Symmetry.RADIAL)
 
 # Excite the geometry, put ground at 0V and the lens electrode at 1800V.
 excitation.add_voltage(ground=0.0, lens=1800)
@@ -74,7 +74,7 @@ provides methods for calculating the resulting potential and electrostatic field
 ```Python
 # Use the Boundary Element Method (BEM) to calculate the surface charges,
 # the surface charges gives rise to a electrostatic field.
-field = S.solve_direct(excitation)
+field = T.solve_direct(excitation)
 ```
 
 ## Axial interpolation

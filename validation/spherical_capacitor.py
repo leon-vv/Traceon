@@ -3,12 +3,7 @@ from math import cos, sqrt
 import numpy as np
 from scipy.constants import e, m_e
 
-import traceon.geometry as G
-import traceon.excitation as E
-import traceon.plotting as P
-import traceon.solver as S
-import traceon.tracing as T
-
+import traceon as T
 from validation import Validation
 
 angle = 0.05
@@ -33,7 +28,7 @@ class SphericalCapacitor(Validation):
         1999.
         """
         def add_shell(radius, name):
-            arc = G.Path.arc([0., 0., 0.], [0, 0, -radius], [radius, 0, 0.]).extend_with_arc([0., 0., 0.], [0., 0., radius])
+            arc = T.Path.arc([0., 0., 0.], [0, 0, -radius], [radius, 0, 0.]).extend_with_arc([0., 0., 0.], [0., 0., radius])
             arc.name = name
 
             if symmetry.is_3d():
@@ -45,7 +40,7 @@ class SphericalCapacitor(Validation):
         return add_shell(r1, 'inner') + add_shell(r2, 'outer')
  
     def get_excitation(self, mesh, symmetry):
-        exc = E.Excitation(mesh, symmetry)
+        exc = T.Excitation(mesh, symmetry)
         exc.add_voltage(inner=5/3, outer=3/5)
         return exc
      

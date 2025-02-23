@@ -2,32 +2,29 @@ import os.path as path
 
 import unittest
 from math import *
+import numpy as np
 
-import traceon.mesher as M
-from traceon.geometry import *
-import traceon.excitation as E
-import traceon.solver as S
-from traceon.field import *
-import traceon.logging as logging
+import traceon as T
+from traceon.field import FieldRadialAxial, FieldRadialBEM, FieldSuperposition
 
-logging.set_log_level(logging.LogLevel.SILENT)
+T.set_log_level(T.LogLevel.SILENT)
 
 class FieldGeometryTests(unittest.TestCase):
 
     @classmethod
     def setUpClass(cls):
         # simple field; details are not important for geometric tests
-        pos = Path.rectangle_xz(0.1,1,1, 1.5)
-        neg = Path.rectangle_xz(0.1,1,-1.5, -1)
+        pos = T.Path.rectangle_xz(0.1,1,1, 1.5)
+        neg = T.Path.rectangle_xz(0.1,1,-1.5, -1)
         neg.name='neg'
         pos.name='pos'
 
         mesh = (neg + pos).mesh(mesh_size=1)
 
-        excitation = E.Excitation(mesh, E.Symmetry.RADIAL)
+        excitation = T.Excitation(mesh, T.Symmetry.RADIAL)
         excitation.add_voltage(pos=1)
         excitation.add_magnetostatic_potential(neg=-1)
-        cls.field = S.solve_direct(excitation)
+        cls.field = T.solve_direct(excitation)
         cls.field_axial = FieldRadialAxial(cls.field, -2, 2, 100)
 
     def test_map_points(self):

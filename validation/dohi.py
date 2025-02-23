@@ -2,12 +2,7 @@ import time
 
 import numpy as np
 
-import traceon.geometry as G
-import traceon.excitation as E
-import traceon.tracing as T
-import traceon.solver as S
-from traceon.field import FieldRadialAxial
-
+import traceon as T
 from validation import Validation
 
 try:
@@ -40,19 +35,19 @@ class DohiMirror(Validation):
         r = 0.075 # radius
         st = 0.5  # spacer thickness
 
-        mirror = G.Path.aperture(0.15, r, extent, z=t/2)
+        mirror = T.Path.aperture(0.15, r, extent, z=t/2)
         mirror.name = 'mirror'
         
-        mirror_line = G.Path.line([0., 0., 0.], [r, 0., 0.])
+        mirror_line = T.Path.line([0., 0., 0.], [r, 0., 0.])
         mirror_line.name = 'mirror'
 
-        lens = G.Path.aperture(0.15, r, extent, z=t + st + t/2)
+        lens = T.Path.aperture(0.15, r, extent, z=t + st + t/2)
         lens.name = 'lens'
         
-        ground = G.Path.aperture(0.15, r, extent, z=t+st+t+st+t/2)
+        ground = T.Path.aperture(0.15, r, extent, z=t+st+t+st+t/2)
         ground.name = 'ground'
     
-        boundary = G.Path.line([0., 0., 1.75], [rmax, 0., 1.75]) \
+        boundary = T.Path.line([0., 0., 1.75], [rmax, 0., 1.75]) \
             .extend_with_line([rmax, 0., -0.3]).extend_with_line([0., 0., -0.3])
         boundary.name = 'boundary'
         
@@ -64,7 +59,7 @@ class DohiMirror(Validation):
         return geom.mesh(mesh_size_factor=MSF)
      
     def get_excitation(self, mesh, symmetry):
-        exc = E.Excitation(mesh, symmetry)
+        exc = T.Excitation(mesh, symmetry)
         exc.add_voltage(ground=0.0, mirror=-1250, lens=710.0126605741955)
         exc.add_electrostatic_boundary('boundary')
         return exc
@@ -77,9 +72,9 @@ class DohiMirror(Validation):
     
     def compute_value_of_interest(self, mesh, field):
         _3d = mesh.is_3d()
-        assert not _3d or Field3DAxial is not None, "Please install traceon_pro for fast 3D tracing support"
+        assert not _3d or T.Field3DAxial is not None, "Please install traceon_pro for fast 3D tracing support"
         
-        axial_field = FieldRadialAxial(field, 0.05, 1.7, 500) if not _3d else Field3DAxial(field, 0.05, 1.7, 500)
+        axial_field = T.FieldRadialAxial(field, 0.05, 1.7, 500) if not _3d else Field3DAxial(field, 0.05, 1.7, 500)
         
         bounds = ((-0.1, 0.1), (-0.1, 0.1), (0.05, 1.7))
         field.set_bounds(bounds)

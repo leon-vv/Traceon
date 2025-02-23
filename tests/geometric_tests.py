@@ -3,11 +3,8 @@ import os.path as path
 import unittest
 from math import *
 
-import traceon.mesher as M
+import traceon as T
 from traceon.geometry import *
-import traceon.excitation as E
-import traceon.solver as S
-from traceon.field import *
 
 class MeshTests(unittest.TestCase):
 
@@ -15,9 +12,9 @@ class MeshTests(unittest.TestCase):
         input_file = path.join(path.dirname(__file__), 'world.stl')
         output_file = path.join(path.dirname(__file__), 'world_out.stl')
 
-        m = M.Mesh.read_file(input_file)
+        m = T.Mesh.read_file(input_file)
         m.write_file(output_file)
-        m2 = M.Mesh.read_file(output_file)
+        m2 = T.Mesh.read_file(output_file)
          
         assert np.allclose(m.points, m2.points)
         assert np.allclose(m.triangles, m2.triangles)
