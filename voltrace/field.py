@@ -564,11 +564,8 @@ class FieldBEM(Field, ABC):
         else:
             return super().__mul__(other)
     
-    def __neg__(self) -> FieldBEM:
-        return self.__class__(
-            self.electrostatic_point_charges.__neg__(),
-            self.magnetostatic_point_charges.__neg__(),
-            self.current_point_charges.__neg__())
+    def __neg__(self) -> Field:
+        return self.__mul__(-1.0)
      
     def __rmul__(self, other: float) -> Field:
         return self.__mul__(other)
