@@ -210,7 +210,7 @@ class EffectivePointCharges3D(EffectivePointSources):
 
     @staticmethod
     def empty():
-        return EffectivePointCharges3D(np.empty((0,)), np.empty((0, N_QUAD_2D)), np.empty((0, N_QUAD_2D, 2)))
+        return EffectivePointCharges3D(np.empty((0,)), np.empty((0, N_TRIANGLE_QUAD)), np.empty((0, N_TRIANGLE_QUAD, 2)))
     
     def __add__(self, other: EffectivePointCharges3D) -> EffectivePointCharges3D:
         if not isinstance(other, EffectivePointCharges3D):
