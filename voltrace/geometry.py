@@ -834,12 +834,24 @@ class Path(GeometricObject):
         
         if not len(self.breakpoints):
             sample_points = np.linspace(0., self.parameter_range, N)
-            derivatives = CubicSpline(sample_points, [self(s) for s in sample_points])(sample_points, nu=1) # Calculate derivatives
-            norm_derivatives = np.linalg.norm(derivatives, axis=1) # Norm of derivative
-            sample_points_to_parameter_range = CubicSpline(sample_points, norm_derivatives).antiderivative()
-            parameter_range_to_sample_point = CubicSpline(sample_points_to_parameter_range(sample_points), sample_points)
-            parameter_range_to_point = lambda p: np.array(self(parameter_range_to_sample_point(p).item()))
-            return Path(parameter_range_to_point, sample_points_to_parameter_range(self.parameter_range).item(), sample_points_to_parameter_range(self.breakpoints).tolist(), self.name) # type: ignore
+            
+            # Calculate derivatives using nu=1
+            # derivatives has shape (N, 3)
+            derivatives = CubicSpline(sample_points, [self(s) for s in sample_points])(sample_points, nu=1)
+            
+            # The integral of
+            # sqrt( (df/dx)^2 + (df/dy)^2 + (df/dz)^2 )
+            # gives the path length
+            norm_derivatives = np.linalg.norm(derivatives, axis=1)
+            sample_points_to_path_length = CubicSpline(sample_points, norm_derivatives).antiderivative()
+            
+            path_length_to_sample_point = CubicSpline(sample_points_to_path_length(sample_points), sample_points)
+            path_length_to_point = lambda p: np.array(self(path_length_to_sample_point(p).item()))
+             
+            return Path(path_length_to_point,
+                            sample_points_to_path_length(self.parameter_range).item(), # type: ignore
+                            sample_points_to_path_length(self.breakpoints).tolist(), # type: ignore
+                            self.name)
         else: 
             all_normalized = [p.normalize() for p in self.breakup()]
             
