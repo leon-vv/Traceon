@@ -183,7 +183,7 @@ class EffectivePointCharges2D(EffectivePointSources2D):
         return EffectivePointCharges2D(self.charges*other, self.jacobians, self.positions)
 
 
-class EffectivePointCharges3D(EffectivePointSources2D):
+class EffectivePointCurrents2D(EffectivePointSources2D):
     _fields_ = [
         ("charges_", dbl_p),
         ("jacobians_", dbl_p),
@@ -201,25 +201,25 @@ class EffectivePointCharges3D(EffectivePointSources2D):
 
     @staticmethod
     def empty():
-        return EffectivePointCharges3D(np.empty((0,)), np.empty((0, N_TRIANGLE_QUAD)), np.empty((0, N_TRIANGLE_QUAD, 3)))
+        return EffectivePointCurrents2D(np.empty((0,)), np.empty((0, N_TRIANGLE_QUAD)), np.empty((0, N_TRIANGLE_QUAD, 3)))
     
-    def __add__(self, other: EffectivePointCharges3D) -> EffectivePointCharges3D:
-        if not isinstance(other, EffectivePointCharges3D):
+    def __add__(self, other: EffectivePointCurrents2D) -> EffectivePointCurrents2D:
+        if not isinstance(other, EffectivePointCurrents2D):
             return NotImplemented
 
         if self._matches_geometry(other):
-            return EffectivePointCharges3D(self.charges + other.charges, self.jacobians, self.positions)
+            return EffectivePointCurrents2D(self.charges + other.charges, self.jacobians, self.positions)
         else:
-            return EffectivePointCharges3D(
+            return EffectivePointCurrents2D(
                 np.concatenate( (self.charges, other.charges) ),
                 np.concatenate( (self.jacobians, other.jacobians) ),
                 np.concatenate( (self.positions, other.positions ) ))
     
-    def __mul__(self, other: float) -> EffectivePointCharges3D:
+    def __mul__(self, other: float) -> EffectivePointCurrents2D:
         if not _is_numeric(other):
             return NotImplemented
     
-        return EffectivePointCharges3D(self.charges*other, self.jacobians, self.positions)
+        return EffectivePointCurrents2D(self.charges*other, self.jacobians, self.positions)
 
 
 class FieldEvaluationArgsRadial(C.Structure):
@@ -233,7 +233,7 @@ class FieldEvaluationArgsRadial(C.Structure):
     def __init__(self, 
                  elec: EffectivePointCharges2D, 
                  mag: EffectivePointCharges2D, 
-                 current: EffectivePointCharges3D,
+                 current: EffectivePointCurrents2D,
                  bounds: Bounds3D | None) -> None:
         
         super().__init__()

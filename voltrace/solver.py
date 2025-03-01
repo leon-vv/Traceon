@@ -317,7 +317,7 @@ class MagnetostaticSolverRadial(SolverRadial):
         mesh = self.excitation.mesh
         
         if not len(mesh.triangles) or not self.excitation.has_current():
-            return FieldRadialBEM(current_point_charges=EffectivePointCharges3D.empty())
+            return FieldRadialBEM(current_point_charges=EffectivePointCurrents2D.empty())
          
         jac, pos = backend.fill_jacobian_buffer_3d(mesh.points[mesh.triangles])
         
@@ -338,9 +338,9 @@ class MagnetostaticSolverRadial(SolverRadial):
             positions.extend(pos[indices])
         
         if not len(currents):
-            return FieldRadialBEM(current_point_charges=EffectivePointCharges3D.empty())
+            return FieldRadialBEM(current_point_charges=EffectivePointCurrents2D.empty())
         
-        return FieldRadialBEM(current_point_charges=EffectivePointCharges3D(np.array(currents), np.array(jacobians), np.array(positions)))
+        return FieldRadialBEM(current_point_charges=EffectivePointCurrents2D(np.array(currents), np.array(jacobians), np.array(positions)))
     
     def charges_to_field(self, charges: ArrayFloat1D) -> FieldRadialBEM:
         return FieldRadialBEM(magnetostatic_point_charges=self.get_permanent_magnet_field().magnetostatic_point_charges + EffectivePointCharges2D(charges, self.jac_buffer, self.pos_buffer),

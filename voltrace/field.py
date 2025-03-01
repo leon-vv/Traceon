@@ -27,7 +27,7 @@ from . import excitation as E
 from . import util
 from . import logging
 from . import backend
-from .backend import EffectivePointSources2D, EffectivePointCharges2D, EffectivePointCharges3D
+from .backend import EffectivePointSources2D, EffectivePointCharges2D, EffectivePointCurrents2D
 from .mesher import GeometricObject
 
 from .typing import *
@@ -497,7 +497,7 @@ class FieldRadialBEM(FieldBEM):
     def __init__(self, 
                  electrostatic_point_charges: EffectivePointCharges2D | None = None, 
                  magnetostatic_point_charges: EffectivePointCharges2D | None = None, 
-                 current_point_charges: EffectivePointCharges3D | None = None) -> None:
+                 current_point_charges: EffectivePointCurrents2D | None = None) -> None:
         
         self.electrostatic_point_charges: EffectivePointCharges2D = electrostatic_point_charges \
             if electrostatic_point_charges is not None else EffectivePointCharges2D.empty()
@@ -505,8 +505,8 @@ class FieldRadialBEM(FieldBEM):
         self.magnetostatic_point_charges: EffectivePointCharges2D = magnetostatic_point_charges \
             if magnetostatic_point_charges is not None else EffectivePointCharges2D.empty()
         
-        self.current_point_charges: EffectivePointCharges3D = current_point_charges \
-            if current_point_charges is not None else EffectivePointCharges3D.empty()
+        self.current_point_charges: EffectivePointCurrents2D = current_point_charges \
+            if current_point_charges is not None else EffectivePointCurrents2D.empty()
         
         self.symmetry = E.Symmetry.RADIAL
          
