@@ -1082,7 +1082,7 @@ def _copy_over_edge(e1: ArrayInt1D, e2: ArrayInt1D) -> None:
     mask = e1 != -1
     e2[mask] = e1[mask]
 
-def _mesh(surface: Surface, 
+def _mesh_surface(surface: Surface, 
           mesh_size: float, 
           start_depth: int = 2, 
           name: str | None = None, 

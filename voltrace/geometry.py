@@ -16,7 +16,7 @@ import numpy as np
 from scipy.integrate import quad
 from scipy.interpolate import CubicSpline
 
-from .mesher import GeometricObject, _mesh, Mesh
+from .mesher import GeometricObject, _mesh_surface, Mesh
 from  .typing import *
 
 
@@ -1539,7 +1539,7 @@ class Surface(GeometricObject):
                 mesh_size /= sqrt(mesh_size_factor)
 
         name = self.name if name is None else name
-        return _mesh(self, mesh_size, name=name, ensure_outward_normals=ensure_outward_normals)
+        return _mesh_surface(self, mesh_size, name=name, ensure_outward_normals=ensure_outward_normals)
     
     def __str__(self) -> str:
         return f"<Surface with name: {self.name}>"
