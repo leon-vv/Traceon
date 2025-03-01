@@ -20,6 +20,7 @@ from scipy.constants import e, mu_0, m_e
 
 from . import geometry as G
 from . import excitation as E
+from .excitation import Excitation
 from . import logging
 from . import backend
 from . import util

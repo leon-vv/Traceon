@@ -256,14 +256,3 @@ ActiveTriangles: TypeAlias = Tuple[TrianglesVertices, Mapping[str, ArrayInt1D]]
 as a tuple of `TrianglesVertices`, an `(N, 3, 3)` NumPy array of `float` points representing the triangles, 
 and a dictionary mapping the names of the physical groups to an `(N,)` NumPy array of `int` 
 representing the triangle indices."""
-
-if TYPE_CHECKING:
-    from .geometry import Path, PathCollection, Surface, SurfaceCollection
-    from .mesher import Mesh
-    from .excitation import Excitation
-    from .field import Field, FieldBEM, FieldRadialBEM
-    from .tracing import Tracer
-    try:
-        from voltrace_pro.field import Field3D_BEM  # type: ignore
-    except ImportError:
-        Field3D_BEM = None  # Fallback for unavailable import

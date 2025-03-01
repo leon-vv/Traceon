@@ -15,6 +15,9 @@ from scipy.integrate import quad
 from .. import logging
 from ..typing import *
 
+if TYPE_CHECKING:
+    from ..field import Field
+
 DEBUG = False
 
 if DEBUG:
