@@ -107,7 +107,7 @@ def _is_numeric(x):
     if isinstance(x, int) or isinstance(x, float) or isinstance(x, np.generic):
         return True
 
-class EffectivePointSources(C.Structure):
+class EffectivePointSources2D(C.Structure):
     def __init__(self, 
                  charges: ArrayFloat1D, 
                  jacobians: ArrayFloat2D, 
@@ -129,7 +129,7 @@ class EffectivePointSources(C.Structure):
     def is_3d(self) -> bool:
         return self.jacobians.shape[1] == N_TRIANGLE_QUAD
      
-    def _matches_geometry(self, other: EffectivePointSources) -> bool:
+    def _matches_geometry(self, other: EffectivePointSources2D) -> bool:
         return (self.positions.shape == other.positions.shape and np.allclose(self.positions, other.positions)
                 and self.jacobians.shape == other.jacobians.shape and np.allclose(self.jacobians, other.jacobians))
                     
@@ -144,7 +144,7 @@ class EffectivePointSources(C.Structure):
                f'\tPositions shape: {self.positions.shape}>'
 
 
-class EffectivePointCharges2D(EffectivePointSources):
+class EffectivePointCharges2D(EffectivePointSources2D):
     _fields_ = [
         ("charges_", dbl_p),
         ("jacobians_", dbl_p),
@@ -183,7 +183,7 @@ class EffectivePointCharges2D(EffectivePointSources):
         return EffectivePointCharges2D(self.charges*other, self.jacobians, self.positions)
 
 
-class EffectivePointCharges3D(EffectivePointSources):
+class EffectivePointCharges3D(EffectivePointSources2D):
     _fields_ = [
         ("charges_", dbl_p),
         ("jacobians_", dbl_p),

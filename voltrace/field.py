@@ -27,7 +27,7 @@ from . import excitation as E
 from . import util
 from . import logging
 from . import backend
-from .backend import EffectivePointSources, EffectivePointCharges2D, EffectivePointCharges3D
+from .backend import EffectivePointSources2D, EffectivePointCharges2D, EffectivePointCharges3D
 from .mesher import GeometricObject
 
 from .typing import *
@@ -425,9 +425,9 @@ class FieldBEM(Field, ABC):
     This base class overloads the +,*,- operators so it is very easy to take a superposition of different fields."""
     
     def __init__(self, 
-                 electrostatic_point_charges: EffectivePointSources,
-                 magnetostatic_point_charges: EffectivePointSources,
-                 current_point_charges: EffectivePointSources):
+                 electrostatic_point_charges: EffectivePointSources2D,
+                 magnetostatic_point_charges: EffectivePointSources2D,
+                 current_point_charges: EffectivePointSources2D):
         
         super().__init__()
         
