@@ -281,8 +281,7 @@ class TestRadial(unittest.TestCase):
             assert np.allclose(eff1.jacobians, eff2.jacobians)
             assert np.allclose(eff1.charges, eff2.charges)
             assert np.allclose(eff1.positions, eff2.positions)
-            assert eff1.directions == eff2.directions or np.allclose(eff1.directions, eff2.directions)
-
+        
         # Since the fields are the same they should return the same values at some arbitrary points
         points = [ [0.5, 0.5, 0.5], [1.0, 0.0, 2.0], [2.0, 0.0, -2.0] ]
 

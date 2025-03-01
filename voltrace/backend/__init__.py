@@ -111,23 +111,17 @@ class EffectivePointSources(C.Structure):
     def __init__(self, 
                  charges: ArrayFloat1D, 
                  jacobians: ArrayFloat2D, 
-                 positions: ArrayFloat3D, 
-                 directions: ArrayFloat2D | None = None) -> None:
-
+                 positions: ArrayFloat3D):
         super().__init__()
         
         self.charges = ensure_contiguous_aligned(np.array(charges, dtype=np.float64))
         self.jacobians = ensure_contiguous_aligned(np.array(jacobians, dtype=np.float64))
         self.positions = ensure_contiguous_aligned(np.array(positions, dtype=np.float64))
         
-        # Current elements will have a direction
-        self.directions: ArrayFloat2D | None = ensure_contiguous_aligned(np.array(directions, dtype=np.float64)) if directions is not None else None 
-        
         N = len(self.charges)
         N_QUAD = self.jacobians.shape[1]
         assert self.charges.shape == (N,) and self.jacobians.shape == (N, N_QUAD)
         assert self.positions.shape == (N, N_QUAD, 3) or self.positions.shape == (N, N_QUAD, 2)
-        assert self.directions is None or self.directions.shape == (len(self.charges), N_QUAD, 3)
     
     def is_2d(self) -> bool:
         return self.jacobians.shape[1] == N_QUAD_2D
@@ -137,10 +131,7 @@ class EffectivePointSources(C.Structure):
      
     def _matches_geometry(self, other: EffectivePointSources) -> bool:
         return (self.positions.shape == other.positions.shape and np.allclose(self.positions, other.positions)
-                and self.jacobians.shape == other.jacobians.shape and np.allclose(self.jacobians, other.jacobians)
-                and ((self.directions is None and other.directions is None)
-                    or (self.directions is not None and other.directions is not None
-                        and self.directions.shape == other.directions.shape and np.allclose(self.directions, other.directions))))
+                and self.jacobians.shape == other.jacobians.shape and np.allclose(self.jacobians, other.jacobians))
                     
     def __len__(self) -> int:
         return len(self.charges)
