@@ -152,7 +152,7 @@ class EffectivePointCharges2D(EffectivePointSources2D):
         ("N_", C.c_size_t)
     ]
 
-    def __init__(self, charges, jacobians, positions) -> None:
+    def __init__(self, charges: ArrayFloat1D, jacobians: ArrayFloat2D, positions: ArrayFloat3D) -> None:
         super().__init__(charges, jacobians, positions)
        
         self.charges_ = self.charges.ctypes.data_as(dbl_p)
@@ -191,7 +191,7 @@ class EffectivePointCharges3D(EffectivePointSources2D):
         ("N_", C.c_size_t)
     ]
     
-    def __init__(self, charges, jacobians, positions) -> None:
+    def __init__(self, charges: ArrayFloat1D, jacobians: ArrayFloat2D, positions: ArrayFloat3D) -> None:
         super().__init__(charges, jacobians, positions)
 
         self.charges_ = self.charges.ctypes.data_as(dbl_p)
