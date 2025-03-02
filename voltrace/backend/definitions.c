@@ -2,7 +2,7 @@
 #define EXPORT __declspec(dllexport)
 
 #include <Python.h>
-PyMODINIT_FUNC PyInit_traceon_backend(void) {
+PyMODINIT_FUNC PyInit_voltrace_backend(void) {
 	return NULL;
 }
 

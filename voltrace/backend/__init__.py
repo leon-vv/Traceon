@@ -22,11 +22,11 @@ if DEBUG:
 
 ## Attempt 1: load local
 if platform.system() in ['Linux', 'Darwin']:
-    local_path = path.join(path.dirname(__file__), 'traceon_backend.so')
-    global_file = 'traceon/backend/traceon_backend.abi3.so'
+    local_path = path.join(path.dirname(__file__), 'voltrace_backend.so')
+    global_file = 'voltrace/backend/voltrace_backend.abi3.so'
 else:
-    local_path = path.join(path.dirname(__file__), 'traceon_backend.pyd')
-    global_file = 'traceon/backend/traceon_backend.pyd'
+    local_path = path.join(path.dirname(__file__), 'voltrace_backend.pyd')
+    global_file = 'voltrace/backend/voltrace_backend.pyd'
 
 if path.isfile(local_path):
     backend_lib = C.CDLL(local_path)
@@ -44,11 +44,11 @@ else:
      
     if global_path is None:
         help_txt = '''
-        Cannot find Traceon backend (C compiled dynamic library).
-        It should have been compiled automatically when installing this package using 'pip3 install traceon'.
+        Cannot find Voltrace backend (C compiled dynamic library).
+        It should have been compiled automatically when installing this package using 'pip3 install voltrace'.
         If you're running this package locally (i.e. git clone) you have to build this dynamic library yourself.
         On Linux you can use:
-            gcc ./traceon/backend/traceon-backend.c -o ./traceon/backend/traceon-backend.so -lm -shared -fPIC -O3 -ffast-math -std=c99 -march=native'''
+            gcc ./voltrace/backend/voltrace-backend.c -o ./voltrace/backend/voltrace-backend.so -lm -shared -fPIC -O3 -ffast-math -std=c99 -march=native'''
         
         raise RuntimeError(help_txt)
     

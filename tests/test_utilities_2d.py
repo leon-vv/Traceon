@@ -3,7 +3,7 @@ import unittest
 import numpy as np
 from scipy.integrate import quad
 
-import traceon.backend as B
+import voltrace.backend as B
 
 class TestUtilities2D(unittest.TestCase):
     def test_normal_2d(self):

@@ -4,5 +4,5 @@ pip install -e .
 
 Get-ChildItem -Path ./build -Filter *.pyd -Recurse | ForEach-Object {
 	Write-Host "Copying: $($_.FullName)"
-	Copy-Item -Path $_.FullName -Destination ./traceon/backend
+	Copy-Item -Path $_.FullName -Destination ./voltrace/backend
 }

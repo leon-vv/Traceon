@@ -1,7 +1,7 @@
 import numpy as np
 import time
 
-import traceon as T
+import voltrace as v
 
 from validation import Validation
 
@@ -30,10 +30,10 @@ class Edwards2007(Validation):
             [0, 0., 20]
         ]
 
-        inner = T.Path.line(points[0], points[1])\
+        inner = v.Path.line(points[0], points[1])\
             .extend_with_line(points[2]).extend_with_line(points[3])
          
-        boundary = T.Path.line(points[4], points[5])\
+        boundary = v.Path.line(points[4], points[5])\
             .extend_with_line(points[6]).extend_with_line(points[7])
         
         if symmetry.is_3d():
@@ -46,7 +46,7 @@ class Edwards2007(Validation):
         return (inner+boundary).mesh(mesh_size_factor=MSF)
     
     def get_excitation(self, geometry, symmetry):
-        excitation = T.Excitation(geometry, symmetry)
+        excitation = v.Excitation(geometry, symmetry)
         excitation.add_voltage(boundary=0, inner=10)
         return excitation
     

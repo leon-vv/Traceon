@@ -1,13 +1,13 @@
-# Traceon
-Traceon is a Python library designed for the modeling of electron microscopes.
+# Voltrace
+Voltrace is a Python library designed for the modeling of electron microscopes.
 
-Traceon features a Boundary Element Method (BEM) solver that computes electrostatic and magnetostatic fields for accurate particle tracing. By relying on the BEM rather than FEM, Traceon offers notable improvements in speed and accuracy compared to most commercial alternatives. It supports both radially symmetric and fully 3D geometries, while leveraging advanced axial field interpolations to greatly speed up the particle tracing.
+Voltrace features a Boundary Element Method (BEM) solver that computes electrostatic and magnetostatic fields for accurate particle tracing. By relying on the BEM rather than FEM, Voltrace offers notable improvements in speed and accuracy compared to most commercial alternatives. It supports both radially symmetric and fully 3D geometries, while leveraging advanced axial field interpolations to greatly speed up the particle tracing.
 
 ### Wait, is this commercial?
 
-The core of Traceon is completely free to use and open source, and distributed under the `MPL 2.0` license. The software downloaded when using `pip install traceon` does not include any closed source software. There is a commercial package called `traceon_pro` which builds on the `traceon` package to provide a more capable library.
+The core of Voltrace is completely free to use and open source, and distributed under the `MPL 2.0` license. The software downloaded when using `pip install voltrace` does not include any closed source software. There is a commercial package called `voltrace_pro` which builds on the `voltrace` package to provide a more capable library.
 
-| Feature | Traceon | Traceon Pro |
+| Feature | Voltrace | Voltrace Pro |
 | --- | :---: | :---: |
 | Parametric mesher  | ✅ | ✅|    
 | Plot module | ✅ | ✅ |
@@ -24,26 +24,26 @@ The core of Traceon is completely free to use and open source, and distributed u
 
 ## Documentation
 
-[Website](https://traceon.org/)
+[Website](https://voltrace.io/)
 
-[Examples](https://github.com/leon-vv/Traceon/tree/main/examples)
+[Examples](https://github.com/leon-vv/Voltrace/tree/main/examples)
 
-[API documentation v0.10.0](https://traceon.org/docs/v0.10.0/traceon/index.html)
+[API documentation v0.10.0](https://voltrace.io/docs/v0.10.0/voltrace/index.html)
 
-[API documentation v0.9.0](https://traceon.org/docs/v0.9.0/traceon/index.html)
+[API documentation v0.9.0](https://voltrace.io/docs/v0.9.0/voltrace/index.html)
 
 ## Installation
 
 Install using the Python package manager:
 ```
-pip install traceon
+pip install voltrace
 ```
 
 The installation is known to work on Linux, Windows and Mac OS. Please reach out to me if you have any installation problems.
 
 ## Validations
 
-To ensure the accuracy of the package, different problems from the literature have been analyzed using this software. See [/validation](https://github.com/leon-vv/Traceon/tree/main/validation) directory for more information. The validations can easily be executed from the command line, for example:
+To ensure the accuracy of the package, different problems from the literature have been analyzed using this software. See [/validation](https://github.com/leon-vv/Voltrace/tree/main/validation) directory for more information. The validations can easily be executed from the command line, for example:
 ```bash
 python3 ./validation/edwards2007.py --help
 python3 ./validation/capacitance-sphere.py --help
@@ -59,15 +59,15 @@ etc...
 
 Don't worry. You can reach me.
 
-[Open an issue](https://github.com/leon-vv/Traceon/issues)
+[Open an issue](https://github.com/leon-vv/Voltrace/issues)
 
 [Send me an email](mailto:leonvanvelzen@protonmail.com)
 
 ## Gallery
 
-![Image of 3D deflector](https://raw.githubusercontent.com/leon-vv/traceon/main/images/deflector-image.png)
-![Image of Dohi mirror](https://raw.githubusercontent.com/leon-vv/traceon/main/images/dohi-mirror.png)
-![Image of Einzel lens traces](https://raw.githubusercontent.com/leon-vv/traceon/main/images/einzel-lens-traces.png)
+![Image of 3D deflector](https://raw.githubusercontent.com/leon-vv/voltrace/main/images/deflector-image.png)
+![Image of Dohi mirror](https://raw.githubusercontent.com/leon-vv/voltrace/main/images/dohi-mirror.png)
+![Image of Einzel lens traces](https://raw.githubusercontent.com/leon-vv/voltrace/main/images/einzel-lens-traces.png)
 
 ## Release notes
 
@@ -104,7 +104,7 @@ Don't worry. You can reach me.
 ### v0.7.0
 - Generate structured, high quality meshes using the new parametric mesher (drop GMSH)
 - Consistenly use 3D points and geometries throughout codebase
-- Add support for Fast Multipole Method (Traceon Pro)
+- Add support for Fast Multipole Method (Voltrace Pro)
 - Add support for Mac OS on x64
 - Big improvements to code quality, testing, infrastructure
 - Drop dependency on GSL

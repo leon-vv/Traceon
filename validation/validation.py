@@ -3,16 +3,16 @@ import argparse
 
 import matplotlib.pyplot as plt
 
-import traceon.geometry as G
-import traceon.excitation as E
-from traceon.solver import solve_direct
-import traceon.plotting as P
+import voltrace.geometry as G
+import voltrace.excitation as E
+from voltrace.solver import solve_direct
+import voltrace.plotting as P
 
 try:
-    import traceon_pro.solver
-    from traceon_pro.solver import solve_direct
+    import voltrace_pro.solver
+    from voltrace_pro.solver import solve_direct
 except ImportError:
-    traceon_pro = None
+    voltrace_pro = None
 
 def print_info(MSFs, Nlines, duration, correct, computed, accuracy):
     print('\n%-25s %-25s %-25s %-25s %-25s %-25s' % ('Mesh size factor', 'Number of elements', 'Computation time (ms)',
@@ -157,8 +157,8 @@ class Validation:
         exc = self.get_excitation(geometry, symmetry)
 
         if use_fmm:
-            assert traceon_pro is not None, "traceon_pro should be installed to use fast multipole method"
-            return exc, traceon_pro.solver.solve_fmm(exc, l_max=self.args.fmm_precision)
+            assert voltrace_pro is not None, "voltrace_pro should be installed to use fast multipole method"
+            return exc, voltrace_pro.solver.solve_fmm(exc, l_max=self.args.fmm_precision)
         else:
             return exc, solve_direct(exc)
      

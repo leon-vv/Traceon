@@ -2,8 +2,8 @@
 geometry and excitation. Once the surface charge distribution is known, the field at any arbitrary position in space
 can be calculated by integration over the charged boundary. However, doing a field evaluation in this manner is very slow
 as for every field evaluation an iteration needs to be done over all elements in the mesh. Especially for particle tracing it
-is crucial that the field evaluation can be done faster. To achieve this, interpolation techniques can be used, see `traceon.field.FieldRadialAxial`,
-and `traceon_pro.field.Field3DAxial`.
+is crucial that the field evaluation can be done faster. To achieve this, interpolation techniques can be used, see `voltrace.field.FieldRadialAxial`,
+and `voltrace_pro.field.Field3DAxial`.
 """
 from __future__ import annotations
 
@@ -372,12 +372,12 @@ def solve_direct_superposition(excitation: Excitation) -> dict[str, FieldBEM]:
 
     Parameters
     ---------------------
-    excitation: `traceon.excitation.Excitation`
+    excitation: `voltrace.excitation.Excitation`
         The excitation that produces the resulting field.
     
     Returns
     ---------------------------
-    Dictionary from str to `traceon.field.Field`. Each key is the name of an electrode on which a voltage (or current) was applied, the corresponding values are the fields.
+    Dictionary from str to `voltrace.field.Field`. Each key is the name of an electrode on which a voltage (or current) was applied, the corresponding values are the fields.
     """
     if excitation.mesh.is_2d() and not excitation.mesh.is_higher_order():
         excitation = _excitation_to_higher_order(excitation)
@@ -406,7 +406,7 @@ def solve_direct(excitation: Excitation) -> FieldRadialBEM:
 
     Parameters
     ----------
-    excitation : traceon.excitation.Excitation
+    excitation : voltrace.excitation.Excitation
         The excitation that produces the resulting field.
      
     Returns
