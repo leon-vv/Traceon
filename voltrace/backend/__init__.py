@@ -103,88 +103,123 @@ pos_buffer_2d = arr(ndim=3)
 
 radial_coeffs = arr(ndim=3)
 
+def _is_numeric(x):
+    if isinstance(x, int) or isinstance(x, float) or isinstance(x, np.generic):
+        return True
 
-class EffectivePointCharges2D(C.Structure):
+class EffectivePointSources2D(C.Structure):
+    def __init__(self, 
+                 charges: ArrayFloat1D, 
+                 jacobians: ArrayFloat2D, 
+                 positions: ArrayFloat3D):
+        super().__init__()
+        
+        self.charges = ensure_contiguous_aligned(np.array(charges, dtype=np.float64))
+        self.jacobians = ensure_contiguous_aligned(np.array(jacobians, dtype=np.float64))
+        self.positions = ensure_contiguous_aligned(np.array(positions, dtype=np.float64))
+        
+        N = len(self.charges)
+        N_QUAD = self.jacobians.shape[1]
+        assert self.charges.shape == (N,) and self.jacobians.shape == (N, N_QUAD)
+        assert self.positions.shape == (N, N_QUAD, 3) or self.positions.shape == (N, N_QUAD, 2)
+    
+    def is_2d(self) -> bool:
+        return self.jacobians.shape[1] == N_QUAD_2D
+    
+    def is_3d(self) -> bool:
+        return self.jacobians.shape[1] == N_TRIANGLE_QUAD
+     
+    def _matches_geometry(self, other: EffectivePointSources2D) -> bool:
+        return (self.positions.shape == other.positions.shape and np.allclose(self.positions, other.positions)
+                and self.jacobians.shape == other.jacobians.shape and np.allclose(self.jacobians, other.jacobians))
+                    
+    def __len__(self) -> int:
+        return len(self.charges)
+    
+    def __str__(self) -> str:
+        dim = '2D' if self.is_2d() else '3D'
+        return f'<{self.__class__.__name__} {dim}\n' \
+               f'\tNumber of charges: {len(self.charges)}\n' \
+               f'\tJacobian shape:  {self.jacobians.shape}\n' \
+               f'\tPositions shape: {self.positions.shape}>'
+
+
+class EffectivePointCharges2D(EffectivePointSources2D):
     _fields_ = [
-        ("charges", dbl_p),
-        ("jacobians", dbl_p),
-        ("positions", dbl_p),
-        ("N", C.c_size_t)
+        ("charges_", dbl_p),
+        ("jacobians_", dbl_p),
+        ("positions_", dbl_p),
+        ("N_", C.c_size_t)
     ]
 
-    def __init__(self, eff: EffectivePointCharges, *args: Any, **kwargs: Any) -> None:
-        assert eff.is_2d()
-        super(EffectivePointCharges2D, self).__init__(*args, **kwargs)
+    def __init__(self, charges: ArrayFloat1D, jacobians: ArrayFloat2D, positions: ArrayFloat3D) -> None:
+        super().__init__(charges, jacobians, positions)
+       
+        self.charges_ = self.charges.ctypes.data_as(dbl_p)
+        self.jacobians_ = self.jacobians.ctypes.data_as(dbl_p)
+        self.positions_ = self.positions.ctypes.data_as(dbl_p)
+        self.N_ = len(self.charges)
+    
+    @staticmethod
+    def empty():
+        return EffectivePointCharges2D(np.empty((0,)), np.empty((0, N_QUAD_2D)), np.empty((0, N_QUAD_2D, 2)))
+    
+    def __add__(self, other: EffectivePointCharges2D) -> EffectivePointCharges2D:
+        if not isinstance(other, EffectivePointCharges2D):
+            return NotImplemented
 
-        # Beware, we need to keep references to the arrays pointed to by the C.Structure
-        # otherwise, they are garbage collected and bad things happen
-        self.charges_arr = ensure_contiguous_aligned(eff.charges)
-        self.jacobians_arr = ensure_contiguous_aligned(eff.jacobians)
-        self.positions_arr = ensure_contiguous_aligned(eff.positions)
-         
-        self.charges = self.charges_arr.ctypes.data_as(dbl_p)
-        self.jacobians = self.jacobians_arr.ctypes.data_as(dbl_p)
-        self.positions = self.positions_arr.ctypes.data_as(dbl_p)
-        self.N = len(eff)
+        if self._matches_geometry(other):
+            return EffectivePointCharges2D(self.charges + other.charges, self.jacobians, self.positions)
+        else:
+            return EffectivePointCharges2D(
+                np.concatenate( (self.charges, other.charges) ),
+                np.concatenate( (self.jacobians, other.jacobians) ),
+                np.concatenate( (self.positions, other.positions ) ))
+    
+    def __mul__(self, other: float) -> EffectivePointCharges2D:
+        if not _is_numeric(other):
+            return NotImplemented
         
-class EffectivePointCharges3D(C.Structure):
+        return EffectivePointCharges2D(self.charges*other, self.jacobians, self.positions)
+
+
+class EffectivePointCurrents2D(EffectivePointSources2D):
     _fields_ = [
-        ("charges", dbl_p),
-        ("jacobians", dbl_p),
-        ("positions", dbl_p),
-        ("N", C.c_size_t)
+        ("charges_", dbl_p),
+        ("jacobians_", dbl_p),
+        ("positions_", dbl_p),
+        ("N_", C.c_size_t)
     ]
     
-    def __init__(self, eff: EffectivePointCharges, *args: Any, **kwargs: Any) -> None:
-        assert eff.is_3d()
-        super().__init__(*args, **kwargs)
-        
-        # Beware, we need to keep references to the arrays pointed to by the C.Structure
-        # otherwise, they are garbage collected and bad things happen
-        self.charges_arr = ensure_contiguous_aligned(eff.charges)
-        self.jacobians_arr = ensure_contiguous_aligned(eff.jacobians)
-        self.positions_arr = ensure_contiguous_aligned(eff.positions)
-             
-        self.charges = self.charges_arr.ctypes.data_as(dbl_p)
-        self.jacobians = self.jacobians_arr.ctypes.data_as(dbl_p)
-        self.positions = self.positions_arr.ctypes.data_as(dbl_p)
-        self.N = len(eff)
+    def __init__(self, charges: ArrayFloat1D, jacobians: ArrayFloat2D, positions: ArrayFloat3D) -> None:
+        super().__init__(charges, jacobians, positions)
 
-class EffectivePointCurrents3D(C.Structure):
-    _fields_ = [
-        ("currents", dbl_p),
-        ("jacobians", dbl_p),
-        ("positions", dbl_p),
-        ("directions", dbl_p),
-        ("N", C.c_size_t)
-    ]
+        self.charges_ = self.charges.ctypes.data_as(dbl_p)
+        self.jacobians_ = self.jacobians.ctypes.data_as(dbl_p)
+        self.positions_ = self.positions.ctypes.data_as(dbl_p)
+        self.N_ = len(self.charges)
+
+    @staticmethod
+    def empty():
+        return EffectivePointCurrents2D(np.empty((0,)), np.empty((0, N_TRIANGLE_QUAD)), np.empty((0, N_TRIANGLE_QUAD, 3)))
     
-    def __init__(self, eff: EffectivePointCharges, *args: Any, **kwargs: Any) -> None:
-        super(EffectivePointCurrents3D, self).__init__(*args, **kwargs)
+    def __add__(self, other: EffectivePointCurrents2D) -> EffectivePointCurrents2D:
+        if not isinstance(other, EffectivePointCurrents2D):
+            return NotImplemented
 
-        # In solver.py we use consistently the EffectivePointCharges class
-        # so when storing effective point currents, the charges are actually currents
-        currents = eff.charges
-        
-        N = len(currents)
-        assert currents.shape == (N,) and currents.dtype == np.double
-        assert eff.jacobians.shape == (N, N_QUAD_2D) and eff.jacobians.dtype == np.double
-        assert eff.positions.shape == (N, N_QUAD_2D, 3) and eff.positions.dtype == np.double
-        assert eff.directions is not None and eff.directions.shape == (N, N_QUAD_2D, 3) and eff.directions.dtype == np.double
-
-        # Beware, we need to keep references to the arrays pointed to by the C.Structure
-        # otherwise, they are garbage collected and bad things happen
-        self.currents_arr = ensure_contiguous_aligned(currents)
-        self.jacobians_arr = ensure_contiguous_aligned(eff.jacobians)
-        self.positions_arr = ensure_contiguous_aligned(eff.positions)
-        self.directions_arr = ensure_contiguous_aligned(eff.directions)
-
-        self.currents = self.currents_arr.ctypes.data_as(dbl_p)
-        self.jacobians = self.jacobians_arr.ctypes.data_as(dbl_p)
-        self.positions = self.positions_arr.ctypes.data_as(dbl_p)
-        self.directions = self.directions_arr.ctypes.data_as(dbl_p)
-        
-        self.N = N
+        if self._matches_geometry(other):
+            return EffectivePointCurrents2D(self.charges + other.charges, self.jacobians, self.positions)
+        else:
+            return EffectivePointCurrents2D(
+                np.concatenate( (self.charges, other.charges) ),
+                np.concatenate( (self.jacobians, other.jacobians) ),
+                np.concatenate( (self.positions, other.positions ) ))
+    
+    def __mul__(self, other: float) -> EffectivePointCurrents2D:
+        if not _is_numeric(other):
+            return NotImplemented
+    
+        return EffectivePointCurrents2D(self.charges*other, self.jacobians, self.positions)
 
 
 class FieldEvaluationArgsRadial(C.Structure):
@@ -196,21 +231,19 @@ class FieldEvaluationArgsRadial(C.Structure):
     ]
 
     def __init__(self, 
-                 elec: EffectivePointCharges, 
-                 mag: EffectivePointCharges, 
-                 current: EffectivePointCharges, 
-                 bounds: Bounds3D | None, 
-                 *args: Any, 
-                 **kwargs: Any) -> None:
+                 elec: EffectivePointCharges2D, 
+                 mag: EffectivePointCharges2D, 
+                 current: EffectivePointCurrents2D,
+                 bounds: Bounds3D | None) -> None:
         
-        super().__init__(*args, **kwargs)
+        super().__init__()
         assert bounds is None or bounds.shape == (3, 2)
         
         # Beware, we need to keep references to the arrays pointed to by the C.Structure
         # otherwise, they are garbage collected and bad things happen
-        self.eff_elec = EffectivePointCharges2D(elec)
-        self.eff_mag = EffectivePointCharges2D(mag)
-        self.eff_current = EffectivePointCharges3D(current)
+        self.eff_elec = elec
+        self.eff_mag = mag
+        self.eff_current = current
         
         self.elec_charges = C.cast(C.pointer(self.eff_elec), C.c_void_p)
         self.mag_charges = C.cast(C.pointer(self.eff_mag), C.c_void_p)
@@ -221,39 +254,6 @@ class FieldEvaluationArgsRadial(C.Structure):
         else:
             self.bounds_arr = ensure_contiguous_aligned(bounds)
             self.bounds = self.bounds_arr.ctypes.data_as(dbl_p)
-
-class FieldEvaluationArgs3D(C.Structure):
-    _fields_ = [
-        ("elec_charges", C.c_void_p),
-        ("mag_charges", C.c_void_p),
-        ("current_charges", C.c_void_p),
-        ("bounds", C.POINTER(C.c_double))
-    ]
-
-    def __init__(self, elec : EffectivePointCharges, 
-                 mag: EffectivePointCharges, 
-                 currents: EffectivePointCharges, 
-                 bounds : Bounds3D | None, 
-                 *args : Any, 
-                 **kwargs: Any):
-        
-        super().__init__(*args, **kwargs)
-        assert bounds is None or bounds.shape == (3, 2)
-        
-        self.eff_elec = EffectivePointCharges3D(elec)
-        self.eff_mag = EffectivePointCharges3D(mag)
-        self.eff_current = EffectivePointCurrents3D(currents)
-
-        self.elec_charges = C.cast(C.pointer(self.eff_elec), C.c_void_p)
-        self.mag_charges = C.cast(C.pointer(self.eff_mag), C.c_void_p)
-        self.current_charges = C.cast(C.pointer(self.eff_current), C.c_void_p)
-        
-        if bounds is None:
-            self.bounds = None
-        else:
-            self.bounds_arr = ensure_contiguous_aligned(bounds)
-            self.bounds = self.bounds_arr.ctypes.data_as(dbl_p)
-
 
 
 class FieldDerivsArgs(C.Structure):
@@ -264,8 +264,8 @@ class FieldDerivsArgs(C.Structure):
         ("N_z", C.c_size_t)
     ]
 
-    def __init__(self, z, elec, mag, *args, **kwargs):
-        super().__init__(*args, **kwargs)
+    def __init__(self, z, elec, mag):
+        super().__init__()
         assert z.shape == (len(z),)
         assert elec.shape[0] == len(z)-1
         assert mag.shape[0] == len(z)-1
