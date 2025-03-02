@@ -851,4 +851,3 @@ def _ensure_line_orientation(lines: Lines, points: Points3D, should_be_outwards:
             else:
                 p0, p1 = line
                 lines[i] = [p1, p0]
-

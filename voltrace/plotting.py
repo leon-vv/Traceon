@@ -103,7 +103,7 @@ class Figure:
         self.to_plot.append(grid)
         self.to_plot.append(isolines)
     
-    def plot_trajectories(self, trajectories: ArrayLikeFloat2D, 
+    def plot_trajectories(self, trajectories: list[ArrayFloat2D], 
                 xmin: float | None = None, xmax: float | None = None,
                 ymin: float | None = None, ymax: float | None = None,
                 zmin: float | None = None, zmax: float | None = None,
@@ -125,7 +125,7 @@ class Figure:
         line_width: int
             Width of the trajectory lines
         """
-        trajectories = np.array(trajectories)
+        
         for t in trajectories:
             if not len(t):
                 continue
@@ -254,8 +254,8 @@ def show() -> None:
     _current_figures = []
 
 def _get_vedo_grid(field: Field, surface: Surface, N0: int, N1: int) -> vedo.Grid:
-    x = np.linspace(0, surface.path_length1, N0)
-    y = np.linspace(0, surface.path_length2, N1)
+    x = np.linspace(0, surface.parameter_max1, N0)
+    y = np.linspace(0, surface.parameter_max2, N1)
 
     grid = vedo.Grid(s=(x, y))
     points = np.array([surface(x_, y_) for x_, y_, _ in grid.vertices])
