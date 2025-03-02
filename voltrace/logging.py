@@ -29,7 +29,7 @@ class LogLevel(IntEnum):
     """Do not print anything."""
 
 
-_log_level_env = os.environ.get('TRACEON_LOG_LEVEL')
+_log_level_env = os.environ.get('VOLTRACE_LOG_LEVEL')
 
 if _log_level_env is None or _log_level_env.upper() not in dir(LogLevel):
     _log_level = LogLevel.INFO
@@ -38,7 +38,7 @@ else:
 
 def set_log_level(level: LogLevel) -> None:
     """Set the current `LogLevel`. Note that the log level can also 
-    be set by setting the environment value TRACEON_LOG_LEVEL to one
+    be set by setting the environment value VOLTRACE_LOG_LEVEL to one
     of 'debug', 'info', 'warning', 'error' or 'silent'."""
     global _log_level
     assert isinstance(level, LogLevel)

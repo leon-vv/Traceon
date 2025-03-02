@@ -2,11 +2,11 @@ import time
 
 import numpy as np
 
-import traceon as T
+import voltrace as v
 from validation import Validation
 
 try:
-    from traceon_pro.field import Field3DAxial
+    from voltrace_pro.field import Field3DAxial
 except ImportError:
     Field3DAxial = None
 
@@ -23,15 +23,15 @@ class MagneticEinzelLens(Validation):
         self.plot_colors = dict(lens='blue', ground='green', boundary='purple')
 
     def create_mesh(self, MSF, symmetry, higher_order):
-        boundary = T.Path.line([0., 0., 1.75],  [2.0, 0., 1.75])\
+        boundary = v.Path.line([0., 0., 1.75],  [2.0, 0., 1.75])\
             .extend_with_line([2.0, 0., -1.75]).extend_with_line([0., 0., -1.75])
         
         margin_right = 0.1
         extent = 2.0 - margin_right
         
-        bottom = T.Path.aperture(THICKNESS, RADIUS, extent, -THICKNESS - SPACING)
-        middle = T.Path.aperture(THICKNESS, RADIUS, extent)
-        top = T.Path.aperture(THICKNESS, RADIUS, extent, THICKNESS + SPACING)
+        bottom = v.Path.aperture(THICKNESS, RADIUS, extent, -THICKNESS - SPACING)
+        middle = v.Path.aperture(THICKNESS, RADIUS, extent)
+        top = v.Path.aperture(THICKNESS, RADIUS, extent, THICKNESS + SPACING)
          
         if symmetry.is_3d():
             boundary = boundary.revolve_z()
@@ -48,7 +48,7 @@ class MagneticEinzelLens(Validation):
 
 
     def get_excitation(self, mesh, symmetry):
-        excitation = T.Excitation(mesh, symmetry)
+        excitation = v.Excitation(mesh, symmetry)
         excitation.add_magnetostatic_potential(ground=0.0, lens=50.)
         excitation.add_magnetostatic_boundary('boundary')
         return excitation
@@ -61,21 +61,21 @@ class MagneticEinzelLens(Validation):
       
     def compute_value_of_interest(self, geom, field):
         _3d = geom.is_3d()
-        assert not _3d or T.Field3DAxial is not None, "Please install traceon_pro for fast 3D tracing support"
+        assert not _3d or v.Field3DAxial is not None, "Please install voltrace_pro for fast 3D tracing support"
 
         field.set_bounds( ((-RADIUS, RADIUS), (-RADIUS, RADIUS), (-1.5,1.5)) )
-        field_axial = T.FieldRadialAxial(field, -1.5, 1.5, 1000) if not _3d else T.Field3DAxial(field, -1.5, 1.5, 1000)
+        field_axial = v.FieldRadialAxial(field, -1.5, 1.5, 1000) if not _3d else v.Field3DAxial(field, -1.5, 1.5, 1000)
          
         bounds = ((-RADIUS, RADIUS), (-RADIUS, RADIUS), (-5, 3.5))
         tracer = field_axial.get_tracer(bounds)
         
         p0 = np.array([RADIUS/5, 0.0, 3])
-        v0 = T.velocity_vec_xz_plane(1000, 0)
+        v0 = v.velocity_vec_xz_plane(1000, 0)
           
         st = time.time()
         _, pos = tracer(p0, v0)
         
-        return -T.axis_intersection(pos)
+        return -v.axis_intersection(pos)
 
 if __name__ == '__main__':
     MagneticEinzelLens().run_validation()

@@ -23,8 +23,8 @@ __pdoc__['Mesh.__add__'] = True
 
 
 class GeometricObject(ABC):
-    """The Mesh class (and the classes defined in `traceon.geometry`) are subclasses
-    of `traceon.mesher.GeometricObject`. This means that they all can be moved, rotated, mirrored."""
+    """The Mesh class (and the classes defined in `voltrace.geometry`) are subclasses
+    of `voltrace.mesher.GeometricObject`. This means that they all can be moved, rotated, mirrored."""
     
     @abstractmethod
     def map_points(self, fun: Callable[[PointLike3D], Point3D]) -> Self:
@@ -183,7 +183,7 @@ class Mesh(Saveable, GeometricObject):
     """Mesh containing lines and triangles. Groups of lines or triangles can be named. These
     names are later used to apply the correct excitation. Line elements can be curved (or 'higher order'), 
     in which case they are represented by four points per element.  Note that `Mesh` is a subclass of
-    `traceon.mesher.GeometricObject`, and therefore can be easily moved and rotated."""
+    `voltrace.mesher.GeometricObject`, and therefore can be easily moved and rotated."""
      
     def __init__(self,
             points: PointsLike3D | None = None,
@@ -433,12 +433,12 @@ class Mesh(Saveable, GeometricObject):
      
     @staticmethod
     def from_meshio(mesh: meshio.Mesh) -> Mesh:
-        """Create a Traceon mesh from a meshio.Mesh object.
+        """Create a Voltrace mesh from a meshio.Mesh object.
 
         Parameters
         --------------------------
         mesh: meshio.Mesh
-            The mesh to convert to a Traceon mesh
+            The mesh to convert to a Voltrace mesh
 
         Returns
         -------------------------
@@ -590,7 +590,7 @@ class Mesh(Saveable, GeometricObject):
         physical_triangles = ', '.join(self.physical_to_triangles.keys())
         physical_triangles_nums = ', '.join([str(len(self.physical_to_triangles[n])) for n in self.physical_to_triangles.keys()])
         
-        return f'<Traceon Mesh,\n' \
+        return f'<Voltrace Mesh,\n' \
             f'\tNumber of points: {len(self.points)}\n' \
             f'\tNumber of lines: {len(self.lines)}\n' \
             f'\tNumber of triangles: {len(self.triangles)}\n' \

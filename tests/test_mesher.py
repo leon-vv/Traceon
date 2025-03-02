@@ -3,9 +3,9 @@ import ctypes as C
 
 import numpy as np
 
-import traceon.backend as B
-import traceon.mesher as M
-from traceon.mesher import Mesh
+import voltrace.backend as B
+import voltrace.mesher as M
+from voltrace.mesher import Mesh
 
 class TestMeshDeduplication(unittest.TestCase):
     def test_no_duplicates(self):

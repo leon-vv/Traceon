@@ -8,7 +8,7 @@ from .typing import *
 
 def focus_position(positions: ArrayFloat2D) -> Point3D:
     """
-    Find the focus of the given trajectories (which are returned from `traceon.tracing.Tracer.__call__`).
+    Find the focus of the given trajectories (which are returned from `voltrace.tracing.Tracer.__call__`).
     The focus is found using a least square method by considering the final positions and velocities of
     the given trajectories and linearly extending the trajectories backwards.
      
@@ -16,7 +16,7 @@ def focus_position(positions: ArrayFloat2D) -> Point3D:
     Parameters
     ------------
     positions: iterable of (N,6) np.ndarray float64
-        Trajectories of electrons, as returned by `traceon.tracing.Tracer.__call__`
+        Trajectories of electrons, as returned by `voltrace.tracing.Tracer.__call__`
     
     
     Returns

@@ -4,10 +4,10 @@ import numpy as np
 import matplotlib.pyplot as plt
 from scipy.constants import m_p, e
 
-import traceon as T
+import voltrace as v
 
 try:
-    import traceon_pro.solver as S
+    import voltrace_pro.solver as S
 except ImportError:
     S = None
 
@@ -28,7 +28,7 @@ multipole_pieces = []
 for n in range(1, 2 * ORDER + 1):
     angle = 2 * np.pi / ( 2 * ORDER)
     piece = (
-        T.Surface.rectangle_xz(IN_RADIUS, OUT_RADIUS, -THICKNESS/2, THICKNESS/2) 
+        v.Surface.rectangle_xz(IN_RADIUS, OUT_RADIUS, -THICKNESS/2, THICKNESS/2) 
         .rotate(Rz= n* angle)
         .revolve_boundary_z(angle, enclose=True) # Revolve the boundary of the side piece and enclose on the other side
         .move(
@@ -38,36 +38,36 @@ for n in range(1, 2 * ORDER + 1):
     piece.name = 'positive_electrode' if n % 2 == 0 else 'negative_electrode'
     multipole_pieces.extend(piece.surfaces)
 
-multipole = T.SurfaceCollection(multipole_pieces)
+multipole = v.SurfaceCollection(multipole_pieces)
 
 # Creating a boundary can be done in one line with the extrude_boundary function:
 boundary = (
-    T.Surface.disk_xy(0, 0, B_RADIUS).move(dz=-B_HEIGHT/2).extrude_boundary([0,0,B_HEIGHT], enclose=False) 
-    + T.Path.line([IN_RADIUS, 0, B_HEIGHT/2], [B_RADIUS, 0, B_HEIGHT/2]).revolve_z())
+    v.Surface.disk_xy(0, 0, B_RADIUS).move(dz=-B_HEIGHT/2).extrude_boundary([0,0,B_HEIGHT], enclose=False) 
+    + v.Path.line([IN_RADIUS, 0, B_HEIGHT/2], [B_RADIUS, 0, B_HEIGHT/2]).revolve_z())
 boundary.name = 'boundary'
 
 # Create and plot mesh
 mesh = (multipole.mesh(mesh_size=0.04) + boundary.mesh(mesh_size=0.1))
 
-T.plot_mesh(mesh, positive_electrode='red', negative_electrode='blue', boundary='green')
-T.show()
+v.plot_mesh(mesh, positive_electrode='red', negative_electrode='blue', boundary='green')
+v.show()
 
 # Add excitations
-excitation = T.Excitation(mesh, T.Symmetry.THREE_D)
+excitation = v.Excitation(mesh, v.Symmetry.THREE_D)
 excitation.add_voltage(positive_electrode=1, negative_electrode=-1, boundary=0)
 
 # Calculate field
-assert S is not None, ("The 'traceon_pro' package is not installed or not found. "
-        "Traceon Pro is required to solve 3D geometries.\n"
-        "For more information, visit: https://www.traceon.org")
+assert S is not None, ("The 'voltrace_pro' package is not installed or not found. "
+        "Voltrace Pro is required to solve 3D geometries.\n"
+        "For more information, visit: https://www.voltrace.io")
 field = S.solve_direct(excitation)
 
 # Plot mesh and equipotential lines
 margin = 0.02
 x_ext, y_ext, z_ext = B_RADIUS - margin, B_RADIUS - margin, B_HEIGHT/2 - margin
-field_xy = T.Surface.disk_xy(0,0, x_ext)
-field_xz = T.Surface.rectangle_xz(-x_ext, x_ext, -z_ext, z_ext) 
-field_yz = T.Surface.rectangle_yz(-y_ext, y_ext, -z_ext, z_ext) 
+field_xy = v.Surface.disk_xy(0,0, x_ext)
+field_xz = v.Surface.rectangle_xz(-x_ext, x_ext, -z_ext, z_ext) 
+field_yz = v.Surface.rectangle_yz(-y_ext, y_ext, -z_ext, z_ext) 
 
 # Initialize tracer and particle trajectories.
 # We will trace both electrons and alpha particles (fully ionized helium atoms)
@@ -83,8 +83,8 @@ e_trajectories = [] # electron trajectories
 a_trajectories = [] # alpha particle trajectories
 
 # We give both beams the same energy
-e_start_velocity = T.velocity_vec(1, [0, 0, -1])
-a_start_velocity = T.velocity_vec(1, [0,0,-1])
+e_start_velocity = v.velocity_vec(1, [0, 0, -1])
+a_start_velocity = v.velocity_vec(1, [0,0,-1])
 
 
 # Trace the particles through the field
@@ -99,13 +99,13 @@ for i, (x, y) in enumerate(zip(x_start, y_start)):
     a_trajectories.append(p_trace)
 
 # Plotting
-T.plot_mesh(mesh, positive_electrode='red', negative_electrode='blue', boundary='green')
-T.plot_equipotential_lines(field, surface=field_xy, color_map='coolwarm',  N_isolines=40, N0=200, N1=200)
-T.plot_equipotential_lines(field, surface=field_xz, color_map='coolwarm',  N_isolines=0, N0=200, N1=200)
-T.plot_equipotential_lines(field, surface=field_yz, color_map='coolwarm',  N_isolines=0, N0=200, N1=200)
-T.plot_trajectories(e_trajectories, line_width=3)
-T.plot_trajectories(a_trajectories, line_width=3, color='#FF55FF')
-T.show()
+v.plot_mesh(mesh, positive_electrode='red', negative_electrode='blue', boundary='green')
+v.plot_equipotential_lines(field, surface=field_xy, color_map='coolwarm',  N_isolines=40, N0=200, N1=200)
+v.plot_equipotential_lines(field, surface=field_xz, color_map='coolwarm',  N_isolines=0, N0=200, N1=200)
+v.plot_equipotential_lines(field, surface=field_yz, color_map='coolwarm',  N_isolines=0, N0=200, N1=200)
+v.plot_trajectories(e_trajectories, line_width=3)
+v.plot_trajectories(a_trajectories, line_width=3, color='#FF55FF')
+v.show()
 
 
 # Compute the output beam size 

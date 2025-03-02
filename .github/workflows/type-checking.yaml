@@ -30,7 +30,7 @@ jobs:
           pip install scipy-stubs vedo numpy scipy meshio mypy pyright
         
       - name: Run mypy
-        run: python3 -m mypy traceon
+        run: python3 -m mypy voltrace
 
       - name: Run pyright
         run: pyright

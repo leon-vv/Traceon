@@ -8,7 +8,7 @@ $$
 $$
 
 Therefore, if we can efficiently compute the axial potential derivatives \\( \\frac{\\partial \\phi_0^n}{\\partial z^n} \\) we can compute the potential and therefore the fields around the optical axis.
-For the derivatives of \\( \\phi_0(z) \\) closed form formulas exist in the case of radially symmetric geometries, see for example formula 13.16a in [1]. Traceon uses a recursive version of these formulas to
+For the derivatives of \\( \\phi_0(z) \\) closed form formulas exist in the case of radially symmetric geometries, see for example formula 13.16a in [1]. Voltrace uses a recursive version of these formulas to
 very efficiently compute the axial derivatives of the potential.
 
 [1] P. Hawkes, E. Kasper. Principles of Electron Optics. Volume one: Basic Geometrical Optics. 2018.
@@ -141,7 +141,7 @@ class Field(GeometricObject, ABC):
     def get_origin(self) -> Point3D:
         """
         Get the origin of the field in the global coordinate system. This is the position
-        that the origin (0, 0, 0) was transformed to by using methods from `traceon.mesher.GeometricObject`.
+        that the origin (0, 0, 0) was transformed to by using methods from `voltrace.mesher.GeometricObject`.
 
         Returns
         -----------------------------
@@ -597,7 +597,7 @@ class FieldBEM(Field, ABC):
     def charge_on_elements(self, indices: ArrayLikeInt1D) -> float:
         """Compute the sum of the charges present on the elements with the given indices. To
         get the total charge of a physical group use `names['name']` for indices where `names` 
-        is returned by `traceon.excitation.Excitation.get_electrostatic_active_elements()`.
+        is returned by `voltrace.excitation.Excitation.get_electrostatic_active_elements()`.
 
         Parameters
         ----------
@@ -611,7 +611,7 @@ class FieldBEM(Field, ABC):
     
     def __str__(self) -> str:
         name = self.__class__.__name__
-        return f'<Traceon {name}\n' \
+        return f'<Voltrace {name}\n' \
             f'\tNumber of electrostatic points: {len(self.electrostatic_point_charges)}\n' \
             f'\tNumber of magnetizable points: {len(self.magnetostatic_point_charges)}\n' \
             f'\tNumber of current rings: {len(self.current_point_charges)}>'
@@ -867,7 +867,7 @@ class FieldAxial(Field, ABC):
     
     def __str__(self) -> str:
         name = self.__class__.__name__
-        return f'<Traceon {name}, zmin={self.z[0]} mm, zmax={self.z[-1]} mm,\n\tNumber of samples on optical axis: {len(self.z)}>'
+        return f'<Voltrace {name}, zmin={self.z[0]} mm, zmax={self.z[-1]} mm,\n\tNumber of samples on optical axis: {len(self.z)}>'
      
     def __add__(self, other: Field) -> Field:
         if self._matches_geometry(other):
@@ -947,7 +947,7 @@ class FieldRadialAxial(FieldAxial):
 
         Parameters
         -----------------------
-        field: `traceon.field.FieldRadialBEM`
+        field: `voltrace.field.FieldRadialBEM`
             Field for which to compute the axial interpolation
         zmin : float
             Location on the optical axis where to start sampling the radial expansion coefficients.

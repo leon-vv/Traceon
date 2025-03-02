@@ -25,7 +25,7 @@
         annot = ' ' + sep + '\N{NBSP}' + annot
     return annot
   
-  show_source_code = 'traceon_pro' not in module.name
+  show_source_code = 'voltrace_pro' not in module.name
 %>
 
 <%def name="ident(name)"><span class="ident">${name}</span></%def>
@@ -296,30 +296,30 @@
 
     <%include file="logo.mako"/>
 
-	<h1 class='title'><a href='index.html' style='color:black'>Traceon</a></h1>
+	<h1 class='title'><a href='index.html' style='color:black'>Voltrace</a></h1>
 	
     <ul id="index">
 	
 	<li><h3><a href="#header-submodules">Examples</a></h3>
       <ul>
 		% for (k, v) in pages.items():
-			<li><code><a href="../traceon/${k.replace('.md', '.html')}">${v}</a></code></li>
+			<li><code><a href="../voltrace/${k.replace('.md', '.html')}">${v}</a></code></li>
 		% endfor
       </ul>
     </li>
 		
-    <li><h3><a href="#header-submodules">Traceon</a></h3>
+    <li><h3><a href="#header-submodules">Voltrace</a></h3>
       <ul>
-      % for m in traceon_module.submodules():
+      % for m in voltrace_module.submodules():
         <li><code ${"class='selected'" if m == module else ""}>${link(m)}</code></li>
       % endfor
       </ul>
     </li>
 		
-	<li><h3><a href="#header-submodules">Traceon Pro</a></h3>
+	<li><h3><a href="#header-submodules">Voltrace Pro</a></h3>
       <ul>
-      % for m in traceon_pro_module.submodules():
-		% if m.name != 'traceon_pro.traceon_pro':
+      % for m in voltrace_pro_module.submodules():
+		% if m.name != 'voltrace_pro.voltrace_pro':
 			<li><code ${"class='selected'" if m == module else ""}>${link(m)}</code></li>
 		% endif
       % endfor
