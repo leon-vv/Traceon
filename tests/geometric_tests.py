@@ -231,7 +231,57 @@ class PathTests(unittest.TestCase):
 
         assert np.allclose(line_mesh.points, poly_mesh.points)
         assert np.array_equal(line_mesh.lines, poly_mesh.lines)
+
+    def test_stroke(self):
+        points = [
+            [0., 0., 0.], 
+            [2., 0., 0.], 
+            [2., 0., 1.]
+        ]
+
+        stroke = Path.line(points[0], points[1]).extend_with_line(points[2]).stroke(1.0)
+         
+        poly = Path.polygon([
+            [0., 0., -0.5],
+            [2.5, 0., -0.5],
+            [2.5, 0., 1.0],
+            [1.5, 0., 1.0],
+            [1.5, 0., 0.5],
+            [0., 0., 0.5]])
         
+        mesh_size = 0.1
+        stroke_mesh = stroke.mesh(mesh_size=mesh_size)
+        poly_mesh = poly.mesh(mesh_size=mesh_size)
+        
+        assert np.allclose(stroke_mesh.points, poly_mesh.points)
+        assert np.array_equal(stroke_mesh.lines, poly_mesh.lines)
+
+    def test_stroke_mirrored(self): # Same as previous test, but mirrored in z
+        points = [
+            [0., 0., 0.], 
+            [2., 0., 0.], 
+            [2., 0., -1.]
+        ]
+
+        stroke = Path.line(points[0], points[1]).extend_with_line(points[2]).stroke(1.0)
+         
+        poly = Path.polygon([
+            [0., 0., -0.5],
+            [1.5, 0., -0.5],
+            [1.5, 0., -1.0],
+            [2.5, 0., -1.0],
+            [2.5, 0., 0.5],
+            [0., 0., 0.5]])
+        
+        mesh_size = 0.1
+        stroke_mesh = stroke.mesh(mesh_size=mesh_size)
+        poly_mesh = poly.mesh(mesh_size=mesh_size)
+        
+        assert np.allclose(stroke_mesh.points, poly_mesh.points)
+        assert np.array_equal(stroke_mesh.lines, poly_mesh.lines)
+
+
+
 class SurfaceTests(unittest.TestCase):
     
     def test_spanned_by_paths(self):

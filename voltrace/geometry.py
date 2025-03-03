@@ -611,6 +611,94 @@ class Path(GeometricObject):
         
         breakpoints: list[float] = np.cumsum(lengths[:-1]).tolist() # type: ignore
         return Path(to_point, sum(lengths), breakpoints=breakpoints)
+     
+    def stroke(self, width):
+        """
+        Give the path that forms the outline of the current path if it were to be 'stroked'
+        by a marker with the given width. The returned path is closed. The function currently
+        does not support curved paths (only paths consisting of straight sections).
+        
+        Parameters
+        --------------------------------
+        width: float
+            The width of the stroke. The outline will be distanced half the width to the original path (except at the endpoints).
+
+        Returns
+        -------------------------------
+        `Path`
+            The outline of the stroke.
+        """
+        sample_points = [0.] + self.breakpoints +  [self.parameter_max]
+        points = np.array([self(s) for s in sample_points], dtype=np.float64)
+        
+        N_points = len(points)
+        
+        assert len(points) >= 2, "Not enough points to form stroke, at least two points needed"
+        
+        half_width = width / 2.0
+        
+        # Compute direction vectors (unit vectors) for each segment.
+        directions = []
+        directions = np.array([p1 - p0 for p1, p0 in zip(points, points[1:])])
+        directions = np.array([d/np.linalg.norm(d) if np.linalg.norm(d) > 1e-14 else np.zeros(3,) for d in directions]) # Normalize
+
+        # Compute perpendicular (normal) for each segment.
+        # For a vector (dx, dy), a perpendicular is (-dy, dx).
+        normals = np.empty_like(directions)
+        normals[:, 0] = -directions[:, 2]
+        normals[:, 2] = directions[:, 0]
+        
+        # Prepare lists for offset points for left and right sides.
+        left_points = [points[0] + half_width * normals[0]]
+        right_points = [points[0] - half_width * normals[0]]
+        
+        # For each internal vertex, compute the offset via line intersection.
+        for i in range(1, N_points - 1):
+            # Offsetting from the previous segment.
+            P1_left = points[i] + half_width * normals[i - 1]
+            r1 = directions[i - 1]
+            # Offsetting from the next segment.
+            P2_left = points[i] + half_width * normals[i]
+            r2 = directions[i]
+            
+            # Solve for intersection point of:
+            #   L1: P1_left + t * r1 and L2: P2_left + s * r2.
+            # In 2D, we can use the cross product.
+            denom = r1[0] * r2[2] - r1[2] * r2[0]
+            
+            if np.abs(denom) < 1e-8:
+                # Lines nearly parallel: average the two offsets.
+                left_point = points[i] + half_width * (normals[i - 1] + normals[i]) / 2.0
+            else:
+                diff = P2_left - P1_left
+                t = (diff[0] * r2[2] - diff[2] * r2[0]) / denom
+                left_point = P1_left + t * r1
+            
+            left_points.append(left_point)
+            
+            # Do the same for the right side (offset in the opposite direction).
+            P1_right = points[i] - half_width * normals[i - 1]
+            P2_right = points[i] - half_width * normals[i]
+            denom = r1[0] * r2[2] - r1[2] * r2[0]
+            
+            if np.abs(denom) < 1e-8:
+                right_point = points[i] - half_width * (normals[i - 1] + normals[i]) / 2.0
+            else:
+                diff = P2_right - P1_right
+                t = (diff[0] * r2[2] - diff[2] * r2[0]) / denom
+                right_point = P1_right + t * r1
+            
+            right_points.append(right_point)
+        
+        # For the last point, use the last segment's normal.
+        left_points.append(points[-1] + half_width * normals[-1])
+        right_points.append(points[-1] - half_width * normals[-1])
+
+        # Assemble the outline polygon: traverse left offsets in order,
+        # then right offsets in reverse order to form a closed shape.
+        points = np.array(left_points + right_points[::-1] + [left_points[0]]) # Close the path by adding left_points[0]
+
+        return Path.polygon(points)
     
     @staticmethod
     def rectangle_xz(xmin: float, xmax: float, zmin: float, zmax: float) -> Path:
