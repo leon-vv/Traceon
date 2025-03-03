@@ -638,7 +638,6 @@ class Path(GeometricObject):
         half_width = width / 2.0
         
         # Compute direction vectors (unit vectors) for each segment.
-        directions = []
         directions = np.array([p1 - p0 for p1, p0 in zip(points, points[1:])])
         directions = np.array([d/np.linalg.norm(d) if np.linalg.norm(d) > 1e-14 else np.zeros(3,) for d in directions]) # Normalize
 
