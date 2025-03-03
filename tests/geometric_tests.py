@@ -202,6 +202,35 @@ class PathTests(unittest.TestCase):
         t_half = circle.velocity_vector(half_length)
         t_half_norm = t_half / np.linalg.norm(t_half)
         assert np.allclose(t_half_norm, [0.,-1.,0.], atol=1e-7)
+
+    def test_polygon(self):
+        rect = Path.rectangle_xz(-1.0, 2.0, -1.0, 2.0)
+
+        poly = Path.polygon([
+            [-1.0, 0., -1.0],
+            [2.0, 0., -1.0],
+            [2.0, 0., 2.0],
+            [-1.0, 0., 2.0]])
+        
+        mesh_size = 0.1
+        rect_mesh = rect.mesh(mesh_size=mesh_size)
+        poly_mesh = poly.mesh(mesh_size=mesh_size)
+
+        assert np.allclose(rect_mesh.points, poly_mesh.points)
+        assert np.array_equal(rect_mesh.lines, poly_mesh.lines)
+    
+    def test_polygon_random_points(self):
+        p1, p2, p3 = np.random.rand(3, 3)
+        
+        line = Path.line(p1, p2).extend_with_line(p3).close()
+        poly = Path.polygon([p1, p2, p3, p1])
+        
+        mesh_size = 0.1
+        line_mesh = line.mesh(mesh_size=mesh_size)
+        poly_mesh = poly.mesh(mesh_size=mesh_size)
+
+        assert np.allclose(line_mesh.points, poly_mesh.points)
+        assert np.array_equal(line_mesh.lines, poly_mesh.lines)
         
 class SurfaceTests(unittest.TestCase):
     

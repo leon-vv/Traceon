@@ -566,6 +566,51 @@ class Path(GeometricObject):
         A tuple containing two paths. The first path contains the path upto length, while the second path contains the rest."""
         return (Path(self.fun, length, [b for b in self.breakpoints if b <= length], name=self.name),
                 Path(lambda l: self.fun(l + length), self.parameter_max - length, [b - length for b in self.breakpoints if b >= length], name=self.name))
+
+    @staticmethod
+    def polygon(points: ArrayLikeFloat2D) -> Path:
+        """
+        Return the outline of the polygon formed by connecting the given points.
+        The polygon returned will be closed.
+
+        Parameters
+        --------------------------------
+        points: ArrayLikeFloat2D
+            The points giving the outline of the polygon.
+
+        Returns
+        -------------------------------
+        `Path`
+        """
+        
+        points_arr = np.array(points, dtype=np.float64)
+        assert points_arr.shape == (len(points_arr), 3), "Polygon points should be an array of shape (N,3)"
+        assert len(points_arr) >= 3, "Polygon should have at least 3 points"
+        
+        if not _points_close(points_arr[0], points_arr[-1]):
+            points_arr = np.concatenate( (points_arr, points_arr[0][np.newaxis, :]) ) # Add the first point to the end
+        
+        lengths: list[float] = [np.linalg.norm(p1 - p0).item() for p0, p1 in zip(points_arr, points_arr[1:])]
+        total_length = sum(lengths)
+        
+        def to_point(u):
+            index = 0
+            
+            for l in lengths:
+                if u - l <= 0 or index == len(points_arr) - 2:
+                    break
+                
+                u -= l
+                index += 1
+
+            start_point = points_arr[index]
+            next_point = points_arr[index + 1]
+            vector = next_point - start_point
+
+            return start_point + vector * u/np.linalg.norm(vector)
+        
+        breakpoints: list[float] = np.cumsum(lengths[:-1]).tolist() # type: ignore
+        return Path(to_point, sum(lengths), breakpoints=breakpoints)
     
     @staticmethod
     def rectangle_xz(xmin: float, xmax: float, zmin: float, zmax: float) -> Path:
