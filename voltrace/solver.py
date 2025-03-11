@@ -354,7 +354,7 @@ def _excitation_to_higher_order(excitation: Excitation) -> Excitation:
     excitation.mesh = mesh._to_higher_order_mesh()
     return excitation
 
-def solve_direct_superposition(excitation: Excitation) -> dict[str, FieldBEM]:
+def solve_direct_superposition(excitation: Excitation) -> FieldSuperposition:
     """
     When using superposition multiple fields are computed at once. Each field corresponds with a unity excitation (1V)
     of an electrode that was assigned a non-zero fixed voltage value. This is useful when a geometry needs
@@ -379,18 +379,16 @@ def solve_direct_superposition(excitation: Excitation) -> dict[str, FieldBEM]:
     electrostatic_excitations, magnetostatic_excitations = excitation._split_for_superposition()
     
     # Solve for elec fields
-    elec_names = electrostatic_excitations.keys()
+    elec_names = list(electrostatic_excitations.keys())
     right_hand_sides = np.array([ElectrostaticSolverRadial(electrostatic_excitations[n]).get_right_hand_side() for n in elec_names])
-    solutions = ElectrostaticSolverRadial(excitation).solve_matrix(right_hand_sides)
-    elec_dict = {n:s for n, s in zip(elec_names, solutions)}
+    elec_solutions = ElectrostaticSolverRadial(excitation).solve_matrix(right_hand_sides)
     
     # Solve for mag fields 
-    mag_names = magnetostatic_excitations.keys()
+    mag_names = list(magnetostatic_excitations.keys())
     right_hand_sides = np.array([MagnetostaticSolverRadial(magnetostatic_excitations[n]).get_right_hand_side() for n in mag_names])
-    solutions = MagnetostaticSolverRadial(excitation).solve_matrix(right_hand_sides)
-    mag_dict = {n:s for n, s in zip(mag_names, solutions)}
+    mag_solutions = MagnetostaticSolverRadial(excitation).solve_matrix(right_hand_sides)
         
-    return {**elec_dict, **mag_dict}
+    return FieldSuperposition(fields=elec_solutions+mag_solutions,names=elec_names+mag_names)
 
 def solve_direct(excitation: Excitation) -> FieldRadialBEM:
     """
