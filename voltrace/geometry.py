@@ -612,7 +612,7 @@ class Path(GeometricObject):
         breakpoints: list[float] = np.cumsum(lengths[:-1]).tolist() # type: ignore
         return Path(to_point, sum(lengths), breakpoints=breakpoints)
      
-    def stroke(self, width):
+    def stroke(self, width: float) -> Path:
         """
         Give the path that forms the outline of the current path if it were to be 'stroked'
         by a marker with the given width. The returned path is closed. The function currently
