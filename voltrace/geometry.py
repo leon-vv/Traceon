@@ -50,24 +50,34 @@ class Path(GeometricObject):
     parameter_range: float
         The input range of `fun` is [0, parameter_range]
     breakpoints: list[float]
-        Parameter values at which the path has a corner, and need to be included explicitely in the mesh
+        Parameter values at which the path has a corner, and need to be included explicitely in the mesh (optional)
     name: str
         Name of the path (optional)
+    velocity: Callable[[float], Point3D]
+        Function from the parameter to the velocity vector, equal to the derivative of fun (optional)
 
     Returns
     --------------------------------------
     Path
     """
     
-    def __init__(self, 
-            fun: Callable[[float], Point3D], 
-            parameter_range: float, 
+    def __init__(self,
+            fun: Callable[[float], Point3D],
+            parameter_range: float,
             breakpoints: list[float] | None = None, 
-            name: str | None = None) -> None:
+            name: str | None = None,
+            velocity: Callable[[float], Point3D] | None = None) -> None:
         
         # Assumption: fun takes in p, the path length
         # and returns the point on the path
         self.fun = lambda u: np.array(fun(u), dtype=np.float64) # Ensure it returns Numpy arrays
+        
+        self.velocity: Callable[[float], Point3D] = self._velocity_from_path
+        
+        if velocity is not None:
+            assert callable(velocity), 'Velocity passed in to Path should be callable'
+            self.velocity = lambda u: np.array(velocity(u), dtype=np.float64) # Ensure it returns Numpy arrays
+         
         self.parameter_range = parameter_range
         self.breakpoints = list(breakpoints) if breakpoints is not None else []
         self.name = name
@@ -97,13 +107,20 @@ class Path(GeometricObject):
     def interpolate(parameters: ArrayLikeFloat1D, points: Points3D, derivatives: Vectors3D | None = None) -> Path:
         assert len(parameters) == len(points), "To interpolate, please supply equal amount of parameter values and points"
         assert len(points) >= 2, "To interpolate, please supply at least two points"
+
+        parameters = np.array(parameters, dtype=np.float64) - parameters[0]
+        points = np.array(points, dtype=np.float64)
         
         if derivatives is None:
-            return Path(CubicSpline(parameters, points), parameters[-1] - parameters[0]) # type: ignore
+            interpolation = CubicSpline(parameters, points)
         else:
             assert len(derivatives) == len(points), "When interpolating with derivatives, please supply equal amount of points and derivatives"
-            return Path(CubicHermiteSpline(parameters, points, derivatives), parameters[-1] - parameters[0]) # type: ignore
-     
+            interpolation = CubicHermiteSpline(parameters, points, derivatives)
+
+        velocity = lambda u: interpolation(u, nu=1)
+
+        return Path(interpolation, parameters[-1] - parameters[0], velocity=velocity)
+    
     @staticmethod
     def spline_through_points(points: Points3D) -> Path:
         """Construct a path by fitting a cubic spline through the given points.
@@ -118,7 +135,9 @@ class Path(GeometricObject):
         Path"""
         x = np.linspace(0, 1, len(points))
         interp = CubicSpline(x, np.array(points, dtype=np.float64))
-        return Path(interp, 1.0) # type: ignore
+        vel = lambda u: interp(u, nu=1)
+        
+        return Path(interp, 1.0, velocity=vel) # type: ignore
      
     def average(self, fun: Callable[[Point3D], float]) -> float:
         """Average a function along the path, by integrating 1/l * fun(path(l)) with 0 <= l <= path length.
@@ -148,7 +167,13 @@ class Path(GeometricObject):
         ---------------------------      
 
         Path"""
-        return Path(lambda u: fun(self(u)), self.parameter_range, self.breakpoints, name=self.name)
+
+        def velocity(u):
+            p1 = self(u)
+            p2 = p1 + self.velocity(u)
+            return fun(p2) - fun(p1)
+        
+        return Path(lambda u: fun(self(u)), self.parameter_range, self.breakpoints, name=self.name, velocity=velocity)
      
     def __call__(self, t: float) -> Point3D:
         """Evaluate a point along the path.
@@ -190,8 +215,10 @@ class Path(GeometricObject):
         
         def fun(u):
             return self( (l + u) % self.parameter_range )
-        
-        return Path(fun, self.parameter_range, sorted([(b-l)%self.parameter_range for b in self.breakpoints + [0.]]), name=self.name)
+
+        vel = lambda u: self.velocity( (l + u) % self.parameter_range )
+         
+        return Path(fun, self.parameter_range, sorted([(b-l)%self.parameter_range for b in self.breakpoints + [0.]]), name=self.name, velocity=vel)
      
     def __rshift__(self, other: Path) -> Path:
         """Combine two paths to create a single path. The endpoint of the first path needs
@@ -832,6 +859,12 @@ class Path(GeometricObject):
         Path"""
         return Path(lambda t: self(self.parameter_range-t), self.parameter_range, 
                     [self.parameter_range - b for b in self.breakpoints], self.name)
+
+    def _velocity_from_path(self, t: float) -> Vector3D:
+        samples = np.linspace(t - self.parameter_range*1e-3, t + self.parameter_range*1e-3, 7) # Odd number to include t
+        samples_on_path = [s for s in samples if 0 <= s <= self.parameter_range]
+        assert len(samples_on_path), "Please supply a point that lies on the path"
+        return np.array(CubicSpline(samples_on_path, [self(s) for s in samples_on_path])(t, nu=1), dtype=np.float64) # type: ignore
     
     def velocity_vector(self, t: float) -> Vector3D:
         """Calculate the velocity (tangent) vector at a specific point on the path 
@@ -848,12 +881,8 @@ class Path(GeometricObject):
         ----------------------------
         (3,) np.ndarray of float"""
 
-        samples = np.linspace(t - self.parameter_range*1e-3, t + self.parameter_range*1e-3, 7) # Odd number to include t
-        samples_on_path = [s for s in samples if 0 <= s <= self.parameter_range]
-        assert len(samples_on_path), "Please supply a point that lies on the path"
-        return np.array(CubicSpline(samples_on_path, [self(s) for s in samples_on_path])(t, nu=1), dtype=np.float64) # type: ignore
-    
-   
+        return self.velocity(t)
+     
     def __add__(self, other: Path | PathCollection) -> PathCollection:
         """Add two paths to create a PathCollection. Note that a PathCollection supports
         a subset of the methods of Path (for example, movement, rotation and meshing). Use
