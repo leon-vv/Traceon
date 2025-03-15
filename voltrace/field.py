@@ -774,7 +774,7 @@ class FieldAxial(Field, ABC):
         if _is_numeric(other):
             field_copy = self.copy()
             field_copy.electrostatic_coeffs = other * self.electrostatic_coeffs
-            field_copy.magnetostatic_coeffs = other * self.electrostatic_coeffs
+            field_copy.magnetostatic_coeffs = other * self.magnetostatic_coeffs
             return field_copy
         else:
             return super().__mul__(other)
