@@ -338,11 +338,11 @@ class FieldSuperposition(Field):
     """Representing a linear combination of fields (superposition). Will be automatically created if fields are added
     together (field1 + field2) and the underlying field classes do not implement a specialized add method."""
     
-    def __init__(self, fields: Iterable[Field], factors: Iterable[float] | Iterable[np.floating] | None = None, names: Iterable[str] = []) -> None:
+    def __init__(self, fields: Iterable[Field], factors: Iterable[float] | Iterable[np.floating] | None = None, names: Iterable[str] | None = None) -> None:
         super().__init__()
         
         self.fields: List[Field] = list(fields)
-        self.field_names = list(names)
+        self.field_names = [] if names is None else list(names)
         assert all([isinstance(f, Field) for f in self.fields])
         assert len(self.field_names) == 0 or len(self.field_names) == len(self.fields), "If fields are named, please supply equal amount of names and fields."
          
