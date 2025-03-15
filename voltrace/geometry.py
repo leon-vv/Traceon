@@ -616,8 +616,8 @@ class Path(GeometricObject):
         """
         Give the path that forms the outline of the current path if it were to be 'stroked'
         by a marker with the given width. The returned path is closed. The function currently
-        does not support curved paths (only paths consisting of straight sections).
-        
+        only supports paths consisting of straight sections lying in the xz plane.
+         
         Parameters
         --------------------------------
         width: float
@@ -634,6 +634,7 @@ class Path(GeometricObject):
         N_points = len(points)
         
         assert len(points) >= 2, "Not enough points to form stroke, at least two points needed"
+        assert np.allclose(points[:, 1], 0.0), "Stroke currently only works for paths lying in the xz plane."
         
         half_width = width / 2.0
         
@@ -642,7 +643,7 @@ class Path(GeometricObject):
         directions = np.array([d/np.linalg.norm(d) if np.linalg.norm(d) > 1e-14 else np.zeros(3,) for d in directions]) # Normalize
 
         # Compute perpendicular (normal) for each segment.
-        # For a vector (dx, dy), a perpendicular is (-dy, dx).
+        # For a vector (dx, dz), a perpendicular is (-dy, dz).
         normals = np.empty_like(directions)
         normals[:, 0] = -directions[:, 2]
         normals[:, 2] = directions[:, 0]
