@@ -261,7 +261,7 @@ if TYPE_CHECKING:
     from .geometry import Path, PathCollection, Surface, SurfaceCollection
     from .mesher import Mesh
     from .excitation import Excitation
-    from .field import EffectivePointCharges, Field, FieldBEM, FieldRadialBEM
+    from .field import Field, FieldBEM, FieldRadialBEM
     from .tracing import Tracer
     try:
         from voltrace_pro.field import Field3D_BEM  # type: ignore

@@ -23,7 +23,7 @@ def focus_position(trajectories: list[Path]) -> Point3D:
     (3,) np.ndarray of float64, representing the position of the focus
     """
     final_positions = np.array([t.endpoint() for t in trajectories])
-    final_velocities = np.array([t.velocity_vector(t.parameter_range) for t in trajectories])
+    final_velocities = np.array([t.velocity_vector(t.parameter_max) for t in trajectories])
 
     angles_x = np.array([v[0]/v[2] for p, v in zip(final_positions, final_velocities)])
     angles_y = np.array([v[1]/v[2] for p, v in zip(final_positions, final_velocities)])

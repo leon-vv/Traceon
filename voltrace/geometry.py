@@ -47,8 +47,8 @@ class Path(GeometricObject):
     ---------------------------------------
     fun: Callable[[float], Point3D]
         Function from a number to a 3D point (Numpy array)
-    parameter_range: float
-        The input range of `fun` is [0, parameter_range]
+    parameter_max: float
+        The input range of `fun` is [0, parameter_max]
     breakpoints: list[float]
         Parameter values at which the path has a corner, and need to be included explicitely in the mesh (optional)
     name: str
@@ -63,7 +63,7 @@ class Path(GeometricObject):
     
     def __init__(self,
             fun: Callable[[float], Point3D],
-            parameter_range: float,
+            parameter_max: float,
             breakpoints: list[float] | None = None, 
             name: str | None = None,
             velocity: Callable[[float], Point3D] | None = None) -> None:
@@ -78,8 +78,8 @@ class Path(GeometricObject):
             assert callable(velocity), 'Velocity passed in to Path should be callable'
             self.velocity = lambda u: np.array(velocity(u), dtype=np.float64) # Ensure it returns Numpy arrays
          
-        self.parameter_range = parameter_range
-        self.breakpoints = list(breakpoints) if breakpoints is not None else []
+        self.parameter_max = parameter_max
+        self.breakpoints: list[float] = list(breakpoints) if breakpoints is not None else []
         self.name = name
     
     @staticmethod
@@ -104,7 +104,7 @@ class Path(GeometricObject):
         return Path(to_point, 1.0, breakpoints).normalize()
 
     @staticmethod
-    def interpolate(parameters: ArrayLikeFloat1D, points: Points3D, derivatives: Vectors3D | None = None) -> Path:
+    def interpolate(parameters: ArrayLikeFloat1D, points: PointsLike3D, derivatives: VectorsLike3D | None = None) -> Path:
         assert len(parameters) == len(points), "To interpolate, please supply equal amount of parameter values and points"
         assert len(points) >= 2, "To interpolate, please supply at least two points"
 
@@ -152,7 +152,7 @@ class Path(GeometricObject):
         float
 
         The average value of the function along the point."""
-        return quad(lambda s: fun(self(s)), 0, self.parameter_range, points=self.breakpoints)[0]/self.parameter_range
+        return quad(lambda s: fun(self(s)), 0, self.parameter_max, points=self.breakpoints)[0]/self.parameter_max
      
     def map_points(self, fun: Callable[[PointLike3D], Point3D]) -> Path:
         """Return a new function by mapping a function over points along the path (see `voltrace.mesher.GeometricObject`).
@@ -167,13 +167,13 @@ class Path(GeometricObject):
         ---------------------------      
 
         Path"""
-
+        
         def velocity(u):
             p1 = self(u)
             p2 = p1 + self.velocity(u)
             return fun(p2) - fun(p1)
         
-        return Path(lambda u: fun(self(u)), self.parameter_range, self.breakpoints, name=self.name, velocity=velocity)
+        return Path(lambda u: fun(self(u)), self.parameter_max, self.breakpoints, name=self.name, velocity=velocity)
      
     def __call__(self, t: float) -> Point3D:
         """Evaluate a point along the path.
@@ -214,11 +214,11 @@ class Path(GeometricObject):
         assert self.is_closed()
         
         def fun(u):
-            return self( (l + u) % self.parameter_range )
+            return self( (l + u) % self.parameter_max )
 
-        vel = lambda u: self.velocity( (l + u) % self.parameter_range )
+        vel = lambda u: self.velocity( (l + u) % self.parameter_max )
          
-        return Path(fun, self.parameter_range, sorted([(b-l)%self.parameter_range for b in self.breakpoints + [0.]]), name=self.name, velocity=vel)
+        return Path(fun, self.parameter_max, sorted([(b-l)%self.parameter_max for b in self.breakpoints + [0.]]), name=self.name, velocity=vel)
      
     def __rshift__(self, other: Path) -> Path:
         """Combine two paths to create a single path. The endpoint of the first path needs
@@ -238,15 +238,15 @@ class Path(GeometricObject):
 
         assert _points_close(self.endpoint(), other.starting_point())
 
-        total = self.parameter_range + other.parameter_range
+        total = self.parameter_max + other.parameter_max
          
         def f(t):
-            if t <= self.parameter_range:
+            if t <= self.parameter_max:
                 return self(t)
             else:
-                return other(t - self.parameter_range)
+                return other(t - self.parameter_max)
         
-        return Path(f, total, self.breakpoints + [self.parameter_range] + other.breakpoints, name=self.name)
+        return Path(f, total, self.breakpoints + [self.parameter_max] + other.breakpoints, name=self.name)
 
     def starting_point(self) -> Point3D:
         """Returns the starting point of the path.
@@ -266,7 +266,7 @@ class Path(GeometricObject):
         (3,) float
         
         The point at the middle of the path."""
-        return self(self.parameter_range/2)
+        return self(self.parameter_max/2)
     
     def endpoint(self) -> Point3D:
         """Returns the endpoint of the path.
@@ -276,7 +276,7 @@ class Path(GeometricObject):
         (3,) float
         
         The endpoint of the path."""
-        return self(self.parameter_range)
+        return self(self.parameter_max)
     
     def extend_with_line(self, point: PointLike3D) -> Path:
         """Extend the current path by a line from the current endpoint to the given point.
@@ -413,16 +413,16 @@ class Path(GeometricObject):
         if reverse:
             theta_max = theta_max - 2*pi
 
-        parameter_range = float(abs(theta_max * radius))
+        parameter_max = float(abs(theta_max * radius))
           
         def f(l):
-            theta = l/parameter_range * theta_max
+            theta = l/parameter_max * theta_max
             return center + radius*cos(theta)*x_unit + radius*sin(theta)*y_unit
         
-        return Path(f, parameter_range)
+        return Path(f, parameter_max)
 
     def sample(self, N=500) -> tuple[ArrayFloat1D, ArrayFloat1D]:
-        u = np.linspace(0, self.parameter_range, N)
+        u = np.linspace(0, self.parameter_max, N)
         return u, np.array([self.fun(u_) for u_ in u], dtype=np.float64)
     
     def plane_intersection(self, p0: PointLike3D, normal: VectorLike3D, N=500) -> float:
@@ -526,7 +526,7 @@ class Path(GeometricObject):
             r = sqrt(p[1]**2 + p[2]**2)
             return np.array([p[0], r*cos(theta + v/length2*angle), r*sin(theta + v/length2*angle)])
          
-        return Surface(f, self.parameter_range, length2, self.breakpoints, name=self.name)
+        return Surface(f, self.parameter_max, length2, self.breakpoints, name=self.name)
     
     def revolve_y(self, angle: float = 2*pi) -> Surface:
         """Create a surface by revolving the path anti-clockwise around the y-axis.
@@ -549,7 +549,7 @@ class Path(GeometricObject):
             r = sqrt(p[0]*p[0] + p[2]*p[2])
             return np.array([r*cos(theta + v/length2*angle), p[1], r*sin(theta + v/length2*angle)])
          
-        return Surface(f, self.parameter_range, length2, self.breakpoints, name=self.name)
+        return Surface(f, self.parameter_max, length2, self.breakpoints, name=self.name)
     
     def revolve_z(self, angle: float = 2*pi) -> Surface:
         """Create a surface by revolving the path anti-clockwise around the z-axis.
@@ -572,7 +572,7 @@ class Path(GeometricObject):
             r = sqrt(p[0]*p[0] + p[1]*p[1])
             return np.array([r*cos(theta + v/length2*angle), r*sin(theta + v/length2*angle), p[2]])
         
-        return Surface(f, self.parameter_range, length2, self.breakpoints, name=self.name)
+        return Surface(f, self.parameter_max, length2, self.breakpoints, name=self.name)
      
     def extrude(self, vector: VectorLike3D) -> Surface:
         """Create a surface by extruding the path along a vector. The vector gives both
@@ -592,7 +592,7 @@ class Path(GeometricObject):
         def f(u: float, v: float) -> Point3D:
             return self(u) + v/length*vector
         
-        return Surface(f, self.parameter_range, length, self.breakpoints, name=self.name)
+        return Surface(f, self.parameter_max, length, self.breakpoints, name=self.name)
     
     def extrude_by_path(self, p2: Path) -> Surface:
         """Create a surface by extruding the path along a second path. The second
@@ -612,7 +612,7 @@ class Path(GeometricObject):
         def f(u: float, v: float) -> Point3D:
             return self(u) + p2(v) - p0
 
-        return Surface(f, self.parameter_range, p2.parameter_range, self.breakpoints, p2.breakpoints, name=self.name)
+        return Surface(f, self.parameter_max, p2.parameter_max, self.breakpoints, p2.breakpoints, name=self.name)
 
     def close(self) -> Path:
         """Close the path, by making a straight line to the starting point.
@@ -676,7 +676,7 @@ class Path(GeometricObject):
         
         A tuple containing two paths. The first path contains the path upto length, while the second path contains the rest."""
         return (Path(self.fun, length, [b for b in self.breakpoints if b <= length], name=self.name),
-                Path(lambda l: self.fun(l + length), self.parameter_range - length, [b - length for b in self.breakpoints if b >= length], name=self.name))
+                Path(lambda l: self.fun(l + length), self.parameter_max - length, [b - length for b in self.breakpoints if b >= length], name=self.name))
     
     @staticmethod
     def rectangle_xz(xmin: float, xmax: float, zmin: float, zmax: float) -> Path:
@@ -835,7 +835,7 @@ class Path(GeometricObject):
         Path"""
         plane_normal = np.array(plane_normal, dtype=float)
         start_point = self.endpoint()
-        direction = self.velocity_vector(self.parameter_range)
+        direction = self.velocity_vector(self.parameter_max)
 
         plane_normal_unit = plane_normal / np.linalg.norm(plane_normal)
         direction_unit = direction / np.linalg.norm(direction)
@@ -857,12 +857,12 @@ class Path(GeometricObject):
         Returns
         ----------------------------
         Path"""
-        return Path(lambda t: self(self.parameter_range-t), self.parameter_range, 
-                    [self.parameter_range - b for b in self.breakpoints], self.name)
+        return Path(lambda t: self(self.parameter_max-t), self.parameter_max, 
+                    [self.parameter_max - b for b in self.breakpoints], self.name)
 
     def _velocity_from_path(self, t: float) -> Vector3D:
-        samples = np.linspace(t - self.parameter_range*1e-3, t + self.parameter_range*1e-3, 7) # Odd number to include t
-        samples_on_path = [s for s in samples if 0 <= s <= self.parameter_range]
+        samples = np.linspace(t - self.parameter_max*1e-3, t + self.parameter_max*1e-3, 7) # Odd number to include t
+        samples_on_path = [s for s in samples if 0 <= s <= self.parameter_max]
         assert len(samples_on_path), "Please supply a point that lies on the path"
         return np.array(CubicSpline(samples_on_path, [self(s) for s in samples_on_path])(t, nu=1), dtype=np.float64) # type: ignore
     
@@ -880,7 +880,6 @@ class Path(GeometricObject):
         Returns
         ----------------------------
         (3,) np.ndarray of float"""
-
         return self.velocity(t)
      
     def __add__(self, other: Path | PathCollection) -> PathCollection:
@@ -933,7 +932,7 @@ class Path(GeometricObject):
         list[Path]
             A list of N paths (without breakpoints) that span the original path
         """
-        points = [0.] + self.breakpoints + [self.parameter_range]
+        points = [0.] + self.breakpoints + [self.parameter_max]
         
         result = []
         
@@ -946,13 +945,25 @@ class Path(GeometricObject):
         # Return a path that takes the path length as input
         
         if not len(self.breakpoints):
-            sample_points = np.linspace(0., self.parameter_range, N)
-            derivatives = CubicSpline(sample_points, [self(s) for s in sample_points])(sample_points, nu=1) # Calculate derivatives
-            norm_derivatives = np.linalg.norm(derivatives, axis=1) # Norm of derivative
-            sample_points_to_parameter_range = CubicSpline(sample_points, norm_derivatives).antiderivative()
-            parameter_range_to_sample_point = CubicSpline(sample_points_to_parameter_range(sample_points), sample_points)
-            parameter_range_to_point = lambda p: np.array(self(parameter_range_to_sample_point(p).item()))
-            return Path(parameter_range_to_point, sample_points_to_parameter_range(self.parameter_range).item(), sample_points_to_parameter_range(self.breakpoints).tolist(), self.name) # type: ignore
+            sample_points = np.linspace(0., self.parameter_max, N)
+            
+            # Calculate derivatives using nu=1
+            # derivatives has shape (N, 3)
+            derivatives = CubicSpline(sample_points, [self(s) for s in sample_points])(sample_points, nu=1)
+            
+            # The integral of
+            # sqrt( (df/dx)^2 + (df/dy)^2 + (df/dz)^2 )
+            # gives the path length
+            norm_derivatives = np.linalg.norm(derivatives, axis=1)
+            sample_points_to_path_length = CubicSpline(sample_points, norm_derivatives).antiderivative()
+            
+            path_length_to_sample_point = CubicSpline(sample_points_to_path_length(sample_points), sample_points)
+            path_length_to_point = lambda p: np.array(self(path_length_to_sample_point(p).item()))
+             
+            return Path(path_length_to_point,
+                            sample_points_to_path_length(self.parameter_max).item(), # type: ignore
+                            sample_points_to_path_length(self.breakpoints).tolist(), # type: ignore
+                            self.name)
         else: 
             all_normalized = [p.normalize() for p in self.breakup()]
             
@@ -968,7 +979,7 @@ class Path(GeometricObject):
         
         # Return the arguments to use to breakup the path
         # in a 'nice' way. Points that have to be in, in any case.
-        points = [0.] + self.breakpoints +  [self.parameter_range]
+        points = [0.] + self.breakpoints +  [self.parameter_max]
         subdivision = []
             
         for i, (u0, u1) in enumerate(zip(points, points[1:])):
@@ -990,7 +1001,7 @@ class Path(GeometricObject):
             # N_factor = 3  extra points for curved line elements (line4 in GMSH terminology)
             subdivision.append(np.linspace(u0, u1, N_factor*N, endpoint=False))
         
-        subdivision.append(np.array([self.parameter_range]))
+        subdivision.append(np.array([self.parameter_max]))
         
         return np.concatenate(subdivision)
       
@@ -1056,7 +1067,7 @@ class Path(GeometricObject):
         return Mesh(points=points, lines=lines, physical_to_lines=physical_to_lines, ensure_outward_normals=ensure_outward_normals)
 
     def __str__(self) -> str:
-        return f"<Path name:{self.name}, length:{self.parameter_range:.1e}, number of breakpoints:{len(self.breakpoints)}>"
+        return f"<Path name:{self.name}, length:{self.parameter_max:.1e}, number of breakpoints:{len(self.breakpoints)}>"
      
 class PathCollection(GeometricObject):
     """A PathCollection is a collection of `Path`. It can be created using the + operator (for example path1+path2).
@@ -1163,22 +1174,22 @@ class Surface(GeometricObject):
 
     def __init__(self, 
             fun: Callable[[float, float], Point3D], 
-            parameter_range1: float, 
-            parameter_range2: float, 
+            parameter_max1: float, 
+            parameter_max2: float, 
             breakpoints1: list[float] | None = None, 
             breakpoints2: list[float] | None = None, 
             name: str | None = None) -> None:
         
         self.fun = fun
-        self.parameter_range1 = parameter_range1
-        self.parameter_range2 = parameter_range2
+        self.parameter_max1 = parameter_max1
+        self.parameter_max2 = parameter_max2
         self.breakpoints1 = breakpoints1 if breakpoints1 is not None else []
         self.breakpoints2 = breakpoints2 if breakpoints2 is not None else []
         self.name = name
 
     def _sections(self)-> Generator[Surface, None, None]: 
-        b1 = [0.] + self.breakpoints1 + [self.parameter_range1]
-        b2 = [0.] + self.breakpoints2 + [self.parameter_range2]
+        b1 = [0.] + self.breakpoints1 + [self.parameter_max1]
+        b2 = [0.] + self.breakpoints2 + [self.parameter_max2]
 
         for u0, u1 in zip(b1[:-1], b1[1:]):
             for v0, v1 in zip(b2[:-1], b2[1:]):
@@ -1192,9 +1203,9 @@ class Surface(GeometricObject):
         Parameters
         ------------------------------
         u: float
-            First coordinate, should be 0 <= u <= self.parameter_range1
+            First coordinate, should be 0 <= u <= self.parameter_max1
         v: float
-            Second coordinate, should be 0 <= v <= self.parameter_range2
+            Second coordinate, should be 0 <= v <= self.parameter_max2
 
         Returns
         ----------------------------
@@ -1203,7 +1214,7 @@ class Surface(GeometricObject):
 
     def map_points(self, fun: Callable[[PointLike3D], Point3D]) -> Surface:
         return Surface(lambda u, v: fun(self(u, v)),
-            self.parameter_range1, self.parameter_range2,
+            self.parameter_max1, self.parameter_max2,
             self.breakpoints1, self.breakpoints2, name=self.name)
     
     @staticmethod
@@ -1222,19 +1233,19 @@ class Surface(GeometricObject):
         Returns
         --------------------------
         Surface"""
-        length1 = max(path1.parameter_range, path2.parameter_range)
+        length1 = max(path1.parameter_max, path2.parameter_max)
         
         length_start = float(np.linalg.norm(path1.starting_point() - path2.starting_point()))
         length_final = float(np.linalg.norm(path1.endpoint() - path2.endpoint()))
         length2 = (length_start + length_final)/2
          
         def f(u: float, v: float) -> Point3D:
-            p1 = path1(u/length1*path1.parameter_range) # u/l*p = b, u = l*b/p
-            p2 = path2(u/length1*path2.parameter_range)
+            p1 = path1(u/length1*path1.parameter_max) # u/l*p = b, u = l*b/p
+            p2 = path2(u/length1*path2.parameter_max)
             return (1-v/length2)*p1 + v/length2*p2
 
-        breakpoints = sorted([length1*b/path1.parameter_range for b in path1.breakpoints] + \
-                                [length1*b/path2.parameter_range for b in path2.breakpoints])
+        breakpoints = sorted([length1*b/path1.parameter_max for b in path1.breakpoints] + \
+                                [length1*b/path2.parameter_max for b in path2.breakpoints])
          
         return Surface(f, length1, length2, breakpoints)
 
@@ -1322,12 +1333,12 @@ class Surface(GeometricObject):
         ------------------------------------
         Surface with the four giving paths as the boundary
         """
-        parameter_range_p1_and_p3 = (p1.parameter_range + p3.parameter_range)/2
-        parameter_range_p2_and_p4 = (p2.parameter_range + p4.parameter_range)/2
+        parameter_max_p1_and_p3 = (p1.parameter_max + p3.parameter_max)/2
+        parameter_max_p2_and_p4 = (p2.parameter_max + p4.parameter_max)/2
 
         def f(u: float, v: float) -> Point3D:
-            u /= parameter_range_p1_and_p3
-            v /= parameter_range_p2_and_p4
+            u /= parameter_max_p1_and_p3
+            v /= parameter_max_p2_and_p4
             
             a = (1-v)
             b = (1-u)
@@ -1335,18 +1346,18 @@ class Surface(GeometricObject):
             c = v
             d = u
             
-            return 1/2*(a*p1(u*p1.parameter_range) + \
-                        b*p4((1-v)*p4.parameter_range) + \
-                        c*p3((1-u)*p3.parameter_range) + \
-                        d*p2(v*p2.parameter_range))
+            return 1/2*(a*p1(u*p1.parameter_max) + \
+                        b*p4((1-v)*p4.parameter_max) + \
+                        c*p3((1-u)*p3.parameter_max) + \
+                        d*p2(v*p2.parameter_max))
         
         # Scale the breakpoints appropriately
-        b1 = sorted([b/p1.parameter_range * parameter_range_p1_and_p3 for b in p1.breakpoints] + \
-                [b/p3.parameter_range * parameter_range_p1_and_p3 for b in p3.breakpoints])
-        b2 = sorted([b/p2.parameter_range * parameter_range_p2_and_p4 for b in p2.breakpoints] + \
-                [b/p4.parameter_range * parameter_range_p2_and_p4 for b in p4.breakpoints])
+        b1 = sorted([b/p1.parameter_max * parameter_max_p1_and_p3 for b in p1.breakpoints] + \
+                [b/p3.parameter_max * parameter_max_p1_and_p3 for b in p3.breakpoints])
+        b2 = sorted([b/p2.parameter_max * parameter_max_p2_and_p4 for b in p2.breakpoints] + \
+                [b/p4.parameter_max * parameter_max_p2_and_p4 for b in p4.breakpoints])
         
-        return Surface(f, parameter_range_p1_and_p3, parameter_range_p2_and_p4, b1, b2)
+        return Surface(f, parameter_max_p1_and_p3, parameter_max_p2_and_p4, b1, b2)
      
     @staticmethod
     def disk_xz(x0: float, z0: float, radius: float) -> Surface:
@@ -1552,10 +1563,10 @@ class Surface(GeometricObject):
         ----------------------------
         PathCollection representing the boundary paths of the surface"""
         
-        b1 = Path(lambda u: self(u, 0.), self.parameter_range1, self.breakpoints1, self.name)
-        b2 = Path(lambda u: self(u, self.parameter_range2), self.parameter_range1, self.breakpoints1, self.name)
-        b3 = Path(lambda v: self(0., v), self.parameter_range2, self.breakpoints2, self.name)
-        b4 = Path(lambda v: self(self.parameter_range1, v), self.parameter_range2, self.breakpoints2, self.name)
+        b1 = Path(lambda u: self(u, 0.), self.parameter_max1, self.breakpoints1, self.name)
+        b2 = Path(lambda u: self(u, self.parameter_max2), self.parameter_max1, self.breakpoints1, self.name)
+        b3 = Path(lambda v: self(0., v), self.parameter_max2, self.breakpoints2, self.name)
+        b4 = Path(lambda v: self(self.parameter_max1, v), self.parameter_max2, self.breakpoints2, self.name)
         
         boundary = b1 + b2 + b3 + b4
 
@@ -1719,9 +1730,9 @@ class Surface(GeometricObject):
         `voltrace.mesher.Mesh`"""
          
         if mesh_size is None:
-            parameter_range = min(self.parameter_range1, self.parameter_range2)
+            parameter_max = min(self.parameter_max1, self.parameter_max2)
              
-            mesh_size = parameter_range / 4
+            mesh_size = parameter_max / 4
 
             if mesh_size_factor is not None:
                 mesh_size /= sqrt(mesh_size_factor)

@@ -27,12 +27,12 @@ from . import excitation as E
 from . import util
 from . import logging
 from . import backend
+from .backend import EffectivePointSources2D, EffectivePointCharges2D, EffectivePointCurrents2D
 from .mesher import GeometricObject
 
 from .typing import *
 
 __pdoc__ = {}
-__pdoc__['EffectivePointCharges'] = False
 __pdoc__['Field.copy'] = False
 __pdoc__['Field.get_low_level_trace_function'] = False
 __pdoc__['FieldRadialBEM.get_low_level_trace_function'] = False
@@ -41,93 +41,6 @@ __pdoc__['FieldRadialAxial.get_low_level_trace_function'] = False
 def _is_numeric(x):
     if isinstance(x, int) or isinstance(x, float) or isinstance(x, np.generic):
         return True
-
-
-class EffectivePointCharges:
-    def __init__(self, 
-                 charges: ArrayFloat1D, 
-                 jacobians: ArrayFloat2D, 
-                 positions: ArrayFloat3D, 
-                 directions: ArrayFloat2D | None = None) -> None:
-        
-        self.charges = np.array(charges, dtype=np.float64)
-        self.jacobians = np.array(jacobians, dtype=np.float64)
-        self.positions = np.array(positions, dtype=np.float64)
-        self.directions = np.array(directions, dtype=np.float64) if directions is not None else None # Current elements will have a direction
-        
-        N = len(self.charges)
-        N_QUAD = self.jacobians.shape[1]
-        assert self.charges.shape == (N,) and self.jacobians.shape == (N, N_QUAD)
-        assert self.positions.shape == (N, N_QUAD, 3) or self.positions.shape == (N, N_QUAD, 2)
-        assert self.directions is None or self.directions.shape == (len(self.charges), N_QUAD, 3)
-    
-    @staticmethod 
-    def empty_2d() -> EffectivePointCharges:
-        N_QUAD_2D = backend.N_QUAD_2D
-        return EffectivePointCharges(np.empty((0,)), np.empty((0, N_QUAD_2D)), np.empty((0,N_QUAD_2D,2)))
-
-    @staticmethod 
-    def empty_3d() -> EffectivePointCharges:
-        N_TRIANGLE_QUAD = backend.N_TRIANGLE_QUAD
-        return EffectivePointCharges(np.empty((0,)), np.empty((0, N_TRIANGLE_QUAD)), np.empty((0, N_TRIANGLE_QUAD, 3)))
-    
-    @staticmethod 
-    def empty_line_3d() -> EffectivePointCharges:
-        N_QUAD_2D = backend.N_QUAD_2D
-        return EffectivePointCharges(np.empty((0,)), np.empty((0, N_QUAD_2D)), np.empty((0, N_QUAD_2D, 3)), np.empty((0, N_QUAD_2D, 3)))
-
-    def is_2d(self) -> bool:
-        return self.jacobians.shape[1] == backend.N_QUAD_2D
-    
-    def is_3d(self) -> bool:
-        return self.jacobians.shape[1] == backend.N_TRIANGLE_QUAD
-     
-    def _matches_geometry(self, other: EffectivePointCharges) -> bool:
-        return (self.positions.shape == other.positions.shape and np.allclose(self.positions, other.positions)
-                and self.jacobians.shape == other.jacobians.shape and np.allclose(self.jacobians, other.jacobians))
-
-    def __len__(self) -> int:
-        return len(self.charges)
-    
-    def __add__(self, other: EffectivePointCharges) -> EffectivePointCharges:
-        if not isinstance(other, EffectivePointCharges) or self.is_2d() != other.is_2d():
-            return NotImplemented
-        
-        if self._matches_geometry(other):
-            return EffectivePointCharges((self.charges + other.charges).astype(np.float64), self.jacobians, self.positions)
-        else:
-            return EffectivePointCharges(
-                np.concatenate([self.charges, other.charges]),
-                np.concatenate([self.jacobians, other.jacobians]),
-                np.concatenate([self.positions, other.positions]))
-
-    def __radd__(self, other: EffectivePointCharges) -> EffectivePointCharges:
-        return self.__add__(other)
-     
-    def __mul__(self, other: float) -> EffectivePointCharges:
-        if _is_numeric(other):
-            return EffectivePointCharges(other*self.charges, self.jacobians, self.positions)
-        
-        return NotImplemented
-    
-    def __neg__(self) -> EffectivePointCharges:
-        return -1*self
-    
-    def __sub__(self, other: EffectivePointCharges) -> EffectivePointCharges:
-        if isinstance(other, EffectivePointCharges):
-            return self.__add__(-other)
-
-        return NotImplemented
-     
-    def __rmul__(self, other: float) -> EffectivePointCharges:
-        return self.__mul__(other)
-
-    def __str__(self) -> str:
-        dim = '2D' if self.is_2d() else '3D'
-        return f'<EffectivePointCharges {dim}\n' \
-               f'\tNumber of charges: {len(self.charges)}\n' \
-               f'\tJacobian shape:  {self.jacobians.shape}\n' \
-               f'\tPositions shape: {self.positions.shape}>'
 
 
 class Field(GeometricObject, ABC):
@@ -512,9 +425,9 @@ class FieldBEM(Field, ABC):
     This base class overloads the +,*,- operators so it is very easy to take a superposition of different fields."""
     
     def __init__(self, 
-                 electrostatic_point_charges: EffectivePointCharges, 
-                 magnetostatic_point_charges: EffectivePointCharges, 
-                 current_point_charges: EffectivePointCharges):
+                 electrostatic_point_charges: EffectivePointSources2D,
+                 magnetostatic_point_charges: EffectivePointSources2D,
+                 current_point_charges: EffectivePointSources2D):
         
         super().__init__()
         
@@ -533,46 +446,6 @@ class FieldBEM(Field, ABC):
             and np.allclose(self._origin, other._origin) 
             and np.allclose(self._basis, other._basis))
 
-
-    def __add__(self, other: Field) -> Field:
-        if self._matches_geometry(other):
-            other = cast(FieldBEM, other)
-            field_copy = self.copy()
-            field_copy.electrostatic_point_charges = self.electrostatic_point_charges + other.electrostatic_point_charges
-            field_copy.magnetostatic_point_charges = self.magnetostatic_point_charges + other.magnetostatic_point_charges
-            field_copy.current_point_charges = self.current_point_charges + other.current_point_charges
-            return field_copy
-        else:
-            return super().__add__(other)
-    
-    def __sub__(self, other: Field) -> Field:
-        if isinstance(other, Field):
-            return self.__add__(-other)
-        
-        return NotImplemented
-
-    def __radd__(self, other: Field) -> Field:
-        return self.__add__(other)
-        
-    def __mul__(self, other: float) -> Field:
-        if _is_numeric(other):
-           field_copy = self.copy()
-           field_copy.electrostatic_point_charges = self.electrostatic_point_charges * other
-           field_copy.magnetostatic_point_charges = self.magnetostatic_point_charges * other
-           field_copy.current_point_charges = self.current_point_charges * other
-           return field_copy
-        else:
-            return super().__mul__(other)
-    
-    def __neg__(self) -> FieldBEM:
-        return self.__class__(
-            self.electrostatic_point_charges.__neg__(),
-            self.magnetostatic_point_charges.__neg__(),
-            self.current_point_charges.__neg__())
-     
-    def __rmul__(self, other: float) -> Field:
-        return self.__mul__(other)
-      
     def area_of_elements(self, indices: ArrayLikeInt1D):
         """Compute the total area of the elements at the given indices.
         
@@ -622,23 +495,23 @@ class FieldRadialBEM(FieldBEM):
     `solve_direct` function. See the comments in `FieldBEM`."""
     
     def __init__(self, 
-                 electrostatic_point_charges: EffectivePointCharges | None = None, 
-                 magnetostatic_point_charges: EffectivePointCharges | None = None, 
-                 current_point_charges: EffectivePointCharges | None = None) -> None:
+                 electrostatic_point_charges: EffectivePointCharges2D | None = None, 
+                 magnetostatic_point_charges: EffectivePointCharges2D | None = None, 
+                 current_point_charges: EffectivePointCurrents2D | None = None) -> None:
         
-        if electrostatic_point_charges is None:
-            electrostatic_point_charges = EffectivePointCharges.empty_2d()
-        if magnetostatic_point_charges is None:
-            magnetostatic_point_charges = EffectivePointCharges.empty_2d()
-        if current_point_charges is None:
-            current_point_charges = EffectivePointCharges.empty_3d()
+        self.electrostatic_point_charges: EffectivePointCharges2D = electrostatic_point_charges \
+            if electrostatic_point_charges is not None else EffectivePointCharges2D.empty()
         
-        assert all([isinstance(eff, EffectivePointCharges) for eff in [electrostatic_point_charges,
-                                                                       magnetostatic_point_charges,
-                                                                       current_point_charges]])
+        self.magnetostatic_point_charges: EffectivePointCharges2D = magnetostatic_point_charges \
+            if magnetostatic_point_charges is not None else EffectivePointCharges2D.empty()
+        
+        self.current_point_charges: EffectivePointCurrents2D = current_point_charges \
+            if current_point_charges is not None else EffectivePointCurrents2D.empty()
+        
         self.symmetry = E.Symmetry.RADIAL
-        super().__init__(electrostatic_point_charges, magnetostatic_point_charges, current_point_charges)
          
+        super().__init__(self.electrostatic_point_charges, self.magnetostatic_point_charges, self.current_point_charges)
+
     def current_field_at_local_point(self, point: PointLike3D) -> Vector3D:
         point = np.array(point, dtype=np.float64)
         assert point.shape == (3,), "Please supply a three dimensional point"
@@ -803,6 +676,24 @@ class FieldRadialBEM(FieldBEM):
         positions = self.current_point_charges.positions
         return backend.current_axial_derivatives_radial(z, currents, jacobians, positions)
       
+    def __add__(self, other: Field) -> Field:
+        if isinstance(other, FieldRadialBEM) and self._matches_geometry(other):
+            return FieldRadialBEM(
+                self.electrostatic_point_charges + other.electrostatic_point_charges,
+                self.magnetostatic_point_charges + other.magnetostatic_point_charges,
+                self.current_point_charges + other.current_point_charges)
+        else:
+            return super().__add__(other)
+    
+    def __mul__(self, other: float) -> Field:
+        if _is_numeric(other):
+            return FieldRadialBEM(
+                self.electrostatic_point_charges * other,
+                self.magnetostatic_point_charges * other,
+                self.current_point_charges * other)
+        else:
+            return super().__mul__(other)
+    
     def area_of_element(self, i: int) -> float:
         jacobians = self.electrostatic_point_charges.jacobians
         positions = self.electrostatic_point_charges.positions
@@ -879,15 +770,6 @@ class FieldAxial(Field, ABC):
         else:
             return super().__add__(other)
     
-    def __sub__(self, other: Field) -> Field:
-        if isinstance(other, Field):
-            return self.__add__(-other)
-
-        return NotImplemented
-
-    def __radd__(self, other: Field) -> Field:
-        return self.__add__(other)
-     
     def __mul__(self, other: float) -> Field:
         if _is_numeric(other):
             field_copy = self.copy()
@@ -897,11 +779,6 @@ class FieldAxial(Field, ABC):
         else:
             return super().__mul__(other)
      
-    def __neg__(self) -> Field:
-        return -1*self
-    
-    def __rmul__(self, other: float) -> Field:
-        return self.__mul__(other)
 
 def _get_one_dimensional_high_order_ppoly(z: ArrayLikeFloat1D, 
                                           y: float , 
