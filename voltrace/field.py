@@ -374,7 +374,7 @@ class FieldSuperposition(Field):
     def is_magnetostatic(self) -> bool:
         return any(f.is_magnetostatic() for f in self.fields)
 
-    def get_tracer(self, bounds: BoundsLike3D) -> Tracer:
+    def get_tracer(self, bounds: BoundsLike3D) -> T.Tracer:
         return T.Tracer(self, bounds)
 
     def __add__(self, other: Field) -> FieldSuperposition:
@@ -699,7 +699,7 @@ class FieldRadialBEM(FieldBEM):
         positions = self.electrostatic_point_charges.positions
         return 2*np.pi*np.sum(jacobians[i] * positions[i, :, 0])
     
-    def get_tracer(self, bounds: BoundsLike3D)-> Tracer:
+    def get_tracer(self, bounds: BoundsLike3D)-> T.Tracer:
         return T.Tracer(self, bounds)
     
     def get_low_level_trace_function(self) -> tuple[Callable, Any]:
@@ -935,7 +935,7 @@ class FieldRadialAxial(FieldAxial):
         assert point.shape == (3,), "Please supply a three dimensional point"
         return backend.potential_radial_derivs(point, self.z, self.magnetostatic_coeffs)
     
-    def get_tracer(self, bounds: BoundsLike3D) -> Tracer:
+    def get_tracer(self, bounds: BoundsLike3D) -> T.Tracer:
         return T.Tracer(self, bounds)
     
     def get_low_level_trace_function(self) -> tuple[Callable, Any]:
