@@ -568,14 +568,14 @@ class Path(GeometricObject):
                 Path(lambda l: self.fun(l + length), self.parameter_max - length, [b - length for b in self.breakpoints if b >= length], name=self.name))
 
     @staticmethod
-    def polygon(points: ArrayLikeFloat2D) -> Path:
+    def polygon(points: PointsLike3D) -> Path:
         """
         Return the outline of the polygon formed by connecting the given points.
         The polygon returned will be closed.
 
         Parameters
         --------------------------------
-        points: ArrayLikeFloat2D
+        points: PointsLike3D
             The points giving the outline of the polygon.
 
         Returns
