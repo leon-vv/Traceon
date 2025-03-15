@@ -113,11 +113,11 @@ class Path(GeometricObject):
         
         if derivatives is None:
             interpolation = CubicSpline(parameters, points)
+            velocity = lambda u: interpolation(u, nu=1)
         else:
             assert len(derivatives) == len(points), "When interpolating with derivatives, please supply equal amount of points and derivatives"
-            interpolation = CubicHermiteSpline(parameters, points, derivatives)
-
-        velocity = lambda u: interpolation(u, nu=1)
+            interpolation = CubicHermiteSpline(parameters, points, derivatives) # type: ignore
+            velocity = lambda u: interpolation(u, nu=1)
 
         return Path(interpolation, parameters[-1] - parameters[0], velocity=velocity)
     
