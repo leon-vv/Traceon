@@ -338,11 +338,13 @@ class FieldSuperposition(Field):
     """Representing a linear combination of fields (superposition). Will be automatically created if fields are added
     together (field1 + field2) and the underlying field classes do not implement a specialized add method."""
     
-    def __init__(self, fields: Iterable[Field], factors: Iterable[float] | Iterable[np.floating] | None = None) -> None:
+    def __init__(self, fields: Iterable[Field], factors: Iterable[float] | Iterable[np.floating] | None = None, names: Iterable[str] | None = None) -> None:
         super().__init__()
         
-        assert all([isinstance(f, Field) for f in fields])
         self.fields: List[Field] = list(fields)
+        self.field_names = [] if names is None else list(names)
+        assert all([isinstance(f, Field) for f in self.fields])
+        assert len(self.field_names) == 0 or len(self.field_names) == len(self.fields), "If fields are named, please supply equal amount of names and fields."
          
         self.factors: ArrayFloat1D = np.ones(len(self.fields)) if factors is None else np.array(factors, dtype=np.float64)
 
@@ -399,13 +401,19 @@ class FieldSuperposition(Field):
     def __rmul__(self, other: float) -> FieldSuperposition :
         return self.__mul__(other)
     
-    def __getitem__(self, index: int | slice) -> Field:
+    def __getitem__(self, index: int | slice | str) -> Field:
         if isinstance(index, slice):
             fields: List[Field] = np.array(self.fields, dtype=object).__getitem__(index).tolist() # type: ignore
             return FieldSuperposition(fields, self.factors[index])
         elif isinstance(index, int):
             return self.factors[index] * self.fields[index]
-
+        elif isinstance(index, str):
+            for field_name, field in zip(self.field_names, self.fields):
+                if field_name == index:
+                    return field
+            
+            raise KeyError(f'Could not find {index} in FieldSuperposition. Names available: {self.field_names}')
+        
         return NotImplemented
      
     def __len__(self) -> int:
