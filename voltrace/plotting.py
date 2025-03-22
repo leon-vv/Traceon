@@ -18,8 +18,10 @@ import vedo.shapes
 import vedo.colors
 
 from . import backend
-
-from .geometry import Path
+from .mesher import Mesh
+from .field import Field, FieldBEM, FieldRadialBEM
+from .geometry import Surface, Path
+from .excitation import Excitation
 from .typing import *
 
 _current_figures = []
@@ -171,7 +173,6 @@ class Figure:
             raise RuntimeError("Trying to plot empty mesh.")
         
         if len(mesh.triangles):
-            assert isinstance(field, Field3D_BEM)
             meshes = _get_vedo_charge_density_3d(excitation, field, color_map)
             self.to_plot.append(meshes)
             
@@ -316,7 +317,7 @@ def _get_vedo_triangles_and_normals(mesh: Mesh, **phys_colors: str) -> tuple[lis
     return meshes, arrows
 
 # TODO: Move to Voltrace Pro
-def _get_vedo_charge_density_3d(excitation: Excitation, field: Field3D_BEM, color_map: str) -> list[vedo.Mesh]:
+def _get_vedo_charge_density_3d(excitation: Excitation, field: FieldBEM, color_map: str) -> list[vedo.Mesh]:
     
     if excitation.is_electrostatic():
         all_vertices, name = excitation.get_electrostatic_active_elements()
@@ -328,8 +329,10 @@ def _get_vedo_charge_density_3d(excitation: Excitation, field: Field3D_BEM, colo
     charge_min, charge_max = np.min(all_charges), np.max(all_charges)
     
     meshes = []
-    
+     
     for _, indices in name.items():
+        assert all_vertices.shape == (len(all_vertices), 3, 3), "Please pass in a 3D Field to _get_vedo_charge_density_3d"
+        
         vertices = all_vertices[indices, :3]
         
         points = np.reshape(vertices, (3*len(vertices), 3))

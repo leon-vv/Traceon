@@ -17,7 +17,7 @@ import numpy as np
 from scipy.integrate import quad
 from scipy.interpolate import CubicSpline, CubicHermiteSpline
 
-from .mesher import GeometricObject, _mesh, Mesh
+from .mesher import GeometricObject, Mesh
 from  .typing import *
 
 
@@ -33,6 +33,8 @@ __pdoc__['Surface.__add__'] = True
 __pdoc__['SurfaceCollection.__add__'] = True
 __pdoc__['SurfaceCollection.__iadd__'] = True
 __pdoc__['Surface.__call__'] = True
+__pdoc__['Points3DWithQuads'] = False
+__pdoc__['PointStack'] = False
 
 
 def _points_close(p1: PointLike3D, p2: PointLike3D, tolerance: float = 1e-8) -> bool:
@@ -677,6 +679,139 @@ class Path(GeometricObject):
         A tuple containing two paths. The first path contains the path upto length, while the second path contains the rest."""
         return (Path(self.fun, length, [b for b in self.breakpoints if b <= length], name=self.name),
                 Path(lambda l: self.fun(l + length), self.parameter_max - length, [b - length for b in self.breakpoints if b >= length], name=self.name))
+
+    @staticmethod
+    def polygon(points: PointsLike3D) -> Path:
+        """
+        Return the outline of the polygon formed by connecting the given points.
+        The polygon returned will be closed.
+
+        Parameters
+        --------------------------------
+        points: PointsLike3D
+            The points giving the outline of the polygon.
+
+        Returns
+        -------------------------------
+        `Path`
+        """
+        
+        points_arr = np.array(points, dtype=np.float64)
+        assert points_arr.shape == (len(points_arr), 3), "Polygon points should be an array of shape (N,3)"
+        assert len(points_arr) >= 3, "Polygon should have at least 3 points"
+        
+        if not _points_close(points_arr[0], points_arr[-1]):
+            points_arr = np.concatenate( (points_arr, points_arr[0][np.newaxis, :]) ) # Add the first point to the end
+        
+        lengths: list[float] = [np.linalg.norm(p1 - p0).item() for p0, p1 in zip(points_arr, points_arr[1:])]
+        total_length = sum(lengths)
+        
+        def to_point(u):
+            index = 0
+            
+            for l in lengths:
+                if u - l <= 0 or index == len(points_arr) - 2:
+                    break
+                
+                u -= l
+                index += 1
+
+            start_point = points_arr[index]
+            next_point = points_arr[index + 1]
+            vector = next_point - start_point
+
+            return start_point + vector * u/np.linalg.norm(vector)
+        
+        breakpoints: list[float] = np.cumsum(lengths[:-1]).tolist() # type: ignore
+        return Path(to_point, sum(lengths), breakpoints=breakpoints)
+     
+    def stroke(self, width: float) -> Path:
+        """
+        Give the path that forms the outline of the current path if it were to be 'stroked'
+        by a marker with the given width. The returned path is closed. The function currently
+        only supports paths consisting of straight sections lying in the xz plane.
+         
+        Parameters
+        --------------------------------
+        width: float
+            The width of the stroke. The outline will be distanced half the width to the original path (except at the endpoints).
+
+        Returns
+        -------------------------------
+        `Path`
+            The outline of the stroke.
+        """
+        sample_points = [0.] + self.breakpoints +  [self.parameter_max]
+        points = np.array([self(s) for s in sample_points], dtype=np.float64)
+        
+        N_points = len(points)
+        
+        assert len(points) >= 2, "Not enough points to form stroke, at least two points needed"
+        assert np.allclose(points[:, 1], 0.0), "Stroke currently only works for paths lying in the xz plane."
+        
+        half_width = width / 2.0
+        
+        # Compute direction vectors (unit vectors) for each segment.
+        directions = np.array([p1 - p0 for p1, p0 in zip(points, points[1:])])
+        directions = np.array([d/np.linalg.norm(d) if np.linalg.norm(d) > 1e-14 else np.zeros(3,) for d in directions]) # Normalize
+
+        # Compute perpendicular (normal) for each segment.
+        # For a vector (dx, dz), a perpendicular is (-dy, dz).
+        normals = np.empty_like(directions)
+        normals[:, 0] = -directions[:, 2]
+        normals[:, 2] = directions[:, 0]
+        
+        # Prepare lists for offset points for left and right sides.
+        left_points = [points[0] + half_width * normals[0]]
+        right_points = [points[0] - half_width * normals[0]]
+        
+        # For each internal vertex, compute the offset via line intersection.
+        for i in range(1, N_points - 1):
+            # Offsetting from the previous segment.
+            P1_left = points[i] + half_width * normals[i - 1]
+            r1 = directions[i - 1]
+            # Offsetting from the next segment.
+            P2_left = points[i] + half_width * normals[i]
+            r2 = directions[i]
+            
+            # Solve for intersection point of:
+            #   L1: P1_left + t * r1 and L2: P2_left + s * r2.
+            # In 2D, we can use the cross product.
+            denom = r1[0] * r2[2] - r1[2] * r2[0]
+            
+            if np.abs(denom) < 1e-8:
+                # Lines nearly parallel: average the two offsets.
+                left_point = points[i] + half_width * (normals[i - 1] + normals[i]) / 2.0
+            else:
+                diff = P2_left - P1_left
+                t = (diff[0] * r2[2] - diff[2] * r2[0]) / denom
+                left_point = P1_left + t * r1
+            
+            left_points.append(left_point)
+            
+            # Do the same for the right side (offset in the opposite direction).
+            P1_right = points[i] - half_width * normals[i - 1]
+            P2_right = points[i] - half_width * normals[i]
+            denom = r1[0] * r2[2] - r1[2] * r2[0]
+            
+            if np.abs(denom) < 1e-8:
+                right_point = points[i] - half_width * (normals[i - 1] + normals[i]) / 2.0
+            else:
+                diff = P2_right - P1_right
+                t = (diff[0] * r2[2] - diff[2] * r2[0]) / denom
+                right_point = P1_right + t * r1
+            
+            right_points.append(right_point)
+        
+        # For the last point, use the last segment's normal.
+        left_points.append(points[-1] + half_width * normals[-1])
+        right_points.append(points[-1] - half_width * normals[-1])
+
+        # Assemble the outline polygon: traverse left offsets in order,
+        # then right offsets in reverse order to form a closed shape.
+        points = np.array(left_points + right_points[::-1] + [left_points[0]]) # Close the path by adding left_points[0]
+
+        return Path.polygon(points)
     
     @staticmethod
     def rectangle_xz(xmin: float, xmax: float, zmin: float, zmax: float) -> Path:
@@ -1738,7 +1873,7 @@ class Surface(GeometricObject):
                 mesh_size /= sqrt(mesh_size_factor)
 
         name = self.name if name is None else name
-        return _mesh(self, mesh_size, name=name, ensure_outward_normals=ensure_outward_normals)
+        return _mesh_surface(self, mesh_size, name=name, ensure_outward_normals=ensure_outward_normals)
     
     def __str__(self) -> str:
         return f"<Surface with name: {self.name}>"
@@ -1820,7 +1955,273 @@ class SurfaceCollection(GeometricObject):
 
     def __str__(self) -> str:
         return f"<SurfaceCollection with {len(self.surfaces)} surfaces, name: {self.name}>"
+
+
+class Points3DWithQuads:
+    def __init__(self, indices: ArrayLikeInt1D, quads: QuadsLike) -> None:
+        indices = np.array(indices, dtype=np.int64)
+        quads = np.array(quads, dtype=np.int64)
+        N = len(indices)
+        assert indices.shape == (N, N)
+        assert np.all(quads[:, 1] < N)
+        assert quads.shape == (len(quads), 5)
+        assert np.all(quads[:, 0] == quads[0, 0])
+        
+        self.indices = indices
+        self.quads = quads
+        self.depth = quads[0, 0]
+        
+        self.shape = indices.shape
     
+    def to_triangles(self) -> Triangles:
+        triangles = []
+
+        def add_triangle(p0, p1, p2):
+            triangles.append([self.indices[p0[0], p0[1]], self.indices[p1[0], p1[1]], self.indices[p2[0], p2[1]]])
+         
+        for quad in self.quads:
+            depth, i0, i1, j0, j1 = quad 
+            assert depth == self.depth
+
+            p0 = (i0, j0)
+            p1 = (i0, j1)
+            p2 = (i1, j1)
+            p3 = (i1, j0)
+
+            split_edge = False
+            
+            # Check if there is a point on the edge 
+            for edge in range(4):
+                # Is there a point on the first edge?
+                point_on_edge = (p0[0]+p1[0])//2, (p0[1]+p1[1])//2
+                
+                if (abs(p0[0] - p1[0]) > 1 or abs(p0[1] - p1[1]) > 1) and \
+                        self.indices[point_on_edge[0], point_on_edge[1]] != -1:
+                    # Yes there is a point.. we have to split the
+                    # quad into three triangles
+                    add_triangle(p0, point_on_edge, p3)
+                    add_triangle(point_on_edge, p2, p3)
+                    add_triangle(point_on_edge, p1, p2)
+                    split_edge = True
+                    break
+                
+                # Rotate the points so we check the next edge
+                p0, p1, p2, p3 = p1, p2, p3, p0
+             
+            if not split_edge: 
+                add_triangle(p0, p1, p2)
+                add_triangle(p0, p2, p3)
+         
+        assert not (-1 in np.array(triangles))
+        return np.array(triangles, dtype=np.uint64)
+    
+    def __getitem__(self, *args: Any, **kwargs: Any) -> ArrayInt1D:
+        return self.indices.__getitem__(*args, **kwargs)
+    
+    def __setitem__(self, *args: Any, **kwargs: Any) -> None:
+        self.indices.__setitem__(*args, **kwargs)
+
+
+class PointStack:
+    def __init__(self, surface: Surface, points: list[Point3D] | None = None) -> None:
+
+        self.points = points if points is not None else [] # here we need points as list to append in-place
+            
+        self.parameter_max1 = surface.parameter_max1
+        self.parameter_max2 = surface.parameter_max2
+        
+        self.surf = surface
+         
+        self.indices: list[ArrayInt2D] = []
+    
+    def index_to_u(self, depth: int, i: int) -> float:
+        return self.parameter_max1/(self.get_number_of_indices(depth) - 1) * i
+     
+    def index_to_v(self, depth: int, j: int) -> float:
+        return self.parameter_max2/(self.get_number_of_indices(depth) - 1) * j
+    
+    def index_to_point(self, depth: int, i: int, j: int) -> Point3D:
+        u = self.index_to_u(depth, i)
+        v = self.index_to_v(depth, j)
+        return self.surf(u, v)
+    
+    def get_number_of_indices(self, depth: int) -> int:
+        return 2**depth + 1
+    
+    def depth(self) -> int:
+        return len(self.indices) - 1
+    
+    def add_level(self) -> None:
+        new_depth = len(self.indices)
+        Nu = Nv = self.get_number_of_indices(new_depth)
+        
+        index_map = np.full((Nu, Nv), -1, dtype=np.int64)
+        
+        if new_depth != 0.:
+            index_map[::2, ::2] = self.indices[-1]
+        
+        self.indices.append(index_map)
+     
+    def to_point_index(self, depth: int, i: int, j) -> int:
+        assert 0 <= i <= self.get_number_of_indices(depth)
+        assert 0 <= j <= self.get_number_of_indices(depth)
+        
+        while depth >= len(self.indices):
+            self.add_level()
+        
+        map_ = self.indices[depth]
+        
+        if map_[i, j] == -1:
+            self.points.append(self.index_to_point(depth, i, j))
+            map_[i, j] = len(self.points) - 1
+
+        return map_[i, j]
+     
+    def __getitem__(self, args: Sequence[int]) -> Points3D:
+        depth, i, j = args
+        return np.array(self.points[self.to_point_index(depth, i, j)])
+     
+    def normalize_to_depth(self, depth: int, quads: QuadsLike, start_depth: int) -> Points3DWithQuads:
+        N = self.get_number_of_indices(depth)
+        
+        while self.depth() < depth:
+            self.add_level()
+        
+        assert self.depth() == depth
+        assert self.indices[-1].shape == (N, N)
+
+        for d in range(start_depth, len(self.indices)-1):
+            previous = self.indices[d]
+            x, y = np.where(previous != -1)
+            self.indices[d+1][2*x, 2*y] = previous[x, y]
+
+        quads = np.array(quads)
+        assert quads.shape == (len(quads), 5)
+        
+        for i in range(len(quads)):
+            quad_depth, i0, i1, j0, j1 = quads[i]
+             
+            while quad_depth < depth:
+                i0 *= 2
+                i1 *= 2
+                j0 *= 2
+                j1 *= 2
+                quad_depth += 1
+              
+            quads[i] = (quad_depth, i0, i1, j0, j1)
+         
+        return Points3DWithQuads(self.indices[-1], quads)
+
+
+def _subdivide_quads(pstack: PointStack, 
+                     mesh_size: float, 
+                     to_subdivide: list[QuadLike] | None = None, 
+                     quads: list[QuadLike] | None = None) -> None: 
+    assert isinstance(pstack, PointStack)
+    
+    to_subdivide = to_subdivide if to_subdivide is not None else []
+    quads = quads if quads is not None else [] # need quads as shared list in order to append in place
+    if not callable(mesh_size):
+        mesh_size_fun = lambda x, y, z: mesh_size
+    else:
+        mesh_size_fun = mesh_size
+
+    while len(to_subdivide) > 0:
+        depth, i0, i1, j0, j1 = to_subdivide.pop()
+        
+        # Determine whether should split horizontally/vertically
+        p1x, p1y, p1z = pstack[depth, i0, j0]
+        p2x, p2y, p2z = pstack[depth, i0, j1]
+        p3x, p3y, p3z = pstack[depth, i1, j0]
+        p4x, p4y, p4z = pstack[depth, i1, j1]
+            
+        horizontal = max(sqrt((p1x-p2x)**2 + (p1y-p2y)**2 + (p1z-p2z)**2), sqrt((p3x-p4x)**2 + (p3y-p4y)**2 + (p3z-p4z)**2))
+        vertical = max(sqrt((p1x-p3x)**2 + (p1y-p3y)**2 + (p1z-p3z)**2) , sqrt((p2x-p4x)**2 + (p2y-p4y)**2 + (p2z-p4z)**2))
+    
+        ms: float = mesh_size_fun((p1x+p2x+p3x+p4x)/4, (p1y+p2y+p3y+p4y)/4, (p1z+p2z+p3z+p4z)/4) # type: ignore
+            
+        h = horizontal > ms or (horizontal > 2.5*vertical and horizontal > 1/8*ms)
+        v = vertical > ms or (vertical > 2.5*horizontal and vertical > 1/8*ms)
+            
+        if h and v: # Split both horizontally and vertically
+            to_subdivide.append((depth+1, 2*i0, 2*i0+1, 2*j0, 2*j0+1))
+            to_subdivide.append((depth+1, 2*i0, 2*i0+1, 2*j0+1, 2*j0+2))
+            to_subdivide.append((depth+1, 2*i0+1, 2*i0+2, 2*j0, 2*j0+1))
+            to_subdivide.append((depth+1, 2*i0+1, 2*i0+2, 2*j0+1, 2*j0+2))
+        elif h and not v: # Split only horizontally
+            to_subdivide.append((depth+1, 2*i0, 2*i1, 2*j0, 2*j0+1))
+            to_subdivide.append((depth+1, 2*i0, 2*i1, 2*j0+1, 2*j0+2)) 
+        elif v and not h: # Split only vertically
+            to_subdivide.append((depth+1, 2*i0, 2*i0+1, 2*j0, 2*j1))
+            to_subdivide.append((depth+1, 2*i0+1, 2*i0+2, 2*j0, 2*j1))
+        else: # We are done, both sides are within mesh size limits
+            quads.append((depth, i0, i1, j0, j1))
+
+def _mesh_subsections_to_quads(surface: Surface, mesh_size: float, start_depth: int) -> tuple[list[Point3D], list[PointStack], list[QuadsLike]]:
+    all_pstacks = []
+    all_quads: list[QuadsLike] = []
+    points: list[Point3D] = []
+    
+    for s in surface._sections():
+        quads: List[QuadLike] = []
+        pstack = PointStack(s, points=points)
+        
+        for i in range(pstack.get_number_of_indices(start_depth) - 1):
+            for j in range(pstack.get_number_of_indices(start_depth) - 1):
+                _subdivide_quads(pstack, mesh_size, to_subdivide=[(start_depth, i, i+1, j, j+1)], quads=quads)
+        
+        all_pstacks.append(pstack)
+        all_quads.append(quads)
+        points = pstack.points
+
+    return points, all_pstacks, all_quads
+    
+def _copy_over_edge(e1: ArrayInt1D, e2: ArrayInt1D) -> None:
+    assert e1.shape == e2.shape
+    mask = e2 != -1
+    e1[mask] = e2[mask]
+    
+    mask = e1 != -1
+    e2[mask] = e1[mask]
+
+def _mesh_surface(surface: Surface, 
+          mesh_size: float, 
+          start_depth: int = 2, 
+          name: str | None = None, 
+          ensure_outward_normals: bool = True) -> Mesh:
+    # Create a point stack for each subsection
+    points_list, point_stacks, quads = _mesh_subsections_to_quads(surface, mesh_size, start_depth)
+     
+    max_depth = max([p.depth() for p in point_stacks])
+     
+    # Normalize all the point stacks to the max depth of all sections 
+    point_with_quads = [p.normalize_to_depth(max_depth, q, start_depth) for p, q in zip(point_stacks, quads)]
+    
+    # Copy over the edges
+    Nx, Ny = len(surface.breakpoints1)+1, len(surface.breakpoints2)+1
+    assert len(point_with_quads) == Nx*Ny
+
+    for i in range(Nx-1):
+        for j in range(Ny): # Horizontal copying
+            _copy_over_edge(point_with_quads[j*Nx + i][-1, :], point_with_quads[j*Nx + i + 1][0, :])
+     
+    for i in range(Nx):
+        for j in range(Ny-1): # Vertical copying
+            _copy_over_edge(point_with_quads[j*Nx + i][:, -1], point_with_quads[(j+1)*Nx + i][:, 0])
+     
+    points = np.array(points_list)
+    triangles = np.concatenate([pq.to_triangles() for pq in point_with_quads], axis=0)
+    
+    assert points.shape == (len(points), 3)
+    assert triangles.shape == (len(triangles), 3)
+    assert np.all( (0 <= triangles) & (triangles < len(points)) )
+     
+    if name is not None:
+        physical_to_triangles = {name:np.arange(len(triangles))}
+    else:
+        physical_to_triangles = {}
+    
+    return Mesh(points=points, triangles=triangles, physical_to_triangles=physical_to_triangles, ensure_outward_normals=ensure_outward_normals)
 
 
 

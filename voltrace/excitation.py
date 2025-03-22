@@ -21,7 +21,7 @@ from scipy.constants import mu_0
 
 from .backend import N_QUAD_2D
 from .logging import log_error
-
+from .mesher import Mesh
 
 from .typing import *
 

@@ -22,6 +22,9 @@ from . import logging
 from .geometry import Path
 from .typing import *
 
+if TYPE_CHECKING:
+    from .field import Field
+
 def _convert_velocity_to_SI(velocity: VectorLike3D, mass: float) -> Vector3D:
     # Convert a velocity vector expressed in eV (see functions below)
     # to one expressed in m/s.

@@ -338,11 +338,13 @@ class FieldSuperposition(Field):
     """Representing a linear combination of fields (superposition). Will be automatically created if fields are added
     together (field1 + field2) and the underlying field classes do not implement a specialized add method."""
     
-    def __init__(self, fields: Iterable[Field], factors: Iterable[float] | Iterable[np.floating] | None = None) -> None:
+    def __init__(self, fields: Iterable[Field], factors: Iterable[float] | Iterable[np.floating] | None = None, names: Iterable[str] | None = None) -> None:
         super().__init__()
         
-        assert all([isinstance(f, Field) for f in fields])
         self.fields: List[Field] = list(fields)
+        self.field_names = [] if names is None else list(names)
+        assert all([isinstance(f, Field) for f in self.fields])
+        assert len(self.field_names) == 0 or len(self.field_names) == len(self.fields), "If fields are named, please supply equal amount of names and fields."
          
         self.factors: ArrayFloat1D = np.ones(len(self.fields)) if factors is None else np.array(factors, dtype=np.float64)
 
@@ -374,7 +376,7 @@ class FieldSuperposition(Field):
     def is_magnetostatic(self) -> bool:
         return any(f.is_magnetostatic() for f in self.fields)
 
-    def get_tracer(self, bounds: BoundsLike3D) -> Tracer:
+    def get_tracer(self, bounds: BoundsLike3D) -> T.Tracer:
         return T.Tracer(self, bounds)
 
     def __add__(self, other: Field) -> FieldSuperposition:
@@ -399,13 +401,19 @@ class FieldSuperposition(Field):
     def __rmul__(self, other: float) -> FieldSuperposition :
         return self.__mul__(other)
     
-    def __getitem__(self, index: int | slice) -> Field:
+    def __getitem__(self, index: int | slice | str) -> Field:
         if isinstance(index, slice):
             fields: List[Field] = np.array(self.fields, dtype=object).__getitem__(index).tolist() # type: ignore
             return FieldSuperposition(fields, self.factors[index])
         elif isinstance(index, int):
             return self.factors[index] * self.fields[index]
-
+        elif isinstance(index, str):
+            for field_name, field in zip(self.field_names, self.fields):
+                if field_name == index:
+                    return field
+            
+            raise KeyError(f'Could not find {index} in FieldSuperposition. Names available: {self.field_names}')
+        
         return NotImplemented
      
     def __len__(self) -> int:
@@ -699,7 +707,7 @@ class FieldRadialBEM(FieldBEM):
         positions = self.electrostatic_point_charges.positions
         return 2*np.pi*np.sum(jacobians[i] * positions[i, :, 0])
     
-    def get_tracer(self, bounds: BoundsLike3D)-> Tracer:
+    def get_tracer(self, bounds: BoundsLike3D)-> T.Tracer:
         return T.Tracer(self, bounds)
     
     def get_low_level_trace_function(self) -> tuple[Callable, Any]:
@@ -774,7 +782,7 @@ class FieldAxial(Field, ABC):
         if _is_numeric(other):
             field_copy = self.copy()
             field_copy.electrostatic_coeffs = other * self.electrostatic_coeffs
-            field_copy.magnetostatic_coeffs = other * self.electrostatic_coeffs
+            field_copy.magnetostatic_coeffs = other * self.magnetostatic_coeffs
             return field_copy
         else:
             return super().__mul__(other)
@@ -935,7 +943,7 @@ class FieldRadialAxial(FieldAxial):
         assert point.shape == (3,), "Please supply a three dimensional point"
         return backend.potential_radial_derivs(point, self.z, self.magnetostatic_coeffs)
     
-    def get_tracer(self, bounds: BoundsLike3D) -> Tracer:
+    def get_tracer(self, bounds: BoundsLike3D) -> T.Tracer:
         return T.Tracer(self, bounds)
     
     def get_low_level_trace_function(self) -> tuple[Callable, Any]:
