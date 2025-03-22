@@ -4,6 +4,7 @@ Module containing a single function to find the focus of a beam of electron traj
 from __future__ import annotations
 import numpy as np
 
+from .geometry import Path
 from .typing import * 
 
 def focus_position(trajectories: list[Path]) -> Point3D:

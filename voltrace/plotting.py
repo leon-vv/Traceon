@@ -19,6 +19,7 @@ import vedo.colors
 
 from . import backend
 
+from .geometry import Path
 from .typing import *
 
 _current_figures = []
