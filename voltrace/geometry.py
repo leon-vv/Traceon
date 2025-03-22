@@ -66,13 +66,13 @@ class Path(GeometricObject):
             parameter_max: float,
             breakpoints: list[float] | None = None, 
             name: str | None = None,
-            velocity: Callable[[float], Point3D] | None = None) -> None:
+            velocity: Callable[[float], Vector3D] | None = None) -> None:
         
         # Assumption: fun takes in p, the path length
         # and returns the point on the path
         self.fun = lambda u: np.array(fun(u), dtype=np.float64) # Ensure it returns Numpy arrays
         
-        self.velocity: Callable[[float], Point3D] = self._velocity_from_path
+        self.velocity: Callable[[float], Vector3D] = self._velocity_from_path
         
         if velocity is not None:
             assert callable(velocity), 'Velocity passed in to Path should be callable'
@@ -421,7 +421,7 @@ class Path(GeometricObject):
         
         return Path(f, parameter_max)
 
-    def sample(self, N=500) -> tuple[ArrayFloat1D, ArrayFloat1D]:
+    def sample(self, N: int = 500) -> tuple[ArrayFloat1D, ArrayFloat1D]:
         u = np.linspace(0, self.parameter_max, N)
         return u, np.array([self.fun(u_) for u_ in u], dtype=np.float64)
     
